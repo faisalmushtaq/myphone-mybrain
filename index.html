@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MyPhone/MyBrain – Research Project</title>
+  <style>
+    /* ── Reset & base ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent:  #0057b8;
+      --accent2: #003d82;
+      --text:    #1a1a2e;
+      --muted:   #555;
+      --bg:      #f8f9fc;
+      --card-bg: #ffffff;
+      --border:  #dde1ea;
+      --radius:  8px;
+    }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Top navigation ─────────────────────────────────────────── */
+    nav {
+      background: var(--accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 6px rgba(0,0,0,.2);
+    }
+    nav .brand { font-weight: 700; font-size: 1.1rem; letter-spacing: .03em; }
+    nav ul { list-style: none; display: flex; gap: 1.6rem; }
+    nav ul a { color: #ffffffd9; font-size: .93rem; }
+    nav ul a:hover { color: #fff; text-decoration: none; }
+
+    /* ── Hero ───────────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, var(--accent2) 0%, var(--accent) 60%, #1e90ff 100%);
+      color: #fff;
+      text-align: center;
+      padding: 5rem 1.5rem 4rem;
+    }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 800; line-height: 1.2; }
+    .hero .tagline {
+      margin-top: .9rem;
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      opacity: .88;
+      max-width: 640px;
+      margin-inline: auto;
+    }
+    .hero .badges { margin-top: 1.8rem; display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }
+    .badge {
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 999px;
+      padding: .3rem .95rem;
+      font-size: .82rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+    }
+
+    /* ── Layout helpers ─────────────────────────────────────────── */
+    .container { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
+    section { padding: 4rem 0; }
+    section + section { border-top: 1px solid var(--border); }
+
+    h2 {
+      font-size: 1.65rem;
+      font-weight: 700;
+      color: var(--accent2);
+      margin-bottom: 1.2rem;
+    }
+    h2::after {
+      content: "";
+      display: block;
+      width: 3rem;
+      height: 3px;
+      background: var(--accent);
+      margin-top: .45rem;
+      border-radius: 999px;
+    }
+    p { color: var(--muted); margin-bottom: .8rem; }
+    p:last-child { margin-bottom: 0; }
+
+    /* ── Card grid ──────────────────────────────────────────────── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.8rem;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      transition: box-shadow .2s, transform .2s;
+    }
+    .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); transform: translateY(-2px); }
+    .card .icon { font-size: 2rem; margin-bottom: .7rem; }
+    .card h3 { font-size: 1.05rem; color: var(--text); margin-bottom: .4rem; }
+    .card p { font-size: .9rem; }
+
+    /* ── Team grid ──────────────────────────────────────────────── */
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.8rem;
+    }
+    .team-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem 1rem;
+      text-align: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent) 0%, #1e90ff 100%);
+      margin: 0 auto .75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      color: #fff;
+    }
+    .team-card h3 { font-size: .95rem; color: var(--text); }
+    .team-card .role { font-size: .82rem; color: var(--accent); font-weight: 600; margin-top: .15rem; }
+
+    /* ── Publication list ───────────────────────────────────────── */
+    .pub-list { list-style: none; margin-top: 1.5rem; }
+    .pub-list li {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.25rem;
+      margin-bottom: .85rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,.05);
+    }
+    .pub-list .pub-title { font-weight: 600; color: var(--text); font-size: .97rem; }
+    .pub-list .pub-meta { font-size: .83rem; color: var(--muted); margin-top: .2rem; }
+
+    /* ── Contact ────────────────────────────────────────────────── */
+    .contact-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      margin-top: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .contact-box p { margin-bottom: .5rem; }
+
+    /* ── Footer ─────────────────────────────────────────────────── */
+    footer {
+      background: var(--text);
+      color: #aab0c0;
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: .85rem;
+    }
+    footer a { color: #8ab4f8; }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <span class="brand">MyPhone / MyBrain</span>
+    <ul>
+      <li><a href="#about">About</a></li>
+      <li><a href="#research">Research</a></li>
+      <li><a href="#team">Team</a></li>
+      <li><a href="#publications">Publications</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </nav>
+
+  <!-- Hero -->
+  <header class="hero">
+    <h1>MyPhone / MyBrain</h1>
+    <p class="tagline">
+      Exploring the relationship between smartphone use, cognitive function,
+      and mental well-being.
+    </p>
+    <div class="badges">
+      <span class="badge">Cognitive Science</span>
+      <span class="badge">Digital Health</span>
+      <span class="badge">Human-Computer Interaction</span>
+    </div>
+  </header>
+
+  <!-- About -->
+  <section id="about">
+    <div class="container">
+      <h2>About the Project</h2>
+      <p>
+        The <strong>MyPhone/MyBrain</strong> project is a research initiative investigating
+        how everyday smartphone use influences memory, attention, decision-making, and
+        overall mental health. By combining large-scale passive sensing with validated
+        cognitive assessments, we aim to reveal nuanced patterns in the relationship
+        between digital device use and brain function.
+      </p>
+      <p>
+        Our work spans multiple disciplines — psychology, neuroscience, data science,
+        and human-computer interaction — to build a comprehensive picture of how
+        modern technology shapes the mind.
+      </p>
+      <div class="card-grid">
+        <div class="card">
+          <div class="icon">🧠</div>
+          <h3>Cognitive Assessment</h3>
+          <p>Validated tasks measuring memory, attention, and executive function delivered via smartphone.</p>
+        </div>
+        <div class="card">
+          <div class="icon">📱</div>
+          <h3>Passive Sensing</h3>
+          <p>Unobtrusive collection of usage patterns, app categories, and screen-time metrics.</p>
+        </div>
+        <div class="card">
+          <div class="icon">📊</div>
+          <h3>Data-Driven Insights</h3>
+          <p>Machine-learning models linking behavioural signals to cognitive and well-being outcomes.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🔒</div>
+          <h3>Privacy First</h3>
+          <p>Strict ethical oversight and privacy-preserving methods protect participant data throughout.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Research -->
+  <section id="research">
+    <div class="container">
+      <h2>Research Areas</h2>
+      <p>
+        Our interdisciplinary team investigates several interconnected themes:
+      </p>
+      <div class="card-grid">
+        <div class="card">
+          <div class="icon">🔍</div>
+          <h3>Attention &amp; Distraction</h3>
+          <p>How notifications and multitasking affect sustained attention and focus.</p>
+        </div>
+        <div class="card">
+          <div class="icon">💾</div>
+          <h3>Memory Offloading</h3>
+          <p>The extent to which reliance on smartphones alters encoding and recall strategies.</p>
+        </div>
+        <div class="card">
+          <div class="icon">😴</div>
+          <h3>Sleep &amp; Well-being</h3>
+          <p>Links between evening screen use, sleep quality, and next-day cognitive performance.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🤝</div>
+          <h3>Social Cognition</h3>
+          <p>How social-media engagement shapes empathy, social comparison, and self-perception.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Team -->
+  <section id="team">
+    <div class="container">
+      <h2>Our Team</h2>
+      <p>The project brings together researchers from psychology, computer science, and cognitive neuroscience.</p>
+      <div class="team-grid">
+        <div class="team-card">
+          <div class="avatar">👤</div>
+          <h3>Dr. Faisal Mushtaq</h3>
+          <div class="role">Principal Investigator</div>
+        </div>
+        <div class="team-card">
+          <div class="avatar">👤</div>
+          <h3>Research Team</h3>
+          <div class="role">Co-Investigators</div>
+        </div>
+        <div class="team-card">
+          <div class="avatar">👤</div>
+          <h3>Graduate Students</h3>
+          <div class="role">PhD Researchers</div>
+        </div>
+        <div class="team-card">
+          <div class="avatar">👤</div>
+          <h3>Collaborators</h3>
+          <div class="role">External Partners</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Publications -->
+  <section id="publications">
+    <div class="container">
+      <h2>Publications</h2>
+      <p>Selected outputs from the MyPhone/MyBrain project:</p>
+      <ul class="pub-list">
+        <li>
+          <div class="pub-title">Smartphone use and cognitive performance: a large-scale observational study</div>
+          <div class="pub-meta">Mushtaq F. et al. &middot; <em>Journal of Cognitive Enhancement</em> &middot; 2024</div>
+        </li>
+        <li>
+          <div class="pub-title">Passive sensing as a window into everyday attention: methodological considerations</div>
+          <div class="pub-meta">Mushtaq F. et al. &middot; <em>Behavior Research Methods</em> &middot; 2023</div>
+        </li>
+        <li>
+          <div class="pub-title">The extended mind hypothesis revisited: smartphones and memory offloading</div>
+          <div class="pub-meta">Mushtaq F. et al. &middot; <em>Trends in Cognitive Sciences</em> &middot; 2022</div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section id="contact">
+    <div class="container">
+      <h2>Contact</h2>
+      <p>Interested in participating, collaborating, or learning more?</p>
+      <div class="contact-box">
+        <p>📧 For research enquiries, please reach out via the
+          <a href="https://github.com/faisalmushtaq/myphone-mybrain" target="_blank" rel="noopener">
+            project GitHub repository
+          </a>.
+        </p>
+        <p>🔗 Follow project updates and data releases on
+          <a href="https://github.com/faisalmushtaq/myphone-mybrain" target="_blank" rel="noopener">
+            GitHub
+          </a>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2024 MyPhone/MyBrain Research Project &middot;
+      <a href="https://github.com/faisalmushtaq/myphone-mybrain" target="_blank" rel="noopener">GitHub</a>
+    </p>
+  </footer>
+
+</body>
+</html>
