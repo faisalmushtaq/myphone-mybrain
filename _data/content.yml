@@ -1,0 +1,37 @@
+hero:
+  badge: "School-based research on digital technology and brain development"
+  cta_primary: "Register school interest"
+  cta_secondary: "What participation involves"
+
+about: |
+  **MyPhone/MyBrain** is a research project exploring how adolescents' digital lives relate to brain development, mental health, behaviour and learning. The project brings together school-based EEG, carefully designed cognitive and behavioural tasks, and optional smartphone data donation to build a richer picture of young people's everyday digital experiences.
+
+  The study is designed for schools and young people. Our aim is not to blame phones, screens or social media, but to understand when, how and for whom different patterns of digital technology use may matter. By working directly with schools, teachers, parents and pupils, we hope to produce evidence that is useful for education, health and family decision-making.
+
+  The project is led by Professor Faisal Mushtaq at the University of Leeds and is funded by the Huo Family Foundation.
+
+why_it_matters: |
+  Public debate about smartphones and young people's mental health often moves faster than the evidence. Many studies rely on self-report questionnaires, cross-sectional snapshots or broad measures of screen time. MyPhone/MyBrain takes a more detailed approach by combining measures of brain function, behaviour, wellbeing and digital activity within a school-friendly research design.
+
+  The project will help us ask whether different patterns of digital engagement are linked with adolescent brain development, whether these associations vary across young people and contexts, and how schools and families can be supported with clearer evidence.
+
+participation_intro: |
+  We are particularly keen to hear from schools that have been invited to take part, or teachers and school leaders interested in learning more about the study. Participation is designed to be practical for schools and age-appropriate for young people.
+
+process_intro: |
+  The study is delivered through school-based sessions. The exact arrangements will be agreed with each school, but the overall model is designed to minimise disruption while giving pupils a meaningful opportunity to contribute to research.
+
+signup:
+  title: "Register your school's interest"
+  intro: |
+    Teachers and school leaders can use this form to contact the research team. The form opens a pre-filled email so that no pupil information is collected through the website. Please only include school-level contact details at this stage.
+  email: "myphone-mybrain@leeds.ac.uk"
+  privacy_note: "Please do not include pupil names or individual pupil information in this expression of interest. The research team will provide the appropriate participant information sheets, consent materials and data protection information before any school joins the study."
+
+contact: |
+  For enquiries about the project, school participation or parent/carer information, please contact the MyPhone/MyBrain team at [myphone-mybrain@leeds.ac.uk](mailto:myphone-mybrain@leeds.ac.uk).
+
+  The project is based in the School of Psychology, Faculty of Medicine and Health, University of Leeds, United Kingdom.
+
+funding_acknowledgement: |
+  MyPhone/MyBrain is funded by the **Huo Family Foundation**. The project is delivered by the University of Leeds in collaboration with school and community partners.
