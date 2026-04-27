@@ -1,0 +1,19 @@
+<section id="faq" class="section section-light">
+  <div class="container faq-layout">
+    <div class="reveal">
+      <p class="section-kicker">Questions</p>
+      <h2>Information for schools and families.</h2>
+      <p class="section-subtitle">These answers can be edited in `_data/faqs.yml` as the study materials are finalised.</p>
+    </div>
+    <div class="faq-list">
+      {% for item in site.data.faqs %}
+      <details class="faq-item reveal">
+        <summary>{{ item.question }}</summary>
+        <div class="prose">
+          {{ item.answer | markdownify }}
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
