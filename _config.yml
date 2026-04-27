@@ -1,0 +1,18 @@
+title: "MyPhone/MyBrain"
+tagline: "Understanding how digital technology, everyday experience and adolescent brain development fit together."
+email: "myphone-mybrain@leeds.ac.uk"
+
+baseurl: "/myphone-mybrain"
+url: "https://faisalmushtaq.github.io"
+
+markdown: kramdown
+permalink: pretty
+
+plugins: []
+
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
