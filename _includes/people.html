@@ -1,0 +1,30 @@
+<section id="team" class="section section-light">
+  <div class="container">
+    <div class="reveal section-heading">
+      <p class="section-kicker">Project team</p>
+      <h2>Led by the University of Leeds.</h2>
+      <p class="section-subtitle">Add named researchers, school engagement staff and collaborators in `_data/people.yml` as the project grows.</p>
+    </div>
+    <div class="people-grid">
+      {% for person in site.data.people %}
+      <article class="person-card reveal">
+        <div class="person-image">
+          <img src="{{ site.baseurl }}/assets/images/people/{{ person.image }}" alt="{{ person.name }}">
+        </div>
+        <div class="person-info">
+          <p class="role">{{ person.role }}</p>
+          <h3>{{ person.name }}</h3>
+          <p class="bio">{{ person.bio }}</p>
+          {% if person.links and person.links.size > 0 %}
+          <div class="links">
+            {% for link in person.links %}
+            <a href="{{ link.url }}" target="_blank" rel="noopener">{{ link.label }}</a>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
