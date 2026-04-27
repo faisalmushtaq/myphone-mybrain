@@ -1,0 +1,15 @@
+partners:
+  - name: "University of Leeds"
+    category: "Lead institution"
+    description: "The project is led from the School of Psychology at the University of Leeds."
+    url: "https://www.leeds.ac.uk/"
+  - name: "Schools and community partners"
+    category: "Participation partners"
+    description: "Participating schools help shape a practical, respectful and age-appropriate approach to research with young people."
+    url: "#signup"
+
+funders:
+  - name: "Huo Family Foundation"
+    category: "Funder"
+    description: "MyPhone/MyBrain is funded by the Huo Family Foundation."
+    url: "https://huofamilyfoundation.org/"
