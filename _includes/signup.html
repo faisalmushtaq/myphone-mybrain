@@ -1,0 +1,60 @@
+<section id="signup" class="section signup-section">
+  <div class="container signup-layout">
+    <div class="signup-copy reveal">
+      <p class="section-kicker">For schools</p>
+      <h2>{{ site.data.content.signup.title }}</h2>
+      <div class="prose">
+        {{ site.data.content.signup.intro | markdownify }}
+      </div>
+      <p class="privacy-note">{{ site.data.content.signup.privacy_note }}</p>
+    </div>
+
+    <form class="signup-form reveal" id="school-interest-form" data-recipient="{{ site.data.content.signup.email }}">
+      <label>
+        School name
+        <input type="text" name="school" autocomplete="organization" required>
+      </label>
+
+      <label>
+        Contact name
+        <input type="text" name="name" autocomplete="name" required>
+      </label>
+
+      <label>
+        Role in school
+        <input type="text" name="role" placeholder="e.g. Headteacher, science lead, pastoral lead" required>
+      </label>
+
+      <label>
+        Email address
+        <input type="email" name="email" autocomplete="email" required>
+      </label>
+
+      <label>
+        Phone number <span>optional</span>
+        <input type="tel" name="phone" autocomplete="tel">
+      </label>
+
+      <label>
+        Local authority / area <span>optional</span>
+        <input type="text" name="area" placeholder="e.g. Bradford, Leeds, West Yorkshire">
+      </label>
+
+      <fieldset>
+        <legend>What would you like to discuss?</legend>
+        <label class="checkbox"><input type="checkbox" name="interest" value="Initial conversation"> Initial conversation</label>
+        <label class="checkbox"><input type="checkbox" name="interest" value="Taking part this academic year"> Taking part this academic year</label>
+        <label class="checkbox"><input type="checkbox" name="interest" value="Information for parents or carers"> Information for parents or carers</label>
+        <label class="checkbox"><input type="checkbox" name="interest" value="Research workshop or assembly"> Research workshop or assembly</label>
+      </fieldset>
+
+      <label>
+        Anything else the team should know?
+        <textarea name="message" rows="5" placeholder="Please do not include pupil names or personal pupil information."></textarea>
+      </label>
+
+      <button type="submit">Create email to the project team</button>
+      <p class="form-help">The button opens your email client with the details pre-filled. You can review the message before sending.</p>
+    </form>
+  </div>
+</section>
