@@ -1,0 +1,34 @@
+<section id="partners" class="section">
+  <div class="container">
+    <div class="reveal section-heading">
+      <p class="section-kicker">Partners and funding</p>
+      <h2>Funded by the Huo Family Foundation.</h2>
+      <div class="prose">
+        {{ site.data.content.funding_acknowledgement | markdownify }}
+      </div>
+    </div>
+
+    <div class="project-grid">
+      {% for partner in site.data.partners.partners %}
+      <article class="project-card reveal">
+        <div class="project-card-body">
+          <div class="project-card-label">{{ partner.category }}</div>
+          <h3>{{ partner.name }}</h3>
+          <p>{{ partner.description }}</p>
+          <a href="{{ partner.url }}" class="project-card-arrow" target="_blank" rel="noopener">Learn more &nbsp;&rarr;</a>
+        </div>
+      </article>
+      {% endfor %}
+      {% for funder in site.data.partners.funders %}
+      <article class="project-card reveal funder-card">
+        <div class="project-card-body">
+          <div class="project-card-label">{{ funder.category }}</div>
+          <h3>{{ funder.name }}</h3>
+          <p>{{ funder.description }}</p>
+          <a href="{{ funder.url }}" class="project-card-arrow" target="_blank" rel="noopener">Funder website &nbsp;&rarr;</a>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
