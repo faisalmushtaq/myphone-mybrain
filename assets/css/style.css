@@ -101,8 +101,8 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 
 /* ── 3. Typography ────────────────────────────────────────── */
 h1, h2, h3, h4 {
-  font-family: var(--f-head);
-  font-weight: 400;
+  font-family: var(--f-body);
+  font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.02em;
   color: var(--c-text);
@@ -245,36 +245,49 @@ strong { font-weight: 600; color: var(--c-text); }
 }
 
 /* ── 6. Header / Nav ──────────────────────────────────────── */
+
+/* All sections with anchor IDs get scroll-margin so fixed header
+   doesn't cover their headings when navigating via links */
+section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
+
 .site-header {
   position: fixed;
   top: 0;
-  inset-inline: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
   height: var(--nav-h);
   display: flex;
   align-items: center;
+  /* Always frosted — readable against any background */
+  background: rgba(7,2,26,.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255,255,255,.06);
   transition: background 0.3s, box-shadow 0.3s;
 }
 
 .site-header.scrolled {
-  background: rgba(7,2,26,.92);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 1px 0 rgba(255,255,255,.06);
+  background: rgba(7,2,26,.96);
+  box-shadow: 0 1px 0 rgba(255,255,255,.07);
 }
 
 .header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
   width: 100%;
 }
 
 .logo {
-  font-family: var(--f-head);
-  font-size: 1.15rem;
-  font-weight: 400;
+  font-family: var(--f-body);
+  font-size: 1rem;
+  font-weight: 700;
   color: #fff;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .logo:hover { color: var(--c-lavender); }
@@ -282,14 +295,16 @@ strong { font-weight: 600; color: var(--c-text); }
 .nav {
   display: flex;
   align-items: center;
-  gap: clamp(1rem, 2.5vw, 2rem);
+  gap: clamp(0.75rem, 1.8vw, 1.75rem);
+  flex-wrap: nowrap;
 }
 
 .nav a {
-  font-size: var(--step--1);
+  font-size: 0.8125rem;
   font-weight: 500;
-  color: rgba(255,255,255,.75);
+  color: rgba(255,255,255,.72);
   transition: color 0.2s;
+  white-space: nowrap;
 }
 
 .nav a:hover { color: #fff; }
@@ -297,10 +312,12 @@ strong { font-weight: 600; color: var(--c-text); }
 .nav-cta {
   background: var(--c-coral);
   color: #fff !important;
-  padding: 0.5rem 1.1rem;
+  padding: 0.45rem 1rem;
   border-radius: 100px;
+  font-size: 0.8125rem;
   font-weight: 600 !important;
-  transition: background 0.2s, transform 0.2s !important;
+  transition: background 0.2s, transform 0.2s var(--ease-spring) !important;
+  flex-shrink: 0;
 }
 
 .nav-cta:hover {
@@ -311,11 +328,12 @@ strong { font-weight: 600; color: var(--c-text); }
 .menu-toggle {
   display: none;
   color: #fff;
-  font-size: var(--step-0);
-  font-weight: 500;
-  padding: 0.4rem 0.75rem;
-  border: 1.5px solid rgba(255,255,255,.2);
-  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+  border: 1.5px solid rgba(255,255,255,.25);
+  border-radius: 8px;
+  flex-shrink: 0;
 }
 
 /* ── 7. Hero ──────────────────────────────────────────────── */
@@ -861,6 +879,54 @@ strong { font-weight: 600; color: var(--c-text); }
   border-color: var(--c-violet);
 }
 
+/* Co-investigators */
+.co-investigators {
+  margin-top: clamp(3rem, 6vw, 5rem);
+  padding-top: clamp(2rem, 4vw, 3rem);
+  border-top: 1px solid var(--c-border);
+}
+
+.co-investigators h3 {
+  font-size: var(--step-1);
+  margin-bottom: 1.5rem;
+  color: var(--c-text);
+}
+
+.co-i-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.co-i-card {
+  padding: 1.1rem 1.25rem;
+  background: var(--c-bg-alt);
+  border: 1.5px solid var(--c-border);
+  border-radius: var(--r-lg);
+}
+
+.co-i-name {
+  font-weight: 700;
+  font-size: var(--step-0);
+  color: var(--c-text);
+  margin-bottom: 0.2rem;
+  max-width: none;
+}
+
+.co-i-role {
+  font-size: var(--step--1);
+  color: var(--c-violet);
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+  max-width: none;
+}
+
+.co-i-affil {
+  font-size: var(--step--1);
+  color: var(--c-muted);
+  max-width: none;
+}
+
 /* ── 12. Partners ─────────────────────────────────────────── */
 .project-grid {
   display: grid;
@@ -1044,8 +1110,9 @@ strong { font-weight: 600; color: var(--c-text); }
 }
 
 .footer-brand {
-  font-family: var(--f-head);
+  font-family: var(--f-body);
   font-size: 1.05rem;
+  font-weight: 700;
   color: rgba(255,255,255,.55);
 }
 
@@ -1108,26 +1175,28 @@ strong { font-weight: 600; color: var(--c-text); }
   .footer-meta  { text-align: left; }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 840px) {
   .nav { display: none; }
   .nav.open {
     display: flex;
     flex-direction: column;
     position: fixed;
     top: 0;
-    inset-inline: 0;
+    left: 0;
+    right: 0;
     bottom: 0;
     background: rgba(7,2,26,.97);
     backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     align-items: center;
     justify-content: center;
     gap: 2rem;
-    z-index: 50;
+    z-index: 99;
   }
   .nav.open a { font-size: var(--step-2); color: rgba(255,255,255,.8); }
-  .nav.open .nav-cta { padding: 0.75rem 2rem; }
+  .nav.open .nav-cta { padding: 0.75rem 2rem; font-size: var(--step-1); }
   .menu-toggle { display: block; position: relative; z-index: 101; }
-  .menu-toggle[aria-expanded="true"] { color: rgba(255,255,255,.5); }
+  .menu-toggle[aria-expanded="true"] { border-color: rgba(255,255,255,.1); color: rgba(255,255,255,.5); }
 
   .field-row { grid-template-columns: 1fr; }
   .checkbox-grid { grid-template-columns: 1fr; }

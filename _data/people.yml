@@ -1,17 +1,100 @@
 - name: "Professor Faisal Mushtaq"
   role: "Principal Investigator"
   bio: |
-    Faisal leads the MyPhone/MyBrain project. His research focuses on scalable approaches to cognitive science, brain health, digital technology and school-based research with young people.
-  image: "placeholder.svg"
+    Faisal leads MyPhone/MyBrain. His research focuses on scalable, open approaches to brain-data science, linking large-scale experimental studies with population health data.
+  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/faisal_mushtaq.jpg"
   links:
     - label: "University profile"
       url: "https://medicinehealth.leeds.ac.uk/psychology/staff/632/professor-faisal-mushtaq"
+    - label: "Google Scholar"
+      url: "https://scholar.google.com/citations?user=bcjpWSwAAAAJ&hl=en"
 
-- name: "Research team"
-  role: "University of Leeds"
+- name: "Dr Sarmad Ali"
+  role: "Project Manager"
   bio: |
-    The wider team includes research assistants, school engagement coordinators, and data scientists who support every stage of the project — from school conversations through to analysis and dissemination.
-  image: "placeholder.svg"
+    Sarmad manages project operations, timelines and partnerships across MyPhone/MyBrain, bringing extensive experience in coordinating complex multi-site research programmes.
+  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/sarmad_ali.png"
   links:
-    - label: "Contact the team"
+    - label: "Contact"
       url: "mailto:myphone-mybrain@leeds.ac.uk"
+
+- name: "Dr Olivia Jones"
+  role: "Researcher"
+  bio: |
+    Olivia contributes to research on cognitive development and EEG methods across diverse populations, supporting the school-based data collection programme.
+  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/olivia_jones.jpg"
+  links: []
+
+- name: "Dr Jasper van den Bosch"
+  role: "Postdoctoral Researcher"
+  bio: |
+    Jasper specialises in EEG signal processing and reproducibility, building the open-science data infrastructure that underpins the project's large-scale analyses.
+  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/jasper_van_den_bosch.jpg"
+  links:
+    - label: "Google Scholar"
+      url: "https://scholar.google.com/citations?user=XQ3-JHgAAAAJ"
+
+- name: "Dr Dominik Welke"
+  role: "Postdoctoral Researcher"
+  bio: |
+    Dominik develops robust, scalable methods for multi-site neuroimaging studies, contributing to the computational and data-science foundations of the project.
+  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/dominik_welke.jpg"
+  links:
+    - label: "Google Scholar"
+      url: "https://scholar.google.com/citations?user=B5xCyM0AAAAJ"
+
+- name: "Dr Layla Kouara"
+  role: "Research Software Engineer"
+  bio: |
+    Layla develops and maintains the open-source software tools for EEG data processing and analysis that support reproducible, large-scale research across the project.
+  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/layla_kouara.jpg"
+  links: []
+
+- name: "Kate Hiley"
+  role: "PhD Researcher"
+  bio: |
+    Kate uses school-based and community EEG to improve the accessibility and inclusivity of neuroscience research with young people.
+  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/kate_hiley.jpg"
+  links:
+    - label: "ORCiD"
+      url: "https://orcid.org/0009-0000-1824-3850"
+
+- name: "Miftah Faizah"
+  role: "PhD Researcher"
+  bio: |
+    Miftah studies adolescent mental health using EEG, focusing on neural markers of mental health symptoms and the relationship between brain activity and social media use.
+  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/miftah_faizah.jpg"
+  links:
+    - label: "Webpage"
+      url: "https://miftahfai.github.io/"
+
+co_investigators:
+  - name: "Ms Zarina Mirza"
+    role: "Co-Investigator"
+    affiliation: "Born in Bradford"
+    focus: "Large-scale school studies"
+
+  - name: "Dr Amy Bland"
+    role: "Co-Investigator"
+    affiliation: "University of Leeds"
+    focus: "Developmental and social neuroscience"
+
+  - name: "Dr Emmanuele Tidoni"
+    role: "Co-Investigator"
+    affiliation: "University of Leeds"
+    focus: "Developmental and social neuroscience"
+
+  - name: "Professor Mahnaz Arvaneh"
+    role: "Co-Investigator"
+    affiliation: "University of Sheffield"
+    focus: "Machine learning"
+
+  - name: "Dr David Zendle"
+    role: "Co-Investigator"
+    affiliation: "University of York"
+    focus: "Digital data donation"
+
+  - name: "Professor Mark Mon-Williams"
+    role: "Co-Investigator"
+    affiliation: "University of Leeds"
+    focus: "Education policy and Connected Bradford"

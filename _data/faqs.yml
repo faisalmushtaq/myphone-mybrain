@@ -1,43 +1,47 @@
-- question: "Who is this research for?"
+- question: "Which schools can take part?"
   answer: |
-    The study is designed for secondary school pupils aged roughly 11–18. We work through schools, so if your school is invited to take part, the research team will share information with teachers, parents and pupils directly. Parents, carers and young people who have questions are also welcome to contact us.
+    We are currently recruiting secondary schools in **Bradford and Leeds only**. If your school is in one of these areas and you would like to discuss involvement, please use the sign-up form on this page. We hope to expand to other areas in future phases of the project.
+
+- question: "Who is the research for?"
+  answer: |
+    The study is designed for secondary school pupils, broadly in the 11–18 age range. We work through schools, so if your school is invited or expresses interest, the research team will share information with teachers, parents and pupils directly. Parents, carers and young people with questions are also welcome to contact us.
 
 - question: "What will pupils be asked to do?"
   answer: |
-    Research sessions take place in school and are delivered by University of Leeds researchers. Activities may include age-appropriate cognitive tasks on a computer, wellbeing and behaviour questionnaires, EEG brain recording, and the option to donate a snapshot of smartphone usage data. Nothing is compulsory — pupils can choose which parts they are comfortable taking part in.
+    Pupils are invited to take part in two workshops. The **MyPhone** workshop involves securely donating a snapshot of social media usage data (timing, interaction patterns and content exposure). The **MyBrain** workshop involves wearing an EEG cap while resting and completing short cognitive tasks on a computer. Nothing is compulsory — pupils can choose which parts they take part in, and can withdraw at any time.
 
-- question: "How long does a session take?"
+- question: "How long do the workshops take?"
   answer: |
-    Sessions typically take between one and two hours. The exact arrangements will be agreed with each school. We always aim to minimise disruption to the school day and are happy to be flexible around timetables and exam periods.
+    Each workshop typically takes between 45 minutes and an hour and a half. The exact arrangements will be agreed with each school and we always work around timetables and exam periods. Sessions are run by trained University of Leeds researchers who bring all equipment to school.
 
 - question: "What is EEG, and is it safe?"
   answer: |
-    EEG (electroencephalography) is a safe, non-invasive method for recording electrical activity from the scalp using small sensors placed on the surface of the head. It does not read thoughts, it does not put electricity into the brain, and it is entirely painless. EEG has been used in research with children and young people for many decades.
+    EEG (electroencephalography) is a safe, non-invasive method for recording electrical activity from the scalp using small sensors placed on the surface of the head. It does not read thoughts, it does not put electricity into the brain, and it is entirely painless. EEG has been used safely in research with children and young people for many decades.
 
 - question: "Do pupils have to share their phone data?"
   answer: |
-    No. Smartphone data donation is entirely optional and is only one of several research methods used in the study. If pupils or their parents prefer not to take part in this element, they can still participate in all other parts of the session. Full information on exactly what data would be collected, how it is stored, and who can access it will be provided before any consent is sought.
+    No. The MyPhone workshop and smartphone data donation are entirely optional. Pupils can take part in the MyBrain workshop only, or decline individual elements, without affecting their participation in the rest of the project. Full information on what data would be collected, how it is stored, and who can access it will be provided before any consent is sought.
 
 - question: "What happens to the data?"
   answer: |
-    All data is collected, stored and processed in accordance with University of Leeds data-protection policies and UK GDPR requirements. Data is anonymised before analysis. Only the named research team has access to identifiable data, and nothing is shared with third parties without explicit consent.
+    All data is collected, stored and processed in accordance with University of Leeds data-protection policies and UK GDPR requirements. Data is anonymised before analysis, and only the named research team has access to identifiable information. Selected data will be linked, with appropriate permissions, to health and education records through the **Connected Bradford** data platform. Nothing is shared with commercial third parties.
 
-- question: "Does the school need to do much to organise this?"
+- question: "What is Connected Bradford?"
   answer: |
-    We try to keep the organisational burden on schools as low as possible. The research team handles the logistics — setting up equipment, running sessions, and managing all participant communication. Schools need to provide a suitable room, help identify appropriate year groups, and distribute information to parents and carers. We discuss all of this before agreeing to proceed.
+    Connected Bradford is a research platform that links routinely collected health, education and social care records for people in Bradford and Leeds. Linking project data to these records allows us to examine relationships between digital behaviour, brain function and real-world outcomes such as academic attainment and mental health service use. Linking takes place under strict governance and with appropriate ethical approvals.
 
-- question: "Can parents or carers refuse to let their child take part?"
+- question: "Can parents or carers refuse?"
   answer: |
     Yes, absolutely. Participation requires informed consent from parents or carers and from the young person themselves. No pupil will take part without the appropriate permissions, and any pupil can withdraw at any time without giving a reason.
 
-- question: "Will there be any benefits for the school?"
+- question: "Will there be benefits for the school?"
   answer: |
-    Schools that participate can request a presentation of accessible findings relevant to their pupils and community. We also aim to provide workshop or assembly sessions that help young people understand brain science and research methods. We see school partnerships as a genuine collaboration, not just a data source.
+    Schools that participate can request a session where the research team shares accessible findings relevant to their pupils and community. We also aim to deliver workshop or assembly sessions that help young people understand brain science and research methods. We see school partnerships as genuine collaborations. Schools in Bradford and Leeds are central to the project, not just data sources.
 
-- question: "Who funds the project?"
+- question: "How is the project funded?"
   answer: |
-    MyPhone/MyBrain is funded by the Huo Family Foundation and led by the University of Leeds.
+    MyPhone/MyBrain is funded by the Huo Family Foundation and led by the University of Leeds, in collaboration with Born in Bradford and a range of academic co-investigators spanning developmental neuroscience, machine learning, digital data science and education policy.
 
 - question: "How can my school get involved?"
   answer: |
-    Teachers or school leaders can use the sign-up form on this website. The form creates a pre-filled email to the research team and should only include school-level contact details at this stage. We will respond to discuss next steps.
+    Teachers or school leaders at schools in Bradford or Leeds can use the sign-up form on this website to contact the team. The form creates a pre-filled email and should only include school-level contact details at this stage. We will respond to discuss next steps — there is no obligation to proceed.

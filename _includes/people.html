@@ -3,13 +3,19 @@
     <div class="reveal section-heading">
       <p class="section-kicker">Project team</p>
       <h2>Led by the University of Leeds.</h2>
-      <p class="section-subtitle">Add named researchers, school engagement staff and collaborators in `_data/people.yml` as the project grows.</p>
+      <p class="section-subtitle">The project brings together developmental neuroscience, data science, machine learning and implementation science.</p>
     </div>
+
     <div class="people-grid">
       {% for person in site.data.people %}
+      {% unless person.co_investigators %}
       <article class="person-card reveal">
         <div class="person-image">
-          <img src="{{ site.baseurl }}/assets/images/people/{{ person.image }}" alt="{{ person.name }}">
+          {% if person.image contains "://" %}
+            <img src="{{ person.image }}" alt="{{ person.name }}" loading="lazy">
+          {% else %}
+            <img src="{{ site.baseurl }}/assets/images/people/{{ person.image }}" alt="{{ person.name }}" loading="lazy">
+          {% endif %}
         </div>
         <div class="person-info">
           <p class="role">{{ person.role }}</p>
@@ -18,13 +24,27 @@
           {% if person.links and person.links.size > 0 %}
           <div class="links">
             {% for link in person.links %}
-            <a href="{{ link.url }}" target="_blank" rel="noopener">{{ link.label }}</a>
+            <a href="{{ link.url }}" {% unless link.url contains "mailto" %}target="_blank" rel="noopener"{% endunless %}>{{ link.label }}</a>
             {% endfor %}
           </div>
           {% endif %}
         </div>
       </article>
+      {% endunless %}
       {% endfor %}
+    </div>
+
+    <div class="co-investigators reveal">
+      <h3>Co-investigators</h3>
+      <div class="co-i-grid">
+        {% for ci in site.data.people.co_investigators %}
+        <div class="co-i-card">
+          <p class="co-i-name">{{ ci.name }}</p>
+          <p class="co-i-role">{{ ci.focus }}</p>
+          <p class="co-i-affil">{{ ci.affiliation }}</p>
+        </div>
+        {% endfor %}
+      </div>
     </div>
   </div>
 </section>
