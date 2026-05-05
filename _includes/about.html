@@ -6,6 +6,15 @@
       <div class="prose">
         {{ site.data.content.about | markdownify }}
       </div>
+
+      <div class="stat-row reveal">
+        {% for stat in site.data.content.stats %}
+        <div class="stat-item">
+          <strong>{{ stat.value }}</strong>
+          <span>{{ stat.label }}</span>
+        </div>
+        {% endfor %}
+      </div>
     </div>
   </div>
 </section>

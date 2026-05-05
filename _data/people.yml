@@ -1,17 +1,17 @@
 - name: "Professor Faisal Mushtaq"
   role: "Principal Investigator"
   bio: |
-    Faisal leads the MyPhone/MyBrain project and works on scalable approaches to cognitive science, brain health and school-based research.
+    Faisal leads the MyPhone/MyBrain project. His research focuses on scalable approaches to cognitive science, brain health, digital technology and school-based research with young people.
   image: "placeholder.svg"
   links:
     - label: "University profile"
       url: "https://medicinehealth.leeds.ac.uk/psychology/staff/632/professor-faisal-mushtaq"
 
-- name: "Project research team"
+- name: "Research team"
   role: "University of Leeds"
   bio: |
-    The wider team will support school engagement, data collection, participant communication, analysis and dissemination.
+    The wider team includes research assistants, school engagement coordinators, and data scientists who support every stage of the project — from school conversations through to analysis and dissemination.
   image: "placeholder.svg"
   links:
-    - label: "Email"
+    - label: "Contact the team"
       url: "mailto:myphone-mybrain@leeds.ac.uk"

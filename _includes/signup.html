@@ -9,52 +9,125 @@
       <p class="privacy-note">{{ site.data.content.signup.privacy_note }}</p>
     </div>
 
-    <form class="signup-form reveal" id="school-interest-form" data-recipient="{{ site.data.content.signup.email }}">
-      <label>
-        School name
-        <input type="text" name="school" autocomplete="organization" required>
-      </label>
+    <form class="signup-form reveal" id="school-interest-form" data-recipient="{{ site.data.content.signup.email }}" novalidate>
 
-      <label>
-        Contact name
-        <input type="text" name="name" autocomplete="name" required>
-      </label>
+      <div class="form-section">
+        <span class="form-section-label">About your school</span>
 
-      <label>
-        Role in school
-        <input type="text" name="role" placeholder="e.g. Headteacher, science lead, pastoral lead" required>
-      </label>
+        <label>
+          School name <span>required</span>
+          <input type="text" name="school" autocomplete="organization" required placeholder="e.g. Woodfield Academy">
+        </label>
 
-      <label>
-        Email address
-        <input type="email" name="email" autocomplete="email" required>
-      </label>
+        <div class="field-row">
+          <label>
+            School type
+            <select name="school_type">
+              <option value="" disabled selected>Select…</option>
+              <option>State secondary</option>
+              <option>Academy</option>
+              <option>Grammar</option>
+              <option>Sixth-form college</option>
+              <option>Independent</option>
+              <option>Special school</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <label>
+            Approx. number of pupils
+            <select name="school_size">
+              <option value="" disabled selected>Select…</option>
+              <option>Under 500</option>
+              <option>500–800</option>
+              <option>800–1,200</option>
+              <option>Over 1,200</option>
+            </select>
+          </label>
+        </div>
 
-      <label>
-        Phone number <span>optional</span>
-        <input type="tel" name="phone" autocomplete="tel">
-      </label>
+        <label>
+          Local authority or area <span>optional</span>
+          <input type="text" name="area" placeholder="e.g. Bradford, Leeds, West Yorkshire">
+        </label>
+      </div>
 
-      <label>
-        Local authority / area <span>optional</span>
-        <input type="text" name="area" placeholder="e.g. Bradford, Leeds, West Yorkshire">
-      </label>
+      <div class="form-section">
+        <span class="form-section-label">Your contact details</span>
 
-      <fieldset>
-        <legend>What would you like to discuss?</legend>
-        <label class="checkbox"><input type="checkbox" name="interest" value="Initial conversation"> Initial conversation</label>
-        <label class="checkbox"><input type="checkbox" name="interest" value="Taking part this academic year"> Taking part this academic year</label>
-        <label class="checkbox"><input type="checkbox" name="interest" value="Information for parents or carers"> Information for parents or carers</label>
-        <label class="checkbox"><input type="checkbox" name="interest" value="Research workshop or assembly"> Research workshop or assembly</label>
-      </fieldset>
+        <div class="field-row">
+          <label>
+            Your name <span>required</span>
+            <input type="text" name="name" autocomplete="name" required>
+          </label>
+          <label>
+            Your role <span>required</span>
+            <input type="text" name="role" required placeholder="e.g. Head teacher, Year 9 lead">
+          </label>
+        </div>
 
-      <label>
-        Anything else the team should know?
-        <textarea name="message" rows="5" placeholder="Please do not include pupil names or personal pupil information."></textarea>
-      </label>
+        <div class="field-row">
+          <label>
+            School email <span>required</span>
+            <input type="email" name="email" autocomplete="email" required>
+          </label>
+          <label>
+            Phone <span>optional</span>
+            <input type="tel" name="phone" autocomplete="tel">
+          </label>
+        </div>
+      </div>
 
-      <button type="submit">Create email to the project team</button>
-      <p class="form-help">The button opens your email client with the details pre-filled. You can review the message before sending.</p>
+      <div class="form-section">
+        <span class="form-section-label">Participation interest</span>
+
+        <fieldset>
+          <legend>Year groups you might be interested in</legend>
+          <div class="checkbox-grid">
+            <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 7"> <span>Year 7</span></label>
+            <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 8"> <span>Year 8</span></label>
+            <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 9"> <span>Year 9</span></label>
+            <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 10"> <span>Year 10</span></label>
+            <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 11"> <span>Year 11</span></label>
+            <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 12/13"> <span>Year 12/13</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset style="margin-top: 1.25rem;">
+          <legend>What would you like to discuss?</legend>
+          <div class="checkbox-grid">
+            <label class="checkbox"><input type="checkbox" name="interest" value="Initial conversation"> <span>Initial conversation</span></label>
+            <label class="checkbox"><input type="checkbox" name="interest" value="Taking part this year"> <span>Taking part this year</span></label>
+            <label class="checkbox"><input type="checkbox" name="interest" value="Parent or carer information"> <span>Parent/carer info</span></label>
+            <label class="checkbox"><input type="checkbox" name="interest" value="Assembly or research workshop"> <span>Assembly or workshop</span></label>
+          </div>
+        </fieldset>
+
+        <label style="margin-top: 1.25rem;">
+          How did you hear about MyPhone/MyBrain?
+          <select name="how_heard">
+            <option value="" disabled selected>Select…</option>
+            <option>University of Leeds contact</option>
+            <option>Colleague or another school</option>
+            <option>Social media</option>
+            <option>Research newsletter</option>
+            <option>Other</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="form-section">
+        <span class="form-section-label">Anything else</span>
+        <label>
+          Additional information <span>optional</span>
+          <textarea name="message" rows="4" placeholder="Any questions or context that would help the team — please do not include pupil names or personal pupil information."></textarea>
+        </label>
+      </div>
+
+      <div class="form-submit">
+        <button type="submit" class="btn btn-primary">Send expression of interest &nbsp;&rarr;</button>
+        <p class="form-help">This opens your email client with the details pre-filled. You can review everything before sending. No pupil data is collected through this form.</p>
+      </div>
+
     </form>
   </div>
 </section>

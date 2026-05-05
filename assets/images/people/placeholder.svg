@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" fill="none">
+  <rect width="400" height="300" fill="#1C0D4F"/>
+  <!-- subtle grid -->
+  <line x1="0" y1="50" x2="400" y2="50" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+  <line x1="0" y1="100" x2="400" y2="100" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+  <line x1="0" y1="150" x2="400" y2="150" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+  <line x1="0" y1="200" x2="400" y2="200" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+  <line x1="0" y1="250" x2="400" y2="250" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+  <line x1="80" y1="0" x2="80" y2="300" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+  <line x1="160" y1="0" x2="160" y2="300" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+  <line x1="240" y1="0" x2="240" y2="300" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+  <line x1="320" y1="0" x2="320" y2="300" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+  <!-- person silhouette -->
+  <circle cx="200" cy="105" r="52" fill="#4C1D95" opacity="0.9"/>
+  <path d="M78 290 C78 230 132 198 200 198 C268 198 322 230 322 290" fill="#4C1D95" opacity="0.9"/>
+</svg>
