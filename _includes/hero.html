@@ -1,9 +1,13 @@
 <section id="hero" class="hero">
-  <div class="hero-bg" aria-hidden="true">
-    <span class="blob blob-1"></span>
-    <span class="blob blob-2"></span>
-    <span class="blob blob-3"></span>
+
+  {% if site.data.status.active %}
+  <div class="hero-status" role="status" aria-live="polite">
+    <div class="container">
+      <span class="status-label">{{ site.data.status.label }}</span>
+      <span class="status-text">{{ site.data.status.text }}</span>
+    </div>
   </div>
+  {% endif %}
 
   <div class="container hero-content">
     <a href="#about" class="hero-badge">

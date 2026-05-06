@@ -18,19 +18,11 @@
   <title>{{ page.title | default: site.title }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,300&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,800;1,9..40,300&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
 </head>
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
-  {% if site.data.status.active %}
-  <div class="status-banner" role="status" aria-live="polite">
-    <div class="container status-inner">
-      <span class="status-label">{{ site.data.status.label }}</span>
-      <span class="status-text">{{ site.data.status.text }}</span>
-    </div>
-  </div>
-  {% endif %}
   {% include header.html %}
   <main id="main-content">
     {{ content }}
