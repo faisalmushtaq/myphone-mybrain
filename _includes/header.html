@@ -1,14 +1,32 @@
 <header class="site-header">
   <div class="container header-inner">
     <a class="logo" href="{{ site.baseurl }}/" aria-label="{{ site.title }} home">{{ site.title }}</a>
-    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
-    <nav id="site-nav" class="nav" aria-label="Main navigation">
+
+    <nav class="nav" aria-label="Main navigation">
       <a href="#about">About</a>
-      <a href="#participation">Taking part</a>
-      <a href="#signup" class="nav-cta">School sign-up</a>
+      <a href="#participation">Research</a>
       <a href="#team">Team</a>
       <a href="#faq">FAQ</a>
       <a href="#contact">Contact</a>
+      <a href="#signup" class="nav-cta">Schools</a>
     </nav>
+
+    <button class="menu-toggle" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-nav">
+      <span class="bar"></span>
+      <span class="bar"></span>
+      <span class="bar"></span>
+    </button>
   </div>
 </header>
+
+<!-- Mobile nav lives outside the header to avoid stacking-context issues -->
+<div class="mobile-nav-overlay" id="mobile-nav" aria-hidden="true">
+  <nav class="mobile-nav-inner" aria-label="Mobile navigation">
+    <a href="#about">About</a>
+    <a href="#participation">Research</a>
+    <a href="#team">Team</a>
+    <a href="#faq">FAQ</a>
+    <a href="#contact">Contact</a>
+    <a href="#signup" class="mobile-nav-cta">Register your school &nbsp;&rarr;</a>
+  </nav>
+</div>

@@ -246,8 +246,7 @@ strong { font-weight: 600; color: var(--c-text); }
 
 /* ── 6. Header / Nav ──────────────────────────────────────── */
 
-/* All sections with anchor IDs get scroll-margin so fixed header
-   doesn't cover their headings when navigating via links */
+/* Prevent fixed header covering section anchors */
 section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
 
 .site-header {
@@ -259,16 +258,15 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
   height: var(--nav-h);
   display: flex;
   align-items: center;
-  /* Always frosted — readable against any background */
-  background: rgba(7,2,26,.75);
+  background: rgba(7,2,26,.8);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(255,255,255,.06);
+  border-bottom: 1px solid rgba(255,255,255,.07);
   transition: background 0.3s, box-shadow 0.3s;
 }
 
 .site-header.scrolled {
-  background: rgba(7,2,26,.96);
+  background: rgba(7,2,26,.97);
   box-shadow: 0 1px 0 rgba(255,255,255,.07);
 }
 
@@ -276,48 +274,47 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1.5rem;
   width: 100%;
 }
 
 .logo {
   font-family: var(--f-body);
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 700;
   color: #fff;
   letter-spacing: -0.01em;
   white-space: nowrap;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .logo:hover { color: var(--c-lavender); }
 
+/* Desktop nav */
 .nav {
   display: flex;
   align-items: center;
-  gap: clamp(0.75rem, 1.8vw, 1.75rem);
-  flex-wrap: nowrap;
+  gap: clamp(0.6rem, 1.5vw, 1.5rem);
 }
 
 .nav a {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: rgba(255,255,255,.72);
-  transition: color 0.2s;
+  color: rgba(255,255,255,.7);
   white-space: nowrap;
+  transition: color 0.15s;
 }
 
 .nav a:hover { color: #fff; }
 
 .nav-cta {
-  background: var(--c-coral);
+  background: var(--c-coral) !important;
   color: #fff !important;
-  padding: 0.45rem 1rem;
+  padding: 0.4rem 0.9rem !important;
   border-radius: 100px;
-  font-size: 0.8125rem;
   font-weight: 600 !important;
-  transition: background 0.2s, transform 0.2s var(--ease-spring) !important;
-  flex-shrink: 0;
+  transition: background 0.15s, transform 0.15s !important;
 }
 
 .nav-cta:hover {
@@ -325,15 +322,85 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
   transform: translateY(-1px);
 }
 
+/* Hamburger button — hidden on desktop */
 .menu-toggle {
   display: none;
-  color: #fff;
-  font-size: 0.875rem;
-  font-weight: 600;
-  padding: 0.45rem 0.9rem;
-  border: 1.5px solid rgba(255,255,255,.25);
-  border-radius: 8px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0.35rem;
   flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.bar {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #fff;
+  border-radius: 2px;
+  transition: transform 0.25s var(--ease), opacity 0.2s;
+}
+
+/* Hamburger → X when open */
+.menu-toggle[aria-expanded="true"] .bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.menu-toggle[aria-expanded="true"] .bar:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+.menu-toggle[aria-expanded="true"] .bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Mobile nav overlay — lives outside header, no stacking-context clash */
+.mobile-nav-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(7,2,26,.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-nav-overlay.is-open {
+  display: flex;
+}
+
+.mobile-nav-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.75rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.mobile-nav-inner a {
+  font-size: clamp(1.35rem, 4vw, 1.75rem);
+  font-weight: 600;
+  color: rgba(255,255,255,.75);
+  transition: color 0.15s;
+}
+
+.mobile-nav-inner a:hover { color: #fff; }
+
+.mobile-nav-cta {
+  margin-top: 0.5rem;
+  color: var(--c-coral) !important;
+  font-size: clamp(1rem, 3vw, 1.25rem) !important;
+  padding: 0.75rem 2rem;
+  border: 2px solid var(--c-coral);
+  border-radius: 100px;
 }
 
 /* ── 7. Hero ──────────────────────────────────────────────── */
@@ -1176,35 +1243,15 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
 }
 
 @media (max-width: 840px) {
-  .nav { display: none; }
-  .nav.open {
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(7,2,26,.97);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    align-items: center;
-    justify-content: center;
-    gap: 2rem;
-    z-index: 99;
-  }
-  .nav.open a { font-size: var(--step-2); color: rgba(255,255,255,.8); }
-  .nav.open .nav-cta { padding: 0.75rem 2rem; font-size: var(--step-1); }
-  .menu-toggle { display: block; position: relative; z-index: 101; }
-  .menu-toggle[aria-expanded="true"] { border-color: rgba(255,255,255,.1); color: rgba(255,255,255,.5); }
+  .nav         { display: none; }
+  .menu-toggle { display: flex; }
 
-  .field-row { grid-template-columns: 1fr; }
-  .checkbox-grid { grid-template-columns: 1fr; }
-
-  .step-grid { grid-template-columns: 1fr; }
-  .people-grid { grid-template-columns: 1fr; }
-  .project-grid { grid-template-columns: 1fr; }
-  .stat-row { grid-template-columns: 1fr 1fr; }
+  .field-row      { grid-template-columns: 1fr; }
+  .checkbox-grid  { grid-template-columns: 1fr; }
+  .step-grid      { grid-template-columns: 1fr; }
+  .people-grid    { grid-template-columns: 1fr; }
+  .project-grid   { grid-template-columns: 1fr; }
+  .stat-row       { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 400px) {

@@ -20,24 +20,33 @@ if (header) {
 }
 
 /* ── Mobile menu toggle ─────────────────────────────────── */
-const menuToggle = document.querySelector('.menu-toggle');
-const siteNav    = document.querySelector('#site-nav');
+const menuToggle  = document.querySelector('.menu-toggle');
+const mobileNav   = document.getElementById('mobile-nav');
 
-if (menuToggle && siteNav) {
+if (menuToggle && mobileNav) {
+  const openMenu = () => {
+    menuToggle.setAttribute('aria-expanded', 'true');
+    mobileNav.classList.add('is-open');
+    mobileNav.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeMenu = () => {
+    menuToggle.setAttribute('aria-expanded', 'false');
+    mobileNav.classList.remove('is-open');
+    mobileNav.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  };
+
   menuToggle.addEventListener('click', () => {
-    const open = menuToggle.getAttribute('aria-expanded') === 'true';
-    menuToggle.setAttribute('aria-expanded', String(!open));
-    siteNav.classList.toggle('open', !open);
-    document.body.style.overflow = open ? '' : 'hidden';
+    menuToggle.getAttribute('aria-expanded') === 'true' ? closeMenu() : openMenu();
   });
 
-  siteNav.querySelectorAll('a').forEach((link) => {
-    link.addEventListener('click', () => {
-      menuToggle.setAttribute('aria-expanded', 'false');
-      siteNav.classList.remove('open');
-      document.body.style.overflow = '';
-    });
-  });
+  /* Close when any nav link is tapped */
+  mobileNav.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMenu));
+
+  /* Close on Escape key */
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 }
 
 /* ── School sign-up form (mailto) ───────────────────────── */
