@@ -1,5 +1,5 @@
 hero:
-  badge: "University of Leeds · Huo Family Foundation · Bradford"
+  badge: "Centre for Applied Education Research · Huo Family Foundation · Bradford"
   headline_main: "MyPhone"
   headline_accent: "MyBrain"
   tagline: "A city-scale citizen science programme linking young people's digital lives with adolescent brain development."
@@ -29,29 +29,29 @@ stats:
 
 about:
   heading: "A city-scale citizen science programme"
-  subheading: "Linking digital lives and brain development across Bradford and Leeds"
+  subheading: "Coordinated through the Centre for Applied Education Research, Bradford"
   body: |
-    **MyPhone/MyBrain** is a four-year research programme led by the University of Leeds and funded by the Huo Family Foundation. We are partnering with secondary schools in Bradford to run two paired school-based workshops. Together, these workshops build one of the first large-scale research resources linking real-world digital behaviour with direct measures of adolescent brain function, wellbeing and learning.
+    **MyPhone/MyBrain** is a four-year research programme coordinated through the **Centre for Applied Education Research** (CAER) and funded by the Huo Family Foundation. The research team is based at the **Wolfson Centre for Applied Health Research** on site at Bradford Royal Infirmary. We are partnering with secondary schools in Bradford to run two paired school-based workshops that together build one of the first large-scale resources linking real-world digital behaviour with direct measures of adolescent brain function, wellbeing and learning.
 
     **MyPhone** — young people can securely donate a snapshot of their social media usage data through the Smart Data Donation Service. These data capture timing, interaction patterns and content exposure, forming the basis of data-driven "digital phenotypes" that describe different patterns of engagement.
 
-    **MyBrain** — students take part in EEG brain-recording sessions at school, at rest and while completing short cognitive tasks. Trained University of Leeds researchers bring all equipment and run every session. EEG is safe, painless and non-invasive.
+    **MyBrain** — students take part in EEG brain-recording sessions at school, at rest and while completing short cognitive tasks. Trained researchers bring all equipment and run every session. EEG is safe, painless and non-invasive.
 
     The project uses an accelerated longitudinal design — recruiting pupils from multiple year groups and following some longitudinally — so we can study both individual differences and developmental change over time. With appropriate consent and governance approvals, project data will be linked to health and education records through **Connected Bradford**, enabling us to examine how digital behaviour relates to academic attainment, mental health and wellbeing over time.
 
-    The project is led by **Professor Faisal Mushtaq** at the University of Leeds, working with co-investigators spanning developmental neuroscience, machine learning, digital data science, education and population research.
+    The project is led by **Professor Faisal Mushtaq** (University of Leeds), working with co-investigators spanning developmental neuroscience, machine learning, digital data science, education and population research.
 
 why:
   heading: "Why does this matter?"
   body: |
     Debate about smartphones, social media and young people's wellbeing has become highly polarised — often generating more heat than light. Digital technologies are deeply woven into young people's lives, and any effects are likely to depend on patterns of use, individual differences and social context, not simply how much screen time someone has.
 
-    Progress requires large and diverse samples, real-world measures of digital behaviour, and evidence about outcomes that genuinely matter to families, schools and policymakers. **MyPhone/MyBrain** addresses that need by working in Bradford — one of the UK's youngest and most diverse cities — through established partnerships with Born in Bradford, the Centre for Applied Education Research and Connected Bradford.
+    Progress requires large and diverse samples, real-world measures of digital behaviour, and evidence about outcomes that genuinely matter to families, schools and policymakers. **MyPhone/MyBrain** addresses that need by working in Bradford — one of the UK's youngest and most diverse cities — coordinated through the **Centre for Applied Education Research** and delivered in partnership with Born in Bradford and Connected Bradford.
 
     The goal is not to alarm or reassure, but to understand. Findings will be shared openly, carefully and in ways that can meaningfully inform education, health and family decision-making for years to come.
 
 process_intro: |
-  We use an accelerated longitudinal design, recruiting adolescents from different school years and following a subset as they move through secondary school. This lets us model developmental trajectories and examine how digital engagement relates to change over time. Research is delivered through two paired workshops run by trained University of Leeds researchers in participating schools. Everything is voluntary, fully consented and designed to be a genuinely interesting, age-appropriate experience.
+  We use an accelerated longitudinal design, recruiting adolescents from different school years and following a subset as they move through secondary school. This lets us model developmental trajectories and examine how digital engagement relates to change over time. Research is delivered through two paired workshops run by trained researchers based at the Wolfson Centre for Applied Health Research, Bradford Royal Infirmary. Everything is voluntary, fully consented and designed to be a genuinely interesting, age-appropriate experience.
 
 steps:
   - number: "01"
@@ -84,9 +84,9 @@ signup:
 contact:
   heading: "Get in touch"
   body: |
-    For enquiries about the project, school participation, or information for parents and carers, please contact the MyPhone/MyBrain team at the University of Leeds. We aim to respond within five working days.
+    For enquiries about the project, school participation, or information for parents and carers, please contact the MyPhone/MyBrain team. We aim to respond within five working days.
 
-    The project is based in the **School of Psychology**, Faculty of Medicine and Health, University of Leeds. School recruitment is currently in Bradford.
+    The research team is based at the **Wolfson Centre for Applied Health Research**, Bradford Royal Infirmary, Bradford. The programme is coordinated through the **Centre for Applied Education Research** (CAER).
 
 funding_acknowledgement: |
-  MyPhone/MyBrain is funded by the **Huo Family Foundation** and led by the University of Leeds. The project is delivered in partnership with the **Born in Bradford** programme, the **Centre for Applied Education Research** (CAER), **Connected Bradford** and participating schools across Bradford.
+  MyPhone/MyBrain is funded by the **Huo Family Foundation** and coordinated through the **Centre for Applied Education Research** (CAER) at the Wolfson Centre for Applied Health Research, Bradford Royal Infirmary. The project is delivered in partnership with the **Born in Bradford** programme, **Connected Bradford** and participating schools across Bradford. The academic team is based at the University of Leeds.

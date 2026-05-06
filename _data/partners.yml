@@ -1,18 +1,18 @@
 partners:
-  - name: "University of Leeds"
-    category: "Lead institution"
-    description: "The project is led from the School of Psychology, Faculty of Medicine and Health. The University of Leeds has a long track record of population-scale research with schools and communities."
-    url: "https://www.leeds.ac.uk/"
+  - name: "Centre for Applied Education Research (CAER)"
+    category: "Coordinating centre"
+    description: "MyPhone/MyBrain is coordinated through CAER, based at the Wolfson Centre for Applied Health Research on site at Bradford Royal Infirmary. CAER brings together researchers, educators and policymakers to generate and translate evidence about children's learning and development, and provides the infrastructure for school-based delivery across Bradford."
+    url: "https://www.leedsbeckett.ac.uk/research/centre-for-applied-education-research/"
 
   - name: "Born in Bradford / Age of Wonder"
     category: "Research partner"
     description: "Born in Bradford is one of the world's largest birth cohort studies, following thousands of families in Bradford since 2007. The Age of Wonder programme extends this work into adolescence. MyPhone/MyBrain is embedded within and delivered in partnership with the Born in Bradford infrastructure."
     url: "https://borninbradford.nhs.uk/"
 
-  - name: "Centre for Applied Education Research (CAER)"
-    category: "Research partner"
-    description: "CAER brings together researchers, educators and policymakers to generate and translate evidence about children's learning and development. CAER's expertise in school-based research and education policy shapes how the project is designed and how its findings are communicated."
-    url: "https://www.leedsbeckett.ac.uk/research/centre-for-applied-education-research/"
+  - name: "University of Leeds"
+    category: "Academic partner"
+    description: "The academic team is based at the University of Leeds. The University has a long track record of population-scale research with schools and communities, and provides the institutional home for the research programme."
+    url: "https://www.leeds.ac.uk/"
 
   - name: "Connected Bradford"
     category: "Data platform"
