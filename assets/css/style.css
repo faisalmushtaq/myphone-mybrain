@@ -1027,7 +1027,7 @@ legend { font-size: var(--step--1); font-weight: 600; color: var(--c-ink); margi
 .person-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); }
 
 .person-image {
-  height: 120px;
+  aspect-ratio: 3 / 4;
   background: var(--c-cream-dark);
   overflow: hidden;
   flex-shrink: 0;
