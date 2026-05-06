@@ -1,0 +1,43 @@
+<section id="young-people" class="section section-dark">
+  <div class="container">
+    <div class="reveal section-heading">
+      <p class="section-kicker light">For young people</p>
+      <h2>{{ site.data.audience.for_young_people.heading }}</h2>
+      <p class="section-subheading light">{{ site.data.audience.for_young_people.subheading }}</p>
+    </div>
+
+    <div class="info-panel info-panel-dark reveal">
+      <div class="prose prose-light">
+        {{ site.data.audience.for_young_people.intro | markdownify }}
+      </div>
+    </div>
+
+    <div class="workshop-grid reveal">
+      <div class="workshop-panel">
+        <h3>{{ site.data.audience.for_young_people.myphone_heading }}</h3>
+        <ul class="info-checklist">
+          {% for item in site.data.audience.for_young_people.myphone_items %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="workshop-panel">
+        <h3>{{ site.data.audience.for_young_people.mybrain_heading }}</h3>
+        <ul class="info-checklist">
+          {% for item in site.data.audience.for_young_people.mybrain_items %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <div class="data-promise reveal">
+      <h3>{{ site.data.audience.for_young_people.data_promise_heading }}</h3>
+      <ul class="promise-list">
+        {% for item in site.data.audience.for_young_people.data_promise %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</section>

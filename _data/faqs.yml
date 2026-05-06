@@ -1,47 +1,79 @@
 - question: "Which schools can take part?"
   answer: |
-    We are currently recruiting secondary schools in **Bradford and Leeds only**. If your school is in one of these areas and you would like to discuss involvement, please use the sign-up form on this page. We hope to expand to other areas in future phases of the project.
+    We are currently recruiting secondary schools in **Bradford** only. If your school is in Bradford and would like to discuss involvement, please use the sign-up form on this page. We hope to work with a wide range of Bradford schools across the programme. We are not currently able to take on schools outside Bradford.
 
 - question: "Who is the research for?"
   answer: |
-    The study is designed for secondary school pupils, broadly in the 11–18 age range. We work through schools, so if your school is invited or expresses interest, the research team will share information with teachers, parents and pupils directly. Parents, carers and young people with questions are also welcome to contact us.
+    The study is designed for secondary school pupils broadly in the 11–18 age range. We work through schools, so if your school expresses interest, the research team will share information with teachers, parents and pupils directly. Parents, carers and young people with questions are also welcome to contact us at any time.
 
 - question: "What will pupils be asked to do?"
   answer: |
-    Pupils are invited to take part in two workshops. The **MyPhone** workshop involves securely donating a snapshot of social media usage data (timing, interaction patterns and content exposure). The **MyBrain** workshop involves wearing an EEG cap while resting and completing short cognitive tasks on a computer. Nothing is compulsory — pupils can choose which parts they take part in, and can withdraw at any time.
+    Pupils are invited to take part in two workshops. In the **MyPhone** workshop, young people can securely donate a snapshot of social media usage data (covering timing, interaction patterns and content exposure) and may complete short surveys. In the **MyBrain** workshop, pupils wear an EEG cap while resting and completing short cognitive tasks on a computer. Nothing is compulsory — pupils can choose which parts they take part in and can withdraw at any time.
 
 - question: "How long do the workshops take?"
   answer: |
-    Each workshop typically takes between 45 minutes and an hour and a half. The exact arrangements will be agreed with each school and we always work around timetables and exam periods. Sessions are run by trained University of Leeds researchers who bring all equipment to school.
+    Each workshop typically takes between 45 minutes and 90 minutes. Exact arrangements will be agreed with each school, and we always work around timetables and exam periods. Sessions are run by trained University of Leeds researchers who bring all equipment to school.
 
 - question: "What is EEG, and is it safe?"
   answer: |
-    EEG (electroencephalography) is a safe, non-invasive method for recording electrical activity from the scalp using small sensors placed on the surface of the head. It does not read thoughts, it does not put electricity into the brain, and it is entirely painless. EEG has been used safely in research with children and young people for many decades.
+    EEG (electroencephalography) records electrical activity from the scalp using small sensors placed on the surface of the head. It is safe, non-invasive and entirely painless. It does not put electricity into the brain. EEG has been used safely in research with children and young people for many decades and is not a medical procedure.
+
+- question: "Can EEG read thoughts or diagnose anything?"
+  answer: |
+    No. EEG measures patterns of electrical activity at the scalp. It cannot read thoughts, feelings, intentions or personality. The study will not be used to diagnose any condition, screen pupils for mental health difficulties, rank pupils, or provide individual brain profiles to schools, families or any other party.
 
 - question: "Do pupils have to share their phone data?"
   answer: |
-    No. The MyPhone workshop and smartphone data donation are entirely optional. Pupils can take part in the MyBrain workshop only, or decline individual elements, without affecting their participation in the rest of the project. Full information on what data would be collected, how it is stored, and who can access it will be provided before any consent is sought.
+    No. The MyPhone workshop and smartphone data donation are entirely optional and separate from the MyBrain workshop. Pupils can take part in one, both or neither. Choosing not to donate data will not affect their participation in any other part of the study or their relationship with school.
+
+- question: "What social media data could be donated, and how?"
+  answer: |
+    Data donation is handled through the **Smart Data Donation Service**, which allows platforms such as TikTok and YouTube to share usage summaries securely. The data cover timing and patterns of use, interaction style and content exposure — not private messages, passwords or account credentials. Participants can see what data are being shared before they decide. Full information on what is collected and how it is stored will be provided before any consent is requested.
 
 - question: "What happens to the data?"
   answer: |
-    All data is collected, stored and processed in accordance with University of Leeds data-protection policies and UK GDPR requirements. Data is anonymised before analysis, and only the named research team has access to identifiable information. Selected data will be linked, with appropriate permissions, to health and education records through the **Connected Bradford** data platform. Nothing is shared with commercial third parties.
+    All data are collected, stored and processed in accordance with University of Leeds data-protection policies and UK GDPR. Research data and linked records are stored and analysed in secure research environments with strict access controls. Data are analysed in de-identified or pseudonymised forms. Nothing is sold, and no data are shared with social media companies or commercial third parties for any purpose.
+
+- question: "What is the Smart Data Donation Service?"
+  answer: |
+    The Smart Data Donation Service is a secure technical infrastructure that enables voluntary donation of digital engagement data from social media platforms for research purposes. It is designed to give participants visibility and control over what they share. The service is used in several academic research programmes and is not a commercial product.
 
 - question: "What is Connected Bradford?"
   answer: |
-    Connected Bradford is a research platform that links routinely collected health, education and social care records for people in Bradford and Leeds. Linking project data to these records allows us to examine relationships between digital behaviour, brain function and real-world outcomes such as academic attainment and mental health service use. Linking takes place under strict governance and with appropriate ethical approvals.
+    **Connected Bradford** is a research data platform that links routinely collected health, education and social care records for people in Bradford. Linking project data to these records — with appropriate consent and ethical approvals — allows us to examine how digital behaviour and brain function relate to real-world outcomes such as academic attainment and mental health service use. Access is governed under strict research approvals and data are never available openly.
 
-- question: "Can parents or carers refuse?"
+- question: "Can parents or carers refuse participation?"
   answer: |
-    Yes, absolutely. Participation requires informed consent from parents or carers and from the young person themselves. No pupil will take part without the appropriate permissions, and any pupil can withdraw at any time without giving a reason.
+    Yes. Participation is entirely voluntary and requires informed consent from parents or carers and from the young person themselves. No pupil will take part without the correct permissions in place. Parents and carers can withdraw their child at any time, for any reason, without any consequence for the child's education or relationship with school.
 
-- question: "Will there be benefits for the school?"
+- question: "Can young people withdraw after taking part?"
   answer: |
-    Schools that participate can request a session where the research team shares accessible findings relevant to their pupils and community. We also aim to deliver workshop or assembly sessions that help young people understand brain science and research methods. We see school partnerships as genuine collaborations. Schools in Bradford and Leeds are central to the project, not just data sources.
+    Yes. Young people can withdraw their data after the session. We will explain how to do this, and the process will be straightforward. Withdrawing will not affect their standing at school or their participation in any other activity.
 
-- question: "How is the project funded?"
+- question: "Will there be direct benefits for the school?"
   answer: |
-    MyPhone/MyBrain is funded by the Huo Family Foundation and led by the University of Leeds, in collaboration with Born in Bradford and a range of academic co-investigators spanning developmental neuroscience, machine learning, digital data science and education policy.
+    Yes. Workshops are designed to link to curriculum topics in science, computing and PSHE. MyBrain gives pupils hands-on experience of neuroscience measurement and research methods. MyPhone supports digital literacy and critical thinking about data. We can also offer a session where the research team shares accessible findings relevant to your school community. Schools can request a copy of group-level findings from their cohort at the end of each academic year.
+
+- question: "Does the study diagnose or assess individual pupils?"
+  answer: |
+    No. The study will not diagnose any mental health condition, screen for ADHD or any other condition, assess academic ability, or produce individual profiles for schools, families or any other party. Findings are reported at group level. The project is not a clinical or educational assessment tool.
+
+- question: "How is the project funded, and who oversees it?"
+  answer: |
+    MyPhone/MyBrain is funded by the **Huo Family Foundation** and led by the University of Leeds. The project has received ethical approval from the University of Leeds and meets University and UK GDPR data-protection requirements. Work involving Connected Bradford data proceeds under approved Connected Bradford governance. The project is delivered in collaboration with Born in Bradford, the Centre for Applied Education Research and partner schools.
+
+- question: "Who is the research team?"
+  answer: |
+    The project is led by **Professor Faisal Mushtaq** (University of Leeds). Co-investigators include researchers at the University of Leeds (Amy Bland, Emmanuele Tidoni, Mark Mon-Williams), the University of Sheffield (Mahnaz Arvaneh), the University of York (David Zendle), and Zarina Mirza from Born in Bradford. The delivery team includes researchers and project staff at the University of Leeds. Full team details are on this page.
+
+- question: "When will findings be available?"
+  answer: |
+    The programme runs over four years, with three academic years of school delivery. Interim findings will be shared with participating schools as they become available. Public research outputs, including data summaries and academic publications, will be shared as openly as possible within governance requirements. We aim to share findings in accessible formats for young people, families and schools — not only in academic journals.
 
 - question: "How can my school get involved?"
   answer: |
-    Teachers or school leaders at schools in Bradford or Leeds can use the sign-up form on this website to contact the team. The form creates a pre-filled email and should only include school-level contact details at this stage. We will respond to discuss next steps — there is no obligation to proceed.
+    Teachers or senior leaders at secondary schools in Bradford can use the sign-up form on this page to contact the team. The form creates a pre-filled email and should only include school-level contact details at this stage — please do not include pupil information. We will respond to discuss next steps and there is no obligation to proceed.
+
+- question: "How can I find out more or ask a question not answered here?"
+  answer: |
+    Please contact the MyPhone/MyBrain team directly using the details on this page. Parents, carers, young people, teachers and researchers are all welcome to get in touch. We aim to respond within five working days.

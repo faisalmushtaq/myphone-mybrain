@@ -2,9 +2,12 @@
   <div class="container split">
     <div class="section-kicker reveal">About the study</div>
     <div class="reveal">
-      <h2>Understanding digital technology, adolescent development and wellbeing.</h2>
+      <h2>{{ site.data.content.about.heading }}</h2>
+      {% if site.data.content.about.subheading %}
+      <p class="section-subheading">{{ site.data.content.about.subheading }}</p>
+      {% endif %}
       <div class="prose">
-        {{ site.data.content.about | markdownify }}
+        {{ site.data.content.about.body | markdownify }}
       </div>
 
       <div class="stat-row reveal">
@@ -23,9 +26,9 @@
   <div class="container split">
     <div class="section-kicker reveal">Why it matters</div>
     <div class="reveal">
-      <h2>Building clearer evidence with schools and families.</h2>
+      <h2>{{ site.data.content.why.heading }}</h2>
       <div class="prose">
-        {{ site.data.content.why_it_matters | markdownify }}
+        {{ site.data.content.why.body | markdownify }}
       </div>
     </div>
   </div>

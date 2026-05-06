@@ -1,0 +1,32 @@
+<section id="parents" class="section section-light">
+  <div class="container">
+    <div class="reveal section-heading">
+      <p class="section-kicker">For parents and carers</p>
+      <h2>{{ site.data.audience.for_parents.heading }}</h2>
+      <p class="section-subheading">{{ site.data.audience.for_parents.subheading }}</p>
+    </div>
+
+    <div class="info-panel reveal">
+      <div class="prose">
+        {{ site.data.audience.for_parents.intro | markdownify }}
+      </div>
+    </div>
+
+    <div class="reassurance-block reveal">
+      <h3>Key things to know</h3>
+      <ul class="info-checklist">
+        {% for item in site.data.audience.for_parents.what_to_know %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="info-panel info-panel-alt reveal">
+      <h3>Consent and information materials</h3>
+      <div class="prose">
+        {{ site.data.audience.for_parents.consent_note | markdownify }}
+      </div>
+      <a href="#contact" class="btn btn-secondary" style="margin-top:1.5rem;">Contact the team with questions &nbsp;&rarr;</a>
+    </div>
+  </div>
+</section>

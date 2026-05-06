@@ -11,13 +11,23 @@
       {{ site.data.content.hero.badge }}
     </a>
 
-    <h1>MyPhone<span class="slash">/</span><span class="accent">MyBrain</span></h1>
+    <h1>{{ site.data.content.hero.headline_main }}<span class="slash">/</span><span class="accent">{{ site.data.content.hero.headline_accent }}</span></h1>
 
-    <p class="tagline">{{ site.tagline }}</p>
+    <p class="tagline">{{ site.data.content.hero.tagline }}</p>
 
     <div class="hero-actions">
-      <a href="#signup" class="btn btn-primary">{{ site.data.content.hero.cta_primary }} &nbsp;&rarr;</a>
-      <a href="#participation" class="btn btn-ghost">{{ site.data.content.hero.cta_secondary }}</a>
+      <a href="{{ site.data.content.hero.cta_primary.href }}" class="btn btn-primary">{{ site.data.content.hero.cta_primary.label }} &nbsp;&rarr;</a>
+      <a href="{{ site.data.content.hero.cta_secondary.href }}" class="btn btn-ghost">{{ site.data.content.hero.cta_secondary.label }}</a>
+      <a href="{{ site.data.content.hero.cta_tertiary.href }}" class="btn btn-ghost">{{ site.data.content.hero.cta_tertiary.label }}</a>
+    </div>
+
+    <div class="hero-stats" aria-label="Study at a glance">
+      {% for stat in site.data.content.stats %}
+      <div class="hero-stat">
+        <strong>{{ stat.value }}</strong>
+        <span>{{ stat.label }}</span>
+      </div>
+      {% endfor %}
     </div>
   </div>
 

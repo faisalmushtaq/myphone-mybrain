@@ -49,6 +49,18 @@ if (menuToggle && mobileNav) {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 }
 
+/* ── School size slider ─────────────────────────────────── */
+const slider = document.getElementById('school_size_slider');
+if (slider) {
+  const output = document.querySelector('.slider-output[for="school_size_slider"]');
+  const update = () => {
+    const v = parseInt(slider.value, 10);
+    output.textContent = v >= 2000 ? '2,000+' : v.toLocaleString('en-GB');
+  };
+  slider.addEventListener('input', update);
+  update();
+}
+
 /* ── School sign-up form (mailto) ───────────────────────── */
 const form = document.getElementById('school-interest-form');
 
@@ -67,7 +79,11 @@ if (form) {
         .map((cb) => cb.value)
         .join(', ') || 'None selected';
 
-    const recipient = form.dataset.recipient || 'myphone-mybrain@leeds.ac.uk';
+    const sliderEl = document.getElementById('school_size_slider');
+    const sizeVal  = sliderEl ? parseInt(sliderEl.value, 10) : 0;
+    const sizeStr  = sizeVal >= 2000 ? '2,000+' : sizeVal.toLocaleString('en-GB');
+
+    const recipient = form.dataset.recipient || 'brainpop@leeds.ac.uk';
     const subject   = encodeURIComponent(`School interest: ${get('school')}`);
 
     const body = encodeURIComponent([
@@ -75,9 +91,8 @@ if (form) {
       ``,
       `--- School information ---`,
       `School name:       ${get('school')}`,
-      `School type:       ${get('school_type')}`,
       `Local authority:   ${get('area')}`,
-      `Approx. students:  ${get('school_size')}`,
+      `Approx. students:  ${sizeStr}`,
       ``,
       `--- Contact details ---`,
       `Name:              ${get('name')}`,
@@ -88,7 +103,6 @@ if (form) {
       `--- Participation interest ---`,
       `Year groups:       ${checks('year_groups')}`,
       `Topics to discuss: ${checks('interest')}`,
-      `How heard:         ${get('how_heard')}`,
       ``,
       `--- Additional information ---`,
       `${get('message') || 'Nothing added.'}`,

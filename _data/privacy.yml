@@ -1,0 +1,37 @@
+heading: "Data, privacy and choice"
+subheading: "The project is designed around consent, security and responsible use."
+intro: |
+  MyPhone/MyBrain involves different kinds of data, so clear governance is essential. Depending on which parts a pupil chooses to take part in, the project may involve digital engagement data, survey answers, EEG recordings, task performance and, where consent and approvals allow, linked education and health records.
+
+promise:
+  - number: "1"
+    heading: "Voluntary participation"
+    body: "Pupils and families decide whether to take part. The MyPhone donation element is optional and separate from other parts of the study."
+  - number: "2"
+    heading: "Granular choice"
+    body: "Young people can choose which parts of the study they are comfortable with. Where the data donation tool allows different levels of sharing, participants can choose what to donate."
+  - number: "3"
+    heading: "Secure systems"
+    body: "Digital data are handled through the Smart Data Donation Service. Research data and linked records are stored and analysed in secure research environments with strict access controls."
+  - number: "4"
+    heading: "De-identification"
+    body: "Researchers analyse data in de-identified or pseudonymised forms wherever possible. Public outputs use group-level findings."
+  - number: "5"
+    heading: "Controlled access"
+    body: "Sensitive data, including raw platform logs and linked records, are not made openly available. Access is controlled through approved governance processes, including Connected Bradford."
+  - number: "6"
+    heading: "No commercial use"
+    body: "The project is for research and public benefit. Data are not sold and are not shared with social media companies for marketing or commercial profiling."
+  - number: "7"
+    heading: "No diagnostic claims"
+    body: "The project will not diagnose individual pupils, screen pupils, rank pupils or provide individual brain or digital profiles to schools or families."
+  - number: "8"
+    heading: "Responsible communication"
+    body: "Young people, parent representatives and school leaders will help guide how findings are shared so that results are not sensationalised or used to stigmatise groups."
+
+data_flow:
+  - label: "Pupil and family consent"
+  - label: "MyPhone and/or MyBrain session"
+  - label: "Secure data handling"
+  - label: "De-identified research analysis"
+  - label: "Group-level findings and public resources"

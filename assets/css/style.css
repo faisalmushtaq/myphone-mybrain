@@ -1232,7 +1232,600 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
   border: 0;
 }
 
-/* ── 17. Responsive ───────────────────────────────────────── */
+/* ── 17. Status banner ────────────────────────────────────── */
+.status-banner {
+  background: var(--c-dark-mid);
+  border-bottom: 1px solid var(--c-border-dark);
+  padding: 0.55rem 0;
+  font-size: var(--step--1);
+}
+
+.status-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.status-label {
+  background: var(--c-violet);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2em 0.6em;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.status-text {
+  color: var(--c-muted-dark);
+}
+
+/* ── 18. Skip link ────────────────────────────────────────── */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  background: var(--c-violet);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 0 0 6px 6px;
+  font-weight: 700;
+  font-size: var(--step--1);
+  z-index: 9999;
+  text-decoration: none;
+  transition: top 0.15s;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: 3px solid var(--c-lavender);
+  outline-offset: 2px;
+}
+
+/* ── 19. Hero stats ───────────────────────────────────────── */
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem 1.5rem;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  width: 100%;
+  max-width: 720px;
+}
+
+.hero-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.hero-stat strong {
+  font-family: var(--f-head);
+  font-size: var(--step-2);
+  font-weight: 400;
+  color: var(--c-lavender);
+  line-height: 1;
+}
+
+.hero-stat span {
+  font-size: var(--step--1);
+  color: var(--c-muted-dark);
+}
+
+/* ── 20. Section subheading ───────────────────────────────── */
+.section-subheading {
+  font-size: var(--step-1);
+  color: var(--c-muted);
+  margin-top: 0.35rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.section-subheading.light {
+  color: var(--c-muted-dark);
+}
+
+/* ── 21. Audience signpost ────────────────────────────────── */
+.audience-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+}
+
+.audience-card {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: 16px;
+  padding: 2rem 1.75rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.audience-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(124,58,237,.12);
+  border-color: var(--c-violet);
+}
+
+.audience-card h3 {
+  font-size: var(--step-1);
+  font-weight: 700;
+  color: var(--c-text);
+  margin: 0;
+}
+
+.audience-card p {
+  font-size: var(--step-0);
+  color: var(--c-body);
+  margin: 0;
+  flex: 1;
+}
+
+.audience-card-cta {
+  font-size: var(--step--1);
+  font-weight: 700;
+  color: var(--c-violet);
+  margin-top: 0.5rem;
+}
+
+/* ── 22. Info panel ───────────────────────────────────────── */
+.info-panel {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  margin-top: 2rem;
+}
+
+.info-panel-alt {
+  background: var(--c-bg-alt);
+  border-color: var(--c-border);
+}
+
+.info-panel-dark {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--c-border-dark);
+}
+
+.info-panel h3 {
+  font-size: var(--step-1);
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+/* ── 23. Benefit grid ─────────────────────────────────────── */
+.benefit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.benefit-card {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.benefit-card h3 {
+  font-size: var(--step-0);
+  font-weight: 700;
+  color: var(--c-violet);
+  margin-bottom: 0.5rem;
+}
+
+.benefit-card p {
+  font-size: var(--step-0);
+  color: var(--c-body);
+  margin: 0;
+}
+
+/* ── 24. Info checklist ───────────────────────────────────── */
+.info-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.info-checklist li {
+  padding-left: 1.75rem;
+  position: relative;
+  font-size: var(--step-0);
+  color: var(--c-body);
+  line-height: 1.55;
+}
+
+.info-checklist li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--c-mint);
+  font-weight: 700;
+}
+
+.section-dark .info-checklist li,
+.for-young-people .info-checklist li {
+  color: var(--c-on-dark);
+}
+
+/* ── 25. Reassurance block ────────────────────────────────── */
+.reassurance-block {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  margin-top: 2rem;
+}
+
+.reassurance-block h3 {
+  font-size: var(--step-1);
+  font-weight: 700;
+  color: var(--c-text);
+  margin-bottom: 1rem;
+}
+
+/* ── 26. Workshop panels (young people) ──────────────────── */
+.workshop-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.workshop-panel {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--c-border-dark);
+  border-radius: 16px;
+  padding: 1.75rem;
+}
+
+.workshop-panel h3 {
+  font-size: var(--step-1);
+  font-weight: 700;
+  color: var(--c-lavender);
+  margin-bottom: 1rem;
+}
+
+.workshop-panel .info-checklist li {
+  color: var(--c-on-dark);
+}
+
+.workshop-panel .info-checklist li::before {
+  color: var(--c-lavender);
+}
+
+/* ── 27. Data promise (young people) ─────────────────────── */
+.data-promise {
+  background: rgba(124,58,237,0.12);
+  border: 1px solid rgba(124,58,237,0.3);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  margin-top: 2rem;
+}
+
+.data-promise h3 {
+  font-size: var(--step-1);
+  font-weight: 700;
+  color: var(--c-lavender);
+  margin-bottom: 1rem;
+}
+
+.promise-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.promise-list li {
+  padding-left: 1.75rem;
+  position: relative;
+  font-size: var(--step-0);
+  color: var(--c-on-dark);
+  line-height: 1.5;
+}
+
+.promise-list li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--c-lavender);
+  font-weight: 700;
+}
+
+/* ── 28. Privacy promise grid ─────────────────────────────── */
+.promise-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.promise-card {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  position: relative;
+}
+
+.promise-number {
+  display: block;
+  font-family: var(--f-head);
+  font-size: var(--step-4);
+  font-weight: 300;
+  color: var(--c-bg-alt);
+  line-height: 1;
+  position: absolute;
+  top: 0.5rem;
+  right: 1rem;
+  user-select: none;
+  pointer-events: none;
+}
+
+.promise-card h3 {
+  font-size: var(--step-0);
+  font-weight: 700;
+  color: var(--c-violet);
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+
+.promise-card p {
+  font-size: var(--step-0);
+  color: var(--c-body);
+  margin: 0;
+  position: relative;
+}
+
+/* ── 29. Data flow ────────────────────────────────────────── */
+.data-flow {
+  background: var(--c-bg-alt);
+  border: 1px solid var(--c-border);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  margin-top: 2rem;
+}
+
+.data-flow h3 {
+  font-size: var(--step-1);
+  font-weight: 700;
+  color: var(--c-text);
+  margin-bottom: 1.25rem;
+}
+
+.data-flow-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0;
+  align-items: center;
+}
+
+.data-flow-steps li {
+  background: var(--c-violet);
+  color: #fff;
+  padding: 0.5em 1.1em;
+  border-radius: 999px;
+  font-size: var(--step--1);
+  font-weight: 500;
+  white-space: nowrap;
+  margin: 0.25rem;
+}
+
+.data-flow-steps li + li {
+  margin-left: 0;
+}
+
+/* ── 30. Research aims ────────────────────────────────────── */
+.aims-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+}
+
+.aim-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--c-border-dark);
+  border-radius: 16px;
+  padding: 2rem 1.75rem;
+}
+
+.aim-number {
+  display: block;
+  font-family: var(--f-head);
+  font-size: var(--step-5);
+  font-weight: 300;
+  color: rgba(167,139,250,0.2);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.aim-card h3 {
+  font-size: var(--step-0);
+  font-weight: 700;
+  color: var(--c-on-dark);
+  margin-bottom: 0.75rem;
+}
+
+.aim-card p {
+  font-size: var(--step-0);
+  color: var(--c-muted-dark);
+  margin: 0;
+}
+
+.aims-list-block {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--c-border-dark);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  margin-top: 2rem;
+}
+
+.aims-list-block h3 {
+  font-size: var(--step-1);
+  font-weight: 700;
+  color: var(--c-on-dark);
+  margin-bottom: 1.25rem;
+}
+
+.aims-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: aims;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.aims-list li {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+
+.aim-label {
+  background: var(--c-violet);
+  color: #fff;
+  font-size: var(--step--1);
+  font-weight: 700;
+  padding: 0.25em 0.65em;
+  border-radius: 6px;
+  white-space: nowrap;
+  margin-top: 0.1em;
+}
+
+.aims-list p {
+  font-size: var(--step-0);
+  color: var(--c-muted-dark);
+  margin: 0;
+}
+
+/* ── 31. Resources placeholder ────────────────────────────── */
+.resources-placeholder {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+}
+
+.placeholder-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--c-border-dark);
+  border-radius: 16px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.placeholder-card h3 {
+  font-size: var(--step-0);
+  font-weight: 700;
+  color: var(--c-on-dark);
+  margin: 0;
+}
+
+.placeholder-card p {
+  font-size: var(--step-0);
+  color: var(--c-muted-dark);
+  margin: 0;
+  flex: 1;
+}
+
+.coming-soon-tag {
+  display: inline-block;
+  background: rgba(124,58,237,0.2);
+  color: var(--c-lavender);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 0.25em 0.7em;
+  border-radius: 999px;
+  align-self: flex-start;
+}
+
+/* ── 32. Slider ───────────────────────────────────────────── */
+.slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.slider-wrapper input[type="range"] {
+  flex: 1;
+  height: 4px;
+  appearance: none;
+  background: var(--c-border);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider-wrapper input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: var(--c-violet);
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,.15);
+}
+
+.slider-wrapper input[type="range"]:focus::-webkit-slider-thumb {
+  outline: 3px solid var(--c-lavender);
+  outline-offset: 2px;
+}
+
+.slider-output {
+  min-width: 4ch;
+  font-weight: 700;
+  color: var(--c-violet);
+  font-size: var(--step-0);
+  text-align: right;
+}
+
+/* ── 33. Secondary button ─────────────────────────────────── */
+.btn-secondary {
+  background: transparent;
+  border: 2px solid var(--c-violet);
+  color: var(--c-violet);
+  padding: 0.7em 1.6em;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: var(--step-0);
+  text-decoration: none;
+  display: inline-block;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--c-violet);
+  color: #fff;
+}
+
+/* ── 34. Responsive ───────────────────────────────────────── */
 @media (max-width: 900px) {
   .split       { grid-template-columns: 1fr; }
   .signup-layout { grid-template-columns: 1fr; }
@@ -1240,6 +1833,13 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
   .contact-inner { grid-template-columns: 1fr; }
   .footer-inner { flex-direction: column; align-items: flex-start; }
   .footer-meta  { text-align: left; }
+  .audience-grid { grid-template-columns: 1fr; }
+  .benefit-grid  { grid-template-columns: 1fr; }
+  .promise-grid  { grid-template-columns: 1fr; }
+  .aims-grid     { grid-template-columns: 1fr; }
+  .resources-placeholder { grid-template-columns: 1fr; }
+  .workshop-grid { grid-template-columns: 1fr; }
+  .hero-stats    { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 840px) {
@@ -1252,9 +1852,16 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
   .people-grid    { grid-template-columns: 1fr; }
   .project-grid   { grid-template-columns: 1fr; }
   .stat-row       { grid-template-columns: 1fr 1fr; }
+  .hero-stats     { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 480px) {
+  .hero-stats   { grid-template-columns: 1fr 1fr; }
+  .promise-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 400px) {
   .stat-row { grid-template-columns: 1fr; }
   .hero-actions { flex-direction: column; }
+  .hero-stats { grid-template-columns: 1fr 1fr; }
 }

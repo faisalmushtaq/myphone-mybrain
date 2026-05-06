@@ -1,0 +1,34 @@
+<section id="data-privacy" class="section">
+  <div class="container">
+    <div class="reveal section-heading">
+      <p class="section-kicker">Data and privacy</p>
+      <h2>{{ site.data.privacy.heading }}</h2>
+      <p class="section-subheading">{{ site.data.privacy.subheading }}</p>
+    </div>
+
+    <div class="info-panel reveal">
+      <div class="prose">
+        {{ site.data.privacy.intro | markdownify }}
+      </div>
+    </div>
+
+    <div class="promise-grid reveal">
+      {% for item in site.data.privacy.promise %}
+      <div class="promise-card">
+        <span class="promise-number">{{ item.number }}</span>
+        <h3>{{ item.heading }}</h3>
+        <p>{{ item.body }}</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="data-flow reveal" aria-label="Data flow summary">
+      <h3>How data moves through the project</h3>
+      <ol class="data-flow-steps">
+        {% for step in site.data.privacy.data_flow %}
+        <li>{{ step.label }}</li>
+        {% endfor %}
+      </ol>
+    </div>
+  </div>
+</section>

@@ -19,35 +19,17 @@
           <input type="text" name="school" autocomplete="organization" required placeholder="e.g. Woodfield Academy">
         </label>
 
-        <div class="field-row">
-          <label>
-            School type
-            <select name="school_type">
-              <option value="" disabled selected>Select…</option>
-              <option>State secondary</option>
-              <option>Academy</option>
-              <option>Grammar</option>
-              <option>Sixth-form college</option>
-              <option>Independent</option>
-              <option>Special school</option>
-              <option>Other</option>
-            </select>
-          </label>
-          <label>
-            Approx. number of pupils
-            <select name="school_size">
-              <option value="" disabled selected>Select…</option>
-              <option>Under 500</option>
-              <option>500–800</option>
-              <option>800–1,200</option>
-              <option>Over 1,200</option>
-            </select>
-          </label>
-        </div>
-
         <label>
           Local authority or area <span>optional</span>
-          <input type="text" name="area" placeholder="e.g. Bradford, Leeds, West Yorkshire">
+          <input type="text" name="area" placeholder="e.g. Bradford, Keighley, Shipley">
+        </label>
+
+        <label>
+          Approx. number of pupils
+          <div class="slider-wrapper">
+            <input type="range" name="school_size" id="school_size_slider" min="100" max="2000" step="50" value="800">
+            <output class="slider-output" for="school_size_slider">800</output>
+          </div>
         </label>
       </div>
 
@@ -99,20 +81,9 @@
             <label class="checkbox"><input type="checkbox" name="interest" value="Taking part this year"> <span>Taking part this year</span></label>
             <label class="checkbox"><input type="checkbox" name="interest" value="Parent or carer information"> <span>Parent/carer info</span></label>
             <label class="checkbox"><input type="checkbox" name="interest" value="Assembly or research workshop"> <span>Assembly or workshop</span></label>
+            <label class="checkbox"><input type="checkbox" name="interest" value="Safeguarding and data protection"> <span>Safeguarding &amp; data protection</span></label>
           </div>
         </fieldset>
-
-        <label style="margin-top: 1.25rem;">
-          How did you hear about MyPhone/MyBrain?
-          <select name="how_heard">
-            <option value="" disabled selected>Select…</option>
-            <option>University of Leeds contact</option>
-            <option>Colleague or another school</option>
-            <option>Social media</option>
-            <option>Research newsletter</option>
-            <option>Other</option>
-          </select>
-        </label>
       </div>
 
       <div class="form-section">

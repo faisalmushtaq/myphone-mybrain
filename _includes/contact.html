@@ -4,7 +4,7 @@
       <p class="section-kicker light">Get in touch</p>
       <h2>We'd love to hear from you.</h2>
       <div class="prose prose-light">
-        {{ site.data.content.contact | markdownify }}
+        {{ site.data.content.contact.body | markdownify }}
       </div>
       <a href="mailto:{{ site.email }}" class="contact-link">
         {{ site.email }}

@@ -1,0 +1,30 @@
+<section id="aims" class="section section-dark">
+  <div class="container">
+    <div class="reveal section-heading">
+      <p class="section-kicker light">Research aims</p>
+      <h2>{{ site.data.aims.what_we_learn.heading }}</h2>
+    </div>
+
+    <div class="aims-grid">
+      {% for item in site.data.aims.what_we_learn.items %}
+      <article class="aim-card reveal">
+        <span class="aim-number">{{ item.number }}</span>
+        <h3>{{ item.heading }}</h3>
+        <p>{{ item.body }}</p>
+      </article>
+      {% endfor %}
+    </div>
+
+    <div class="aims-list-block reveal">
+      <h3>{{ site.data.aims.aims.heading }}</h3>
+      <ol class="aims-list">
+        {% for aim in site.data.aims.aims.items %}
+        <li>
+          <span class="aim-label">{{ aim.number }}</span>
+          <p>{{ aim.body }}</p>
+        </li>
+        {% endfor %}
+      </ol>
+    </div>
+  </div>
+</section>

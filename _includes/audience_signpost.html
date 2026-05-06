@@ -1,0 +1,16 @@
+<section id="audience" class="section section-light">
+  <div class="container">
+    <div class="reveal section-heading">
+      <h2>{{ site.data.audience.signpost.heading }}</h2>
+    </div>
+    <div class="audience-grid reveal">
+      {% for card in site.data.audience.signpost.cards %}
+      <a href="{{ card.cta_href }}" class="audience-card" id="audience-{{ card.id }}">
+        <h3>{{ card.title }}</h3>
+        <p>{{ card.body }}</p>
+        <span class="audience-card-cta">{{ card.cta_label }} &nbsp;&rarr;</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>

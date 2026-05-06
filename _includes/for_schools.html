@@ -1,0 +1,32 @@
+<section id="schools" class="section">
+  <div class="container">
+    <div class="reveal section-heading">
+      <p class="section-kicker">For schools</p>
+      <h2>{{ site.data.audience.for_schools.heading }}</h2>
+      <p class="section-subheading">{{ site.data.audience.for_schools.subheading }}</p>
+    </div>
+
+    <div class="info-panel reveal">
+      <div class="prose">
+        {{ site.data.audience.for_schools.body | markdownify }}
+      </div>
+    </div>
+
+    <div class="benefit-grid reveal">
+      {% for benefit in site.data.audience.for_schools.benefits %}
+      <div class="benefit-card">
+        <h3>{{ benefit.heading }}</h3>
+        <p>{{ benefit.body }}</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="info-panel info-panel-alt reveal">
+      <h3>What schools need to provide</h3>
+      <div class="prose">
+        {{ site.data.audience.for_schools.what_schools_need | markdownify }}
+      </div>
+      <a href="#signup" class="btn btn-primary" style="margin-top:1.5rem;">Register your school's interest &nbsp;&rarr;</a>
+    </div>
+  </div>
+</section>

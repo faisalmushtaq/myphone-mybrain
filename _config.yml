@@ -1,9 +1,12 @@
 title: "MyPhone/MyBrain"
-tagline: "Understanding how digital technology, everyday experience and adolescent brain development fit together."
-email: "myphone-mybrain@leeds.ac.uk"
+tagline: "A city-scale citizen science programme linking digital lives and brain development in Bradford."
+description: "MyPhone/MyBrain is a University of Leeds research programme examining how digital engagement relates to adolescent brain development, wellbeing and learning. We work with secondary schools in Bradford."
+email: "brainpop@leeds.ac.uk"
 
 baseurl: "/myphone-mybrain"
 url: "https://faisalmushtaq.github.io"
+
+og_image: "/myphone-mybrain/assets/images/og-image.png"
 
 markdown: kramdown
 permalink: pretty

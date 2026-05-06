@@ -4,10 +4,35 @@ partners:
     description: "The project is led from the School of Psychology, Faculty of Medicine and Health. The University of Leeds has a long track record of population-scale research with schools and communities."
     url: "https://www.leeds.ac.uk/"
 
+  - name: "Born in Bradford / Age of Wonder"
+    category: "Research partner"
+    description: "Born in Bradford is one of the world's largest birth cohort studies, following thousands of families in Bradford since 2007. The Age of Wonder programme extends this work into adolescence. MyPhone/MyBrain is embedded within and delivered in partnership with the Born in Bradford infrastructure."
+    url: "https://borninbradford.nhs.uk/"
+
+  - name: "Centre for Applied Education Research (CAER)"
+    category: "Research partner"
+    description: "CAER brings together researchers, educators and policymakers to generate and translate evidence about children's learning and development. CAER's expertise in school-based research and education policy shapes how the project is designed and how its findings are communicated."
+    url: "https://www.leedsbeckett.ac.uk/research/centre-for-applied-education-research/"
+
+  - name: "Connected Bradford"
+    category: "Data platform"
+    description: "Connected Bradford is a research data platform that links routinely collected health, education and social care records for people in Bradford. With appropriate consent and governance approvals, MyPhone/MyBrain data will be linked through this platform to examine real-world outcomes."
+    url: "https://connectedbradford.nhs.uk/"
+
+  - name: "Smart Data Donation Service"
+    category: "Technology partner"
+    description: "The Smart Data Donation Service provides the secure technical infrastructure that enables voluntary donation of digital engagement data from social media platforms. It gives participants visibility and control over what they share with researchers."
+    url: "#"
+
   - name: "Partner schools"
     category: "Participation partners"
-    description: "Participating schools co-design a practical, respectful and age-appropriate approach to research. Their knowledge of their communities shapes everything from session timing to how we share findings."
+    description: "Participating schools co-design the practical approach to research delivery in their communities. Their knowledge shapes everything from session timing and communication with families to how findings are shared. Schools in Bradford are central to the project — not just data sources."
     url: "#signup"
+
+  - name: "Young people, parents and community advisors"
+    category: "Community partners"
+    description: "Young people and parent representatives have contributed to the design of the study, including what feels acceptable, meaningful and clear. Community advisors support the project's co-production work and help make sure communication is accessible and trustworthy."
+    url: "#"
 
 funders:
   - name: "Huo Family Foundation"
