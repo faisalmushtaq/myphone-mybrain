@@ -42,6 +42,10 @@ if (menuToggle && mobileNav) {
     menuToggle.getAttribute('aria-expanded') === 'true' ? closeMenu() : openMenu();
   });
 
+  /* Close button inside the overlay */
+  const closeBtn = mobileNav.querySelector('.mobile-nav-close');
+  if (closeBtn) closeBtn.addEventListener('click', closeMenu);
+
   /* Close when any nav link is tapped */
   mobileNav.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMenu));
 

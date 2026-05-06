@@ -23,7 +23,12 @@
 
 <!-- Mobile nav lives outside the header to avoid stacking-context issues -->
 <div class="mobile-nav-overlay" id="mobile-nav" aria-hidden="true">
+  <button class="mobile-nav-close" aria-label="Close navigation menu">
+    <span class="bar"></span>
+    <span class="bar"></span>
+  </button>
   <nav class="mobile-nav-inner" aria-label="Mobile navigation">
+    <a href="{{ site.baseurl }}/">Home</a>
     <a href="#about">About</a>
     <a href="#participation">How it works</a>
     <a href="#schools">For schools</a>
