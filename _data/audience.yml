@@ -53,7 +53,7 @@ for_parents:
     - "Raw social media data are handled through the Smart Data Donation Service and are not published openly."
     - "No commercial third party receives pupil data from the project."
     - "Families can contact the research team with questions at any time."
-  consent_note: "Participant information sheets, consent forms and privacy information will be shared with schools when finalised. Materials will be accessible, and multilingual and low-text resources will be made available where possible."
+  consent_note: "Participant information sheets, consent forms and privacy information will be shared with schools when finalised. Materials will be accessible, and multilingual and easy-read versions will be made available where possible."
 
 for_young_people:
   heading: "Information for young people"

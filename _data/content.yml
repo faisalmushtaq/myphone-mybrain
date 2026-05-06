@@ -33,11 +33,11 @@ about:
   body: |
     **MyPhone/MyBrain** is a four-year research programme coordinated through the **Centre for Applied Education Research** (CAER) and funded by the Huo Family Foundation. The research team is based at the **Wolfson Centre for Applied Health Research** on site at Bradford Royal Infirmary. We are partnering with secondary schools in Bradford to run two paired school-based workshops that together build one of the first large-scale resources linking real-world digital behaviour with direct measures of adolescent brain function, wellbeing and learning.
 
-    **MyPhone** — young people can securely donate a snapshot of their social media usage data through the Smart Data Donation Service. These data capture timing, interaction patterns and content exposure, forming the basis of data-driven "digital phenotypes" that describe different patterns of engagement.
+    **MyPhone** — young people can securely donate a snapshot of their social media usage data through the Smart Data Donation Service. These data capture timing, interaction patterns and content exposure, building up a picture of how each person engages online.
 
     **MyBrain** — students take part in EEG brain-recording sessions at school, at rest and while completing short cognitive tasks. Trained researchers bring all equipment and run every session. EEG is safe, painless and non-invasive.
 
-    The project uses an accelerated longitudinal design — recruiting pupils from multiple year groups and following some longitudinally — so we can study both individual differences and developmental change over time. With appropriate consent and governance approvals, project data will be linked to health and education records through **Connected Bradford**, enabling us to examine how digital behaviour relates to academic attainment, mental health and wellbeing over time.
+    The project recruits pupils from multiple year groups and follows some of them over several years — so we can study both how young people differ from one another and how things change as they grow up. With appropriate consent and the necessary approvals, project data will be linked to health and education records through **Connected Bradford**, enabling us to examine how digital behaviour relates to academic attainment, mental health and wellbeing over time.
 
     The project is led by **Professor Faisal Mushtaq** (University of Leeds), working with co-investigators spanning developmental neuroscience, machine learning, digital data science, education and population research.
 
@@ -51,7 +51,7 @@ why:
     The goal is not to alarm or reassure, but to understand. Findings will be shared openly, carefully and in ways that can meaningfully inform education, health and family decision-making for years to come.
 
 process_intro: |
-  We use an accelerated longitudinal design, recruiting adolescents from different school years and following a subset as they move through secondary school. This lets us model developmental trajectories and examine how digital engagement relates to change over time. Research is delivered through two paired workshops run by trained researchers based at the Wolfson Centre for Applied Health Research, Bradford Royal Infirmary. Everything is voluntary, fully consented and designed to be a genuinely interesting, age-appropriate experience.
+  We recruit pupils from across different school years and follow a group of them over time as they move through secondary school. This means we can track how things change with age and understand both individual differences and longer-term patterns of development. Research is delivered through two paired workshops run by trained researchers based at the Wolfson Centre for Applied Health Research, Bradford Royal Infirmary. Everything is voluntary, fully consented and designed to be a genuinely interesting, age-appropriate experience.
 
 steps:
   - number: "01"
@@ -72,7 +72,7 @@ steps:
 
   - number: "05"
     title: "Linked records and follow-up"
-    body: "With appropriate consent and ethical approvals, de-identified research data will be linked to education and health records through Connected Bradford. A subset of pupils will be followed up in subsequent years. Group-level findings will be shared with schools."
+    body: "With appropriate consent and the necessary approvals, data with personal identifiers removed will be linked to education and health records through Connected Bradford. Some pupils will be invited to take part again in later years. Group-level findings will be shared with schools."
 
 signup:
   title: "Register your school's interest"

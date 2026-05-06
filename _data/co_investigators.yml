@@ -8,7 +8,7 @@
   role: "Co-Investigator"
   affiliation: "University of Leeds"
   focus: "Developmental and social neuroscience"
-  bio: "Amy Bland's research focuses on the computational and neural mechanisms underlying how people learn from and respond to social and affective information. She contributes expertise in developmental neuroscience and EEG methodology."
+  bio: "Amy Bland's research focuses on how the brain learns from and responds to other people — including how emotional and social experiences shape behaviour and brain activity. She contributes expertise in developmental neuroscience and EEG methodology."
 
 - name: "Dr Emmanuele Tidoni"
   role: "Co-Investigator"
@@ -20,13 +20,13 @@
   role: "Co-Investigator"
   affiliation: "University of Sheffield"
   focus: "Machine learning and EEG"
-  bio: "Mahnaz Arvaneh leads research in machine learning for biosignal processing, with a particular focus on brain-computer interfaces and EEG signal analysis. She contributes expertise in the computational methods used to build normative brain models from large-scale EEG data."
+  bio: "Mahnaz Arvaneh leads research in using machine learning to make sense of signals recorded from the brain and body. She contributes expertise in the methods used to build reference pictures of brain activity across large groups of people."
 
 - name: "Dr David Zendle"
   role: "Co-Investigator"
   affiliation: "University of York"
   focus: "Digital data donation"
-  bio: "David Zendle is a leading researcher on digital data donation methodology and the analysis of platform engagement data. He contributes expertise in the Smart Data Donation Service and the derivation of digital phenotypes from real-world platform data."
+  bio: "David Zendle is a leading researcher on digital data donation and the analysis of platform engagement data. He contributes expertise in the Smart Data Donation Service and in drawing meaningful patterns from real-world data about how people use digital platforms."
 
 - name: "Professor Mark Mon-Williams"
   role: "Co-Investigator"
