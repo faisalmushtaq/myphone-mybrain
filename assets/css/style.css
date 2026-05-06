@@ -437,7 +437,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
   min-height: 100svh;
   background:
     linear-gradient(165deg, rgba(8,13,26,0.80) 0%, rgba(2,132,199,0.20) 60%, rgba(8,13,26,0.88) 100%),
-    url('/myphone-mybrain/assets/images/hero-brain.webp') center/cover no-repeat;
+    url('/myphone-mybrain/assets/images/hero-brain.png') center/cover no-repeat;
   overflow: hidden;
 }
 
