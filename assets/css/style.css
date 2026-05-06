@@ -1073,10 +1073,12 @@ legend { font-size: var(--step--1); font-weight: 600; color: var(--c-ink); margi
   font-size: var(--step-3);
   font-weight: 400;
   color: var(--c-ink);
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--c-border);
 }
+
+.co-investigators .people-grid { margin-top: 0; }
 
 /* ── 26. Partners ────────────────────────────────────────── */
 .project-grid {
