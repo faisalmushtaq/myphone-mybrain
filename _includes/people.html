@@ -3,25 +3,28 @@
     <div class="reveal section-heading">
       <p class="section-kicker">Project team</p>
       <h2>Coordinated through the Centre for Applied Education Research.</h2>
-      <p class="section-subtitle">The project brings together developmental neuroscience, data science, machine learning and implementation science.</p>
     </div>
 
     <div class="people-grid">
       {% for person in site.data.people %}
       <article class="person-card reveal">
         <div class="person-image">
-          {% if person.image contains "://" %}
-            <img src="{{ person.image }}" alt="{{ person.name }}" loading="lazy">
+          {% if person.image %}
+            {% if person.image contains "://" %}
+              <img src="{{ person.image }}" alt="{{ person.name }}" loading="lazy">
+            {% else %}
+              <img src="{{ site.baseurl }}/assets/images/people/{{ person.image }}" alt="{{ person.name }}" loading="lazy">
+            {% endif %}
           {% else %}
-            <img src="{{ site.baseurl }}/assets/images/people/{{ person.image }}" alt="{{ person.name }}" loading="lazy">
+            <div class="person-image-placeholder">{{ person.name | slice: 0 }}</div>
           {% endif %}
         </div>
         <div class="person-info">
-          <p class="role">{{ person.role }}</p>
-          <h3>{{ person.name }}</h3>
+          <p class="person-role">{{ person.role }}</p>
+          <h3 class="person-name">{{ person.name }}</h3>
           <p class="bio">{{ person.bio }}</p>
           {% if person.links and person.links.size > 0 %}
-          <div class="links">
+          <div class="person-links">
             {% for link in person.links %}
             <a href="{{ link.url }}" {% unless link.url contains "mailto" %}target="_blank" rel="noopener"{% endunless %}>{{ link.label }}</a>
             {% endfor %}
@@ -33,14 +36,29 @@
     </div>
 
     <div class="co-investigators reveal">
-      <h3>Co-investigators</h3>
-      <div class="co-i-grid">
+      <h3 class="co-i-heading">Co-investigators</h3>
+      <div class="people-grid">
         {% for ci in site.data.co_investigators %}
-        <div class="co-i-card">
-          <p class="co-i-name">{{ ci.name }}</p>
-          <p class="co-i-role">{{ ci.focus }}</p>
-          <p class="co-i-affil">{{ ci.affiliation }}</p>
-        </div>
+        <article class="person-card reveal">
+          <div class="person-image">
+            {% assign ci_img = ci.image %}
+            {% if ci_img %}
+              <img src="{{ site.baseurl }}/assets/images/people/{{ ci_img }}" alt="{{ ci.name }}" loading="lazy">
+            {% else %}
+              <div class="person-image-placeholder">{{ ci.name | slice: 0 }}</div>
+            {% endif %}
+          </div>
+          <div class="person-info">
+            <p class="person-role">{{ ci.affiliation }}</p>
+            <h3 class="person-name">{{ ci.name }}</h3>
+            <p class="bio">{{ ci.bio }}</p>
+            {% if ci.url and ci.url != "#" %}
+            <div class="person-links">
+              <a href="{{ ci.url }}" target="_blank" rel="noopener">View profile &rarr;</a>
+            </div>
+            {% endif %}
+          </div>
+        </article>
         {% endfor %}
       </div>
     </div>
