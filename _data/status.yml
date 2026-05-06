@@ -2,6 +2,6 @@
 # Update label and text to reflect the current project phase.
 # Phases: Planning | Setting up | Recruiting schools | Workshops underway | Findings available
 
-active: true
+active: false
 label: "Status"
 text: "MyPhone/MyBrain is in the planning and set-up phase. We are establishing school partnerships in Bradford. Contact us to find out more."
