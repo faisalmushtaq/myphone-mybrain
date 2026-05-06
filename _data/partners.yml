@@ -1,22 +1,32 @@
 partners:
   - name: "Centre for Applied Education Research (CAER)"
     category: "Coordinating centre"
+    logo: "logos/caer.png"
     description: "MyPhone/MyBrain is coordinated through CAER, based at the Wolfson Centre for Applied Health Research on site at Bradford Royal Infirmary. CAER brings together researchers, educators and policymakers to generate and translate evidence about children's learning and development, and provides the infrastructure for school-based delivery across Bradford."
     url: "https://www.leedsbeckett.ac.uk/research/centre-for-applied-education-research/"
 
   - name: "Born in Bradford / Age of Wonder"
     category: "Research partner"
+    logo: "logos/born_bradford.png"
     description: "Born in Bradford is one of the world's largest birth cohort studies, following thousands of families in Bradford since 2007. The Age of Wonder programme extends this work into adolescence. MyPhone/MyBrain is embedded within and delivered in partnership with the Born in Bradford infrastructure."
     url: "https://borninbradford.nhs.uk/"
 
   - name: "University of Leeds"
     category: "Academic partner"
+    logo: "logos/leeds.png"
     description: "The academic team is based at the University of Leeds. The University has a long track record of population-scale research with schools and communities, and provides the institutional home for the research programme."
     url: "https://www.leeds.ac.uk/"
 
+  - name: "McGill University"
+    category: "Academic partner"
+    logo: "logos/mcgill.png"
+    description: "McGill University brings expertise in adolescent brain development and cognitive neuroscience to the partnership, contributing to the scientific design of the programme and the analysis of brain recording data."
+    url: "https://www.mcgill.ca/"
+
   - name: "Connected Bradford"
     category: "Data platform"
-    description: "Connected Bradford is a research data platform that links routinely collected health, education and social care records for people in Bradford. With appropriate consent and governance approvals, MyPhone/MyBrain data will be linked through this platform to examine real-world outcomes."
+    logo: "logos/connected-bradford.png"
+    description: "Connected Bradford is a research data platform that links routinely collected health, education and social care records for people in Bradford. With appropriate consent and the necessary approvals, MyPhone/MyBrain data will be linked through this platform to examine real-world outcomes."
     url: "https://connectedbradford.nhs.uk/"
 
   - name: "Smart Data Donation Service"
@@ -37,5 +47,6 @@ partners:
 funders:
   - name: "Huo Family Foundation"
     category: "Funder"
+    logo: "logos/huo.png"
     description: "MyPhone/MyBrain is made possible by the generous support of the Huo Family Foundation, which funds research and programmes that benefit young people and communities."
     url: "https://huofamilyfoundation.org/"

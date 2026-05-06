@@ -10,24 +10,61 @@
 
     <div class="project-grid">
       {% for partner in site.data.partners.partners %}
-      <article class="project-card reveal">
-        <div class="project-card-body">
-          <div class="project-card-label">{{ partner.category }}</div>
-          <h3>{{ partner.name }}</h3>
-          <p>{{ partner.description }}</p>
-          <a href="{{ partner.url }}" class="project-card-arrow" target="_blank" rel="noopener">Learn more &nbsp;&rarr;</a>
+        {% if partner.url contains "http" %}
+        <a href="{{ partner.url }}" class="project-card reveal" target="_blank" rel="noopener">
+        {% else %}
+        <div class="project-card reveal">
+        {% endif %}
+          <div class="partner-logo-box">
+            {% if partner.logo %}
+              <img src="{{ site.baseurl }}/assets/images/{{ partner.logo }}"
+                   alt="{{ partner.name }} logo" loading="lazy">
+            {% else %}
+              <span class="partner-logo-placeholder">{{ partner.category }}</span>
+            {% endif %}
+          </div>
+          <div class="project-card-body">
+            <div class="project-card-label">{{ partner.category }}</div>
+            <h3>{{ partner.name }}</h3>
+            <p>{{ partner.description }}</p>
+            {% if partner.url contains "http" %}
+            <span class="project-card-arrow">Visit website &nbsp;&rarr;</span>
+            {% endif %}
+          </div>
+        {% if partner.url contains "http" %}
+        </a>
+        {% else %}
         </div>
-      </article>
+        {% endif %}
       {% endfor %}
+
       {% for funder in site.data.partners.funders %}
-      <article class="project-card reveal funder-card">
-        <div class="project-card-body">
-          <div class="project-card-label">{{ funder.category }}</div>
-          <h3>{{ funder.name }}</h3>
-          <p>{{ funder.description }}</p>
-          <a href="{{ funder.url }}" class="project-card-arrow" target="_blank" rel="noopener">Funder website &nbsp;&rarr;</a>
+        {% if funder.url contains "http" %}
+        <a href="{{ funder.url }}" class="project-card reveal funder-card" target="_blank" rel="noopener">
+        {% else %}
+        <div class="project-card reveal funder-card">
+        {% endif %}
+          <div class="partner-logo-box partner-logo-box--funder">
+            {% if funder.logo %}
+              <img src="{{ site.baseurl }}/assets/images/{{ funder.logo }}"
+                   alt="{{ funder.name }} logo" loading="lazy">
+            {% else %}
+              <span class="partner-logo-placeholder">{{ funder.category }}</span>
+            {% endif %}
+          </div>
+          <div class="project-card-body">
+            <div class="project-card-label">{{ funder.category }}</div>
+            <h3>{{ funder.name }}</h3>
+            <p>{{ funder.description }}</p>
+            {% if funder.url contains "http" %}
+            <span class="project-card-arrow">Funder website &nbsp;&rarr;</span>
+            {% endif %}
+          </div>
+        {% if funder.url contains "http" %}
+        </a>
+        {% else %}
         </div>
-      </article>
+        {% endif %}
       {% endfor %}
     </div>
   </div>
