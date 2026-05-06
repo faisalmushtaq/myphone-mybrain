@@ -1,7 +1,14 @@
 <section id="hero" class="hero">
 
+  <img class="hero-img"
+       src="{{ '/assets/images/hero-brain.png' | relative_url }}"
+       alt=""
+       aria-hidden="true"
+       fetchpriority="high">
+  <div class="hero-overlay" aria-hidden="true"></div>
+
   <div class="container hero-content">
-    <h1>{{ site.data.content.hero.headline_main }}<span class="slash">/</span><span class="accent">{{ site.data.content.hero.headline_accent }}</span></h1>
+    <h1>{{ site.data.content.hero.headline_main }}<span class="slash">/</span><br><span class="accent">{{ site.data.content.hero.headline_accent }}</span></h1>
 
     <p class="tagline">{{ site.data.content.hero.tagline }}</p>
 

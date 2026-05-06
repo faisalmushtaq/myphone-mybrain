@@ -232,7 +232,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
   transition: box-shadow 0.2s;
 }
 
-.site-header.scrolled { box-shadow: var(--shadow-sm); }
+.site-header.scrolled { box-shadow: var(--shadow-sm); background: var(--c-cream); backdrop-filter: none; -webkit-backdrop-filter: none; }
 
 .header-inner {
   height: 100%;
@@ -376,13 +376,25 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
   position: relative;
   min-height: 100vh;
   min-height: 100svh;
-  background-color: var(--c-dark);
-  background-image:
-    linear-gradient(to bottom, rgba(28,20,18,0.72) 0%, rgba(28,20,18,0.50) 40%, rgba(28,20,18,0.88) 100%),
-    url('/myphone-mybrain/assets/images/hero-brain.png');
-  background-size: auto, cover;
-  background-position: center, center;
-  background-repeat: no-repeat, no-repeat;
+  overflow: hidden;
+  background: var(--c-dark);
+}
+
+.hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  z-index: 0;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(28,20,18,0.72) 0%, rgba(28,20,18,0.50) 40%, rgba(28,20,18,0.88) 100%);
+  z-index: 1;
 }
 
 .hero-content {
@@ -435,7 +447,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
 }
 
 .hero h1 .slash { color: rgba(255,255,255,0.3); }
-.hero h1 .accent { color: var(--c-crimson); font-style: italic; }
+.hero h1 .accent { display: block; color: var(--c-crimson); font-style: italic; line-height: 1.1; }
 
 .hero .tagline {
   font-size: var(--step-1);
