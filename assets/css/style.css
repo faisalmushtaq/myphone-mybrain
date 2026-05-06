@@ -436,32 +436,30 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
   position: relative;
   min-height: 100svh;
   background:
-    linear-gradient(165deg, rgba(8,13,26,0.82) 0%, rgba(2,132,199,0.25) 60%, rgba(8,13,26,0.90) 100%),
+    linear-gradient(165deg, rgba(8,13,26,0.80) 0%, rgba(2,132,199,0.20) 60%, rgba(8,13,26,0.88) 100%),
     url('/myphone-mybrain/assets/images/hero-brain.webp') center/cover no-repeat;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-end;
   overflow: hidden;
 }
 
-/* Subtle grain texture overlay */
+/* Subtle colour wash overlay */
 .hero::before {
   content: '';
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(circle at 70% 30%, rgba(2,132,199,0.18) 0%, transparent 55%),
-    radial-gradient(circle at 20% 80%, rgba(13,148,136,0.12) 0%, transparent 50%);
+    radial-gradient(circle at 70% 30%, rgba(2,132,199,0.15) 0%, transparent 55%),
+    radial-gradient(circle at 20% 80%, rgba(13,148,136,0.10) 0%, transparent 50%);
   pointer-events: none;
 }
 
-/* Status banner inside hero */
+/* Status banner: pinned at exactly nav-height — never in the flex flow */
 .hero-status {
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  background: rgba(15,23,42,0.55);
+  position: absolute;
+  top: var(--nav-h);
+  left: 0;
+  right: 0;
+  z-index: 3;
+  background: rgba(8,13,26,0.70);
   border-bottom: 1px solid rgba(255,255,255,0.1);
   padding: 0.65rem 0;
   font-size: var(--step--1);
@@ -494,11 +492,17 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
   line-height: 1.45;
 }
 
+/* Hero content: full-height flex column, text sits at the bottom */
 .hero-content {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
   position: relative;
   z-index: 2;
-  padding-block: clamp(4rem, 10vw, 7rem) clamp(3rem, 8vw, 6rem);
-  padding-top: calc(var(--nav-h) + clamp(3rem, 8vw, 6rem));
+  /* top padding clears: fixed header (--nav-h) + status banner (~56px) + breathing room */
+  padding-top: calc(var(--nav-h) + 56px + clamp(2rem, 5vw, 4rem));
+  padding-bottom: clamp(4rem, 8vw, 7rem);
 }
 
 .hero-badge {
