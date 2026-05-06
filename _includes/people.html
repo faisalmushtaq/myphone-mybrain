@@ -8,7 +8,6 @@
 
     <div class="people-grid">
       {% for person in site.data.people %}
-      {% unless person.co_investigators %}
       <article class="person-card reveal">
         <div class="person-image">
           {% if person.image contains "://" %}
@@ -30,14 +29,13 @@
           {% endif %}
         </div>
       </article>
-      {% endunless %}
       {% endfor %}
     </div>
 
     <div class="co-investigators reveal">
       <h3>Co-investigators</h3>
       <div class="co-i-grid">
-        {% for ci in site.data.people.co_investigators %}
+        {% for ci in site.data.co_investigators %}
         <div class="co-i-card">
           <p class="co-i-name">{{ ci.name }}</p>
           <p class="co-i-role">{{ ci.focus }}</p>

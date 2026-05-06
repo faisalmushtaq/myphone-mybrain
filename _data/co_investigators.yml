@@ -1,0 +1,29 @@
+- name: "Ms Zarina Mirza"
+  role: "Co-Investigator"
+  affiliation: "Born in Bradford"
+  focus: "Large-scale school studies"
+
+- name: "Dr Amy Bland"
+  role: "Co-Investigator"
+  affiliation: "University of Leeds"
+  focus: "Developmental and social neuroscience"
+
+- name: "Dr Emmanuele Tidoni"
+  role: "Co-Investigator"
+  affiliation: "University of Leeds"
+  focus: "Developmental and social neuroscience"
+
+- name: "Professor Mahnaz Arvaneh"
+  role: "Co-Investigator"
+  affiliation: "University of Sheffield"
+  focus: "Machine learning"
+
+- name: "Dr David Zendle"
+  role: "Co-Investigator"
+  affiliation: "University of York"
+  focus: "Digital data donation"
+
+- name: "Professor Mark Mon-Williams"
+  role: "Co-Investigator"
+  affiliation: "University of Leeds"
+  focus: "Education policy and Connected Bradford"

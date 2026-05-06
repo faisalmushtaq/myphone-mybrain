@@ -12,7 +12,7 @@
 - name: "Dr Sarmad Ali"
   role: "Project Manager"
   bio: |
-    Sarmad manages project operations, timelines and partnerships across MyPhone/MyBrain, bringing extensive experience in coordinating complex multi-site research programmes.
+    Sarmad manages project operations, timelines and partnerships, bringing extensive experience in coordinating complex multi-site research programmes.
   image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/sarmad_ali.png"
   links:
     - label: "Contact"
@@ -67,34 +67,3 @@
   links:
     - label: "Webpage"
       url: "https://miftahfai.github.io/"
-
-co_investigators:
-  - name: "Ms Zarina Mirza"
-    role: "Co-Investigator"
-    affiliation: "Born in Bradford"
-    focus: "Large-scale school studies"
-
-  - name: "Dr Amy Bland"
-    role: "Co-Investigator"
-    affiliation: "University of Leeds"
-    focus: "Developmental and social neuroscience"
-
-  - name: "Dr Emmanuele Tidoni"
-    role: "Co-Investigator"
-    affiliation: "University of Leeds"
-    focus: "Developmental and social neuroscience"
-
-  - name: "Professor Mahnaz Arvaneh"
-    role: "Co-Investigator"
-    affiliation: "University of Sheffield"
-    focus: "Machine learning"
-
-  - name: "Dr David Zendle"
-    role: "Co-Investigator"
-    affiliation: "University of York"
-    focus: "Digital data donation"
-
-  - name: "Professor Mark Mon-Williams"
-    role: "Co-Investigator"
-    affiliation: "University of Leeds"
-    focus: "Education policy and Connected Bradford"
