@@ -27,6 +27,25 @@
       {% endfor %}
     </div>
 
+    <div class="gatsby-block reveal">
+      <div class="gatsby-header">
+        <p class="section-kicker">Gatsby Benchmarks</p>
+        <p class="gatsby-intro">{{ site.data.audience.for_schools.gatsby_benchmarks.intro }}</p>
+      </div>
+      <div class="gatsby-grid">
+        {% for bm in site.data.audience.for_schools.gatsby_benchmarks.benchmarks %}
+        <div class="gatsby-card">
+          <div class="gatsby-number">{{ bm.number }}</div>
+          <div class="gatsby-card-body">
+            <h4>{{ bm.label }}</h4>
+            <p>{{ bm.body }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="gatsby-compass">{{ site.data.audience.for_schools.gatsby_benchmarks.compass_note }}</p>
+    </div>
+
     <div class="info-panel info-panel-alt reveal">
       <h3>What schools need to provide</h3>
       <div class="prose">

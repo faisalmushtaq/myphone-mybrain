@@ -31,6 +31,20 @@ for_schools:
       body: "The project has been co-designed with young people, parents and teachers. The MyBrain protocol has been tested for school use and adapted to support pupils with different hair types, religious head coverings and comfort needs."
     - heading: "Contribution to better evidence"
       body: "Schools help build a large, diverse evidence base on a topic that matters to pupils, families and society."
+  gatsby_benchmarks:
+    intro: "Participation in MyPhone/MyBrain can help schools evidence three Gatsby Benchmarks as part of their careers programme."
+    benchmarks:
+      - number: "4"
+        label: "Linking curriculum learning to careers"
+        body: "Curriculum-linked science, psychology, computing and data activities directly connect classroom subjects to research careers and STEM pathways."
+      - number: "5"
+        label: "Encounters with employers and employees"
+        body: "Pupils have meaningful encounters with university researchers, research software engineers and data specialists during the session."
+      - number: "7"
+        label: "Encounters with further and higher education"
+        body: "Direct engagement with a university-led research programme gives pupils experience of how higher education research works in practice."
+    compass_note: "Schools can record participation within their careers programme using their usual Compass or Compass+ processes."
+
   what_schools_need: |
     To participate, schools need to provide a named contact, a suitable space for sessions, and support with timetabling and safeguarding routes. The team will ask for help sharing approved information with families.
 
