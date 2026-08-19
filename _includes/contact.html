@@ -2,7 +2,7 @@
   <div class="container contact-inner">
     <div class="contact-text reveal">
       <p class="section-kicker light">Get in touch</p>
-      <h2>We'd love to hear from you.</h2>
+      <h2>Ask us a question.</h2>
       <div class="prose prose-light">
         {{ site.data.content.contact.body | markdownify }}
       </div>
@@ -10,43 +10,43 @@
         {{ site.email }}
       </a>
       <form id="contact-enquiry" class="contact-form" novalidate>
-        <label for="enquiry-topic">What would you like to ask about?</label>
+        <label for="enquiry-topic">What is your question about?</label>
         <select id="enquiry-topic" name="topic">
-          <option value="General enquiry">General enquiry</option>
+          <option value="General enquiry">The project</option>
           <option value="Joining MyPhone/MyBrain">Joining MyPhone/MyBrain</option>
           <option value="Stories About Me">Stories About Me</option>
-          <option value="Participant information">Participant information</option>
-          <option value="School participation">School participation</option>
+          <option value="Participant information">Taking part</option>
+          <option value="School participation">Taking part as a school</option>
         </select>
         <label for="enquiry-name">Your name</label>
         <input id="enquiry-name" name="name" type="text" autocomplete="name">
-        <label for="enquiry-email">Your email</label>
+        <label for="enquiry-email">Your email address</label>
         <input id="enquiry-email" name="email" type="email" autocomplete="email">
         <label for="enquiry-message">Your question</label>
         <textarea id="enquiry-message" name="message" rows="4" required></textarea>
         <div class="contact-form-actions">
-          <button class="btn btn-primary" type="submit">Prepare my email &nbsp;→</button>
-          <button class="btn btn-outline" id="copy-contact-email" type="button">Copy email address</button>
+          <button class="btn btn-primary" type="submit">Open my email app &nbsp;→</button>
+          <button class="btn btn-outline" id="copy-contact-email" type="button">Copy our email address</button>
         </div>
-        <p class="contact-form-note">This website does not send your message. When you continue, your email app will open with the details filled in so that you can review them before sending. The team aims to reply within five working days after receiving your email.</p>
+        <p class="contact-form-note">This form opens your email app. You can check the message before you send it. We aim to reply within five working days after we receive your email.</p>
         <p id="contact-copy-status" class="contact-form-note" aria-live="polite"></p>
       </form>
     </div>
     <div class="contact-card reveal">
-      <h3>Project base</h3>
+      <h3>Where we are based</h3>
       <p>Wolfson Centre for Applied Health Research<br>Bradford Royal Infirmary<br>Bradford, BD9 6RJ, UK</p>
-      <p style="margin-top: 0.75rem; font-size: var(--step--1); color: var(--c-muted-dark);">Coordinated through the Centre for Applied Education Research (CAER). Academic team at the University of Leeds.</p>
+      <p style="margin-top: 0.75rem; font-size: var(--step--1); color: var(--c-muted-dark);">The Centre for Applied Education Research coordinates the project. The academic team is at the University of Leeds.</p>
       <p style="margin-top: 1.25rem;">
-        <strong style="color: var(--c-lavender);">For schools:</strong><br>
-        Use the sign-up form above or email us directly. We are happy to arrange a call to discuss what participation would involve for your school.
+        <strong style="color: var(--c-lavender);">For schools</strong><br>
+        Use the school form or email us. We can arrange a call to talk through what taking part could involve.
       </p>
       <p style="margin-top: 0.75rem;">
-        <strong style="color: var(--c-lavender);">For parents and carers:</strong><br>
-        If your child's school is involved, the team will send information home directly. You are also welcome to contact us with any questions.
+        <strong style="color: var(--c-lavender);">For parents and carers</strong><br>
+        If your child's school is involved, the team will send information home. You can also contact us with any question.
       </p>
       <p style="margin-top: 0.75rem;">
-        <strong style="color: var(--c-lavender);">For young people:</strong><br>
-        We will always explain what the study involves before asking you to take part. Nothing is compulsory.
+        <strong style="color: var(--c-lavender);">For young people</strong><br>
+        We will explain the study before asking you to take part. It is always your choice.
       </p>
     </div>
   </div>

@@ -8,32 +8,28 @@
       </div>
       <p class="privacy-note">{{ site.data.content.signup.privacy_note }}</p>
       <div class="enquiry-follow-up">
-        <h3>What happens after you enquire</h3>
+        <h3>What happens next</h3>
         <ol>
           <li>Your email app opens with the school details filled in.</li>
-          <li>You review the message and choose whether to send it.</li>
-          <li>The research team replies within five working days to arrange a conversation or share the next information.</li>
+          <li>You check the message and decide whether to send it.</li>
+          <li>We reply within five working days to arrange a conversation or share more information.</li>
         </ol>
       </div>
     </div>
 
     <form class="signup-form reveal" id="school-interest-form" data-recipient="{{ site.data.content.signup.email }}" novalidate>
-
       <div class="form-section">
-        <span class="form-section-label">About your school</span>
-
+        <span class="form-section-label">Your school</span>
         <label>
           School name <span>required</span>
-          <input type="text" name="school" autocomplete="organization" required placeholder="e.g. Woodfield Academy">
+          <input type="text" name="school" autocomplete="organization" required placeholder="For example, Woodfield Academy">
         </label>
-
         <label>
           Local authority or area <span>optional</span>
-          <input type="text" name="area" placeholder="e.g. Bradford, Leeds, Keighley or Shipley">
+          <input type="text" name="area" placeholder="For example, Bradford, Leeds, Keighley or Shipley">
         </label>
-
         <label>
-          Approx. number of pupils
+          Number of pupils
           <div class="slider-wrapper">
             <input type="range" name="school_size" id="school_size_slider" min="100" max="2000" step="50" value="800">
             <output class="slider-output" for="school_size_slider">800</output>
@@ -42,8 +38,7 @@
       </div>
 
       <div class="form-section">
-        <span class="form-section-label">Your contact details</span>
-
+        <span class="form-section-label">Your details</span>
         <div class="field-row">
           <label>
             Your name <span>required</span>
@@ -51,27 +46,25 @@
           </label>
           <label>
             Your role <span>required</span>
-            <input type="text" name="role" required placeholder="e.g. Head teacher, Year 9 lead">
+            <input type="text" name="role" required placeholder="For example, head teacher or Year 9 lead">
           </label>
         </div>
-
         <div class="field-row">
           <label>
-            School email <span>required</span>
+            School email address <span>required</span>
             <input type="email" name="email" autocomplete="email" required>
           </label>
           <label>
-            Phone <span>optional</span>
+            Phone number <span>optional</span>
             <input type="tel" name="phone" autocomplete="tel">
           </label>
         </div>
       </div>
 
       <div class="form-section">
-        <span class="form-section-label">Participation interest</span>
-
+        <span class="form-section-label">What would you like to discuss?</span>
         <fieldset>
-          <legend>Year groups you might be interested in</legend>
+          <legend>Year groups you are interested in</legend>
           <div class="checkbox-grid">
             <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 7"> <span>Year 7</span></label>
             <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 8"> <span>Year 8</span></label>
@@ -81,32 +74,30 @@
             <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 12/13"> <span>Year 12/13</span></label>
           </div>
         </fieldset>
-
         <fieldset style="margin-top: 1.25rem;">
-          <legend>What would you like to discuss?</legend>
+          <legend>Choose any topics</legend>
           <div class="checkbox-grid">
-            <label class="checkbox"><input type="checkbox" name="interest" value="Initial conversation"> <span>Initial conversation</span></label>
+            <label class="checkbox"><input type="checkbox" name="interest" value="Initial conversation"> <span>An initial conversation</span></label>
             <label class="checkbox"><input type="checkbox" name="interest" value="Taking part this year"> <span>Taking part this year</span></label>
-            <label class="checkbox"><input type="checkbox" name="interest" value="Parent or carer information"> <span>Parent/carer info</span></label>
-            <label class="checkbox"><input type="checkbox" name="interest" value="Assembly or research workshop"> <span>Assembly or workshop</span></label>
-            <label class="checkbox"><input type="checkbox" name="interest" value="Safeguarding and data protection"> <span>Safeguarding &amp; data protection</span></label>
+            <label class="checkbox"><input type="checkbox" name="interest" value="Parent or carer information"> <span>Information for parents and carers</span></label>
+            <label class="checkbox"><input type="checkbox" name="interest" value="Assembly or research workshop"> <span>An assembly or workshop</span></label>
+            <label class="checkbox"><input type="checkbox" name="interest" value="Safeguarding and data protection"> <span>Safeguarding and data protection</span></label>
           </div>
         </fieldset>
       </div>
 
       <div class="form-section">
-        <span class="form-section-label">Anything else</span>
+        <span class="form-section-label">Anything else?</span>
         <label>
-          Additional information <span>optional</span>
-          <textarea name="message" rows="4" placeholder="Any questions or context that would help the team — please do not include pupil names or personal pupil information."></textarea>
+          More information <span>optional</span>
+          <textarea name="message" rows="4" placeholder="Add any questions or useful context. Please do not include pupil names or personal details."></textarea>
         </label>
       </div>
 
       <div class="form-submit">
-        <button type="submit" class="btn btn-primary">Send expression of interest &nbsp;&rarr;</button>
-        <p class="form-help">This opens your email client with the details pre-filled. You can review everything before sending. No pupil data is collected through this form.</p>
+        <button type="submit" class="btn btn-primary">Open my email app &nbsp;&rarr;</button>
+        <p class="form-help">This opens your email app with the details filled in. You can check everything before sending. The form does not collect pupil information.</p>
       </div>
-
     </form>
   </div>
 </section>

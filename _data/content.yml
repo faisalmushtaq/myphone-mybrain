@@ -1,13 +1,13 @@
 hero:
-  badge: "Centre for Applied Education Research · Huo Family Foundation · Bradford and Leeds"
+  badge: "Research across Bradford and Leeds"
   headline_main: "Have you been invited"
   headline_accent: "to take part?"
-  tagline: "Information for young people, parents and carers who have been invited to take part, and for the teachers and school leaders supporting them."
+  tagline: "Clear information for young people, parents and carers who have been invited. There is also information for teachers and school leaders."
   cta_primary:
-    label: "Participant information"
+    label: "I have been invited"
     href: "/take-part/"
   cta_secondary:
-    label: "Information for schools"
+    label: "For schools"
     href: "/schools/"
   cta_tertiary:
     label: "Meet the team"
@@ -17,72 +17,74 @@ stats:
   - value: "11–18"
     label: "Age range"
   - value: "3 years"
-    label: "School delivery"
+    label: "School sessions"
   - value: "2"
-    label: "Workshops per pupil"
+    label: "Workshops for each pupil"
   - value: "EEG + digital data"
-    label: "Linked measures"
+    label: "Ways to take part"
   - value: "Bradford and Leeds"
-    label: "School recruitment locations"
+    label: "Where we work"
   - value: "Connected Bradford"
-    label: "Records platform"
+    label: "Research data platform"
 
 about:
-  heading: "A city-scale citizen science programme"
-  subheading: "Coordinated through the Centre for Applied Education Research across Bradford and Leeds"
+  heading: "About MyPhone/MyBrain"
+  subheading: "A research project with secondary schools in Bradford and Leeds"
   body: |
-    **MyPhone/MyBrain** is a four-year research programme funded by the Huo Family Foundation and coordinated through the **Centre for Applied Education Research** (CAER), with the research team based across Bradford and Leeds, including the **Wolfson Centre for Applied Health Research** at Bradford Royal Infirmary. We are partnering with secondary schools in Bradford and Leeds to run a school-based research session with two parts — together building one of the first large-scale resources linking real-world digital behaviour with direct measures of adolescent brain function, wellbeing and learning.
+    **MyPhone/MyBrain** is a four-year research project funded by the Huo Family Foundation. The team is based at the **Centre for Applied Education Research** and the **Wolfson Centre for Applied Health Research**. We work with secondary schools in Bradford and Leeds.
 
-    **MyPhone** — young people can securely donate a snapshot of their social media usage data through the Smart Data Donation Service. These data capture timing, interaction patterns and content exposure, building up a picture of how each person engages online.
+    The project looks at young people's digital lives, wellbeing, learning and brain development. Young people can choose whether to take part in the MyPhone part, the MyBrain part, or both.
 
-    **MyBrain** — students take part in EEG brain-recording sessions at school, at rest and while completing short cognitive tasks. Trained researchers bring all equipment and run every session. EEG is safe, painless and non-invasive.
+    **MyPhone** may include a secure donation of a summary of social media use. This can show when a young person uses a platform, how they interact with it and the types of content they see.
 
-    The project recruits pupils from multiple year groups and follows some of them over several years — so we can study both how young people differ from one another and how things change as they grow up. With appropriate consent and the necessary approvals, project data will be linked to health and education records through **Connected Bradford**, enabling us to examine how digital behaviour relates to academic attainment, mental health and wellbeing over time.
+    **MyBrain** is an EEG session at school. A young person wears an EEG cap, sits quietly for a short time and completes simple computer tasks. EEG is safe and painless. The research team brings the equipment and supports pupils throughout.
 
-    The project is led by **Professor Faisal Mushtaq** (University of Leeds), working with co-investigators spanning developmental neuroscience, machine learning, digital data science, education and population research.
+    With the right consent and approvals, we may link research data to education and health records through **Connected Bradford**. We use this to look at longer-term patterns in learning, wellbeing and health. We share findings about groups of people. We do not give schools or families individual profiles.
+
+    Professor Faisal Mushtaq at the University of Leeds leads the project. He works with researchers in brain science, data science, education and population research.
 
 why:
-  heading: "Why does this matter?"
+  heading: "Why are we doing this?"
   body: |
-    Debate about smartphones, social media and young people's wellbeing has become highly polarised — often generating more heat than light. Digital technologies are deeply woven into young people's lives, and any effects are likely to depend on patterns of use, individual differences and social context, not simply how much screen time someone has.
+    Phones and social media are part of many young people's lives. People often have strong views about how they affect wellbeing. Good answers need good evidence.
 
-    Progress requires large and diverse samples, real-world measures of digital behaviour, and evidence about outcomes that genuinely matter to families, schools and policymakers. **MyPhone/MyBrain** addresses that need by working across Bradford and Leeds, coordinated through the **Centre for Applied Education Research** and delivered in partnership with Born in Bradford and Connected Bradford.
+    We want to learn from many young people in different schools and communities. We also want to use information that reflects real life, rather than relying only on screen-time estimates.
 
-    The goal is not to alarm or reassure, but to understand. Findings will be shared openly, carefully and in ways that can meaningfully inform education, health and family decision-making for years to come.
+    Our aim is to produce careful, useful evidence for young people, families, schools and people who make decisions about education and health. We will share what we learn clearly and responsibly.
 
 process_intro: |
-  We recruit pupils from across different school years and follow a group of them over time as they move through secondary school. This means we can track how things change with age and understand both individual differences and longer-term patterns of development. Research is delivered in a single school session — with two parts — run by trained researchers. Everything is voluntary, fully consented and designed to be a genuinely interesting, age-appropriate experience.
+  We work with schools in a way that fits their timetable. Trained researchers run the sessions at school. Taking part is always a choice. Families and young people receive information before they decide.
 
 steps:
   - number: "01"
-    title: "School conversation"
-    body: "We meet with teachers and senior leaders to discuss practical arrangements, timings, year groups, safeguarding routes and what schools need before deciding whether to take part. We are recruiting secondary schools in Bradford and Leeds."
+    title: "Talk with the school"
+    body: "We talk with teachers and school leaders about timing, year groups, safeguarding and what the school needs. We are inviting secondary schools in Bradford and Leeds."
 
   - number: "02"
-    title: "Information and consent"
-    body: "Parents, carers and pupils receive clear study information well before any activity begins. Both parental permission and the young person's own agreement are needed. Pupils can choose which parts they take part in."
+    title: "Share information"
+    body: "Parents, carers and pupils receive clear information before anything happens. A parent or carer must give permission, and the young person must agree too."
 
   - number: "03"
-    title: "The research session"
-    body: "The session has two parts. In the MyPhone part, young people can securely donate a snapshot of social media usage data — covering timing, interaction patterns and content exposure. In the MyBrain part, pupils wear an EEG cap and complete short cognitive tasks. Trained researchers bring all equipment and support pupils throughout. Both parts are voluntary, and pupils can choose which they take part in."
+    title: "Run the session"
+    body: "The session may include MyPhone and MyBrain. MyPhone can include an optional donation of a social media summary. MyBrain uses an EEG cap and short computer tasks. Young people choose which parts they are happy to do."
 
   - number: "04"
-    title: "Linked records and follow-up"
-    body: "With appropriate consent and the necessary approvals, data with personal identifiers removed will be linked to education and health records through Connected Bradford. Some pupils will be invited to take part again in later years. Group-level findings will be shared with schools."
+    title: "Learn from the research"
+    body: "With the right consent and approvals, we may link research data to education and health records through Connected Bradford. Some young people may be invited again later. Schools receive updates about group findings."
 
 signup:
-  title: "Register your school's interest"
+  title: "Talk to us about your school"
   intro: |
-    Teachers and senior leaders at secondary schools in **Bradford and Leeds** can use this form to contact the research team. The form creates a pre-filled email so that no pupil information is collected through the website. We will get back to you to discuss what involvement might look like for your school — there is no obligation to proceed.
+    Teachers and school leaders at secondary schools in **Bradford and Leeds** can use this form to contact us. The form prepares an email. It does not collect pupil information. We can talk through what taking part could involve. You are under no pressure to continue.
   email: "brainpop@leeds.ac.uk"
-  privacy_note: "Please do not include pupil names or individual pupil information at this stage. The research team will provide participant information sheets, parental consent materials and full data-protection information before any school joins the study."
+  privacy_note: "Please do not include pupil names or personal details in this form. Before a school joins the study, the team will provide full study information, consent materials and data protection information."
 
 contact:
   heading: "Get in touch"
   body: |
-    For enquiries about the project, school participation, or information for parents and carers, please contact the MyPhone/MyBrain team. We aim to respond within five working days.
+    Contact the MyPhone/MyBrain team if you have a question about the study, school involvement or information for families. We aim to reply within five working days.
 
-    The research team works across Bradford and Leeds, with a base at the **Wolfson Centre for Applied Health Research**, Bradford Royal Infirmary. The programme is coordinated through the **Centre for Applied Education Research** (CAER).
+    The team works across Bradford and Leeds. Our Bradford base is the **Wolfson Centre for Applied Health Research** at Bradford Royal Infirmary. The programme is coordinated through the **Centre for Applied Education Research**.
 
 funding_acknowledgement: |
-  MyPhone/MyBrain is funded by the **Huo Family Foundation** and delivered in partnership with the **Born in Bradford** programme, **Connected Bradford** and participating schools across Bradford and Leeds.
+  MyPhone/MyBrain is funded by the **Huo Family Foundation**. We work with the **Born in Bradford** programme, **Connected Bradford** and schools across Bradford and Leeds.
