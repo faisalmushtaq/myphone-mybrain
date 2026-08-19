@@ -10,23 +10,7 @@
         {{ site.data.content.about.body | markdownify }}
       </div>
 
-      <div class="stat-row reveal">
-        {% for stat in site.data.content.stats %}
-        <div class="stat-item">
-          <strong>{{ stat.value }}</strong>
-          <span>{{ stat.label }}</span>
-        </div>
-        {% endfor %}
-      </div>
     </div>
-  </div>
-
-  <div class="container">
-    <figure class="section-photo-banner reveal">
-      <img src="{{ '/assets/images/session-classroom.jpg' | relative_url }}"
-           alt="A MyBrain session in a Bradford school — students at laptops, researcher presenting at the front"
-           loading="lazy">
-    </figure>
   </div>
 </section>
 
