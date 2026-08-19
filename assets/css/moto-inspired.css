@@ -51,17 +51,64 @@ p { max-width: 70ch; }
 .section-white { background: #ffffff; }
 .section-light { background: var(--mpb-mist); }
 .section-dark { background: var(--mpb-teal); }
+.section-dark .section-kicker { color: var(--mpb-yellow); }
 .section-heading { max-width: 750px; margin-bottom: clamp(2rem, 5vw, 3.5rem); }
 .section-heading.centered { text-align: left; margin-left: 0; }
 .section-heading h2 { color: var(--mpb-teal); font-size: clamp(2.65rem, 5vw, 4.6rem); }
 .section-heading h2 em { color: var(--mpb-pink); font-style: normal; }
 .section-dark .section-heading h2 { color: #fff; }
-.section-kicker, .hero-kicker { font-family: var(--f-mono); font-size: .69rem; font-weight: 500; letter-spacing: .09em; text-transform: uppercase; color: var(--mpb-teal); }
+.section-kicker, .hero-kicker { font-family: var(--f-mono); font-size: .69rem; font-weight: 500; letter-spacing: .05em; text-transform: none; color: var(--mpb-teal); }
 .section-kicker.light { color: var(--mpb-yellow); }
 .prose { font-size: 1.08rem; line-height: 1.58; color: #466469; }
 .prose strong { color: var(--mpb-teal); }
 .prose p { margin-bottom: 1.1rem; }
 .prose a { color: var(--mpb-teal); }
+.section-dark .section-subheading,
+.section-dark .prose,
+.section-dark .prose p,
+.section-dark .prose-light,
+.section-dark .prose-light p,
+.section-dark .prose-light strong,
+.section-dark .prose strong { color: rgba(255,255,255,.92) !important; }
+.section-dark .prose a { color: var(--mpb-yellow); }
+.section-dark .info-panel-dark { background: rgba(0, 48, 53, .28); border-color: rgba(255,255,255,.52); }
+.section-dark .workshop-panel .info-checklist li,
+.section-dark .data-promise .promise-list li,
+.section-dark .aim-card p,
+.section-dark .aims-list p,
+.section-dark .placeholder-card p { color: rgba(255,255,255,.88) !important; }
+.section-dark .workshop-panel .info-checklist li::before,
+.section-dark .data-promise .promise-list li::before { color: var(--mpb-yellow); }
+
+/* Invitation-led participant journey */
+.invitation-section { background: #fff; }
+.invitation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.invitation-card { min-height: 280px; display: flex; flex-direction: column; padding: clamp(1.5rem, 4vw, 2.4rem); border: 1px solid var(--mpb-line); background: var(--mpb-paper); box-shadow: var(--shadow-sm); transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out); }
+.invitation-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.invitation-card--young { background: var(--mpb-teal); border-color: var(--mpb-teal); }
+.invitation-card-label { margin-bottom: 2rem; color: var(--mpb-pink); font-family: var(--f-mono); font-size: .7rem; letter-spacing: .05em; }
+.invitation-card h3 { max-width: 12ch; color: var(--mpb-teal); font-size: clamp(2rem, 3.7vw, 3rem); }
+.invitation-card p { margin-top: 1rem; color: #496d70; line-height: 1.48; }
+.invitation-card-cta { margin-top: auto; padding-top: 1.8rem; color: var(--mpb-teal); font-weight: 700; }
+.invitation-card--young .invitation-card-label { color: var(--mpb-yellow); }
+.invitation-card--young h3 { color: #fff; }
+.invitation-card--young p { color: rgba(255,255,255,.86); }
+.invitation-card--young .invitation-card-cta { color: var(--mpb-yellow); }
+.journey-overview { display: grid; grid-template-columns: minmax(190px, .65fr) minmax(0, 1.45fr) auto; gap: clamp(1rem, 3vw, 2.5rem); align-items: center; margin-top: clamp(2rem, 5vw, 4rem); padding: clamp(1.5rem, 4vw, 2.5rem); background: var(--mpb-mist); border-top: 5px solid var(--mpb-yellow); }
+.journey-overview h3 { color: var(--mpb-teal); font-size: 1.95rem; }
+.journey-steps { display: flex; flex-direction: column; gap: .8rem; }
+.journey-steps li { display: grid; grid-template-columns: 2rem 1fr; gap: .75rem; align-items: start; }
+.journey-steps li > span { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 50%; background: var(--mpb-teal); color: #fff; font-family: var(--f-mono); font-size: .76rem; }
+.journey-steps strong { color: var(--mpb-teal); }
+.journey-steps p { margin-top: .05rem; color: #46676b; font-size: .94rem; line-height: 1.4; }
+.narrow-content { max-width: 840px; }
+.invitation-detail-section h2, .survey-section h2 { max-width: 16ch; margin-bottom: 1.3rem; color: var(--mpb-teal); font-size: clamp(2.7rem, 5vw, 4.5rem); }
+.invitation-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 2rem; }
+.survey-section { background: #fff; }
+.survey-placeholder { padding: clamp(1.6rem, 5vw, 3rem); border: 1px solid var(--mpb-line); border-left: 6px solid var(--mpb-yellow); background: var(--mpb-paper); box-shadow: var(--shadow-sm); }
+.survey-placeholder h3 { max-width: 20ch; margin: .8rem 0 1rem; color: var(--mpb-teal); font-size: clamp(1.7rem, 3vw, 2.45rem); }
+.survey-placeholder p { color: #46676b; font-size: 1.06rem; }
+.survey-status { display: inline-block; color: var(--mpb-teal); font-family: var(--f-mono); font-size: .7rem; letter-spacing: .05em; }
 .split { grid-template-columns: minmax(135px, .45fr) minmax(0, 1.55fr); gap: clamp(1.5rem, 5vw, 5rem); }
 .split > :first-child { padding-top: .35rem; font-family: var(--f-mono); color: var(--mpb-teal); font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; }
 
@@ -187,7 +234,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
 .site-footer .footer-brand img { display: none !important; }
 .footer-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.3rem; }
 .footer-nav div { display: flex; flex-direction: column; align-items: flex-start; gap: .46rem; }
-.footer-nav span { margin-bottom: .45rem; color: var(--mpb-yellow); font-family: var(--f-mono); font-size: .62rem; letter-spacing: .09em; text-transform: uppercase; }
+.footer-nav span { margin-bottom: .45rem; color: var(--mpb-yellow); font-family: var(--f-mono); font-size: .62rem; letter-spacing: .05em; text-transform: none; }
 .footer-nav a, .footer-nav p { margin: 0; color: rgba(255,255,255,.74); font-size: .88rem; line-height: 1.3; }
 .footer-nav a:hover { color: var(--mpb-yellow); }
 .footer-meta { max-width: none; padding: 1.1rem clamp(1.35rem, 4vw, 3.5rem); display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid rgba(255,255,255,.16); color: rgba(255,255,255,.51); font-family: var(--f-mono); font-size: .62rem; letter-spacing: .02em; }
@@ -216,6 +263,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
   .hero-scroll { display: none; }
   .page-hero { padding-top: 3.5rem; }
   .split { grid-template-columns: 1fr; gap: 1rem; }
+  .invitation-grid, .journey-overview { grid-template-columns: 1fr; }
+  .journey-overview .btn { width: fit-content; }
   .stat-row, .audience-grid, .benefit-grid, .promise-grid, .workshop-grid, .aims-grid, .resources-placeholder, .signup-layout { grid-template-columns: 1fr; }
   .stat-row { gap: 1.3rem; }
   .step-grid { grid-template-columns: 1fr; }
@@ -227,4 +276,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
   .footer-nav div:last-child { grid-column: 1 / -1; }
   .footer-meta { flex-direction: column; }
 }
+.illustration-banner { background: var(--mpb-mist); border: 1px solid var(--mpb-line); }
+.illustration-banner img { object-position: center; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }

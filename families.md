@@ -4,9 +4,9 @@ title: "For families | MyPhone/MyBrain"
 description: "Clear information for parents and carers considering MyPhone/MyBrain."
 permalink: /families/
 eyebrow: "For parents and carers"
-title_main: "Questions deserve"
-title_accent: "clear answers."
-page_intro: "We know that information about digital life, data and brain research can feel sensitive. This page explains the choices, safeguards and support available to families."
+title_main: "Information for"
+title_accent: "you and your child."
+page_intro: "This page sets out what the study involves, the choices your child has and where to find further information."
 ---
 
 {% include page_hero.html %}
