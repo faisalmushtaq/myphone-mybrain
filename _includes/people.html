@@ -2,7 +2,33 @@
   <div class="container">
     <div class="reveal section-heading">
       <p class="section-kicker">Project team</p>
-      <h2>Coordinated through the Centre for Applied Education Research.</h2>
+      <h2>Meet the people behind MyPhone/MyBrain.</h2>
+    </div>
+
+    <div class="team-subsection team-subsection--data reveal">
+      <p class="section-kicker">Data Collection Team</p>
+      <h3 class="co-i-heading">The people you may meet at school.</h3>
+      <p>Some of these faces may already be familiar. Others soon will be if you are expecting, or planning, a visit from our team. They help make each MyPhone/MyBrain session clear, calm and welcoming.</p>
+    </div>
+
+    <div class="people-grid people-grid--data">
+      {% for person in site.data.data_collection_team %}
+      <article class="person-card reveal">
+        <div class="person-image">
+          <div class="person-image-placeholder" aria-hidden="true">{{ person.name | slice: 0 }}</div>
+        </div>
+        <div class="person-info">
+          <p class="person-role">{{ person.role }}</p>
+          <h3 class="person-name">{{ person.name }}</h3>
+          <p class="bio">{{ person.bio }}</p>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <div class="team-subsection reveal">
+      <p class="section-kicker">Research and project team</p>
+      <h3 class="co-i-heading">The wider MyPhone/MyBrain team.</h3>
     </div>
 
     <div class="people-grid">
@@ -21,15 +47,9 @@
         </div>
         <div class="person-info">
           <p class="person-role">{{ person.role }}</p>
-          <h3 class="person-name">{{ person.name }}</h3>
+          {% assign person_profile = person.links | first %}
+          <h3 class="person-name">{% if person_profile and person_profile.url %}<a href="{{ person_profile.url }}" {% unless person_profile.url contains "mailto" %}target="_blank" rel="noopener"{% endunless %}>{{ person.name }}</a>{% else %}{{ person.name }}{% endif %}</h3>
           <p class="bio">{{ person.bio }}</p>
-          {% if person.links and person.links.size > 0 %}
-          <div class="person-links">
-            {% for link in person.links %}
-            <a href="{{ link.url }}" {% unless link.url contains "mailto" %}target="_blank" rel="noopener"{% endunless %}>{{ link.label }}</a>
-            {% endfor %}
-          </div>
-          {% endif %}
         </div>
       </article>
       {% endfor %}
@@ -50,13 +70,8 @@
           </div>
           <div class="person-info">
             <p class="person-role">{{ ci.affiliation }}</p>
-            <h3 class="person-name">{{ ci.name }}</h3>
+            <h3 class="person-name">{% if ci.url and ci.url != "#" %}<a href="{{ ci.url }}" target="_blank" rel="noopener">{{ ci.name }}</a>{% else %}{{ ci.name }}{% endif %}</h3>
             <p class="bio">{{ ci.bio }}</p>
-            {% if ci.url and ci.url != "#" %}
-            <div class="person-links">
-              <a href="{{ ci.url }}" target="_blank" rel="noopener">View profile &rarr;</a>
-            </div>
-            {% endif %}
           </div>
         </article>
         {% endfor %}

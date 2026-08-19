@@ -296,14 +296,32 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
 .person-info { padding: 1rem 1rem 1.15rem; }
 .person-card .person-role { color: var(--mpb-pink); font-family: var(--f-mono); font-size: .62rem; }
 .person-card .person-name { color: var(--mpb-teal); font-family: var(--f-serif); font-size: 1.44rem; line-height: 1.02; }
+.person-card .person-name a { color: inherit; text-decoration-color: var(--mpb-yellow); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.person-card .person-name a:hover { color: var(--mpb-deep); }
 .person-card .bio { color: #4d6c70; line-height: 1.42; }
 .person-links a { color: var(--mpb-teal); }
 .co-i-heading { color: var(--mpb-teal); font-family: var(--f-serif); font-size: clamp(2rem, 4vw, 3rem); }
+.team-subsection { max-width: 760px; margin: clamp(4rem, 8vw, 7rem) 0 2rem; }
+.team-subsection--data { margin-top: 0; }
+.team-subsection .co-i-heading { margin: .4rem 0 .75rem; }
+.team-subsection > p:not(.section-kicker) { color: #46676b; font-size: 1.06rem; }
+.people-grid--data { margin-bottom: clamp(2.5rem, 5vw, 4rem); }
 .team-page-intro { padding: 9rem 0 4.5rem; background: var(--mpb-teal); color: #fff; }
 .team-page-intro .hero-kicker { color: var(--mpb-yellow); }
 .team-page-intro h1 { max-width: 10ch; margin-bottom: 1rem; color: #fff; font-size: clamp(3.2rem, 7vw, 5.8rem); }
 .team-page-intro h1 span { color: var(--mpb-yellow); }
 .team-page-intro p:last-child { color: rgba(255,255,255,.83); font-size: 1.15rem; }
+
+/* Accessibility: keep all contact information legible on the deep-teal background. */
+.contact-section .prose-light,
+.contact-section .prose-light p { color: rgba(255,255,255,.92) !important; }
+.contact-section .prose-light strong { color: #fff !important; }
+.contact-section .contact-link { color: #fff; text-decoration-color: var(--mpb-yellow); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.contact-section .contact-card { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.44); }
+.contact-section .contact-card p,
+.contact-section .contact-card p[style] { color: rgba(255,255,255,.90) !important; }
+.contact-section .contact-card strong,
+.contact-section .contact-card strong[style] { color: var(--mpb-yellow) !important; }
 
 /* Footer */
 .site-footer { background: #071f23; color: #fff; }
