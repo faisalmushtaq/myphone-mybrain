@@ -4,14 +4,14 @@ hero:
   headline_accent: "to take part?"
   tagline: "Information for young people, parents and carers who have been invited to take part, and for the teachers and school leaders supporting them."
   cta_primary:
-    label: "I have been invited"
-    href: "/take-part/young-person/"
+    label: "Participant information"
+    href: "/take-part/"
   cta_secondary:
-    label: "My child has been invited"
-    href: "/take-part/parent-carer/"
-  cta_tertiary:
     label: "Information for schools"
     href: "/schools/"
+  cta_tertiary:
+    label: "Meet the team"
+    href: "/team/"
 
 stats:
   - value: "11–18"
