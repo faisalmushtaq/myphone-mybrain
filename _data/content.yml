@@ -5,13 +5,13 @@ hero:
   tagline: "MyPhone/MyBrain is a city-scale citizen science programme connecting young people's real-world digital lives with adolescent brain development."
   cta_primary:
     label: "Schools: register interest"
-    href: "#signup"
+    href: "/schools/#signup"
   cta_secondary:
     label: "About the study"
-    href: "#about"
+    href: "/study/"
   cta_tertiary:
     label: "For young people"
-    href: "#young-people"
+    href: "/young-people/"
 
 stats:
   - value: "11–18"

@@ -109,6 +109,15 @@ p { max-width: 70ch; }
 .hero-scroll { bottom: 1.35rem; flex-direction: row; gap: .5rem; color: #fff; font-family: var(--f-serif); font-size: 1.1rem; letter-spacing: -.02em; text-transform: none; }
 .hero-scroll-line { width: 23px; height: 1px; background: #fff; }
 
+/* Focused inner pages */
+.page-hero { position: relative; overflow: hidden; padding: clamp(8rem, 14vw, 11.5rem) 0 clamp(4rem, 8vw, 6.8rem); background: var(--mpb-teal); color: #fff; }
+.page-hero::after { content: ""; position: absolute; right: -20vw; bottom: -42vw; width: min(75vw, 760px); height: min(75vw, 760px); border: 3rem solid rgba(255,255,255,.08); border-radius: 50%; }
+.page-hero .container { position: relative; z-index: 1; }
+.page-hero h1 { max-width: 12ch; margin: 0 0 1.25rem; color: #fff; font-size: clamp(3.3rem, 7vw, 6.1rem); }
+.page-hero h1 span { display: block; color: var(--mpb-yellow); }
+.page-hero > .container > p:last-child { max-width: 58ch; color: rgba(255,255,255,.85); font-size: clamp(1.08rem, 2vw, 1.32rem); line-height: 1.44; }
+.page-hero .hero-kicker { color: var(--mpb-yellow); }
+
 /* Content story and cards */
 .stat-row { max-width: 900px; grid-template-columns: repeat(3, 1fr); gap: 0; padding-top: 1.8rem; border-color: var(--mpb-line); }
 .stat-item { padding-right: 1rem; }
@@ -205,6 +214,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
   .hero h1 { font-size: clamp(3.15rem, 15.5vw, 4.3rem); }
   .hero .tagline { font-size: 1.05rem; }
   .hero-scroll { display: none; }
+  .page-hero { padding-top: 8rem; }
   .split { grid-template-columns: 1fr; gap: 1rem; }
   .stat-row, .audience-grid, .benefit-grid, .promise-grid, .workshop-grid, .aims-grid, .resources-placeholder, .signup-layout { grid-template-columns: 1fr; }
   .stat-row { gap: 1.3rem; }

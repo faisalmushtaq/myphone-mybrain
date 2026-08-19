@@ -9,7 +9,7 @@
   <div class="hero-overlay" aria-hidden="true"></div>
 
   <div class="hero-route container">
-    <a href="#participation"><span class="route-sun">◎</span><span>Follow the research route</span><span aria-hidden="true">→</span></a>
+    <a href="{{ '/participation/' | relative_url }}"><span class="route-sun">◎</span><span>Follow the research route</span><span aria-hidden="true">→</span></a>
   </div>
 
   <div class="container hero-content">
@@ -20,14 +20,14 @@
       <p class="tagline">{{ site.data.content.hero.tagline }}</p>
 
       <div class="hero-actions">
-        <a href="{{ site.data.content.hero.cta_primary.href }}" class="btn btn-primary">{{ site.data.content.hero.cta_primary.label }} &nbsp;&rarr;</a>
-        <a href="{{ site.data.content.hero.cta_secondary.href }}" class="btn btn-ghost">{{ site.data.content.hero.cta_secondary.label }}</a>
-        <a href="{{ site.data.content.hero.cta_tertiary.href }}" class="btn btn-ghost">{{ site.data.content.hero.cta_tertiary.label }}</a>
+      <a href="{{ site.data.content.hero.cta_primary.href | relative_url }}" class="btn btn-primary">{{ site.data.content.hero.cta_primary.label }} &nbsp;&rarr;</a>
+      <a href="{{ site.data.content.hero.cta_secondary.href | relative_url }}" class="btn btn-ghost">{{ site.data.content.hero.cta_secondary.label }}</a>
+      <a href="{{ site.data.content.hero.cta_tertiary.href | relative_url }}" class="btn btn-ghost">{{ site.data.content.hero.cta_tertiary.label }}</a>
       </div>
     </div>
   </div>
 
-  <a href="#about" class="hero-scroll" aria-label="Scroll to about section">
+  <a href="{{ '/study/' | relative_url }}" class="hero-scroll" aria-label="Read about the study">
     <span>Explore the study</span>
     <span class="hero-scroll-line"></span>
   </a>

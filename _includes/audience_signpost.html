@@ -5,7 +5,7 @@
     </div>
     <div class="audience-grid reveal">
       {% for card in site.data.audience.signpost.cards %}
-      <a href="{{ card.cta_href }}" class="audience-card" id="audience-{{ card.id }}">
+      <a href="{{ card.cta_href | relative_url }}" class="audience-card" id="audience-{{ card.id }}">
         <h3>{{ card.title }}</h3>
         <p>{{ card.body }}</p>
         <span class="audience-card-cta">{{ card.cta_label }} &nbsp;&rarr;</span>

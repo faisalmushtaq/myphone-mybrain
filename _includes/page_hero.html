@@ -1,0 +1,8 @@
+<!-- Design note: compact deep-teal page opener that keeps the shared research-wayfinding identity across focused pages. -->
+<section class="page-hero page-hero--{{ page.tone | default: 'teal' }}">
+  <div class="container">
+    <p class="hero-kicker">{{ page.eyebrow }}</p>
+    <h1>{{ page.title_main }}{% if page.title_accent %}<span>{{ page.title_accent }}</span>{% endif %}</h1>
+    <p>{{ page.page_intro }}</p>
+  </div>
+</section>
