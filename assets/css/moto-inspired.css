@@ -122,11 +122,8 @@ p { max-width: 70ch; }
 .site-header { position: relative; height: var(--nav-h); background: var(--mpb-teal); border: 0; box-shadow: none; backdrop-filter: none; }
 .site-header.scrolled { background: var(--mpb-teal); box-shadow: 0 4px 14px rgba(0, 53, 59, .16); }
 .header-inner { position: relative; max-width: 1200px; margin: 0 auto; padding-inline: clamp(1.35rem, 4vw, 3.5rem); }
-.logo { position: absolute; z-index: 5; top: 13px; left: clamp(1.35rem, 4vw, 3.5rem); height: 70px; display: flex; align-items: center; gap: .7rem; color: #fff; }
-.logo img { width: 62px; height: 62px; object-fit: contain; }
-.logo-wordmark { display: flex; flex-direction: column; font-family: var(--f-serif); font-size: 1.3rem; font-weight: 700; letter-spacing: -.06em; line-height: .82; }
-.logo-wordmark span:first-child { color: var(--mpb-yellow); }
-.logo-wordmark span:last-child { color: #fff; }
+.logo { position: absolute; z-index: 5; top: 12px; left: clamp(1.35rem, 4vw, 3.5rem); width: 78px; height: 78px; display: grid; place-items: center; }
+.logo img { width: 100%; height: 100%; object-fit: contain; }
 .nav { margin-left: auto; gap: clamp(.65rem, 1.1vw, 1rem); }
 .nav a { color: #fff; font-size: .86rem; font-weight: 700; }
 .nav a:hover { color: var(--mpb-yellow); }
@@ -136,11 +133,11 @@ p { max-width: 70ch; }
 .menu-toggle .bar { width: 27px; height: 2px; background: #fff; }
 .mobile-nav-overlay { background: var(--mpb-teal); backdrop-filter: none; }
 .mobile-nav-close .bar { background: #fff; }
-.mobile-nav-inner { width: 100%; height: 100svh; max-width: 460px; max-height: none; align-items: stretch; justify-content: flex-start; gap: 0; padding: 3.75rem 1.55rem 1.2rem; text-align: left; }
+.mobile-nav-inner { width: 100%; height: 100svh; max-width: 460px; max-height: none; align-items: stretch; justify-content: flex-start; gap: 0; padding: 5.3rem 1.8rem 1.5rem; text-align: left; }
 .mobile-nav-inner::before { display: none; }
-.mobile-nav-inner a { padding: .68rem 0; color: #fff; border-bottom: 1px solid rgba(255,255,255,.25); font-family: var(--f-serif); font-size: clamp(1.52rem, 5.6vw, 1.88rem); letter-spacing: -.04em; line-height: 1.14; }
+.mobile-nav-inner a { padding: .96rem 0; color: #fff; border-bottom: 1px solid rgba(255,255,255,.25); font-family: var(--f-serif); font-size: clamp(1.85rem, 7vw, 2.25rem); letter-spacing: -.045em; line-height: 1.08; }
 .mobile-nav-inner a:hover { color: var(--mpb-yellow); }
-.mobile-nav-inner .mobile-nav-cta { margin-top: .75rem; padding: .7rem .9rem; border: 0; background: var(--mpb-yellow); color: var(--mpb-ink) !important; text-align: center; font-family: var(--f-sans) !important; font-size: .88rem !important; font-weight: 700; }
+.mobile-nav-inner .mobile-nav-cta { margin-top: 1.35rem; padding: 1rem; border: 0; background: var(--mpb-yellow); color: var(--mpb-ink) !important; text-align: center; font-family: var(--f-sans) !important; font-size: 1rem !important; font-weight: 700; }
 
 /* Hero */
 .hero { min-height: 680px; display: flex; flex-direction: column; background: var(--mpb-teal); }
@@ -260,9 +257,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
 @media (max-width: 680px) {
   :root { --nav-h: 112px; }
   .site-header { height: var(--nav-h); }
-  .logo { top: 10px; width: auto; height: 64px; gap: .5rem; padding: 0; }
-  .logo img { width: 52px; height: 52px; }
-  .logo-wordmark { font-size: 1.08rem; }
+  .logo { top: 10px; width: 72px; height: 72px; padding: 0; }
+  .logo img { width: 100%; height: 100%; }
   .hero { min-height: 665px; }
   .hero-img { height: 65%; object-position: 56% center; }
   .hero-route { padding-top: 1.15rem; }
@@ -290,5 +286,5 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
   .footer-meta { flex-direction: column; }
 }
 .illustration-banner { background: var(--mpb-mist); border: 1px solid var(--mpb-line); }
-.illustration-banner img { object-position: center; }
+.illustration-banner img { object-position: center; filter: saturate(.84) contrast(.94); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
