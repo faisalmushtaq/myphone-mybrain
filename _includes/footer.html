@@ -1,23 +1,15 @@
+<!-- Design note: dark-teal research footer with the supplied brand mark and practical anchor routes. -->
 <footer class="site-footer">
   <div class="container footer-inner">
     <div class="footer-brand">
-      <a href="#">MyPhone/MyBrain</a>
-      <span>University of Leeds · Funded by the Huo Family Foundation</span>
+      <img src="{{ '/assets/images/myphone-mybrain-logo.png' | relative_url }}" alt="MyPhone MyBrain">
+      <p>Researching how digital lives and adolescent brain development connect, with young people and schools in Bradford.</p>
     </div>
-    <nav class="footer-links" aria-label="Footer navigation">
-      <a href="#about">About</a>
-      <a href="#participation">How it works</a>
-      <a href="#schools">Schools</a>
-      <a href="#parents">Parents</a>
-      <a href="#young-people">Young people</a>
-      <a href="#data-privacy">Data &amp; privacy</a>
-      <a href="#team">Team</a>
-      <a href="#faq">FAQ</a>
-      <a href="mailto:{{ site.email }}">Contact</a>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <div><span>Explore</span><a href="{{ '/#about' | relative_url }}">The study</a><a href="{{ '/#participation' | relative_url }}">How it works</a><a href="{{ '/#data-privacy' | relative_url }}">Data and privacy</a></div>
+      <div><span>Connect</span><a href="{{ '/#schools' | relative_url }}">For schools</a><a href="{{ '/#parents' | relative_url }}">For families</a><a href="{{ '/team/' | relative_url }}">Team</a><a href="mailto:{{ site.email }}">Contact</a></div>
+      <div><span>Programme partners</span><p>Centre for Applied Education Research</p><p>Born in Bradford</p><p>Connected Bradford</p></div>
     </nav>
-    <p class="footer-meta">
-      &copy; {{ 'now' | date: "%Y" }} University of Leeds.<br>
-      Content updated whenever changes are pushed.
-    </p>
   </div>
+  <div class="container footer-meta"><span>© {{ 'now' | date: "%Y" }} University of Leeds</span><span>Funded by the Huo Family Foundation</span></div>
 </footer>

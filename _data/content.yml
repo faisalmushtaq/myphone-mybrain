@@ -1,8 +1,8 @@
 hero:
   badge: "Centre for Applied Education Research · Huo Family Foundation · Bradford"
-  headline_main: "MyPhone"
-  headline_accent: "MyBrain"
-  tagline: "A city-scale citizen science programme linking young people's digital lives with adolescent brain development."
+  headline_main: "Digital life has a story."
+  headline_accent: "Help us study it carefully."
+  tagline: "MyPhone/MyBrain is a city-scale citizen science programme connecting young people's real-world digital lives with adolescent brain development."
   cta_primary:
     label: "Schools: register interest"
     href: "#signup"

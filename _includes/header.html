@@ -1,16 +1,18 @@
+<!-- Design note: reference-led, public-facing research wayfinding with a circular crest and teal masthead. -->
 <header class="site-header">
   <div class="container header-inner">
-    <a class="logo" href="{{ site.baseurl }}/" aria-label="{{ site.title }} home">{{ site.title }}</a>
+    <a class="logo" href="{{ site.baseurl }}/" aria-label="{{ site.title }} home">
+      <img src="{{ '/assets/images/myphone-mybrain-logo.png' | relative_url }}" alt="MyPhone MyBrain">
+    </a>
 
     <nav class="nav" aria-label="Main navigation">
-      <a href="#about">About</a>
-      <a href="#participation">How it works</a>
-      <a href="#schools">Schools</a>
-      <a href="#parents">Parents</a>
-      <a href="#young-people">Young people</a>
-      <a href="#team">Team</a>
-      <a href="#faq">FAQ</a>
-      <a href="#signup" class="nav-cta">Register interest</a>
+      <a href="{{ '/#about' | relative_url }}">The study</a>
+      <a href="{{ '/#participation' | relative_url }}">How it works</a>
+      <a href="{{ '/#schools' | relative_url }}">For schools</a>
+      <a href="{{ '/#parents' | relative_url }}">For families</a>
+      <a href="{{ '/team/' | relative_url }}">Team</a>
+      <a href="{{ '/#faq' | relative_url }}">Questions</a>
+      <a href="{{ '/#signup' | relative_url }}" class="nav-cta">Register interest</a>
     </nav>
 
     <button class="menu-toggle" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-nav">
@@ -29,13 +31,13 @@
   </button>
   <nav class="mobile-nav-inner" aria-label="Mobile navigation">
     <a href="{{ site.baseurl }}/">Home</a>
-    <a href="#about">About</a>
-    <a href="#participation">How it works</a>
-    <a href="#schools">For schools</a>
-    <a href="#parents">For parents</a>
-    <a href="#young-people">For young people</a>
-    <a href="#team">Team</a>
-    <a href="#faq">FAQ</a>
-    <a href="#signup" class="mobile-nav-cta">Register your school &nbsp;&rarr;</a>
+    <a href="{{ '/#about' | relative_url }}">The study</a>
+    <a href="{{ '/#participation' | relative_url }}">How it works</a>
+    <a href="{{ '/#schools' | relative_url }}">For schools</a>
+    <a href="{{ '/#parents' | relative_url }}">For families</a>
+    <a href="{{ '/#young-people' | relative_url }}">For young people</a>
+    <a href="{{ '/team/' | relative_url }}">Team</a>
+    <a href="{{ '/#faq' | relative_url }}">Questions</a>
+    <a href="{{ '/#signup' | relative_url }}" class="mobile-nav-cta">Register your school &nbsp;&rarr;</a>
   </nav>
 </div>
