@@ -2,7 +2,7 @@ partners:
   - name: "Centre for Applied Education Research (CAER)"
     category: "Coordinating centre"
     logo: "logos/caer.png"
-    description: "MyPhone/MyBrain is coordinated through CAER, based at the Wolfson Centre for Applied Health Research on site at Bradford Royal Infirmary. CAER brings together researchers, educators and policymakers to generate and translate evidence about children's learning and development, and provides the infrastructure for school-based delivery across Bradford."
+    description: "MyPhone/MyBrain is coordinated through CAER, based at the Wolfson Centre for Applied Health Research on site at Bradford Royal Infirmary. CAER brings together researchers, educators and policymakers to generate and translate evidence about children's learning and development, and provides the infrastructure for school-based delivery across Bradford and Leeds."
     url: "https://www.leedsbeckett.ac.uk/research/centre-for-applied-education-research/"
 
   - name: "Born in Bradford / Age of Wonder"
@@ -19,7 +19,7 @@ partners:
 
   - name: "McGill University"
     category: "Academic partner"
-    logo: "logos/mcgill.png"
+    logo: "logos/mcgill.jpg"
     description: "McGill University brings expertise in adolescent brain development and cognitive neuroscience to the partnership, contributing to the scientific design of the programme and the analysis of brain recording data."
     url: "https://www.mcgill.ca/"
 
@@ -31,22 +31,23 @@ partners:
 
   - name: "Smart Data Donation Service"
     category: "Technology partner"
+    logo: "logos/sdds.png"
     description: "The Smart Data Donation Service provides the secure technical infrastructure that enables voluntary donation of digital engagement data from social media platforms. It gives participants visibility and control over what they share with researchers."
-    url: "#"
+    url: "https://sdds.ac.uk/"
 
   - name: "Partner schools"
     category: "Participation partners"
-    description: "Participating schools co-design the practical approach to research delivery in their communities. Their knowledge shapes everything from session timing and communication with families to how findings are shared. Schools in Bradford are central to the project — not just data sources."
-    url: "#signup"
+    description: "Participating schools co-design the practical approach to research delivery in their communities. Their knowledge shapes everything from session timing and communication with families to how findings are shared. Schools in Bradford and Leeds are central to the project."
+    url: "/schools/#signup"
 
   - name: "Young people, parents and community advisors"
     category: "Community partners"
     description: "Young people and parent representatives have contributed to the design of the study, including what feels acceptable, meaningful and clear. Community advisors support the project's co-production work and help make sure communication is accessible and trustworthy."
-    url: "#"
+    url: "/young-people/"
 
 funders:
   - name: "Huo Family Foundation"
     category: "Funder"
-    logo: "logos/huo.png"
+    logo: "logos/huo.jpg"
     description: "MyPhone/MyBrain is made possible by the generous support of the Huo Family Foundation, which funds research and programmes that benefit young people and communities."
     url: "https://huofamilyfoundation.org/"

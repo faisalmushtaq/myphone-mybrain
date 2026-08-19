@@ -10,10 +10,14 @@
 
     <div class="project-grid">
       {% for partner in site.data.partners.partners %}
-        {% if partner.url contains "http" %}
-        <a href="{{ partner.url }}" class="project-card reveal" target="_blank" rel="noopener">
+        {% if partner.url != "#" %}
+          {% if partner.url contains "http" %}
+          <a href="{{ partner.url }}" class="project-card reveal" target="_blank" rel="noopener">
+          {% else %}
+          <a href="{{ partner.url | relative_url }}" class="project-card reveal">
+          {% endif %}
         {% else %}
-        <div class="project-card reveal">
+          <div class="project-card reveal">
         {% endif %}
           <div class="partner-logo-box">
             {% if partner.logo %}
@@ -27,15 +31,11 @@
             <div class="project-card-label">{{ partner.category }}</div>
             <h3>{{ partner.name }}</h3>
             <p>{{ partner.description }}</p>
-            {% if partner.url contains "http" %}
-            <span class="project-card-arrow">Visit website &nbsp;&rarr;</span>
+            {% if partner.url != "#" %}
+            <span class="project-card-arrow">{% if partner.url contains "http" %}Visit website{% else %}Explore information{% endif %} &nbsp;&rarr;</span>
             {% endif %}
           </div>
-        {% if partner.url contains "http" %}
-        </a>
-        {% else %}
-        </div>
-        {% endif %}
+        {% if partner.url != "#" %}</a>{% else %}</div>{% endif %}
       {% endfor %}
 
       {% for funder in site.data.partners.funders %}

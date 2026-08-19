@@ -3,7 +3,7 @@ signpost:
   cards:
     - id: "schools"
       title: "For schools"
-      body: "Bring curriculum-linked neuroscience, data literacy and ethics into school while helping build evidence that reflects the lives of young people in Bradford. Our team works around school timetables, brings the equipment, and provides clear information for staff, parents and pupils."
+      body: "Bring curriculum-linked neuroscience, data literacy and ethics into school while helping build evidence that reflects the lives of young people in Bradford and Leeds. Our team works around school timetables, brings the equipment, and provides clear information for staff, parents and pupils."
       cta_label: "Information for schools"
       cta_href: "/schools/"
     - id: "parents"
