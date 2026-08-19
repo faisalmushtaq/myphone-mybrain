@@ -116,6 +116,15 @@ p { max-width: 70ch; }
 .participant-next-step { margin-top: 1rem; padding: clamp(1.5rem, 4vw, 2.5rem); border-left: 7px solid var(--mpb-yellow); background: var(--mpb-mist); }
 .participant-next-step p:not(.section-kicker) { max-width: 62ch; color: #365d62; }
 .participant-next-step .btn { margin: 1rem 1rem 0 0; }
+.pathway-grid { margin-top: 2.25rem; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.pathway-card { min-height: 245px; padding: 1.5rem; border: 1px solid var(--mpb-line); border-top: 6px solid var(--mpb-yellow); background: #fff; box-shadow: var(--shadow-sm); }
+.pathway-card--mist { background: var(--mpb-mist); }
+.pathway-card > span { color: var(--mpb-pink); font-family: var(--f-mono); font-size: .75rem; letter-spacing: .08em; }
+.pathway-card h3 { margin: 1.3rem 0 .8rem; color: var(--mpb-teal); font-size: clamp(1.7rem, 3vw, 2.3rem); }
+.pathway-card p, .meet-sam-copy { color: #416368; line-height: 1.48; }
+.meet-sam-copy { max-width: 66ch; margin: 2rem 0; font-size: 1.1rem; }
+.participant-linkline { margin-top: 1.5rem; color: #416368; }
+.participant-linkline a { color: var(--mpb-teal); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
 .invite-next-box { padding: clamp(1.5rem, 4vw, 2.5rem); border: 1px solid var(--mpb-line); border-top: 6px solid var(--mpb-yellow); background: #fff; box-shadow: var(--shadow-sm); }
 .invite-next-box h2 { max-width: 16ch; margin: 0 0 1rem; color: var(--mpb-teal); font-size: clamp(2.3rem, 5vw, 4rem); }
 .invite-next-box p { max-width: 58ch; color: #46676b; font-size: 1.08rem; }
@@ -293,6 +302,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
   .school-route { grid-template-columns: 1fr; gap: 1.25rem; }
   .school-route-image { max-width: 420px; }
   .participant-info-grid { grid-template-columns: 1fr; }
+  .pathway-grid { grid-template-columns: 1fr; }
   .invitation-actions { flex-direction: column; align-items: stretch; row-gap: 1.1rem; }
   .invitation-actions .btn { width: 100%; justify-content: center; }
   .stat-row, .audience-grid, .benefit-grid, .promise-grid, .workshop-grid, .aims-grid, .resources-placeholder, .signup-layout { grid-template-columns: 1fr; }
