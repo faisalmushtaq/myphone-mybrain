@@ -24,8 +24,12 @@
         <input id="enquiry-email" name="email" type="email" autocomplete="email">
         <label for="enquiry-message">Your question</label>
         <textarea id="enquiry-message" name="message" rows="4" required></textarea>
-        <button class="btn btn-primary" type="submit">Prepare my email &nbsp;→</button>
-        <p class="contact-form-note">This website does not send your message. When you continue, your email app will open with the details filled in so that you can review them before sending.</p>
+        <div class="contact-form-actions">
+          <button class="btn btn-primary" type="submit">Prepare my email &nbsp;→</button>
+          <button class="btn btn-outline" id="copy-contact-email" type="button">Copy email address</button>
+        </div>
+        <p class="contact-form-note">This website does not send your message. When you continue, your email app will open with the details filled in so that you can review them before sending. The team aims to reply within five working days after receiving your email.</p>
+        <p id="contact-copy-status" class="contact-form-note" aria-live="polite"></p>
       </form>
     </div>
     <div class="contact-card reveal">
@@ -60,6 +64,16 @@
       const subject = `MyPhone/MyBrain: ${data.get('topic')}`;
       const body = `Name: ${data.get('name') || ''}\nEmail: ${data.get('email') || ''}\n\nQuestion:\n${data.get('message') || ''}`;
       window.location.href = `mailto:{{ site.email }}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    });
+    const copyButton = document.getElementById('copy-contact-email');
+    const copyStatus = document.getElementById('contact-copy-status');
+    copyButton?.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText('{{ site.email }}');
+        copyStatus.textContent = 'Email address copied.';
+      } catch (_) {
+        copyStatus.textContent = 'Please copy this address: {{ site.email }}';
+      }
     });
   })();
 </script>

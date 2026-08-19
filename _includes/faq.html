@@ -3,7 +3,12 @@
     <div class="reveal">
       <p class="section-kicker">Questions</p>
       <h2>Frequently asked questions.</h2>
-      <p class="section-subtitle">Can't find what you need? Email us directly.</p>
+      <p class="section-subtitle">Start with the information that is most relevant to you, or browse the full list below.</p>
+      <div class="faq-audience-links">
+        <a href="{{ '/take-part/' | relative_url }}"><strong>I have been invited</strong><span>Participant information</span></a>
+        <a href="{{ '/families/' | relative_url }}"><strong>Parent or carer</strong><span>Consent, choice and privacy</span></a>
+        <a href="{{ '/schools/' | relative_url }}"><strong>Teacher or school leader</strong><span>Practical school information</span></a>
+      </div>
     </div>
     <div class="faq-list">
       {% for item in site.data.faqs %}
