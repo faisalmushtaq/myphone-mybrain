@@ -155,6 +155,21 @@ p { max-width: 70ch; }
 .document-card h3 { margin: 1.3rem 0 .7rem; color: var(--mpb-teal); font-size: clamp(1.55rem, 2.6vw, 2rem); }
 .document-card p { color: #416368; }
 .document-status { display: inline-block; margin-top: .8rem; color: var(--mpb-teal); font-family: var(--f-mono); font-size: .68rem; letter-spacing: .05em; text-transform: uppercase; }
+.school-decision-grid { margin-top: 1.25rem; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.school-decision-grid article { padding: 1.4rem; border-top: 5px solid var(--mpb-yellow); background: #fff; box-shadow: var(--shadow-sm); }
+.school-decision-grid article:nth-child(2) { background: var(--mpb-mist); }
+.school-decision-grid h3 { margin: .55rem 0 .75rem; color: var(--mpb-teal); font-size: clamp(1.5rem, 2.6vw, 2rem); }
+.school-decision-grid p:not(.section-kicker) { color: #45666b; line-height: 1.48; }
+.school-process { margin-top: clamp(2.5rem, 6vw, 5rem); padding: clamp(1.5rem, 4vw, 2.6rem); background: var(--mpb-teal); color: #fff; }
+.school-process-intro { max-width: 670px; }
+.school-process .section-kicker { color: var(--mpb-yellow); }
+.school-process h3 { margin: .4rem 0 .7rem; color: #fff; font-size: clamp(2rem, 4vw, 3.4rem); }
+.school-process-intro > p:not(.section-kicker) { color: rgba(255,255,255,.85); }
+.school-process ol { margin: 2rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; border-left: 1px solid rgba(255,255,255,.35); }
+.school-process li { min-height: 190px; padding: 1.1rem; border: 1px solid rgba(255,255,255,.35); border-left: 0; }
+.school-process li > span { color: var(--mpb-yellow); font-family: var(--f-mono); font-size: .75rem; }
+.school-process h4 { margin: 1.25rem 0 .6rem; color: #fff; font-family: var(--f-serif); font-size: 1.45rem; letter-spacing: -.04em; }
+.school-process li p { margin: 0; color: rgba(255,255,255,.8); font-size: .94rem; line-height: 1.45; }
 .invite-next-box { padding: clamp(1.5rem, 4vw, 2.5rem); border: 1px solid var(--mpb-line); border-top: 6px solid var(--mpb-yellow); background: #fff; box-shadow: var(--shadow-sm); }
 .invite-next-box h2 { max-width: 16ch; margin: 0 0 1rem; color: var(--mpb-teal); font-size: clamp(2.3rem, 5vw, 4rem); }
 .invite-next-box p { max-width: 58ch; color: #46676b; font-size: 1.08rem; }
@@ -335,6 +350,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
   .pathway-grid { grid-template-columns: 1fr; }
   .documents-grid { grid-template-columns: 1fr; }
   .documents-callout { align-items: flex-start; flex-direction: column; }
+  .school-decision-grid { grid-template-columns: 1fr; }
+  .school-process ol { grid-template-columns: 1fr; border-top: 1px solid rgba(255,255,255,.35); border-left: 0; }
+  .school-process li { min-height: 0; border-top: 0; border-left: 1px solid rgba(255,255,255,.35); }
   .invitation-actions { flex-direction: column; align-items: stretch; row-gap: 1.1rem; }
   .invitation-actions .btn { width: 100%; justify-content: center; }
   .stat-row, .audience-grid, .benefit-grid, .promise-grid, .workshop-grid, .aims-grid, .resources-placeholder, .signup-layout { grid-template-columns: 1fr; }
