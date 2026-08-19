@@ -125,6 +125,11 @@ p { max-width: 70ch; }
 .meet-sam-copy { max-width: 66ch; margin: 2rem 0; font-size: 1.1rem; }
 .participant-linkline { margin-top: 1.5rem; color: #416368; }
 .participant-linkline a { color: var(--mpb-teal); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+.contact-form { margin-top: 2rem; display: grid; gap: .55rem; max-width: 560px; padding: 1.4rem; border: 1px solid rgba(255,255,255,.35); background: rgba(0, 48, 53, .26); }
+.contact-form label { color: #fff; font-weight: 700; font-size: .88rem; }
+.contact-form input, .contact-form select, .contact-form textarea { width: 100%; border-color: rgba(255,255,255,.42); background: #fff; color: var(--mpb-ink); }
+.contact-form .btn { width: fit-content; margin-top: .65rem; }
+.contact-form-note { margin: .25rem 0 0; color: rgba(255,255,255,.78); font-size: .82rem; line-height: 1.38; }
 .invite-next-box { padding: clamp(1.5rem, 4vw, 2.5rem); border: 1px solid var(--mpb-line); border-top: 6px solid var(--mpb-yellow); background: #fff; box-shadow: var(--shadow-sm); }
 .invite-next-box h2 { max-width: 16ch; margin: 0 0 1rem; color: var(--mpb-teal); font-size: clamp(2.3rem, 5vw, 4rem); }
 .invite-next-box p { max-width: 58ch; color: #46676b; font-size: 1.08rem; }
