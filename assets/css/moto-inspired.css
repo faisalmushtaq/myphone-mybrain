@@ -190,10 +190,10 @@ p { max-width: 70ch; }
 .header-inner { position: relative; height: 100%; max-width: 1200px; margin: 0 auto; padding-inline: clamp(1.35rem, 4vw, 3.5rem); display: flex; align-items: center; gap: 1.35rem; }
 .logo { position: static; z-index: 5; flex: 0 0 auto; width: 205px; height: 62px; display: grid; place-items: center; }
 .logo img { width: 100%; height: 100%; object-fit: contain; }
-.nav { margin-left: auto; gap: clamp(.65rem, 1.1vw, 1rem); }
-.nav a { color: #fff; font-size: .86rem; font-weight: 700; }
+.nav { margin-left: auto; gap: clamp(.55rem, .85vw, .9rem); }
+.nav a { color: #fff; font-size: 1.04rem; font-weight: 700; line-height: 1.2; }
 .nav a:hover { color: var(--mpb-yellow); }
-.nav-cta { padding: .62rem 1rem; border: 1px solid rgba(255,255,255,.64); border-radius: 0; background: transparent !important; }
+.nav-cta { padding: .68rem 1.05rem; border: 1px solid rgba(255,255,255,.64); border-radius: 0; background: transparent !important; }
 .nav-cta:hover { border-color: var(--mpb-yellow); background: var(--mpb-yellow) !important; color: var(--mpb-ink) !important; }
 .menu-toggle,
 .mobile-nav-close { width: 48px; height: 48px; display: none; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; }
@@ -331,7 +331,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
 .footer-nav a:hover { color: var(--mpb-yellow); }
 .footer-meta { max-width: none; padding: 1.1rem clamp(1.35rem, 4vw, 3.5rem); display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid rgba(255,255,255,.16); color: rgba(255,255,255,.51); font-family: var(--f-mono); font-size: .62rem; letter-spacing: .02em; }
 
-@media (max-width: 900px) {
+@media (max-width: 1080px) {
   .nav { display: none; }
   .menu-toggle { display: flex; }
   .hero { min-height: 710px; }
