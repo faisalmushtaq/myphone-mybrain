@@ -104,15 +104,11 @@ if (form) {
       `Email:             ${get('email')}`,
       `Phone:             ${get('phone') || 'Not provided'}`,
       ``,
-      `--- Participation interest ---`,
+      `--- Year groups ---`,
       `Year groups:       ${checks('year_groups')}`,
-      `Topics to discuss: ${checks('interest')}`,
       ``,
       `--- Additional information ---`,
       `${get('message') || 'Nothing added.'}`,
-      ``,
-      `---`,
-      `Please do not include pupil names or individual pupil information in replies.`,
     ].join('\n'));
 
     window.location.href = `mailto:${recipient}?subject=${subject}&body=${body}`;

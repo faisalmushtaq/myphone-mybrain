@@ -75,9 +75,9 @@ steps:
 signup:
   title: "Talk to us about your school"
   intro: |
-    Teachers and school leaders at secondary schools in **Bradford and Leeds** can use this form to contact us. The form prepares an email. It does not collect pupil information. We can talk through what taking part could involve. You are under no pressure to continue.
+    Teachers and school leaders at secondary schools in **Bradford and Leeds** can use this form to contact us. The form prepares an email. We can talk through what taking part could involve. You are under no pressure to continue.
   email: "brainpop@leeds.ac.uk"
-  privacy_note: "Please do not include pupil names or personal details in this form. Before a school joins the study, the team will provide full study information, consent materials and data protection information."
+  privacy_note: "Before a school joins the study, the team will provide full study information, consent materials and data protection information."
 
 contact:
   heading: "Get in touch"
