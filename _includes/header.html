@@ -1,4 +1,4 @@
-<!-- Design note: reference-led, public-facing research wayfinding with a circular crest and teal masthead. -->
+<!-- Design note: compact, sticky, logo-led masthead patterned on the stable EEG101 navigation behaviour. -->
 <header class="site-header">
   <div class="container header-inner">
     <a class="logo" href="{{ site.baseurl }}/" aria-label="{{ site.title }} home">
@@ -20,20 +20,15 @@
       <span class="bar"></span>
     </button>
   </div>
-</header>
 
-<!-- Mobile nav lives outside the header to avoid stacking-context issues -->
-<div class="mobile-nav-overlay" id="mobile-nav" aria-hidden="true">
-  <button class="mobile-nav-close" aria-label="Close navigation menu">
-    <span class="bar"></span>
-    <span class="bar"></span>
-  </button>
-  <nav class="mobile-nav-inner" aria-label="Mobile navigation">
-    <a href="{{ '/study/' | relative_url }}">About the study</a>
-    <a href="{{ '/schools/' | relative_url }}">For schools</a>
-    <a href="{{ '/families/' | relative_url }}">For families</a>
-    <a href="{{ '/team/' | relative_url }}">Meet the team</a>
-    <a href="{{ '/faq/' | relative_url }}">Questions</a>
-    <a href="{{ '/contact/' | relative_url }}">Contact</a>
+  <nav class="mobile-nav-overlay" id="mobile-nav" aria-label="Mobile navigation" aria-hidden="true">
+    <div class="container mobile-nav-inner">
+      <a href="{{ '/study/' | relative_url }}">About the study</a>
+      <a href="{{ '/schools/' | relative_url }}">For schools</a>
+      <a href="{{ '/families/' | relative_url }}">For families</a>
+      <a href="{{ '/team/' | relative_url }}">Meet the team</a>
+      <a href="{{ '/faq/' | relative_url }}">Questions</a>
+      <a href="{{ '/contact/' | relative_url }}">Contact</a>
+    </div>
   </nav>
-</div>
+</header>

@@ -26,27 +26,23 @@ const mobileNav   = document.getElementById('mobile-nav');
 if (menuToggle && mobileNav) {
   const openMenu = () => {
     menuToggle.setAttribute('aria-expanded', 'true');
+    menuToggle.setAttribute('aria-label', 'Close navigation menu');
     mobileNav.classList.add('is-open');
     mobileNav.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
   };
 
   const closeMenu = () => {
     menuToggle.setAttribute('aria-expanded', 'false');
+    menuToggle.setAttribute('aria-label', 'Open navigation menu');
     mobileNav.classList.remove('is-open');
     mobileNav.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
   };
 
   menuToggle.addEventListener('click', () => {
     menuToggle.getAttribute('aria-expanded') === 'true' ? closeMenu() : openMenu();
   });
 
-  /* Close button inside the overlay */
-  const closeBtn = mobileNav.querySelector('.mobile-nav-close');
-  if (closeBtn) closeBtn.addEventListener('click', closeMenu);
-
-  /* Close when any nav link is tapped */
+  /* Close when any navigation link is tapped */
   mobileNav.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMenu));
 
   /* Close on Escape key */
