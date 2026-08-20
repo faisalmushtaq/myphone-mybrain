@@ -23,11 +23,11 @@ partners:
     description: "McGill University contributes knowledge about adolescent brain development and cognitive neuroscience. Its researchers help shape the study and analyse brain recording data."
     url: "https://www.mcgill.ca/"
 
-  - name: "Connected Bradford"
+  - name: "Connected West Yorkshire"
     category: "Data platform"
-    logo: "logos/connected-bradford.png"
-    description: "Connected Bradford is a research data platform that brings together health, education and social care records for people in Bradford. With the right consent and approvals, it may help us study longer-term outcomes."
-    url: "https://connectedbradford.nhs.uk/"
+    logo: "logos/connected-west-yorkshire.svg"
+    description: "Connected West Yorkshire provides access to linked research data through more than one dataset. With the right consent and approvals, it may help us study longer-term outcomes."
+    url: "https://bradfordresearch.nhs.uk/connected-wy/connected-bradford-datasets/"
 
   - name: "Smart Data Donation Service"
     category: "Technology partner"

@@ -24,7 +24,7 @@ stats:
     label: "Ways to take part"
   - value: "Bradford and Leeds"
     label: "Where we work"
-  - value: "Connected Bradford"
+  - value: "Connected West Yorkshire"
     label: "Research data platform"
 
 about:
@@ -39,7 +39,7 @@ about:
 
     **MyBrain** is an EEG session at school. A young person wears an EEG cap, sits quietly for a short time and completes simple computer tasks. EEG is safe and painless. The research team brings the equipment and supports pupils throughout.
 
-    With the right consent and approvals, we may link research data to education and health records through **Connected Bradford**. We use this to look at longer-term patterns in learning, wellbeing and health. We share findings about groups of people. We do not give schools or families individual profiles.
+    With the right consent and approvals, we may link research data to education and health records through **Connected West Yorkshire**. We use this to look at longer-term patterns in learning, wellbeing and health. We share findings about groups of people. We do not give schools or families individual profiles.
 
     Professor Faisal Mushtaq at the University of Leeds leads the project. He works with researchers in brain science, data science, education and population research.
 
@@ -70,7 +70,7 @@ steps:
 
   - number: "04"
     title: "Learn from the research"
-    body: "With the right consent and approvals, we may link research data to education and health records through Connected Bradford. Some young people may be invited again later. Schools receive updates about group findings."
+    body: "With the right consent and approvals, we may link research data to education and health records through Connected West Yorkshire. Some young people may be invited again later. Schools receive updates about group findings."
 
 signup:
   title: "Talk to us about your school"
@@ -87,4 +87,4 @@ contact:
     The team works across Bradford and Leeds. Our Bradford base is the **Wolfson Centre for Applied Health Research** at Bradford Royal Infirmary. The programme is coordinated through the **Centre for Applied Education Research**.
 
 funding_acknowledgement: |
-  MyPhone/MyBrain is funded by the **Huo Family Foundation**. We work with the **Born in Bradford** programme, **Connected Bradford** and schools across Bradford and Leeds.
+  MyPhone/MyBrain is funded by the **Huo Family Foundation**. We work with the **Born in Bradford** programme, **Connected West Yorkshire** and schools across Bradford and Leeds.
