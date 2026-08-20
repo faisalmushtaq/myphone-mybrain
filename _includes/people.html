@@ -12,7 +12,8 @@
     </div>
 
     <div class="people-grid people-grid--data">
-      {% for person in site.data.data_collection_team %}
+      {% assign sorted_data_collection_team = site.data.data_collection_team | sort: "name" %}
+      {% for person in sorted_data_collection_team %}
       <article class="person-card reveal">
         <div class="person-image">
           <div class="person-image-placeholder" aria-hidden="true">{{ person.name | slice: 0 }}</div>
@@ -58,7 +59,8 @@
     <div class="co-investigators reveal">
       <h3 class="co-i-heading">Co-Investigators and Collaborators</h3>
       <div class="people-grid">
-        {% for ci in site.data.co_investigators %}
+        {% assign sorted_co_investigators = site.data.co_investigators | sort: "name" %}
+        {% for ci in sorted_co_investigators %}
         <article class="person-card reveal">
           <div class="person-image">
             {% assign ci_img = ci.image %}
