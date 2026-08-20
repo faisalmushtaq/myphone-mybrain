@@ -25,8 +25,16 @@
           <input type="text" name="school" autocomplete="organization" required placeholder="For example, Woodfield Academy">
         </label>
         <label>
-          Local authority or area <span>optional</span>
-          <input type="text" name="area" placeholder="For example, Bradford, Leeds, Keighley or Shipley">
+          Local authority <span>optional</span>
+          <select name="area">
+            <option value="">Choose your local authority</option>
+            <option value="Bradford Council">Bradford Council</option>
+            <option value="Leeds City Council">Leeds City Council</option>
+            <option value="Calderdale Council">Calderdale Council</option>
+            <option value="Kirklees Council">Kirklees Council</option>
+            <option value="Wakefield Council">Wakefield Council</option>
+            <option value="Other local authority">Other local authority</option>
+          </select>
         </label>
         <label>
           Number of pupils
@@ -62,7 +70,7 @@
       </div>
 
       <div class="form-section">
-        <span class="form-section-label">What would you like to discuss?</span>
+        <span class="form-section-label">Year groups</span>
         <fieldset>
           <legend>Year groups you are interested in</legend>
           <div class="checkbox-grid">
@@ -72,16 +80,6 @@
             <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 10"> <span>Year 10</span></label>
             <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 11"> <span>Year 11</span></label>
             <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 12/13"> <span>Year 12/13</span></label>
-          </div>
-        </fieldset>
-        <fieldset style="margin-top: 1.25rem;">
-          <legend>Choose any topics</legend>
-          <div class="checkbox-grid">
-            <label class="checkbox"><input type="checkbox" name="interest" value="Initial conversation"> <span>An initial conversation</span></label>
-            <label class="checkbox"><input type="checkbox" name="interest" value="Taking part this year"> <span>Taking part this year</span></label>
-            <label class="checkbox"><input type="checkbox" name="interest" value="Parent or carer information"> <span>Information for parents and carers</span></label>
-            <label class="checkbox"><input type="checkbox" name="interest" value="Assembly or research workshop"> <span>An assembly or workshop</span></label>
-            <label class="checkbox"><input type="checkbox" name="interest" value="Safeguarding and data protection"> <span>Safeguarding and data protection</span></label>
           </div>
         </fieldset>
       </div>
