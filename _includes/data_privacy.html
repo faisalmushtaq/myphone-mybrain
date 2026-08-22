@@ -28,14 +28,14 @@
       {% endfor %}
     </div>
 
-    <div class="data-flow reveal" aria-label="Data flow summary">
-      <h3>How data moves through the project</h3>
+    <section class="data-flow reveal" aria-labelledby="data-flow-heading">
+      <h3 id="data-flow-heading">How data moves through the project</h3>
       <ol class="data-flow-steps">
         {% for step in site.data.privacy.data_flow %}
         <li>{{ step.label }}</li>
         {% endfor %}
       </ol>
-    </div>
+    </section>
     <div class="documents-callout reveal">
       <div>
         <p class="section-kicker">Documents and safeguards</p>
