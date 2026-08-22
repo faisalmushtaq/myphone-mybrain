@@ -340,6 +340,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
   .footer-inner { grid-template-columns: 1fr; }
   .footer-nav { max-width: 720px; }
 }
+@media (min-width: 681px) and (max-width: 900px) {
+  .school-decision-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .school-decision-grid article:last-child { grid-column: 1 / -1; }
+  .school-process ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gatsby-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gatsby-card { border-bottom: 1px solid var(--mpb-line); }
+  .gatsby-card:nth-child(2),
+  .gatsby-card:last-child { border-right: 0; }
+  .gatsby-card:last-child { grid-column: 1 / -1; border-bottom: 0; }
+}
 @media (max-width: 680px) {
   :root { --nav-h: 88px; }
   .site-header { height: var(--nav-h); }
