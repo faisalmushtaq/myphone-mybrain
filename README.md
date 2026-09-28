@@ -52,4 +52,4 @@ bundle exec jekyll serve
 
 The live site is expected to be served through GitHub Pages at:
 
-<https://faisalmushtaq.github.io/myphone-mybrain/>
+<https://myphonemybrain.com/>

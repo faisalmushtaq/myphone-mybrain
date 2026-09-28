@@ -3,10 +3,10 @@ tagline: "A research project about digital life, brain development and growing u
 description: "MyPhone/MyBrain is a University of Leeds research project about how digital life connects with brain development, wellbeing and learning. We work with secondary schools in Bradford and Leeds."
 email: "brainpop@leeds.ac.uk"
 
-baseurl: "/myphone-mybrain"
-url: "https://faisalmushtaq.github.io"
+baseurl: ""
+url: "https://myphonemybrain.com"
 
-og_image: "/myphone-mybrain/assets/images/og-image.png"
+og_image: "/assets/images/og-image.png"
 
 markdown: kramdown
 permalink: pretty
