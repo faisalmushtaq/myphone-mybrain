@@ -13,6 +13,9 @@ permalink: pretty
 
 plugins: []
 
+exclude:
+  - consent-app
+
 defaults:
   - scope:
       path: ""

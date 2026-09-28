@@ -1,0 +1,25 @@
+{
+  "name": "mpmb-consent-app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "MyPhone/MyBrain consent and smartphone-use data donation web app (prototype front end)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node scripts/tidy-embedded.mjs",
+    "build:standalone": "tsc --noEmit && vite build --mode standalone && node scripts/inline-standalone.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "typescript": "^5.8.0",
+    "vite": "^6.3.0"
+  }
+}
