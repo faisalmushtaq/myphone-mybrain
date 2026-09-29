@@ -44,7 +44,11 @@ export function actorFor(stepId: StepId, state: AppState): Actor {
 export function phoneUseApplies(state: AppState): boolean {
   if (state.consent.responses['phone-use']?.response === 'declined') return false;
   if (state.assent.status === 'declined') return false;
-  if (study.requireAssentBeforeDonation && state.assent.status === 'deferred') return false;
+  if (state.assent.status === 'deferred') {
+    // A young person who chose to decide later is not shared for; a parent may share when the young person is not there.
+    if (state.assent.deferredBy === 'young') return false;
+    if (!study.parentMayShareWithoutAssent) return false;
+  }
   return true;
 }
 

@@ -6,6 +6,7 @@ import { relationships } from '../config/fields';
 import { OTHER_SCHOOL_ID, schools } from '../config/schools';
 import { platforms } from '../config/walkthroughs';
 import { formatIsoDate, formatParts, formatTimestamp } from '../lib/dates';
+import { phoneUseApplies } from '../model/journey';
 import { imageStore } from '../lib/imageStore';
 import type { SignatureRecord, StepId } from '../model/types';
 import { useStore } from '../state/context';
@@ -160,7 +161,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
         'record',
         assent.status === 'deferred' ? (
           <p className="mpmb-summary__note">
-            {assent.deferredBy === 'young' ? `${childName} would like to decide later.` : 'To be collected separately, for example at school.'} The screen-time part will wait until then.
+            {assent.deferredBy === 'young' ? `${childName} would like to decide later. The screen-time part will wait until then.` : phoneUseApplies(state) ? `To be collected separately, for example at school. ${childName} will also be asked about any screenshots shared on their behalf.` : 'To be collected separately, for example at school. The screen-time part will wait until then.'}
           </p>
         ) : assent.status === 'not-started' ? (
           <p className="mpmb-summary__note">Not completed yet.</p>

@@ -59,8 +59,15 @@ export const study = {
   /** Ask the parent or guardian a few one-tap questions about how they see the young person's phone use, straight after their permission. */
   parentQuestions: true,
 
-  /** Phone-use information is only requested once the young person has agreed. */
-  requireAssentBeforeDonation: true,
+  /**
+   * When the young person is not present, the parent or guardian may complete
+   * the rest themselves, including sharing the screenshots on the young
+   * person's behalf. The young person's own agreement is then collected
+   * separately (for example at school); screenshots shared this way are held
+   * pending it, and deleted if the young person says no. Set false to make
+   * the screen-time part wait for the young person instead.
+   */
+  parentMayShareWithoutAssent: true,
 
   /** Upload limits enforced in the browser (and again on the server). */
   upload: {

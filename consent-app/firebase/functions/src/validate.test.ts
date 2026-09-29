@@ -62,6 +62,7 @@ function validDonation(): DonationPayload {
     referenceCode: 'MPMB-AB2C-D3E',
     platform: 'ios',
     uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: true, cropped: false, acknowledgedWarning: false }],
+    sharedBy: 'young',
     agreement: r('phone-use', 'agreed', 'action', '0.4-draft'),
     client: { userAgent: 'test', submittedAt: now, timezoneOffset: 0 },
   };
@@ -179,6 +180,20 @@ test('screenshots need the young person’s agreement by action, at the current 
   assert.ok(validateDonationPayload(d).some((m) => m.includes('version')));
   d.agreement = r('take-part', 'agreed', 'action');
   assert.ok(validateDonationPayload(d).some((m) => m.includes('malformed')));
+});
+
+test('a parent may share on the young person’s behalf, without recording the young person’s agreement', () => {
+  const d = validDonation();
+  d.sharedBy = 'parent';
+  d.agreement = null;
+  assert.deepEqual(validateDonationPayload(d), []);
+  d.agreement = r('phone-use', 'agreed', 'action', '0.4-draft');
+  assert.ok(validateDonationPayload(d).some((m) => m.includes('cannot record')));
+  const y = validDonation();
+  y.agreement = null;
+  assert.ok(validateDonationPayload(y).some((m) => m.includes('agreement to share')));
+  (y as unknown as Record<string, unknown>).sharedBy = 'teacher';
+  assert.ok(validateDonationPayload(y).some((m) => m.includes('not stated')));
 });
 
 test('screenshot record needs a reference and well-formed, distinct uploads', () => {

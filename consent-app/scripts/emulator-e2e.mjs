@@ -135,10 +135,10 @@ async function inner() {
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
     for (const [i, label] of ['Somewhat', 'About the same', 'Sometimes'].entries()) {
-      await page.getByText(`Question ${i + 1} of 4`).waitFor();
+      await page.locator('.mpmb-quiz__count', { hasText: `Question ${i + 1} of 4` }).waitFor();
       await page.getByRole('button', { name: label, exact: true }).click();
     }
-    await page.getByText('Question 4 of 4').waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 4 of 4' }).waitFor();
     await page.getByRole('textbox').fill('Mostly YouTube, often late at night.');
     await page.getByRole('button', { name: 'Finish', exact: true }).click();
     await page.getByRole('button', { name: /I’m Kai/ }).click();
@@ -250,7 +250,43 @@ async function inner() {
     };
     const client = { userAgent: 'rules-check', submittedAt: new Date().toISOString(), timezoneOffset: 0 };
     const agreement = { statementId: 'phone-use', version: '0.4-draft', response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' };
-    ok('another session cannot add screenshots to this reference', await stranger(() => httpsCallable(fns, 'submitDonation')({ referenceCode: code, platform: 'ios', uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: false, cropped: false, acknowledgedWarning: false }], agreement, client })));
+    ok('another session cannot add screenshots to this reference', await stranger(() => httpsCallable(fns, 'submitDonation')({ referenceCode: code, platform: 'ios', uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: false, cropped: false, acknowledgedWarning: false }], sharedBy: 'young', agreement, client })));
+    // A parent completing everything while the young person is not there: the screenshot is held pending the young person's agreement.
+    await page.getByRole('button', { name: /Finish and clear/ }).click();
+    await page.getByRole('heading', { name: /Take part in MyPhone/ }).waitFor();
+    await page.getByRole('button', { name: /I’m a parent or guardian/ }).click();
+    await page.getByLabel('First name', { exact: true }).fill('Amira');
+    await page.getByLabel('Last name', { exact: true }).fill('Khan');
+    await page.getByLabel('Day', { exact: true }).fill('2');
+    await page.getByLabel('Month', { exact: true }).fill('9');
+    await page.getByLabel('Year', { exact: true }).fill('2012');
+    await page.getByLabel('School', { exact: true }).selectOption('BRD-001');
+    await page.getByLabel('Your full name', { exact: true }).fill('Sara Khan');
+    await page.getByLabel('Your relationship to the young person').selectOption('mother');
+    await page.getByLabel(/parental responsibility for/).check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByLabel(/I confirm all of the above/).check();
+    for (const [id, v] of [['phone-use', 'agreed'], ['link-records', 'agreed'], ['recontact', 'declined']]) await page.locator(`#stmt-${id}-${v}`).check();
+    await page.getByRole('button', { name: /I can’t draw my signature/ }).click();
+    await page.getByLabel(/Type your full name as your signature/).fill('Sara Khan');
+    await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await page.getByRole('button', { name: 'Skip these questions' }).click();
+    await page.getByRole('button', { name: /isn’t here/ }).click();
+    await page.getByRole('heading', { name: /Share the screen time/ }).waitFor();
+    await page.locator('.mpmb-save', { hasText: 'Permission saved' }).waitFor({ timeout: 60000 });
+    const code2 = (await page.locator('.mpmb-save strong').innerText()).trim();
+    await page.getByRole('radio', { name: 'Android' }).check();
+    await input.setInputFiles([{ name: 'c.png', mimeType: 'image/png', buffer: await png('Today') }]);
+    await page.waitForFunction(() => document.querySelectorAll('.mpmb-upload').length === 1);
+    await page.getByRole('button', { name: /Send this screenshot/ }).click();
+    await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor({ timeout: 90000 });
+    const sub2 = (await db.collection('submissions').doc(code2).get()).data();
+    const assent2 = (await db.collection('assents').doc(sub2.assentId).get()).data();
+    const donation2 = (await db.collection('donations').doc(sub2.donationIds[0]).get()).data();
+    ok('parent shared on the young person’s behalf: agreement deferred, donation held pending assent', assent2?.status === 'deferred' && assent2?.deferredBy === 'parent' && !assent2?.responses?.['phone-use'] && donation2?.sharedBy === 'parent' && donation2?.agreement === null && donation2?.pendingAssent === true && donation2?.images.length === 1);
+    ok('no questions record when they were skipped without an answer', sub2?.surveyId && (await db.collection('surveys').doc(sub2.surveyId).get()).data()?.status === 'skipped');
+    ok('a "young" share is refused while the agreement is deferred', await stranger(() => httpsCallable(fns, 'submitDonation')({ referenceCode: code2, platform: 'android', uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: false, cropped: false, acknowledgedWarning: false }], sharedBy: 'young', agreement, client })));
+
     ok('client cannot read its own quarantine upload', await denied(async () => {
       await uploadBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`), buffer, { contentType: 'image/png' });
       await getBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`));

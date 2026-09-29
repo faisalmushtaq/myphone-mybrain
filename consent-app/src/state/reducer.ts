@@ -1,5 +1,6 @@
 import { parentQuestionsForm } from '../config/questions';
 import { childAssentForm, parentConsentForm } from '../config/statements';
+import { study } from '../config/study';
 import type { PlatformId } from '../config/walkthroughs';
 import { todayIso } from '../lib/dates';
 import { imageStore } from '../lib/imageStore';
@@ -180,9 +181,9 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'set-child-present': {
       const next = { ...state, childPresent: action.present };
       if (!action.present) {
-        // The young person's part is collected separately, so their agreement and the phone-use step are skipped.
+        // The young person's agreement is collected separately. The parent may carry on with the screen-time part (config).
         next.assent = { ...state.assent, status: 'deferred', deferredBy: 'parent', responses: {}, signature: null, completedAt: null };
-        next.donation = deferDonation(state);
+        next.donation = study.parentMayShareWithoutAssent ? (state.donation.status === 'deferred' ? { ...state.donation, status: 'not-started' } : state.donation) : deferDonation(state);
       } else if (state.assent.status === 'deferred') {
         next.assent = { ...state.assent, status: 'not-started', deferredBy: null };
         next.donation = state.donation.status === 'deferred' ? { ...state.donation, status: state.donation.images.length ? 'in-progress' : 'not-started' } : state.donation;

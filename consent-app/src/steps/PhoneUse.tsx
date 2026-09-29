@@ -44,6 +44,7 @@ export function PhoneUse() {
   const failed = images.some((i) => i.status === 'failed');
   const doubtful = unsent.filter((i) => i.quality?.verdict === 'unlikely' && !i.acknowledged);
   const young = state.route === 'young' || state.assent.status === 'completed';
+  const childName = state.identity.firstName.trim() || 'The young person';
   const walkthrough = platform ? walkthroughs[platform] : null;
   const hasImages = images.length > 0;
   const showHow = howOpen ?? (platform !== null && !hasImages);
@@ -139,6 +140,14 @@ export function PhoneUse() {
       width="wide"
     >
       <SaveStatus />
+
+      {state.assent.status === 'deferred' && (
+        <Callout tone="info" role="status">
+          <p>
+            {childName} isn’t here, so you would be sharing on their behalf. {childName} will be asked for their own agreement separately, for example at school; if they say no, the screenshots will be deleted.
+          </p>
+        </Callout>
+      )}
 
       <Disclosure summary="Why we ask, and what we do with it">
         <p>{whyPhoneUse.intro}</p>

@@ -349,7 +349,9 @@ export const submitDonation = onCall(callOptions, async (request) => {
   if (consent?.responses?.['phone-use']?.response !== 'agreed') throw new HttpsError('failed-precondition', 'The parent or guardian has not agreed to screen-time screenshots.');
   const assentRef = db.collection('assents').doc(submission.assentId as string);
   const assent = (await assentRef.get()).data();
-  if (assent?.status !== 'completed') throw new HttpsError('failed-precondition', 'The young person has not agreed to take part yet.');
+  // The young person shares after signing; a parent may share on their behalf only while the young person's agreement is being collected separately.
+  if (payload.sharedBy === 'young' && assent?.status !== 'completed') throw new HttpsError('failed-precondition', 'The young person has not agreed to take part yet.');
+  if (payload.sharedBy === 'parent' && !(assent?.status === 'deferred' && assent?.deferredBy === 'parent')) throw new HttpsError('failed-precondition', 'Screenshots can only be shared for the young person while their agreement is being collected separately.');
   if (Number(submission.imageCount ?? 0) + payload.uploads.length > study.maxImages) throw new HttpsError('invalid-argument', `At most ${study.maxImages} images can be sent in total.`);
 
   const participantId = submission.participantId as string;
@@ -377,13 +379,16 @@ export const submitDonation = onCall(callOptions, async (request) => {
       participantId,
       platform: payload.platform,
       images,
+      sharedBy: payload.sharedBy,
       agreement: payload.agreement,
+      // Shared by the parent: hold until the young person has been asked; delete if they say no.
+      pendingAssent: payload.sharedBy === 'parent',
       needsReview: images.some((i) => i.quality.verdict === 'review'),
       receivedAt,
       client: payload.client,
       createdAt: FieldValue.serverTimestamp(),
     });
-    if (assent.responses?.['phone-use']?.response !== 'agreed') batch.update(assentRef, { 'responses.phone-use': payload.agreement, updatedAt: FieldValue.serverTimestamp() });
+    if (payload.agreement && assent?.responses?.['phone-use']?.response !== 'agreed') batch.update(assentRef, { 'responses.phone-use': payload.agreement, updatedAt: FieldValue.serverTimestamp() });
     batch.update(submissionRef, { donationIds: FieldValue.arrayUnion(donationId), imageCount: FieldValue.increment(images.length), platform: payload.platform, lastDonationAt: receivedAt, updatedAt: FieldValue.serverTimestamp() });
     await batch.commit();
   }

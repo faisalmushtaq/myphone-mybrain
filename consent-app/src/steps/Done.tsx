@@ -37,7 +37,10 @@ export function Done() {
   const steps: string[] = [];
   if (!declined) {
     if (guardian.wantsCopy && guardian.email) steps.push(`A copy of what you agreed to is on its way to ${guardian.email}. Keep it somewhere safe.`);
-    if (state.assent.status === 'deferred') steps.push(state.assent.deferredBy === 'young' ? `${childName} wanted to decide later. The team will ask again, for example at school, before any screen-time information is requested.` : `The team will ask ${childName} for their own agreement separately, for example at school, before any screen-time information is requested.`);
+    if (state.assent.status === 'deferred') {
+      if (state.assent.deferredBy === 'young') steps.push(`${childName} wanted to decide later. The team will ask again, for example at school, before any screen-time information is requested.`);
+      else steps.push(`The team will ask ${childName} for their own agreement separately, for example at school.${sentImages ? ` ${childName} will also be asked whether they are happy for the screenshots you shared to be used; if not, they will be deleted.` : ''}`);
+    }
     if (state.assent.status === 'completed' && sentImages === 0) steps.push('No screenshots were added this time. The team can send a link to add them later — it takes about a minute and it really helps.');
     steps.push('The team will be in touch about the next parts of the study, such as the surveys and the school session.');
   }

@@ -149,11 +149,14 @@ export function useSync() {
     dispatch({ type: 'submission', patch: { donationStage: 'sending', donationError: null } });
     announce('Sending your screenshots.');
     try {
+      // The young person's agreement is given by sending; a parent sending while the young person is not present shares on their behalf.
+      const sharedBy = s.assent.status === 'completed' ? 'young' : 'parent';
       const payload: DonationPayload = {
         referenceCode: consent.referenceCode,
         platform: s.donation.platform,
         uploads: uploads.map((i) => ({ uploadId: i.uploadId as string, redacted: i.redacted, cropped: i.cropped, acknowledgedWarning: i.acknowledged })),
-        agreement: { statementId: 'phone-use', version: statement?.version ?? childAssentForm.version, response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' },
+        sharedBy,
+        agreement: sharedBy === 'young' ? { statementId: 'phone-use', version: statement?.version ?? childAssentForm.version, response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' } : null,
         client: clientInfo(),
       };
       const result = await withSession((session) => getApi().submitDonation(session, payload));
@@ -164,7 +167,7 @@ export function useSync() {
         if (image) dispatch({ type: 'update-image', id: image.id, patch: { status: 'failed', uploadId: null, progress: 0, error: rejected.reason } });
       }
       if (acceptedIds.length) {
-        dispatch({ type: 'assent-response', statementId: 'phone-use', version: payload.agreement.version, response: 'agreed', via: 'action' });
+        if (payload.agreement) dispatch({ type: 'assent-response', statementId: 'phone-use', version: payload.agreement.version, response: 'agreed', via: 'action' });
         dispatch({ type: 'donation-status', status: 'completed' });
       }
       dispatch({ type: 'submission', patch: { donationStage: 'sent', donationError: null, donationsSent: s.submission.donationsSent + (acceptedIds.length ? 1 : 0) } });

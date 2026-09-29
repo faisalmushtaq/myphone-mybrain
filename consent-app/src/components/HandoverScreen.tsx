@@ -95,7 +95,11 @@ export function HandoverScreen() {
             >
               {childName} isn’t here right now
             </Button>
-            <p className="mpmb-handover__note">If {childName} isn’t with you, we will ask for their agreement separately, for example at school. The phone-use part will wait until then.</p>
+            <p className="mpmb-handover__note">
+              {study.parentMayShareWithoutAssent
+                ? `If ${childName} isn’t with you, you can carry on and complete the rest yourself — including the screenshots, if you have their phone. We will ask ${childName} for their own agreement separately, for example at school.`
+                : `If ${childName} isn’t with you, we will ask for their agreement separately, for example at school. The phone-use part will wait until then.`}
+            </p>
           </>
         )}
         <Button variant="link" className="mpmb-btn--onhandover" onClick={() => dispatch({ type: 'cancel-handover' })}>

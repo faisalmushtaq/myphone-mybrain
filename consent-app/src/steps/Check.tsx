@@ -18,7 +18,7 @@ export function Check() {
   const { dirty, submission } = useSync();
   const childName = state.identity.firstName.trim() || 'the young person';
   const sent = submission.consentStage === 'sent' && !dirty;
-  const canAddImages = phoneUseApplies(state) && state.assent.status === 'completed';
+  const canAddImages = phoneUseApplies(state) && state.assent.status !== 'not-started';
   const sentImages = state.donation.images.filter((i) => i.status === 'sent').length;
 
   return (

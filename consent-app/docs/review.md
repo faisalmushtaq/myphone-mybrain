@@ -161,3 +161,16 @@ Points the reviewers would raise about these, and the answers built in:
 | Data protection | Free text can carry names or details about other people. | The box says not to include names; it is limited to 500 characters; the record is stored with the participant id only, and the DPIA should say who reads free text before it reaches researchers. |
 | Accessibility | Auto-advance on selection can strand keyboard and screen-reader users. | The options are real buttons (one press = one answer), focus moves to the next question and its number is announced; nothing advances on arrow keys. |
 | Data protection | Where are the answers stored? | In a `surveys` collection labelled by participant id only, readable by the researcher and coordinator roles; re-sent as a new versioned record with any amendment. |
+
+## Fifth round: the young person not being there
+
+A parent should be able to complete everything when the young person is
+out, so "{child} isn't here right now" no longer stops at the permission:
+the parent carries on to the screen-time step and the check page. What keeps
+this defensible:
+
+| Perspective | Concern | Answer |
+|---|---|---|
+| Ethics | Screenshots of the young person's phone shared without their agreement. | Parental consent covers the collection; the young person's own agreement is still collected separately, the page says so before anything is sent, and screenshots shared this way are recorded as `sharedBy: 'parent'` and held `pendingAssent` on the server. If the young person says no, they are deleted. This is a configuration point (`parentMayShareWithoutAssent`) for the ethics committee. |
+| Ethics | A young person who chose "decide later" must not be shared for. | Deferral by the young person still removes the screen-time step; only deferral by the parent (not present) allows it. The server enforces the same rule from its own copy of the records. |
+| Data protection | Can a client claim the young person agreed when they did not? | `sharedBy: 'young'` is refused unless the assent record is completed; `sharedBy: 'parent'` is refused unless the assent record was deferred by the parent, and cannot carry an agreement record. |
