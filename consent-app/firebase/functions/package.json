@@ -2,9 +2,7 @@
   "name": "mpmb-consent-functions",
   "private": true,
   "description": "Cloud Functions for the MyPhone/MyBrain consent and phone-use donation app",
-  "engines": {
-    "node": "20"
-  },
+  "engines": { "node": "22" },
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",

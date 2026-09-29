@@ -76,8 +76,15 @@ gcloud services enable \
   firestore.googleapis.com storage.googleapis.com firebasestorage.googleapis.com identitytoolkit.googleapis.com \
   cloudfunctions.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com run.googleapis.com \
   eventarc.googleapis.com pubsub.googleapis.com cloudscheduler.googleapis.com firebaserules.googleapis.com \
-  --project="$PROJECT" >/dev/null
+  compute.googleapis.com --project="$PROJECT" >/dev/null
 ok "APIs enabled"
+# On new projects Cloud Build runs as the default compute service account, which needs the builder role to build the functions.
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')"
+COMPUTE_SA="$PROJECT_NUMBER-compute@developer.gserviceaccount.com"
+for role in roles/cloudbuild.builds.builder roles/logging.logWriter roles/artifactregistry.writer roles/storage.objectAdmin; do
+  gcloud projects add-iam-policy-binding "$PROJECT" --member="serviceAccount:$COMPUTE_SA" --role="$role" --condition=None >/dev/null 2>&1 || echo "  (could not grant $role to $COMPUTE_SA; grant it in IAM if the functions fail to build)"
+done
+ok "build permissions for $COMPUTE_SA"
 
 say "5. Firestore in $REGION"
 if gcloud firestore databases describe --database='(default)' --project="$PROJECT" >/dev/null 2>&1; then
@@ -130,25 +137,42 @@ else
 fi
 CONFIG="$($FIREBASE apps:sdkconfig WEB "$APP_ID" --project "$PROJECT" --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const c=JSON.parse(s).result.sdkConfig;console.log([`MPMB_BACKEND=firebase`,`FIREBASE_API_KEY=${c.apiKey}`,`FIREBASE_PROJECT_ID=${c.projectId}`,`FIREBASE_APP_ID=${c.appId}`,`FIREBASE_AUTH_DOMAIN=${c.authDomain}`,`FIREBASE_STORAGE_BUCKET=${c.storageBucket||c.projectId+".firebasestorage.app"}`].join("\n"))})')"
 echo "$CONFIG" > "$HERE/.site-variables.txt"
-ok "settings saved to consent-app/firebase/.site-variables.txt (not secret; safe to commit if you like)"
+ENV_FILE="$HERE/../.env.production"
+{
+  echo "# Firebase settings for the live site, written by firebase/scripts/setup-project.sh."
+  echo "# Public identifiers (they are in the page anyway); access is governed by the security rules. Commit this file."
+  echo "$CONFIG" | sed 's/^MPMB_BACKEND=/VITE_MPMB_BACKEND=/; s/^FIREBASE_/VITE_FIREBASE_/'
+} > "$ENV_FILE"
+ok "settings written to consent-app/.env.production (commit it to point the live site at this project)"
 
 say "9. Deploying the security rules and the Cloud Functions"
 [[ -f "$HERE/functions/.env" ]] || cp "$HERE/functions/.env.example" "$HERE/functions/.env"
 (cd "$HERE/functions" && npm ci --silent)
-(cd "$HERE" && $FIREBASE deploy --only firestore:rules,storage,functions --project "$PROJECT" --force)
-ok "rules and functions deployed to $REGION"
+(cd "$HERE" && $FIREBASE deploy --only firestore:rules,storage --project "$PROJECT" --force)
+ok "security rules deployed"
+DEPLOYED=""
+for attempt in 1 2 3; do
+  if (cd "$HERE" && $FIREBASE deploy --only functions --project "$PROJECT" --force); then DEPLOYED=1; break; fi
+  echo "  Attempt $attempt failed. The first deploy of several functions often races on the sources bucket; retrying in 30 seconds..."
+  sleep 30
+done
+if [[ -z "$DEPLOYED" ]]; then
+  echo "  The functions did not deploy. Show the build log with:"
+  echo "    gcloud builds list --region=$REGION --project=$PROJECT --limit=3"
+  echo "    gcloud builds log <BUILD_ID> --region=$REGION --project=$PROJECT"
+  echo "  and paste it back."
+  exit 1
+fi
+ok "functions deployed to $REGION"
 
 say "10. Pointing the website at the project"
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-  while IFS='=' read -r k v; do gh variable set "$k" --body "$v" --repo "$REPO" >/dev/null && ok "GitHub variable $k set"; done <<< "$CONFIG"
-  gh workflow run deploy.yml --repo "$REPO" >/dev/null && ok "site rebuild started: https://github.com/$REPO/actions"
+  (cd "$HERE/../.." && git add consent-app/.env.production && git -c user.name="setup-project" -c user.email="setup@myphonemybrain.com" commit -q -m "Point the live site at the Firebase project" && git push -q) && ok "committed and pushed consent-app/.env.production; the site is rebuilding: https://github.com/$REPO/actions"
 else
-  echo "  Add these as repository variables at https://github.com/$REPO/settings/variables/actions"
-  echo "  (Settings → Secrets and variables → Actions → Variables → New repository variable):"
+  echo "  Commit consent-app/.env.production to the repository, or paste its contents to Claude, who can. Its contents:"
   echo
-  echo "$CONFIG" | sed 's/^/    /'
+  sed 's/^/    /' "$ENV_FILE"
   echo
-  echo "  Then run the 'Build and deploy' workflow: https://github.com/$REPO/actions/workflows/deploy.yml"
 fi
 
 say "Done. Still by hand, when you are ready:"

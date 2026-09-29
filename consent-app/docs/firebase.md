@@ -158,8 +158,8 @@ The script creates the project if needed, links billing when you give it a
 billing-account id as a second argument (that *is* the Blaze plan), enables
 the APIs, creates Firestore and the Storage bucket in London, turns on
 anonymous sign-in and authorises `myphonemybrain.com`, registers the web
-app, deploys the rules and functions, and prints (or, with `gh` signed in,
-sets) the repository variables the site build needs. It stops and gives you
+app, deploys the rules and functions, and writes `consent-app/.env.production`
+with the settings the site build needs (commit it, or paste it to Claude). It stops and gives you
 the exact link for the two things only a person can do: a billing account
 with a card, and, if the Auth API refuses, the one-off "Get started" click.
 Run it again any time; it skips what is already done.
@@ -191,12 +191,13 @@ Run it again any time; it skips what is already done.
    listed at the top of the workflow file) and the `FIREBASE_PROJECT_ID`
    variable. Some University Google Cloud organisations block
    service-account keys; the laptop route needs nothing but a sign-in.
-6. **Web app settings.** Project settings → Your apps → Add web app. Copy
+6. **Web app settings.** Project settings → Your apps → Add web app. Put
    `apiKey`, `projectId`, `appId`, `authDomain`, `storageBucket` into
-   GitHub → repository → Settings → Variables (`FIREBASE_API_KEY` and so on;
-   see `.github/workflows/deploy.yml`) and set `MPMB_BACKEND=firebase`. These
-   values identify the project and are safe to publish; access is governed by
-   the rules. Set `MPMB_PROTOTYPE=false` to remove the prototype controls.
+   `consent-app/.env.production` as `VITE_FIREBASE_API_KEY` and so on, with
+   `VITE_MPMB_BACKEND=firebase` (see `.env.example`), and commit it. The
+   setup script writes this file for you. These values identify the project
+   and are safe to publish; access is governed by the rules. The repository
+   variable `MPMB_PROTOTYPE=false` removes the prototype controls.
 7. **Authorised domains.** Authentication → Settings → Authorized domains →
    add `myphonemybrain.com`.
 8. **App Check** (recommended). Register the site with reCAPTCHA v3, put the
