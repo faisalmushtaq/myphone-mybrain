@@ -4,7 +4,7 @@ import { validatePayload, type Payload } from './validate.js';
 
 const now = new Date().toISOString();
 const signature = { method: 'drawn' as const, imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=', typedName: null, strokeCount: 2, pointerType: 'touch', capturedAt: now };
-const r = (statementId: string, response: 'agreed' | 'declined', via: 'individual' | 'group' | 'signature' | 'action') => ({ statementId, version: '0.3-draft', response, respondedAt: now, via });
+const r = (statementId: string, response: 'agreed' | 'declined', via: 'individual' | 'group' | 'signature' | 'action', version = '0.3-draft') => ({ statementId, version, response, respondedAt: now, via });
 
 function valid(): Payload {
   return {
@@ -16,16 +16,15 @@ function valid(): Payload {
     guardian: { fullName: 'Priya Patel', relationship: 'mother', relationshipOther: '', hasParentalResponsibility: true, email: 'priya@example.com', phone: '', postcode: '' },
     consent: {
       formId: 'mpmb-parent-consent',
-      formVersion: '0.3-draft',
-      informationVersion: '0.2-draft',
+      formVersion: '0.4-draft',
+      informationVersion: '0.3-draft',
       responses: {
         'read-information': r('read-information', 'agreed', 'group'),
         'take-part': r('take-part', 'agreed', 'group'),
         'understand-withdraw': r('understand-withdraw', 'agreed', 'group'),
         'records-checked': r('records-checked', 'agreed', 'group'),
         'phone-use': r('phone-use', 'agreed', 'individual'),
-        'link-health': r('link-health', 'agreed', 'individual'),
-        'link-education': r('link-education', 'declined', 'individual'),
+        'link-records': r('link-records', 'declined', 'individual', '0.4-draft'),
         recontact: r('recontact', 'declined', 'individual'),
       },
       typedName: 'Priya Patel',

@@ -9,12 +9,12 @@ controls panel).
 
 | What | Where in the code | Replace with |
 |---|---|---|
-| Parent/guardian consent statements (6) and the form version id | `src/config/statements.ts` → `parentConsentForm` | Ethics-approved consent form wording, one statement per permission, with the approved version identifier |
+| Parent/guardian consent statements (7: four required, three optional) and the form version id | `src/config/statements.ts` → `parentConsentForm` | Ethics-approved consent form wording, one statement per permission, with the approved version identifier |
 | Young person's agreement statements (4) and version | `src/config/statements.ts` → `childAssentForm` | Ethics-approved assent wording, ideally two reading-age variants (11–13 and 14–18) if the committee wants them |
 | "About the study" cards, parent and young-person versions | `src/config/copy.ts` → `aboutStudy` | Approved summary of the participant information sheet |
 | Participant information sections (what is involved, phone-use, linkage, protection, withdrawal, contact) | `src/config/copy.ts` → `parentInformation` | The approved participant information sheet, split into the same sections; add the independent complaints contact |
 | Why we collect phone-use information; the "not interested in" list | `src/config/copy.ts` → `whyPhoneUse` | Approved plain-English explanation consistent with the data management plan |
-| Health-record and education-record linkage wording | `src/config/statements.ts` (`link-health`, `link-education`) and `src/config/copy.ts` (`linking` section) | Wording agreed with Connected West Yorkshire / the data controllers, including the named datasets |
+| Record-linkage wording and the approvals it names (University ethics, NHS REC, data owners, Connected West Yorkshire data access) | `src/config/statements.ts` (`link-records`) and `src/config/copy.ts` (`linking` section) | Wording agreed with Connected West Yorkshire and the data controllers, with the actual approval references and the named datasets |
 | Withdrawal information | `src/config/copy.ts` (`withdraw` section), `src/steps/Done.tsx`, statement `understand-withdraw` | Approved withdrawal process and what can/cannot be removed |
 | Researcher and contact details, phone number, complaints route | `src/config/study.ts` → `contact`; `src/config/copy.ts` (`contact` section) | Named contact, phone number if published, independent contact for concerns |
 | Study, site and form identifiers | `src/config/study.ts` → `studyId`, `siteId`; form ids in `statements.ts` | Identifiers used in the study database |

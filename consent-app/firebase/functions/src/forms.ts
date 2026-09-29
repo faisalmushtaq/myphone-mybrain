@@ -14,15 +14,14 @@ export interface ServedStatement {
 
 export const parentConsentForm = {
   id: 'mpmb-parent-consent',
-  version: '0.3-draft',
+  version: '0.4-draft',
   statements: [
     { id: 'read-information', version: '0.3-draft', kind: 'required' },
     { id: 'take-part', version: '0.3-draft', kind: 'required' },
     { id: 'understand-withdraw', version: '0.3-draft', kind: 'required' },
     { id: 'records-checked', version: '0.3-draft', kind: 'required' },
     { id: 'phone-use', version: '0.3-draft', kind: 'optional' },
-    { id: 'link-health', version: '0.3-draft', kind: 'optional' },
-    { id: 'link-education', version: '0.3-draft', kind: 'optional' },
+    { id: 'link-records', version: '0.4-draft', kind: 'optional' },
     { id: 'recontact', version: '0.3-draft', kind: 'optional' },
   ] as ServedStatement[],
 };
@@ -42,7 +41,7 @@ export const childAssentForm = {
   ] as ServedStatement[],
 };
 
-export const informationVersion = '0.2-draft';
+export const informationVersion = '0.3-draft';
 
 export const study = {
   studyId: 'MPMB',

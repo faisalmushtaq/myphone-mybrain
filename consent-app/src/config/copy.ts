@@ -65,7 +65,7 @@ export const aboutStudy = {
  * the consent record so the team knows exactly which text was read.
  * PLACEHOLDER — replace with the approved sheet's version and date.
  */
-export const parentInformationVersion = { version: '0.2-draft', date: '2026-09-28' };
+export const parentInformationVersion = { version: '0.3-draft', date: '2026-09-29' };
 
 /** Participant information for parents/guardians, shown before the consent statements. */
 export const parentInformation: InfoSection[] = [
@@ -93,14 +93,14 @@ export const parentInformation: InfoSection[] = [
   },
   {
     id: 'linking',
-    title: 'Linking with health and education records',
-    summary: 'With your permission, study information can be linked to records that already exist, using a study code rather than a name.',
+    title: 'Linking with records already held',
+    summary: 'With your permission, study information can be linked, through Connected West Yorkshire, to NHS, education and other routinely held records, using a code rather than a name.',
     detail: [
-      'Linking lets the study look at longer-term patterns in learning, wellbeing and health without asking families for more forms.',
-      'Linked information is labelled with a code, not your child’s name, and the key that connects the code to your child is kept separately in a system with restricted access. It is not anonymous, but researchers analysing the information do not see names or contact details.',
-      'Linkage happens through Connected West Yorkshire, an approved secure research data service, following its access procedures. Health records means NHS records such as GP and hospital records; education records means attendance, attainment and special educational needs records held by the school and the Department for Education. You choose separately whether to allow each.',
+      'Linking lets the study look at longer-term patterns in health, learning and wellbeing without asking families for more forms. The records are ones that already exist: NHS health records, education records such as attendance and results, and other routinely collected records. You give one permission that covers all of these, and you can withdraw it at any time.',
+      'Connected West Yorkshire is a secure research data service. Linking happens inside it, following its access procedures, and only with the approvals in place: the study’s ethics approval from the University of Leeds and, for NHS records, from an NHS Research Ethics Committee; permission from the organisation that holds each record, for example the NHS or the Department for Education; and approval through Connected West Yorkshire’s own data access process. Researchers work with the linked information only inside the secure service.',
+      'Linked information is labelled with a code, not your child’s name, and the key that connects the code to your child is kept separately in a system with restricted access. It is not anonymous, but researchers analysing the information do not see names or contact details. Results are only ever reported for groups of young people.',
     ],
-    draft: true,
+    draft: true, // PLACEHOLDER — confirm the exact approvals and their references with the governance team
   },
   {
     id: 'protection',
@@ -158,6 +158,7 @@ export const youngRecap = {
   points: [
     'Taking part means short surveys, and for some people a session at school where you wear a cap that records brain activity while you do simple computer tasks. You choose which parts to do.',
     'Your answers get a code number instead of your name, and we only report results for groups of young people. If we were ever seriously worried about your safety we might need to tell someone who can help, and we would talk to you first if we could.',
+    'If your parent or guardian agreed to it, information that the NHS or your school already holds about you may be added to the study, using the code instead of your name.',
     'You can ask a parent, a teacher or the research team anything before you sign.',
   ],
   draft: true,

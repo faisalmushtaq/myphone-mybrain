@@ -45,7 +45,7 @@ export interface StatementForm {
 
 export const parentConsentForm: StatementForm = {
   id: 'mpmb-parent-consent',
-  version: '0.3-draft', // PLACEHOLDER — ethics-approved version identifier
+  version: '0.4-draft', // PLACEHOLDER — ethics-approved version identifier
   title: 'Parent or guardian permission',
   statements: [
     {
@@ -92,23 +92,14 @@ export const parentConsentForm: StatementForm = {
       draft: true,
     },
     {
-      id: 'link-health',
-      version: '0.3-draft',
+      id: 'link-records',
+      version: '0.4-draft',
       kind: 'optional',
-      label: 'Linking with NHS health records',
-      text: 'My child’s study information may be linked with their NHS health records through Connected West Yorkshire.',
+      label: 'Linking with records already held',
+      text: 'My child’s study information may be linked, through Connected West Yorkshire, with records already held about them: NHS health records, education records such as attendance and results, and other routinely collected records.',
       more:
-        'Linking means adding information from records that already exist, so the study can look at longer-term patterns without asking families to fill in more forms. Linked information is labelled with a code, not your child’s name. It is not anonymous, because the study keeps a secure key that links the code back to your child, but researchers analysing the information do not see names or contact details. The exact records to be linked are listed in the participant information.',
-      draft: true,
-    },
-    {
-      id: 'link-education',
-      version: '0.3-draft',
-      kind: 'optional',
-      label: 'Linking with school records',
-      text: 'My child’s study information may be linked with their education records: attendance, results and special educational needs records held by the school and the Department for Education.',
-      more: 'As with health records, linked education information is handled using a code, in secure systems with controlled access, and results are only reported for groups of young people.',
-      draft: true,
+        'Linking means adding information from records that already exist, so the study can look at longer-term patterns in health, learning and wellbeing without asking families for more forms. It can only happen with approvals in place: the study’s ethics approval from the University of Leeds and, for NHS records, from an NHS Research Ethics Committee; permission from the organisation that holds each record, such as the NHS or the Department for Education; and approval through Connected West Yorkshire’s own data access process. Linked information is labelled with a code, not your child’s name. It is not anonymous, because the study keeps a secure key that links the code back to your child, but researchers analysing the information do not see names or contact details. The full list of records is in the participant information sheet.',
+      draft: true, // PLACEHOLDER — confirm the exact approvals and their references with the governance team
     },
     {
       id: 'recontact',

@@ -21,7 +21,7 @@ than it needed to be. What changed and why is at the end.
 4. **The required statements are one confirmation; the permissions are
    separate choices.** The four statements needed to take part sit under one
    tick (each is still recorded individually, marked `via: 'group'`). The
-   four optional permissions are explicit Yes/No rows with no default.
+   three optional permissions (screenshots, linking with records already held through Connected West Yorkshire, and recontact) are explicit Yes/No rows with no default.
 5. **The young person's agreement is their signature.** The three things it
    means are listed above the box. Saying no and deciding later are equally
    visible. Sharing screenshots is agreed by doing it (pressing send), and
@@ -52,7 +52,7 @@ Actors: **P** parent/guardian, **Y** young person, **A** anyone.
 | 1 | `child-details` | route | Names, date of birth, school, year group. Route P also asks for the parent's name, relationship, parental-responsibility confirmation and email here (phone and postcode folded, optional). |
 | — | *handover Y→P* | | Route Y only. |
 | 2 | `parent-details` | P | Route Y only: check the child's details, then the parent's own. |
-| 3 | `parent-consent` | P | **One screen.** Six one-line information summaries (each opens to the full wording, with links to the full sheet and privacy notice and the information version); the four required statements under one tick; four Yes/No permissions; name (pre-filled from the details), signature, date. |
+| 3 | `parent-consent` | P | **One screen.** Six one-line information summaries (each opens to the full wording, with links to the full sheet and privacy notice and the information version); the four required statements under one tick; three Yes/No permissions; name (pre-filled from the details), signature, date. |
 | — | *handover P→Y* | | Route P offers "{child} isn't here right now" (agreement deferred, screen-time skipped). |
 | 4 | `child-assent` | Y | Three-line recap; "Signing your name means…" with the three statements; signature (draw, or type first name). "I don't want to take part" and "I'd like to decide later" alongside. |
 | 5 | `phone-use` | A | **One screen.** Why we ask (folded); which phone (chips); how to find the summary (illustrated steps, open until images are added); add, check, hide parts of, and send screenshots; skip. |

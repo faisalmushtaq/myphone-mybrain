@@ -129,7 +129,7 @@ async function inner() {
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: /Your permission for Kai/ }).waitFor();
     await page.getByLabel(/I confirm all of the above/).check();
-    for (const [id, v] of [['phone-use', 'agreed'], ['link-health', 'agreed'], ['link-education', 'declined'], ['recontact', 'declined']]) await page.locator(`#stmt-${id}-${v}`).check();
+    for (const [id, v] of [['phone-use', 'agreed'], ['link-records', 'declined'], ['recontact', 'declined']]) await page.locator(`#stmt-${id}-${v}`).check();
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.35, 0.3], [0.55, 0.7], [0.8, 0.4]]);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('button', { name: /I’m Kai/ }).click();
@@ -160,7 +160,7 @@ async function inner() {
     const participant = (await db.collection('participants').doc(submission.participantId).get()).data();
     ok('participant record holds identity', participant?.firstName === 'Kai' && participant?.dateOfBirth === '2013-03-14' && participant?.guardian?.email === 'priya@example.com');
     const consent = (await db.collection('consents').doc(submission.consentId).get()).data();
-    ok('consent record complete', consent?.responses?.['link-education']?.response === 'declined' && consent?.responses?.['take-part']?.via === 'group' && consent?.signature?.image?.path?.startsWith('signatures/'));
+    ok('consent record complete', consent?.responses?.['link-records']?.response === 'declined' && consent?.responses?.['take-part']?.via === 'group' && consent?.signature?.image?.path?.startsWith('signatures/'));
     ok('consent record has server receipt time', consent?.receivedAt && consent?.createdAt);
     const assent = (await db.collection('assents').doc(submission.assentId).get()).data();
     ok('assent record signed', assent?.status === 'completed' && assent?.responses?.['take-part']?.via === 'signature' && assent?.responses?.['phone-use']?.via === 'action');
