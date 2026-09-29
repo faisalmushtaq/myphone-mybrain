@@ -149,14 +149,12 @@ export function useSync() {
     dispatch({ type: 'submission', patch: { donationStage: 'sending', donationError: null } });
     announce('Sending your screenshots.');
     try {
-      // The young person's agreement is given by sending; a parent sending while the young person is not present shares on their behalf.
-      const sharedBy = s.assent.status === 'completed' ? 'young' : 'parent';
+      // A young person who signed in the app agrees to share by sending; otherwise their agreement is collected separately.
       const payload: DonationPayload = {
         referenceCode: consent.referenceCode,
         platform: s.donation.platform,
         uploads: uploads.map((i) => ({ uploadId: i.uploadId as string, redacted: i.redacted, cropped: i.cropped, acknowledgedWarning: i.acknowledged })),
-        sharedBy,
-        agreement: sharedBy === 'young' ? { statementId: 'phone-use', version: statement?.version ?? childAssentForm.version, response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' } : null,
+        agreement: s.assent.status === 'completed' ? { statementId: 'phone-use', version: statement?.version ?? childAssentForm.version, response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' } : null,
         client: clientInfo(),
       };
       const result = await withSession((session) => getApi().submitDonation(session, payload));

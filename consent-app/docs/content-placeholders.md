@@ -24,7 +24,7 @@ controls panel).
 | Thank-you page: "Why this matters" and what happens next | `src/config/copy.ts` → `thankYou`; `src/steps/Done.tsx` | Approved wording |
 | Confirmation email (queued only when a copy was asked for) | `firebase/functions/src/index.ts` (`mail` document) | Approved wording; sent by the Trigger Email extension, not this app |
 | The appeal shown before skipping the screenshots, and the "most important part of the study" sentence | `src/steps/PhoneUse.tsx` | Wording the ethics committee is comfortable with: it must not read as pressure |
-| What a parent is told when sharing screenshots on the young person's behalf (screen-time page, check page, thank-you page, handover) | `src/steps/PhoneUse.tsx`, `src/components/ConsentSummary.tsx`, `src/steps/Done.tsx`, `src/components/HandoverScreen.tsx` | Wording agreed with ethics, including what happens if the young person later says no |
+| What a parent is told when sharing screenshots while the young person's agreement is still to be collected (screen-time page, check page, thank-you page, handover) | `src/steps/PhoneUse.tsx`, `src/components/ConsentSummary.tsx`, `src/steps/Done.tsx`, `src/components/HandoverScreen.tsx` | Wording agreed with ethics, matching how the paper agreement is collected at school |
 | Photo-check wording shown to families (the warning under an image, the confirmation before sending, and the reasons a rejected image is given) | `src/components/UploadList.tsx`, `src/steps/PhoneUse.tsx`, `firebase/functions/src/quality.ts` → `FAMILY_REASONS` | Approved wording; the reasons must never accuse |
 
 ## Things that are not wording

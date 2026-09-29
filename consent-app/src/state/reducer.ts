@@ -183,7 +183,7 @@ export function reducer(state: AppState, action: Action): AppState {
       if (!action.present) {
         // The young person's agreement is collected separately. The parent may carry on with the screen-time part (config).
         next.assent = { ...state.assent, status: 'deferred', deferredBy: 'parent', responses: {}, signature: null, completedAt: null };
-        next.donation = study.parentMayShareWithoutAssent ? (state.donation.status === 'deferred' ? { ...state.donation, status: 'not-started' } : state.donation) : deferDonation(state);
+        next.donation = study.screenshotsWaitForAssent ? deferDonation(state) : state.donation.status === 'deferred' ? { ...state.donation, status: 'not-started' } : state.donation;
       } else if (state.assent.status === 'deferred') {
         next.assent = { ...state.assent, status: 'not-started', deferredBy: null };
         next.donation = state.donation.status === 'deferred' ? { ...state.donation, status: state.donation.images.length ? 'in-progress' : 'not-started' } : state.donation;
@@ -250,7 +250,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'assent-status': {
       const completedAt = action.status === 'completed' || action.status === 'declined' ? new Date().toISOString() : null;
       const assent = { ...state.assent, status: action.status, deferredBy: action.status === 'deferred' ? (action.deferredBy ?? 'young') : null, completedAt };
-      const donation = action.status === 'deferred' ? deferDonation(state) : state.donation;
+      const donation = action.status === 'deferred' && study.screenshotsWaitForAssent ? deferDonation(state) : state.donation;
       return { ...state, assent, donation };
     }
     case 'set-platform':

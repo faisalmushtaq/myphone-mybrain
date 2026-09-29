@@ -83,9 +83,7 @@ export interface DonationPayload {
   referenceCode: string;
   platform: string | null;
   uploads: { uploadId: string; redacted: boolean; cropped: boolean; acknowledgedWarning: boolean }[];
-  /** Who pressed send: the young person, or the parent on their behalf when they are not present. */
-  sharedBy: 'young' | 'parent';
-  /** The young person's agreement to share, recorded by the act of sending; null when the parent shares on their behalf. */
+  /** The young person's agreement to share, given by sending when they signed in the app; null otherwise (it may be collected separately, on paper). */
   agreement: StatementRecord | null;
   client: ClientInfo;
 }
@@ -321,16 +319,15 @@ export function validateDonationPayload(input: unknown): string[] {
     }
   }
 
-  // The young person's agreement travels with the screenshots (given by sending them), unless the parent is sharing on their behalf.
-  if (p.sharedBy !== 'young' && p.sharedBy !== 'parent') problems.push('Who is sharing the screenshots is not stated.');
+  // The young person's agreement travels with the screenshots when they signed in the app; otherwise it is collected separately and nothing waits for it.
   const served = childAssentForm.statements.find((s) => s.id === 'phone-use');
   const a = p.agreement;
-  if (p.sharedBy === 'parent') {
-    if (a !== null && a !== undefined) problems.push('A parent sharing on the young person’s behalf cannot record the young person’s agreement.');
-  } else if (!isObj(a) || !served) problems.push('The young person’s agreement to share the screenshots is missing.');
-  else {
-    validateStatement(a, served, 'Agreement', problems);
-    if (a.response !== 'agreed' || a.via !== 'action') problems.push('The young person’s agreement to share the screenshots is missing.');
+  if (a !== null && a !== undefined) {
+    if (!isObj(a) || !served) problems.push('The young person’s agreement record is malformed.');
+    else {
+      validateStatement(a, served, 'Agreement', problems);
+      if (a.response !== 'agreed' || a.via !== 'action') problems.push('The young person’s agreement record is malformed.');
+    }
   }
 
   validateClient(p.client, problems);

@@ -144,7 +144,8 @@ export function PhoneUse() {
       {state.assent.status === 'deferred' && (
         <Callout tone="info" role="status">
           <p>
-            {childName} isn’t here, so you would be sharing on their behalf. {childName} will be asked for their own agreement separately, for example at school; if they say no, the screenshots will be deleted.
+            {state.assent.deferredBy === 'parent' ? `${childName} isn’t here, so you would be sharing on their behalf. ` : ''}
+            {childName}’s own agreement to taking part will be collected separately, for example at school.
           </p>
         </Callout>
       )}

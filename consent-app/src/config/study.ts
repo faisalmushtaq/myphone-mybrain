@@ -60,14 +60,14 @@ export const study = {
   parentQuestions: true,
 
   /**
-   * When the young person is not present, the parent or guardian may complete
-   * the rest themselves, including sharing the screenshots on the young
-   * person's behalf. The young person's own agreement is then collected
-   * separately (for example at school); screenshots shared this way are held
-   * pending it, and deleted if the young person says no. Set false to make
-   * the screen-time part wait for the young person instead.
+   * Whether the screen-time step waits until the young person has given their
+   * agreement in the app. Off: the young person's agreement may be collected
+   * separately (for example on paper at school), so a parent can complete
+   * everything, screenshots included, when the young person is not there or
+   * wants to decide later. The app records what it knows and never treats an
+   * agreement that is not in the app as missing.
    */
-  parentMayShareWithoutAssent: true,
+  screenshotsWaitForAssent: false,
 
   /** Upload limits enforced in the browser (and again on the server). */
   upload: {

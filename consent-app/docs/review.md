@@ -166,11 +166,13 @@ Points the reviewers would raise about these, and the answers built in:
 
 A parent should be able to complete everything when the young person is
 out, so "{child} isn't here right now" no longer stops at the permission:
-the parent carries on to the screen-time step and the check page. What keeps
-this defensible:
+the parent carries on to the screen-time step and the check page. The young
+person's own agreement may be collected separately, for example on paper at
+school, so neither the app nor the server treats an agreement that is not in
+the app as missing.
 
 | Perspective | Concern | Answer |
 |---|---|---|
-| Ethics | Screenshots of the young person's phone shared without their agreement. | Parental consent covers the collection; the young person's own agreement is still collected separately, the page says so before anything is sent, and screenshots shared this way are recorded as `sharedBy: 'parent'` and held `pendingAssent` on the server. If the young person says no, they are deleted. This is a configuration point (`parentMayShareWithoutAssent`) for the ethics committee. |
-| Ethics | A young person who chose "decide later" must not be shared for. | Deferral by the young person still removes the screen-time step; only deferral by the parent (not present) allows it. The server enforces the same rule from its own copy of the records. |
-| Data protection | Can a client claim the young person agreed when they did not? | `sharedBy: 'young'` is refused unless the assent record is completed; `sharedBy: 'parent'` is refused unless the assent record was deferred by the parent, and cannot carry an agreement record. |
+| Ethics | Screenshots of the young person's phone shared before their agreement is recorded. | Parental consent covers the collection; the young person's own agreement is collected separately (the page says so before anything is sent), and the donation records whether they had agreed in the app and what their agreement status was at the time, so the team can match it against the paper record. `study.screenshotsWaitForAssent` makes the step wait instead, if the committee prefers. |
+| Ethics | A young person who said no. | Declining still ends the journey, and the server refuses screenshots for a declined record. |
+| Data protection | Can a client claim the young person agreed in the app when they did not? | The agreement record is only written to the young person's assent record when that record is completed on the server; otherwise it stays on the donation as the client's statement. |

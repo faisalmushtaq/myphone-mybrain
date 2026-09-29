@@ -72,9 +72,11 @@ export interface DonationPayload {
   referenceCode: string;
   platform: PlatformId | null;
   uploads: { uploadId: string; redacted: boolean; cropped: boolean; acknowledgedWarning: boolean }[];
-  /** Who pressed send: the young person (their agreement below), or the parent on their behalf when they are not present. */
-  sharedBy: 'young' | 'parent';
-  /** The young person's agreement to share, recorded by the act of sending; null when the parent shares on their behalf. */
+  /**
+   * The young person's agreement to share, recorded by the act of sending
+   * when they have signed in the app; null otherwise (their agreement may be
+   * collected separately, for example on paper at school).
+   */
   agreement: StatementRecord | null;
   client: ClientInfo;
 }

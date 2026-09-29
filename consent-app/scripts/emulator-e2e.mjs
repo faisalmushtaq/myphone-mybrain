@@ -250,7 +250,7 @@ async function inner() {
     };
     const client = { userAgent: 'rules-check', submittedAt: new Date().toISOString(), timezoneOffset: 0 };
     const agreement = { statementId: 'phone-use', version: '0.4-draft', response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' };
-    ok('another session cannot add screenshots to this reference', await stranger(() => httpsCallable(fns, 'submitDonation')({ referenceCode: code, platform: 'ios', uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: false, cropped: false, acknowledgedWarning: false }], sharedBy: 'young', agreement, client })));
+    ok('another session cannot add screenshots to this reference', await stranger(() => httpsCallable(fns, 'submitDonation')({ referenceCode: code, platform: 'ios', uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: false, cropped: false, acknowledgedWarning: false }], agreement, client })));
     // A parent completing everything while the young person is not there: the screenshot is held pending the young person's agreement.
     await page.getByRole('button', { name: /Finish and clear/ }).click();
     await page.getByRole('heading', { name: /Take part in MyPhone/ }).waitFor();
@@ -283,9 +283,8 @@ async function inner() {
     const sub2 = (await db.collection('submissions').doc(code2).get()).data();
     const assent2 = (await db.collection('assents').doc(sub2.assentId).get()).data();
     const donation2 = (await db.collection('donations').doc(sub2.donationIds[0]).get()).data();
-    ok('parent shared on the young person’s behalf: agreement deferred, donation held pending assent', assent2?.status === 'deferred' && assent2?.deferredBy === 'parent' && !assent2?.responses?.['phone-use'] && donation2?.sharedBy === 'parent' && donation2?.agreement === null && donation2?.pendingAssent === true && donation2?.images.length === 1);
+    ok('parent shared with the young person absent: agreement deferred, donation records no in-app agreement', assent2?.status === 'deferred' && assent2?.deferredBy === 'parent' && !assent2?.responses?.['phone-use'] && donation2?.agreement === null && donation2?.youngPersonAgreedInApp === false && donation2?.assentStatusAtSend === 'deferred' && donation2?.images.length === 1);
     ok('no questions record when they were skipped without an answer', sub2?.surveyId && (await db.collection('surveys').doc(sub2.surveyId).get()).data()?.status === 'skipped');
-    ok('a "young" share is refused while the agreement is deferred', await stranger(() => httpsCallable(fns, 'submitDonation')({ referenceCode: code2, platform: 'android', uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: false, cropped: false, acknowledgedWarning: false }], sharedBy: 'young', agreement, client })));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {
       await uploadBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`), buffer, { contentType: 'image/png' });

@@ -62,7 +62,6 @@ function validDonation(): DonationPayload {
     referenceCode: 'MPMB-AB2C-D3E',
     platform: 'ios',
     uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: true, cropped: false, acknowledgedWarning: false }],
-    sharedBy: 'young',
     agreement: r('phone-use', 'agreed', 'action', '0.4-draft'),
     client: { userAgent: 'test', submittedAt: now, timezoneOffset: 0 },
   };
@@ -172,28 +171,20 @@ test('accepts a screenshot record', () => {
   assert.deepEqual(validateDonationPayload(validDonation()), []);
 });
 
-test('screenshots need the young person’s agreement by action, at the current version', () => {
+test('an agreement record, when present, must be by action at the current version', () => {
   const d = validDonation();
   d.agreement = r('phone-use', 'agreed', 'individual', '0.4-draft');
-  assert.ok(validateDonationPayload(d).some((m) => m.includes('agreement to share')));
+  assert.ok(validateDonationPayload(d).some((m) => m.includes('malformed')));
   d.agreement = r('phone-use', 'agreed', 'action', '0.1-draft');
   assert.ok(validateDonationPayload(d).some((m) => m.includes('version')));
   d.agreement = r('take-part', 'agreed', 'action');
   assert.ok(validateDonationPayload(d).some((m) => m.includes('malformed')));
 });
 
-test('a parent may share on the young person’s behalf, without recording the young person’s agreement', () => {
+test('screenshots are accepted without the young person’s in-app agreement (it may be collected on paper)', () => {
   const d = validDonation();
-  d.sharedBy = 'parent';
   d.agreement = null;
   assert.deepEqual(validateDonationPayload(d), []);
-  d.agreement = r('phone-use', 'agreed', 'action', '0.4-draft');
-  assert.ok(validateDonationPayload(d).some((m) => m.includes('cannot record')));
-  const y = validDonation();
-  y.agreement = null;
-  assert.ok(validateDonationPayload(y).some((m) => m.includes('agreement to share')));
-  (y as unknown as Record<string, unknown>).sharedBy = 'teacher';
-  assert.ok(validateDonationPayload(y).some((m) => m.includes('not stated')));
 });
 
 test('screenshot record needs a reference and well-formed, distinct uploads', () => {

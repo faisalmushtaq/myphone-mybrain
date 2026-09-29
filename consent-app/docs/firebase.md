@@ -63,7 +63,7 @@ with a role claim.
 | `consents/{consentId}` | form id and version, information version, every statement with its version, response, time and how it was given (`individual`, `group`, `signature`, `action`), typed name, signature (method, strokes, and a reference to the PNG in Storage), confirmed date, completion time, `revisedAt`, route, client info, `version` and `supersedes` (the previous consent record, or null). Never edited. | `coordinator`, `auditor` |
 | `assents/{assentId}` | the same shape for the young person, plus `deferredBy`, handover and start times, `quickAgreementFlag` (agreement completed within 15 seconds of the handover), `version`, `supersedes`. The screenshot agreement (`responses.phone-use`, given by the act of sending) is added when screenshots are first sent. | `coordinator`, `auditor` |
 | `surveys/{surveyId}` | one document per send: `participantId`, the questions form id and version, status (completed, skipped or in progress), each answer with the question version and time, `version` and `supersedes`. **No names.** | `researcher`, `coordinator` |
-| `donations/{donationId}` | one document per send: `participantId`, platform, `sharedBy` (`young`, or `parent` on the young person's behalf), the young person's `agreement` record (null when the parent shared), `pendingAssent` (true until a parent-shared donation has the young person's agreement; delete if they say no), `needsReview`, and for each image its Storage path, dimensions, size, SHA-256, whether it was redacted or cropped, and its `quality` result (verdict, reasons, terms found, SafeSearch likelihoods, flatness, whether Vision ran, whether the family confirmed a warning). **No names.** | `researcher`, `coordinator` |
+| `donations/{donationId}` | one document per send: `participantId`, platform, the young person's `agreement` record when they signed in the app (null otherwise), `youngPersonAgreedInApp`, `assentStatusAtSend` (their agreement may instead be on paper), `needsReview`, and for each image its Storage path, dimensions, size, SHA-256, whether it was redacted or cropped, and its `quality` result (verdict, reasons, terms found, SafeSearch likelihoods, flatness, whether Vision ran, whether the family confirmed a warning). **No names.** | `researcher`, `coordinator` |
 | `submissions/{referenceCode}` | one row per family: kind, route, the *current* `consentId` and `assentId`, `version`, `versions[]` (one entry per send with the record ids and time), `donationIds[]`, `imageCount`, `copyEmailedTo`, session uid, user agent | `coordinator` |
 | `mail/{id}` | the confirmation email for the Trigger Email extension, queued only when a copy was asked for, once per address | nobody |
 
@@ -98,11 +98,10 @@ goes up. Any failure means nothing is recorded.
 
 **`submitDonation`** checks the reference belongs to the caller's session,
 then reads the server's own copy of the records: the parent's current
-permission record must say yes to screenshots, and either the young person's
-agreement is completed (`sharedBy: 'young'`, their agreement travels with the
-images) or it was deferred by the parent because the young person was not
-there (`sharedBy: 'parent'`, no agreement, the donation is marked
-`pendingAssent`). At most six images per family in total. Each
+permission record must say yes to screenshots, and the young person must not
+have said no. The young person's own agreement is not a gate (it may be
+collected on paper at school); when they signed in the app it travels with
+the images, and either way the donation records what was known at the time. At most six images per family in total. Each
 upload must exist under the caller's own quarantine folder and decode as a
 PNG, JPEG or WebP; it is re-encoded (which removes EXIF, GPS, ICC and XMP
 metadata) and only the clean copy is checked and stored. Images the checks

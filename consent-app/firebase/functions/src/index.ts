@@ -347,11 +347,10 @@ export const submitDonation = onCall(callOptions, async (request) => {
   if (submission.kind !== 'consent' || !submission.consentId) throw new HttpsError('failed-precondition', 'Screenshots cannot be added to this record.');
   const consent = (await db.collection('consents').doc(submission.consentId as string).get()).data();
   if (consent?.responses?.['phone-use']?.response !== 'agreed') throw new HttpsError('failed-precondition', 'The parent or guardian has not agreed to screen-time screenshots.');
+  // The young person's agreement is not a gate: it may be collected separately, on paper at school. What the app knows is recorded, nothing more.
   const assentRef = db.collection('assents').doc(submission.assentId as string);
   const assent = (await assentRef.get()).data();
-  // The young person shares after signing; a parent may share on their behalf only while the young person's agreement is being collected separately.
-  if (payload.sharedBy === 'young' && assent?.status !== 'completed') throw new HttpsError('failed-precondition', 'The young person has not agreed to take part yet.');
-  if (payload.sharedBy === 'parent' && !(assent?.status === 'deferred' && assent?.deferredBy === 'parent')) throw new HttpsError('failed-precondition', 'Screenshots can only be shared for the young person while their agreement is being collected separately.');
+  if (assent?.status === 'declined') throw new HttpsError('failed-precondition', 'The young person said no to taking part.');
   if (Number(submission.imageCount ?? 0) + payload.uploads.length > study.maxImages) throw new HttpsError('invalid-argument', `At most ${study.maxImages} images can be sent in total.`);
 
   const participantId = submission.participantId as string;
@@ -379,16 +378,16 @@ export const submitDonation = onCall(callOptions, async (request) => {
       participantId,
       platform: payload.platform,
       images,
-      sharedBy: payload.sharedBy,
       agreement: payload.agreement,
-      // Shared by the parent: hold until the young person has been asked; delete if they say no.
-      pendingAssent: payload.sharedBy === 'parent',
+      // For the team: whether the young person had agreed in the app when this was sent (their agreement may instead be on paper).
+      assentStatusAtSend: assent?.status ?? null,
+      youngPersonAgreedInApp: payload.agreement !== null,
       needsReview: images.some((i) => i.quality.verdict === 'review'),
       receivedAt,
       client: payload.client,
       createdAt: FieldValue.serverTimestamp(),
     });
-    if (payload.agreement && assent?.responses?.['phone-use']?.response !== 'agreed') batch.update(assentRef, { 'responses.phone-use': payload.agreement, updatedAt: FieldValue.serverTimestamp() });
+    if (payload.agreement && assent?.status === 'completed' && assent?.responses?.['phone-use']?.response !== 'agreed') batch.update(assentRef, { 'responses.phone-use': payload.agreement, updatedAt: FieldValue.serverTimestamp() });
     batch.update(submissionRef, { donationIds: FieldValue.arrayUnion(donationId), imageCount: FieldValue.increment(images.length), platform: payload.platform, lastDonationAt: receivedAt, updatedAt: FieldValue.serverTimestamp() });
     await batch.commit();
   }
