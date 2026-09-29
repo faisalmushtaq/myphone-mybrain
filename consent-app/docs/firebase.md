@@ -141,6 +141,31 @@ harmful should be stored.
 
 ## Setting it up
 
+### The fast route: one script in Cloud Shell
+
+Nearly every console step below can be done from the command line. Google
+Cloud Shell (https://shell.cloud.google.com) is a terminal in the browser,
+already signed in as you, with `gcloud`, Node and the Firebase CLI installed.
+Paste this into it, with your own project id (lower-case letters, digits and
+hyphens, globally unique):
+
+```bash
+git clone https://github.com/faisalmushtaq/myphone-mybrain.git && cd myphone-mybrain
+bash consent-app/firebase/scripts/setup-project.sh myphone-mybrain-leeds
+```
+
+The script creates the project if needed, links billing when you give it a
+billing-account id as a second argument (that *is* the Blaze plan), enables
+the APIs, creates Firestore and the Storage bucket in London, turns on
+anonymous sign-in and authorises `myphonemybrain.com`, registers the web
+app, deploys the rules and functions, and prints (or, with `gh` signed in,
+sets) the repository variables the site build needs. It stops and gives you
+the exact link for the two things only a person can do: a billing account
+with a card, and, if the Auth API refuses, the one-off "Get started" click.
+Run it again any time; it skips what is already done.
+
+### Step by step in the console
+
 1. **Create the project.** Firebase console → Add project. Choose a name
    such as `myphone-mybrain`. Disable Google Analytics.
 2. **Location.** Firestore → Create database → location **europe-west2
