@@ -23,8 +23,10 @@ export function Send() {
   const childName = identity.firstName.trim() || 'the young person';
   const schoolName = identity.schoolId === OTHER_SCHOOL_ID ? identity.schoolOther : schools.find((s) => s.id === identity.schoolId)?.name ?? '';
   const relationship = guardian.relationship === 'other' ? guardian.relationshipOther : relationships.find((r) => r.id === guardian.relationship)?.label ?? '';
-  const yes = parentConsentForm.statements.filter((s) => s.kind === 'optional' && consent.responses[s.id]?.response === 'agreed').map((s) => s.label.toLowerCase());
-  const no = parentConsentForm.statements.filter((s) => s.kind === 'optional' && consent.responses[s.id]?.response === 'declined').map((s) => s.label.toLowerCase());
+  // Labels read as a sentence: first letter lowered, acronyms such as NHS kept.
+  const sentence = (label: string) => label.charAt(0).toLowerCase() + label.slice(1);
+  const yes = parentConsentForm.statements.filter((s) => s.kind === 'optional' && consent.responses[s.id]?.response === 'agreed').map((s) => sentence(s.label));
+  const no = parentConsentForm.statements.filter((s) => s.kind === 'optional' && consent.responses[s.id]?.response === 'declined').map((s) => sentence(s.label));
   const uploaded = donation.images.filter((i) => i.status === 'uploaded').length;
 
   const assentLine =
