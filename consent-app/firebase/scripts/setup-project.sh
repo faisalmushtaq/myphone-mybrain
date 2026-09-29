@@ -164,6 +164,20 @@ if [[ -z "$DEPLOYED" ]]; then
   exit 1
 fi
 ok "functions deployed to $REGION"
+# Callable functions must be invokable by anyone (Firebase Auth and App Check are checked inside them). A deploy that
+# failed half-way can leave the service without that setting, which shows up as a plain "401 Unauthorized" page.
+for fn in submitconsent submitdonation; do
+  gcloud run services add-iam-policy-binding "$fn" --region="$REGION" --member=allUsers --role=roles/run.invoker --project="$PROJECT" --quiet >/dev/null 2>&1 \
+    && ok "$fn is invokable by the website" || echo "  (could not set the invoker on $fn; run: gcloud run services add-iam-policy-binding $fn --region=$REGION --member=allUsers --role=roles/run.invoker --project=$PROJECT)"
+done
+
+say "9b. Checking the functions answer"
+API_KEY="$(echo "$CONFIG" | sed -n 's/^FIREBASE_API_KEY=//p')"
+ID_TOKEN="$(curl -sS -X POST "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$API_KEY" -H 'Content-Type: application/json' -d '{"returnSecureToken":true}' | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).idToken||""))')"
+for fn in submitConsent submitDonation; do
+  BODY="$(curl -sS -X POST "https://$REGION-$PROJECT.cloudfunctions.net/$fn" -H "Authorization: Bearer $ID_TOKEN" -H 'Content-Type: application/json' -d '{"data":{}}')"
+  if echo "$BODY" | grep -q '"status":"INVALID_ARGUMENT"'; then ok "$fn answers (rejects an empty request, as it should)"; else echo "  ✗ $fn did not answer as expected: $(echo "$BODY" | head -c 160)"; fi
+done
 
 say "10. Pointing the website at the project"
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
