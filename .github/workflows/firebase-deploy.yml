@@ -95,3 +95,11 @@ jobs:
             echo "$fn → http $code"
             case "$code" in 400|401) ;; *) echo "unexpected status for $fn"; exit 1 ;; esac
           done
+          # The website's contact and school forms post from another origin, so
+          # the browser's preflight request must be allowed for the site.
+          headers=$(curl -s -o /dev/null -D - -X OPTIONS "https://$REGION-$PROJECT_ID.cloudfunctions.net/enquiry" -H 'Origin: https://myphonemybrain.com' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type')
+          if echo "$headers" | grep -qi '^access-control-allow-origin: https://myphonemybrain.com'; then
+            echo "enquiry → preflight from the website allowed"
+          else
+            echo "enquiry does not allow the website's origin:"; echo "$headers"; exit 1
+          fi
