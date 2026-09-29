@@ -1,0 +1,73 @@
+name: Deploy Firebase backend
+
+# Deploys the security rules and Cloud Functions in consent-app/firebase to
+# the study's Firebase project. Run by hand from the Actions tab.
+#
+# Needs, under Settings → Secrets and variables → Actions:
+#   secret    FIREBASE_SERVICE_ACCOUNT   JSON key of a service account on the project
+#                                        (roles: Firebase Admin, Cloud Functions Admin,
+#                                        Cloud Run Admin, Service Account User,
+#                                        Cloud Scheduler Admin, Artifact Registry
+#                                        Administrator, Cloud Build Editor,
+#                                        Service Usage Admin)
+#   variable  FIREBASE_PROJECT_ID        the project id (also used by the site build)
+# Optional variables for the functions' environment:
+#   MPMB_VISION (true/false), MPMB_ENFORCE_APP_CHECK (true/false)
+#
+# The alternative is `firebase deploy` from a laptop, see consent-app/docs/firebase.md.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: What to deploy
+        type: choice
+        options:
+          - everything
+          - rules only
+          - functions only
+        default: everything
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: consent-app/firebase/functions/package-lock.json
+
+      - name: Install and test the functions
+        run: npm ci && npm test
+        working-directory: consent-app/firebase/functions
+
+      - name: Write the functions environment
+        run: |
+          {
+            echo "MPMB_VISION=${{ vars.MPMB_VISION || 'false' }}"
+            echo "MPMB_VISION_ENDPOINT=eu-vision.googleapis.com"
+            echo "MPMB_ENFORCE_APP_CHECK=${{ vars.MPMB_ENFORCE_APP_CHECK || 'false' }}"
+          } > consent-app/firebase/functions/.env
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Deploy
+        working-directory: consent-app/firebase
+        run: |
+          case "${{ inputs.target }}" in
+            "rules only") only="firestore:rules,storage" ;;
+            "functions only") only="functions" ;;
+            *) only="firestore:rules,storage,functions" ;;
+          esac
+          npx --yes firebase-tools@15 deploy --only "$only" --project "${{ vars.FIREBASE_PROJECT_ID }}" --non-interactive --force

@@ -149,8 +149,9 @@ harmful should be stored.
 3. **Authentication** → Sign-in method → enable **Anonymous**.
 4. **Blaze plan.** Cloud Functions (2nd gen) and scheduled functions need the
    pay-as-you-go plan. Set a budget alert (£10/month is plenty for this).
-5. **Deploy rules and functions** from `consent-app/firebase/`:
+5. **Deploy rules and functions.** Either from a laptop with Node 20+:
    ```bash
+   npm install -g firebase-tools
    cd consent-app/firebase
    cp .firebaserc.example .firebaserc      # put the real project id in it
    cp functions/.env.example functions/.env  # MPMB_VISION, MPMB_ENFORCE_APP_CHECK
@@ -158,6 +159,13 @@ harmful should be stored.
    firebase login
    firebase deploy --only firestore:rules,storage,functions
    ```
+   or from GitHub: the **Deploy Firebase backend** workflow
+   (`.github/workflows/firebase-deploy.yml`) runs the function tests and
+   deploys when started from the Actions tab. It needs a service-account
+   JSON key in the repository secret `FIREBASE_SERVICE_ACCOUNT` (roles
+   listed at the top of the workflow file) and the `FIREBASE_PROJECT_ID`
+   variable. Some University Google Cloud organisations block
+   service-account keys; the laptop route needs nothing but a sign-in.
 6. **Web app settings.** Project settings → Your apps → Add web app. Copy
    `apiKey`, `projectId`, `appId`, `authDomain`, `storageBucket` into
    GitHub → repository → Settings → Variables (`FIREBASE_API_KEY` and so on;
