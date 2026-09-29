@@ -29,11 +29,12 @@ export const childFields = {
 export const guardianFields = {
   fullName: { enabled: true, required: true, label: 'Your full name', autocomplete: 'name' },
   relationship: { enabled: true, required: true, label: 'Your relationship to the young person' },
+  /** Only required when the parent asks for a copy of the record (`wantsCopy`). */
   email: {
     enabled: true,
-    required: true,
+    required: false,
     label: 'Your email address',
-    hint: 'We use this to send you a copy of what you agreed to, and to contact you about the study.',
+    hint: 'Used only to send you the copy, and if we need to contact you about the study.',
     autocomplete: 'email',
   },
   phone: {

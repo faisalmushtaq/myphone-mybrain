@@ -2,12 +2,14 @@
 
 ## What is built now
 
-A front-end prototype (React + TypeScript, built with Vite) that mounts inside
-the existing Jekyll site at `/take-part/consent/`. It contains the complete
-user journey, validation, consent data model and an **API abstraction with a
-mock implementation**. Nothing is sent anywhere: the mock keeps data in memory
-for the life of the page and simulates latency and failures so the error states
-can be exercised.
+A front end (React + TypeScript, built with Vite) that mounts inside the
+existing Jekyll site at `/take-part/consent/`, with the complete user
+journey, validation, consent data model and an **API abstraction** with two
+implementations: an in-memory mock (the default; nothing leaves the page,
+latency and failures are simulated) and Firebase (`docs/firebase.md`). Two
+things are sent, at different moments: the permission and agreement as soon
+as the young person has signed (and again as an amendment when something is
+changed), and the screenshots when their send button is pressed.
 
 ```
 consent-app/
@@ -41,14 +43,16 @@ store, joined only by a study identifier.
 ## API contract (see `src/api/types.ts`)
 
 ```
-startSession()                             → { sessionId, csrfToken, expiresAt }
-requestUploadSlot(sessionId, {type, size}) → { uploadId, url, method, headers, expiresAt }
-uploadImage(slot, blob, onProgress)        → void            (direct-to-storage, signed URL)
-deleteUpload(sessionId, uploadId)          → void
-submit(sessionId, csrfToken, payload)      → { referenceCode, receivedAt }
+startSession()                              → { sessionId, csrfToken, expiresAt }
+submitConsent(session, payload)             → { referenceCode, participantId, receivedAt, version }
+                                              payload.referenceCode set → an amendment (version 2, 3…)
+requestUploadSlot(sessionId, {type, size})  → { uploadId, url, method, headers, expiresAt }
+uploadImage(slot, blob, onProgress)         → void            (direct-to-storage)
+deleteUpload(sessionId, uploadId)           → void
+submitDonation(session, payload)            → { donationId, receivedAt, accepted[], rejected[{uploadId, reason}] }
 ```
 
-`MockConsentApi` implements the same interface in memory with a 400–900 ms
+`MockConsentApi` implements the same interface in memory with a 400–1200 ms
 delay and two failure toggles (upload, submit) exposed in the on-screen
 "Prototype controls" panel.
 
@@ -56,9 +60,10 @@ delay and two failure toggles (upload, submit) exposed in the on-screen
 
 `docs/firebase.md` describes the implemented backend: anonymous Firebase
 Authentication for the session, Cloud Storage for uploads (browser writes
-into its own quarantine folder only), one callable Cloud Function that
-validates everything again and writes five separated Firestore collections,
-and security rules that give browsers no read access at all. The section
+into its own quarantine folder only), two callable Cloud Functions that
+validate everything again, check and clean the images, and write separated
+Firestore collections, and security rules that give browsers no read access
+at all. The section
 below is the general architecture it implements; where the two differ, the
 Firebase document is current.
 
@@ -97,9 +102,13 @@ compliance claims.
   PUT URL** to a quarantine bucket, keyed by session id and a random upload id.
   Direct-to-storage keeps image bytes off the API server.
 * Server-side after upload: re-check magic bytes, strip EXIF metadata (GPS,
-  device identifiers), re-encode, virus scan, then move to the research store.
-* Nothing is uploaded until the family presses "These are ready", after
-  checking and (if they wish) hiding parts of each image. The client re-encodes
+  device identifiers), re-encode, run the safety and relevance checks
+  (SafeSearch and text detection; `docs/firebase.md`), then move to the
+  research store. Anything refused is deleted and the reason returned.
+* Nothing is uploaded until the family presses "Send", after checking and
+  (if they wish) hiding parts of each image, and after an on-device check
+  has warned about anything that looks like a photograph rather than a
+  screenshot. The client re-encodes
   every image through a canvas before upload, which removes camera metadata
   (device model, GPS) and bounds the dimensions; the server strips metadata
   again regardless.
@@ -112,22 +121,30 @@ compliance claims.
 * Encryption at rest (provider-managed keys or University KMS) and in transit.
 
 ### Submit
-* `POST /api/submissions` validates every field again server-side (the same
-  rules as `src/lib/validation.ts`, re-implemented on the server — never trust
-  the client): maximum lengths, enumerations, the age range, all required
+* `submitConsent` validates every field again server-side (the same rules as
+  `src/lib/validation.ts`, re-implemented on the server — never trust the
+  client): maximum lengths, enumerations, the age range, all required
   statements agreed, statement and information versions equal to the ones the
   server currently serves, and a signature that is a valid PNG under 200 KB
   (or a typed name where allowed). Then, in one transaction:
-  1. creates or matches the participant in the **identity store** (restricted
+  1. creates or updates the participant in the **identity store** (restricted
      access; names, DOB, postcode, guardian contact details),
   2. writes the **consent record** with the form version, statement versions,
-     responses, signature PNG, server timestamp, client-declared date, IP hash
-     and user-agent — append-only, never edited,
+     responses, signature PNG, server timestamp, client-declared date and
+     user-agent — append-only, never edited; an amendment is a new record
+     pointing at the one it supersedes,
   3. writes the **assent record** in the same way,
-  4. links uploads to the participant's study id in the research store.
-* Returns a server-generated reference code; emails a copy of the consent
-  summary to the guardian (without date of birth, postcode or signature image;
-  content to be agreed with ethics). The email carries a "this wasn't me" link.
+  4. issues (or keeps) the family's reference code.
+  It is called as soon as the young person has signed, so participation is on
+  record before the screenshots.
+* `submitDonation` links accepted uploads to the participant's study id in
+  the research store, together with the young person's agreement to share
+  (recorded by the act of sending) and the quality result for each image.
+  Both agreements are checked against the server's own copy of the records,
+  never the client's claim.
+* A copy of the consent summary is emailed to the guardian only when they
+  asked for one (without date of birth, postcode or signature image; content
+  to be agreed with ethics). The email carries a "this wasn't me" link.
 * **Parent identity.** Nothing in a browser form can prove who pressed the
   buttons. Recommended: treat the consent as provisional until the parent
   acknowledges the confirmation email (or, for the young-person route, enters
@@ -154,8 +171,9 @@ compliance claims.
 * Progress (text answers, choices, the drawn signature as a PNG data URL) is
   kept in `sessionStorage` while the tab is open, so a refresh does not lose
   it. It is discarded if more than two hours old, cleared after 30 minutes
-  without interaction (10 on the confirmation screen), on "Clear and start
-  again", on "Finish and clear this device", and on submission. Image bytes
+  without interaction (10 on the thank-you screen), on "Clear and start
+  again", on "Finish and clear this device", and when the thank-you screen is
+  reached. Image bytes
   are never written to storage. Whether the signature may be held in
   `sessionStorage` at all should be recorded in the DPIA; the alternative is
   to require signing again after any refresh.

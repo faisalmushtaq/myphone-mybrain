@@ -1,20 +1,18 @@
-import type {
-  AssentRecord,
-  ConsentRecord,
-  DonationStatus,
-  GuardianIdentity,
-  ParticipantIdentity,
-  SessionInfo,
-} from '../model/types';
+import type { AssentRecord, ConsentRecord, GuardianIdentity, ParticipantIdentity, SessionInfo, StatementRecord } from '../model/types';
 import type { PlatformId } from '../config/walkthroughs';
 
 /**
  * The boundary between the interface and the server.
  *
- * The interface only ever talks to this interface. The production
- * implementation (see docs/architecture.md) sends requests to a University
- * API over HTTPS with a session cookie and CSRF token, and uploads image bytes
- * directly to encrypted storage using pre-signed URLs. The mock in mock.ts
+ * Two things are sent, at different moments:
+ *   1. the permission and agreement (`submitConsent`), as soon as the young
+ *      person has signed, declined or deferred — so participation is on
+ *      record even if the family stops there. Sending it again with the
+ *      reference code records an amendment; nothing is overwritten.
+ *   2. screenshots (`submitDonation`), from the screen-time screen, linked
+ *      by the reference code. Each send is a separate donation record.
+ *
+ * The production implementation is src/api/firebase.ts; the mock in mock.ts
  * keeps everything in memory.
  */
 export interface UploadSlot {
@@ -33,16 +31,16 @@ export interface UploadMeta {
 }
 
 /**
- * The submission keeps identifying information and research data as separate
- * top-level objects so the server can store them apart.
- *
  * kind: 'consent' is the normal case. 'declined' is sent when the young
  * person does not want to take part: it carries only what the team needs to
- * avoid asking again (names, school, the parent's name and email) and no
- * consent record, date of birth, postcode or phone-use information.
+ * avoid asking again (names, school, the parent's name) and no permission
+ * record, date of birth, postcode or contact details beyond an email given
+ * for a copy.
  */
-export interface SubmissionPayload {
+export interface ConsentPayload {
   kind: 'consent' | 'declined';
+  /** Present when amending a record that was already sent. */
+  referenceCode: string | null;
   studyId: string;
   siteId: string;
   route: 'parent' | 'young';
@@ -50,22 +48,39 @@ export interface SubmissionPayload {
   guardian: GuardianIdentity;
   consent: ConsentRecord | null;
   assent: AssentRecord;
-  donation: {
-    status: DonationStatus;
-    platform: PlatformId | null;
-    uploads: { uploadId: string; redacted: boolean; cropped: boolean }[];
-  };
-  client: {
-    userAgent: string;
-    submittedAt: string;
-    /** Time zone offset in minutes, so the confirmed date can be interpreted. */
-    timezoneOffset: number;
-  };
+  client: ClientInfo;
 }
 
-export interface SubmissionResult {
+export interface ClientInfo {
+  userAgent: string;
+  submittedAt: string;
+  /** Time zone offset in minutes, so the confirmed date can be interpreted. */
+  timezoneOffset: number;
+}
+
+export interface ConsentResult {
   referenceCode: string;
+  participantId: string;
   receivedAt: string;
+  /** 1 for the original record, then 2, 3… for amendments. */
+  version: number;
+}
+
+export interface DonationPayload {
+  referenceCode: string;
+  platform: PlatformId | null;
+  uploads: { uploadId: string; redacted: boolean; cropped: boolean; acknowledgedWarning: boolean }[];
+  /** The young person's agreement to share, recorded by the act of sending. */
+  agreement: StatementRecord;
+  client: ClientInfo;
+}
+
+export interface DonationResult {
+  donationId: string | null;
+  receivedAt: string;
+  accepted: string[];
+  /** Uploads the server would not keep, with a family-facing reason. */
+  rejected: { uploadId: string; reason: string }[];
 }
 
 export type ApiErrorCode = 'network' | 'validation' | 'server' | 'expired' | 'too-large';
@@ -81,8 +96,9 @@ export class ApiError extends Error {
 
 export interface ConsentApi {
   startSession(): Promise<SessionInfo>;
+  submitConsent(session: SessionInfo, payload: ConsentPayload): Promise<ConsentResult>;
   requestUploadSlot(sessionId: string, meta: UploadMeta): Promise<UploadSlot>;
   uploadImage(slot: UploadSlot, blob: Blob, onProgress?: (fraction: number) => void): Promise<void>;
   deleteUpload(sessionId: string, uploadId: string): Promise<void>;
-  submit(session: SessionInfo, payload: SubmissionPayload): Promise<SubmissionResult>;
+  submitDonation(session: SessionInfo, payload: DonationPayload): Promise<DonationResult>;
 }

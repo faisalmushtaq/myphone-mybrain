@@ -20,8 +20,10 @@ function statusText(image: DonationImage): string {
       return `Uploading… ${Math.round(image.progress * 100)}%`;
     case 'uploaded':
       return 'Uploaded';
+    case 'sent':
+      return 'Sent';
     case 'failed':
-      return 'Upload failed';
+      return 'Not sent';
   }
 }
 
@@ -58,25 +60,32 @@ export function UploadList({ images, onRemove, onRetry, onEdit, busy }: Props) {
                 {image.cropped && <span className="mpmb-upload__flag">Cropped</span>}
               </p>
               <p className={`mpmb-upload__status is-${image.status}`}>
-                {image.status === 'uploaded' && <Icon name="check" size={16} />}
+                {(image.status === 'uploaded' || image.status === 'sent') && <Icon name="check" size={16} />}
                 {image.status === 'failed' && <Icon name="warning" size={16} />}
                 {statusText(image)}
               </p>
               {image.error && <p className="mpmb-error">{image.error}</p>}
+              {image.quality?.verdict === 'unlikely' && image.status !== 'sent' && (
+                <p className="mpmb-upload__warning" role="status">
+                  <Icon name="warning" size={16} /> This doesn’t look like a screen-time page. {image.quality.reasons.join(' ')} If it is a photo of another phone showing the app list, that’s fine — otherwise remove it.
+                </p>
+              )}
               <div className="mpmb-upload__actions">
                 {image.status === 'failed' && (
                   <Button variant="secondary" onClick={() => onRetry(image)} aria-label={`Try sending image ${n} again`} disabled={busy}>
                     Try again
                   </Button>
                 )}
-                {stored && image.status !== 'uploading' && (
+                {stored && image.status !== 'uploading' && image.status !== 'sent' && (
                   <Button variant="secondary" onClick={() => onEdit(image)} aria-label={`Hide part of image ${n}`} disabled={busy}>
                     Hide part of it
                   </Button>
                 )}
-                <Button variant="link" onClick={() => onRemove(image)} aria-label={`Remove image ${n}`} disabled={busy}>
-                  Remove
-                </Button>
+                {image.status !== 'sent' && (
+                  <Button variant="link" onClick={() => onRemove(image)} aria-label={`Remove image ${n}`} disabled={busy}>
+                    Remove
+                  </Button>
+                )}
               </div>
             </div>
           </li>

@@ -4,6 +4,8 @@ import type { FieldError } from '../../lib/validation';
 interface Props {
   errors: FieldError[];
   title?: string;
+  /** Changes each time the person presses Continue; the summary only takes focus then, never while they are fixing a field. */
+  focusKey?: number;
 }
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -13,13 +15,14 @@ const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce
  * the set of problems changes so keyboard and screen-reader users know why
  * "Continue" did not work.
  */
-export function ErrorSummary({ errors, title = 'There is a problem' }: Props) {
+export function ErrorSummary({ errors, title = 'There is a problem', focusKey = 0 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  // Keyed on content, not array identity, so re-renders never steal focus.
-  const key = errors.map((e) => `${e.field}:${e.message}`).join('|');
+  const count = errors.length;
   useEffect(() => {
-    if (key) ref.current?.focus();
-  }, [key]);
+    if (focusKey > 0 && count > 0) ref.current?.focus();
+    // Only when Continue is pressed: fixing a field must never scroll the page back up.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey]);
 
   if (!errors.length) return null;
 

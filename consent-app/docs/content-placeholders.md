@@ -20,12 +20,17 @@ controls panel).
 | Study, site and form identifiers | `src/config/study.ts` → `studyId`, `siteId`; form ids in `statements.ts` | Identifiers used in the study database |
 | Participating schools | `src/config/schools.ts` | Real school list with database ids |
 | Eligible age range; whether 16–17s may self-consent; deferred assent; typed signature | `src/config/study.ts` | Decisions from the ethics application |
-| Confirmation email content and what happens next | `src/steps/Done.tsx` | Approved wording; the email itself is sent by the server, not this app |
-| Privacy notice link text and the "encrypted connection" sentence on the review page | `src/steps/Review.tsx`, `src/steps/About.tsx` | Approved privacy notice and accurate description of the production hosting |
+| Thank-you page: "Why this matters" and what happens next | `src/config/copy.ts` → `thankYou`; `src/steps/Done.tsx` | Approved wording |
+| Confirmation email (queued only when a copy was asked for) | `firebase/functions/src/index.ts` (`mail` document) | Approved wording; sent by the Trigger Email extension, not this app |
+| The appeal shown before skipping the screenshots, and the "most important part of the study" sentence | `src/steps/PhoneUse.tsx` | Wording the ethics committee is comfortable with: it must not read as pressure |
+| Photo-check wording shown to families (the warning under an image, the confirmation before sending, and the reasons a rejected image is given) | `src/components/UploadList.tsx`, `src/steps/PhoneUse.tsx`, `firebase/functions/src/quality.ts` → `FAMILY_REASONS` | Approved wording; the reasons must never accuse |
 
 ## Things that are not wording
 
-* The mock API must be replaced by a real client (`src/api/index.ts`).
+* The mock API is the default build; the Firebase client is selected with
+  `MPMB_BACKEND=firebase` (`docs/firebase.md`).
+* The Cloud Vision photo checks (`MPMB_VISION`) send each screenshot to
+  Google's Vision API; switch them on only once the DPIA covers it.
 * The Prototype controls panel (`src/components/PrototypePanel.tsx`) and the
   `window.__mpmbMockApi` hook must be removed from the production build.
 * Google Fonts are loaded from Google's servers by the parent site; for the

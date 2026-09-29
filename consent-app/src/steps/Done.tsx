@@ -2,18 +2,26 @@ import { useEffect, useRef } from 'react';
 import { ConsentSummary } from '../components/ConsentSummary';
 import { Button } from '../components/ui/Button';
 import { Disclosure } from '../components/ui/Disclosure';
+import { Draft } from '../components/ui/Draft';
 import { Icon } from '../components/ui/Icon';
+import { thankYou } from '../config/copy';
 import { study } from '../config/study';
 import { formatTimestamp } from '../lib/dates';
 import { useStore } from '../state/context';
 import { clearState } from '../state/persistence';
 
-/** Confirmation: reference code, what happens next, how to withdraw, and a way to clear the device. */
+/**
+ * The thank-you screen: why taking part matters, the reference, what happens
+ * next, how to withdraw, and a way to clear the device. Everything has
+ * already been sent by the time this is shown.
+ */
 export function Done() {
   const { state, dispatch } = useStore();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const declined = state.assent.status === 'declined';
   const childName = state.identity.firstName.trim() || 'the young person';
+  const { submission, guardian } = state;
+  const sentImages = state.donation.images.filter((i) => i.status === 'sent').length;
 
   useEffect(() => {
     document.title = 'Thank you – MyPhone/MyBrain';
@@ -28,9 +36,9 @@ export function Done() {
 
   const steps: string[] = [];
   if (!declined) {
-    steps.push(`A copy of the consent summary is emailed to ${state.guardian.email || 'the parent or guardian'}. Keep it somewhere safe.`);
+    if (guardian.wantsCopy && guardian.email) steps.push(`A copy of what you agreed to is on its way to ${guardian.email}. Keep it somewhere safe.`);
     if (state.assent.status === 'deferred') steps.push(state.assent.deferredBy === 'young' ? `${childName} wanted to decide later. The team will ask again, for example at school, before any screen-time information is requested.` : `The team will ask ${childName} for their own agreement separately, for example at school, before any screen-time information is requested.`);
-    if (state.donation.status === 'skipped') steps.push('You skipped the screen-time part for now. The team can send a link to add it later.');
+    if (state.assent.status === 'completed' && sentImages === 0) steps.push('No screenshots were added this time. The team can send a link to add them later — it takes about a minute and it really helps.');
     steps.push('The team will be in touch about the next parts of the study, such as the surveys and the school session.');
   }
 
@@ -42,12 +50,12 @@ export function Done() {
         </span>
         <p className="mpmb-kicker">{declined ? 'Recorded' : 'All done'}</p>
         <h1 className="mpmb-h1" tabIndex={-1} ref={headingRef}>
-          {declined ? 'Thank you for letting us know.' : 'Thank you. Everything has been sent.'}
+          {declined ? 'Thank you for letting us know.' : thankYou.heading}
         </h1>
-        {state.submission.referenceCode && (
+        {submission.referenceCode && (
           <p className="mpmb-done__ref">
-            Your reference: <strong>{state.submission.referenceCode}</strong>
-            {state.submission.receivedAt && <span> · received {formatTimestamp(state.submission.receivedAt)}</span>}
+            Your reference: <strong>{submission.referenceCode}</strong>
+            {submission.consentSentAt && <span> · recorded {formatTimestamp(submission.consentSentAt)}</span>}
           </p>
         )}
       </div>
@@ -56,6 +64,22 @@ export function Done() {
         <p className="mpmb-lead">{childName} will not be included in the study. If anyone changes their mind, contact the team using the details below.</p>
       ) : (
         <>
+          <div className="mpmb-done__why">
+            <h2 className="mpmb-h3">
+              Why this matters {thankYou.draft && <Draft />}
+            </h2>
+            {thankYou.why.map((p) => (
+              <p key={p}>{p}</p>
+            ))}
+            {sentImages > 0 && (
+              <p>
+                <strong>
+                  {childName} shared {sentImages === 1 ? 'one screenshot' : `${sentImages} screenshots`}. Thank you.
+                </strong>
+              </p>
+            )}
+          </div>
+
           <h2 className="mpmb-h3">What happens next</h2>
           <ol className="mpmb-next-steps" role="list">
             {steps.map((text, i) => (

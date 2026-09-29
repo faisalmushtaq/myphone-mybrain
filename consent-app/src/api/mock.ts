@@ -1,7 +1,7 @@
 import { study } from '../config/study';
 import { referenceCode } from '../lib/ids';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type ConsentApi, type SubmissionPayload, type SubmissionResult, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type UploadMeta, type UploadSlot } from './types';
 
 export interface MockFlags {
   failUploads: boolean;
@@ -11,25 +11,35 @@ export interface MockFlags {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const jitter = (min: number, max: number) => min + Math.random() * (max - min);
 
+interface MockSubmission {
+  sessionId: string;
+  participantId: string;
+  version: number;
+  consents: ConsentPayload[];
+  donations: DonationPayload[];
+}
+
 /**
  * In-memory stand-in for the server. Nothing leaves the page. Latency and
  * failures are simulated so that loading, progress and error states can be
  * exercised from the "Prototype controls" panel.
+ *
+ * Like a real server, it remembers uploads and reference codes across a page
+ * refresh (ids only, in sessionStorage); the record contents stay in memory.
  */
 export class MockConsentApi implements ConsentApi {
-  /**
-   * Stands in for the server's record of quarantined uploads. It is kept in
-   * sessionStorage (ids and sizes only, never image bytes) so that, like a
-   * real server, the mock still knows about uploads after the page reloads.
-   */
   private uploads = new Map<string, { sessionId: string; size: number; type: string }>();
-  private submissions: { payload: SubmissionPayload; result: SubmissionResult }[] = [];
-  private static STORE_KEY = 'mpmb-mock-server:v1';
+  private submissions = new Map<string, MockSubmission>();
+  private static STORE_KEY = 'mpmb-mock-server:v2';
 
   constructor(private flags: MockFlags) {
     try {
       const raw = window.sessionStorage.getItem(MockConsentApi.STORE_KEY);
-      if (raw) this.uploads = new Map(JSON.parse(raw) as [string, { sessionId: string; size: number; type: string }][]);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { uploads: [string, { sessionId: string; size: number; type: string }][]; submissions: [string, { sessionId: string; participantId: string; version: number }][] };
+        this.uploads = new Map(parsed.uploads);
+        this.submissions = new Map(parsed.submissions.map(([code, s]) => [code, { ...s, consents: [], donations: [] }]));
+      }
     } catch {
       /* start empty */
     }
@@ -37,10 +47,16 @@ export class MockConsentApi implements ConsentApi {
 
   private persist(): void {
     try {
-      window.sessionStorage.setItem(MockConsentApi.STORE_KEY, JSON.stringify(Array.from(this.uploads.entries())));
+      const submissions = Array.from(this.submissions.entries()).map(([code, s]) => [code, { sessionId: s.sessionId, participantId: s.participantId, version: s.version }]);
+      window.sessionStorage.setItem(MockConsentApi.STORE_KEY, JSON.stringify({ uploads: Array.from(this.uploads.entries()), submissions }));
     } catch {
       /* ignore */
     }
+  }
+
+  private checkSession(session: SessionInfo): void {
+    if (!session.sessionId) throw new ApiError('expired', 'No session.');
+    if (Date.parse(session.expiresAt) < Date.now()) throw new ApiError('expired', 'The session has expired.');
   }
 
   async startSession(): Promise<SessionInfo> {
@@ -52,12 +68,33 @@ export class MockConsentApi implements ConsentApi {
     };
   }
 
+  async submitConsent(session: SessionInfo, payload: ConsentPayload): Promise<ConsentResult> {
+    await sleep(jitter(600, 1200));
+    if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');
+    this.checkSession(session);
+    if (payload.kind === 'consent' && !payload.consent?.signature) throw new ApiError('validation', 'The permission record has no signature.');
+    const receivedAt = new Date().toISOString();
+    if (payload.referenceCode) {
+      const existing = this.submissions.get(payload.referenceCode);
+      if (!existing || existing.sessionId !== session.sessionId) throw new ApiError('validation', 'That reference does not belong to this session.');
+      existing.version += 1;
+      existing.consents.push(payload);
+      this.persist();
+      return { referenceCode: payload.referenceCode, participantId: existing.participantId, receivedAt, version: existing.version };
+    }
+    const code = referenceCode();
+    const participantId = `part_${crypto.randomUUID()}`;
+    this.submissions.set(code, { sessionId: session.sessionId, participantId, version: 1, consents: [payload], donations: [] });
+    this.persist();
+    return { referenceCode: code, participantId, receivedAt, version: 1 };
+  }
+
   async requestUploadSlot(sessionId: string, meta: UploadMeta): Promise<UploadSlot> {
     await sleep(jitter(150, 350));
     const accepted = study.upload.acceptedTypes as readonly string[];
     if (!accepted.includes(meta.contentType)) throw new ApiError('validation', 'That type of file is not accepted.');
     if (meta.size > study.upload.maxBytesPerImage) throw new ApiError('too-large', 'The image is too large.');
-    const uploadId = `upl_${crypto.randomUUID()}`;
+    const uploadId = crypto.randomUUID();
     this.uploads.set(uploadId, { sessionId, size: meta.size, type: meta.contentType });
     this.persist();
     return {
@@ -87,33 +124,29 @@ export class MockConsentApi implements ConsentApi {
 
   async deleteUpload(sessionId: string, uploadId: string): Promise<void> {
     await sleep(jitter(100, 250));
-    // Like the real server, only the session that created an upload may remove it.
     if (this.uploads.get(uploadId)?.sessionId === sessionId) this.uploads.delete(uploadId);
     this.persist();
   }
 
-  async submit(session: SessionInfo, payload: SubmissionPayload): Promise<SubmissionResult> {
-    await sleep(jitter(700, 1400));
+  async submitDonation(session: SessionInfo, payload: DonationPayload): Promise<DonationResult> {
+    await sleep(jitter(500, 1000));
     if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');
-    if (!session.csrfToken) throw new ApiError('validation', 'Missing security token.');
-    if (Date.parse(session.expiresAt) < Date.now()) throw new ApiError('expired', 'The session has expired.');
-    for (const upload of payload.donation.uploads) {
-      // Uploads must exist and belong to this session (the real server enforces the same ownership rule).
+    this.checkSession(session);
+    const submission = this.submissions.get(payload.referenceCode);
+    if (!submission || submission.sessionId !== session.sessionId) throw new ApiError('validation', 'That reference does not belong to this session.');
+    const accepted: string[] = [];
+    for (const upload of payload.uploads) {
       if (this.uploads.get(upload.uploadId)?.sessionId !== session.sessionId) throw new ApiError('validation', 'One of the images was not uploaded correctly.');
+      accepted.push(upload.uploadId);
+      this.uploads.delete(upload.uploadId);
     }
-    if (payload.kind === 'consent' && !payload.consent?.signature) throw new ApiError('validation', 'The consent record has no signature.');
-    const result: SubmissionResult = { referenceCode: referenceCode(), receivedAt: new Date().toISOString() };
-    this.submissions.push({ payload, result });
-    // Linked uploads leave quarantine; anything else for this session is discarded.
-    for (const [id, entry] of Array.from(this.uploads.entries())) {
-      if (entry.sessionId === session.sessionId) this.uploads.delete(id);
-    }
+    submission.donations.push(payload);
     this.persist();
-    return result;
+    return { donationId: `don_${crypto.randomUUID()}`, receivedAt: new Date().toISOString(), accepted, rejected: [] };
   }
 
   /** For debugging in the browser console during design review. */
   inspect() {
-    return { uploads: Array.from(this.uploads.entries()), submissions: this.submissions };
+    return { uploads: Array.from(this.uploads.entries()), submissions: Array.from(this.submissions.entries()) };
   }
 }

@@ -12,7 +12,7 @@ import { Icon } from './ui/Icon';
 
 interface Props {
   onChange?: (step: StepId) => void;
-  /** Include the technical rows (form versions, exact times) — for the final record, not the send page. */
+  /** Include the technical rows (form versions, exact times) — for the final record, not the check page. */
   detailed?: boolean;
 }
 
@@ -54,8 +54,8 @@ function mask(value: string, keep = 2): string {
 }
 
 /**
- * The record of who agreed to what, and when. Used on the send page (with
- * change links) and on the confirmation page (read-only).
+ * The record of who agreed to what, and when. Used on the check page (with
+ * change links) and on the thank-you page (read-only).
  */
 export function ConsentSummary({ onChange, detailed = false }: Props) {
   const { state } = useStore();
@@ -105,7 +105,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
           <dl className="mpmb-summary__list">
             <Row label="Name" value={guardian.fullName} />
             <Row label="Relationship" value={relationship} />
-            <Row label="Email" value={show(guardian.email)} />
+            <Row label="Email" value={guardian.wantsCopy ? show(guardian.email) : guardian.email ? show(guardian.email) : 'Not needed — no copy requested'} />
             <Row label="Phone" value={show(guardian.phone)} />
             <Row label="Postcode" value={show(guardian.postcode.toUpperCase())} />
           </dl>
@@ -186,7 +186,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
           <>
             <dl className="mpmb-summary__list">
               <Row label="Phone" value={platforms.find((p) => p.id === donation.platform)?.name ?? ''} />
-              <Row label="Images" value={donation.images.length ? `${donation.images.filter((i) => i.status === 'uploaded').length} of ${donation.images.length} uploaded` : ''} />
+              <Row label="Screenshots" value={donation.images.length ? `${donation.images.filter((i) => i.status === 'sent').length} sent${donation.images.some((i) => i.status !== 'sent') ? `, ${donation.images.filter((i) => i.status !== 'sent').length} not yet sent` : ''}` : ''} />
             </dl>
             {donation.images.length > 0 && (
               <ul className="mpmb-summary__thumbs" role="list">

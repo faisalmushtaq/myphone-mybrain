@@ -5,6 +5,7 @@ import { PrototypePanel } from './components/PrototypePanel';
 import { buildJourney } from './model/journey';
 import type { StepId } from './model/types';
 import { StoreProvider, useStore } from './state/context';
+import { useSync } from './state/useSync';
 import { AssentDeclined } from './steps/AssentDeclined';
 import { ChildAssent } from './steps/ChildAssent';
 import { ChildDetails } from './steps/ChildDetails';
@@ -12,7 +13,7 @@ import { Done } from './steps/Done';
 import { ParentConsent } from './steps/ParentConsent';
 import { ParentDetails } from './steps/ParentDetails';
 import { PhoneUse } from './steps/PhoneUse';
-import { Send } from './steps/Send';
+import { Check } from './steps/Check';
 import { Welcome } from './steps/Welcome';
 
 const steps: Record<StepId, ComponentType> = {
@@ -23,7 +24,7 @@ const steps: Record<StepId, ComponentType> = {
   'child-assent': ChildAssent,
   'assent-declined': AssentDeclined,
   'phone-use': PhoneUse,
-  send: Send,
+  check: Check,
   done: Done,
 };
 
@@ -76,6 +77,27 @@ function useHistorySync() {
   }, [dispatch, key]);
 }
 
+/**
+ * Sends the permission and agreement as soon as the agreement step is
+ * finished (and sends changes made later), so a family that stops at the
+ * screenshots still counts as having taken part. Failures are left for the
+ * person to retry from the status line; nothing loops.
+ */
+function SyncManager() {
+  const { state } = useStore();
+  const { sendConsent, dirty } = useSync();
+  const { stepId } = state;
+  const { consentStage } = state.submission;
+  const ready = state.assent.status !== 'not-started' && (stepId === 'phone-use' || stepId === 'check');
+  const due = ready && (consentStage === 'idle' || (consentStage === 'sent' && dirty));
+  useEffect(() => {
+    if (!due) return;
+    const timer = window.setTimeout(() => void sendConsent(), 400);
+    return () => window.clearTimeout(timer);
+  }, [due, sendConsent]);
+  return null;
+}
+
 function Shell() {
   const { state } = useStore();
   useHistorySync();
@@ -96,6 +118,7 @@ function Shell() {
       <main className="mpmb-main" id="mpmb-main">
         {showHandover ? <HandoverScreen /> : <Step />}
       </main>
+      <SyncManager />
       {/* One permanent live region for upload and sending announcements (see lib/announce.ts). */}
       <div id="mpmb-live" className="mpmb-sr-only" aria-live="polite" aria-atomic="true" />
       {__PROTOTYPE__ && <PrototypePanel />}

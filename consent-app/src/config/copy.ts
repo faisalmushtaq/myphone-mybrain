@@ -163,3 +163,13 @@ export const youngRecap = {
   ],
   draft: true,
 };
+
+/** The thank-you screen. */
+export const thankYou = {
+  heading: 'Thank you for taking part.',
+  why: [
+    'Almost everything people say about young people and phones is guesswork, because nobody has had good evidence. MyPhone/MyBrain is collecting it, carefully, from thousands of young people in Bradford and Leeds.',
+    'Every family that takes part makes the picture clearer, and the screen-time screenshots are the part no one else can provide. What we learn goes back to young people, families and schools, and to the people who make decisions about education and health.',
+  ],
+  draft: true,
+};

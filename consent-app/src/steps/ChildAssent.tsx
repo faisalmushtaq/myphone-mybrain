@@ -42,7 +42,7 @@ export function ChildAssent() {
 
   const later = () => {
     dispatch({ type: 'assent-status', status: 'deferred', deferredBy: 'young' });
-    dispatch({ type: 'go-to', stepId: 'send', returnTo: null });
+    dispatch({ type: 'go-to', stepId: 'check', returnTo: null });
   };
 
   return (

@@ -22,7 +22,7 @@ const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
 const PHONE = /^\+?[\d\s()-]{7,20}$/;
 
 /** Maximum lengths, enforced here and as maxLength on the inputs. The server enforces them too. */
-export const limits = { name: 100, email: 254, phone: 20, postcode: 10, school: 150, relationship: 60 } as const;
+export const limits = { name: 100, email: 254, phone: 20, postcode: 10, school: 150, schoolMin: 3, relationship: 60 } as const;
 
 function blank(value: string): boolean {
   return value.trim().length === 0;
@@ -71,8 +71,8 @@ export function validateChildDetails(identity: ParticipantIdentity): FieldError[
   if (childFields.school.enabled && childFields.school.required) {
     if (blank(identity.schoolId)) {
       errors.push({ field: 'child-school', message: 'Choose the school. If it is not in the list, choose “My school is not in the list”.' });
-    } else if (identity.schoolId === OTHER_SCHOOL_ID && blank(identity.schoolOther)) {
-      errors.push({ field: 'child-school-other', message: 'Type the name of the school.' });
+    } else if (identity.schoolId === OTHER_SCHOOL_ID && identity.schoolOther.trim().length < limits.schoolMin) {
+      errors.push({ field: 'child-school-other', message: blank(identity.schoolOther) ? 'Type the name of the school.' : `The school name needs at least ${limits.schoolMin} letters.` });
     }
   }
 
@@ -104,7 +104,7 @@ export function validateGuardian(guardian: GuardianIdentity): FieldError[] {
   }
   if (guardianFields.email.enabled) {
     if (blank(guardian.email)) {
-      if (guardianFields.email.required) errors.push({ field: 'guardian-email', message: 'Enter your email address so we can send you a copy.' });
+      if (guardianFields.email.required || guardian.wantsCopy) errors.push({ field: 'guardian-email', message: 'Enter your email address so we can send you the copy, or untick the box.' });
     } else if (!EMAIL.test(guardian.email.trim())) {
       errors.push({ field: 'guardian-email', message: 'Enter an email address in the format name@example.com.' });
     }

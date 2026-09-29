@@ -2,14 +2,14 @@ import { study } from '../config/study';
 import type { Actor, AppState, StepId } from './types';
 import { isValidChildDetails, isValidGuardian } from '../lib/validation';
 
-export type Phase = 'details' | 'consent' | 'agreement' | 'phone' | 'send';
+export type Phase = 'details' | 'consent' | 'agreement' | 'phone' | 'check';
 
 export const phases: { id: Phase; label: string }[] = [
   { id: 'details', label: 'Details' },
   { id: 'consent', label: 'Permission' },
   { id: 'agreement', label: 'Agreement' },
   { id: 'phone', label: 'Screen time' },
-  { id: 'send', label: 'Send' },
+  { id: 'check', label: 'Check' },
 ];
 
 export interface StepDef {
@@ -28,8 +28,8 @@ export const stepDefs: Record<StepId, StepDef> = {
   'child-assent': { id: 'child-assent', phase: 'agreement', actor: 'young', title: 'Young person’s agreement' },
   'assent-declined': { id: 'assent-declined', phase: 'agreement', actor: 'young', title: 'Not taking part' },
   'phone-use': { id: 'phone-use', phase: 'phone', actor: 'anyone', title: 'Share your screen time' },
-  send: { id: 'send', phase: 'send', actor: 'anyone', title: 'Send' },
-  done: { id: 'done', phase: 'send', actor: 'anyone', title: 'Thank you' },
+  check: { id: 'check', phase: 'check', actor: 'anyone', title: 'Check what you’ve sent' },
+  done: { id: 'done', phase: 'check', actor: 'anyone', title: 'Thank you' },
 };
 
 /** Resolve the concrete actor for a step given the chosen route. */
@@ -72,7 +72,7 @@ export function buildJourney(state: AppState): StepId[] {
     }
   }
   if (phoneUseApplies(state)) steps.push('phone-use');
-  steps.push('send', 'done');
+  steps.push('check', 'done');
   return steps;
 }
 
@@ -94,7 +94,7 @@ export function previousStepId(state: AppState): StepId | null {
 }
 
 /**
- * Whether a step has everything it needs. Used when returning to the send
+ * Whether a step has everything it needs. Used when returning to the check
  * page after a change: we only jump back once every step in between is done.
  */
 export function isStepComplete(stepId: StepId, state: AppState): boolean {
@@ -113,8 +113,8 @@ export function isStepComplete(stepId: StepId, state: AppState): boolean {
       return true;
     case 'phone-use':
       return state.donation.status === 'completed' || state.donation.status === 'skipped';
-    case 'send':
-      return state.submission.stage === 'done';
+    case 'check':
+      return state.submission.consentStage === 'sent';
     case 'done':
       return true;
   }

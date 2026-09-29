@@ -17,7 +17,7 @@ export function ParentDetails() {
   const childName = identity.firstName.trim() || 'the young person';
   const update = (patch: Partial<typeof guardian>) => {
     dispatch({ type: 'update-guardian', patch });
-    if (attempted) setErrors(validateGuardian({ ...guardian, ...patch }));
+    if (attempted) setErrors((prev) => validateGuardian({ ...guardian, ...patch }).filter((e) => prev.some((p) => p.field === e.field)));
   };
   const schoolName = identity.schoolId === OTHER_SCHOOL_ID ? identity.schoolOther : schools.find((s) => s.id === identity.schoolId)?.name ?? '';
 

@@ -4,7 +4,7 @@ import { connectAuthEmulator, getAuth, signInAnonymously, type Auth, type User }
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, deleteObject, getStorage, ref, uploadBytesResumable, type FirebaseStorage } from 'firebase/storage';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type ConsentApi, type SubmissionPayload, type SubmissionResult, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type UploadMeta, type UploadSlot } from './types';
 
 /**
  * Firebase implementation of the API boundary.
@@ -16,10 +16,11 @@ import { ApiError, type ConsentApi, type SubmissionPayload, type SubmissionResul
  *   quarantine/{uid}/{uploadId}. Storage rules let a session create and
  *   delete only its own objects, with size and type limits, and never read
  *   them back.
- * - Submit: one callable Cloud Function (firebase/functions) that validates
- *   everything server-side, strips image metadata, moves the images out of
- *   quarantine and writes the separated records with the Admin SDK. Browsers
- *   have no direct read or write access to Firestore at all.
+ * - Submit: two callable Cloud Functions (firebase/functions). submitConsent
+ *   validates the permission and agreement and writes the separated records;
+ *   submitDonation checks the images, strips their metadata, runs the quality
+ *   checks and links them to the record. Browsers have no direct read or
+ *   write access to Firestore at all.
  */
 export interface FirebaseSettings {
   apiKey: string;
@@ -141,16 +142,24 @@ export class FirebaseConsentApi implements ConsentApi {
     }
   }
 
-  async submit(session: SessionInfo, payload: SubmissionPayload): Promise<SubmissionResult> {
+  private async call<Req, Res>(session: SessionInfo, name: string, payload: Req): Promise<Res> {
     const user = await this.user();
     if (user.uid !== session.sessionId) throw new ApiError('expired', 'Your session has changed. Please try again.');
-    const call = httpsCallable<SubmissionPayload, SubmissionResult>(this.functions, 'submitConsent', { timeout: 120_000 });
+    const fn = httpsCallable<Req, Res>(this.functions, name, { timeout: 120_000 });
     try {
-      const result = await call(payload);
+      const result = await fn(payload);
       return result.data;
     } catch (error) {
       throw mapError(error);
     }
+  }
+
+  submitConsent(session: SessionInfo, payload: ConsentPayload): Promise<ConsentResult> {
+    return this.call<ConsentPayload, ConsentResult>(session, 'submitConsent', payload);
+  }
+
+  submitDonation(session: SessionInfo, payload: DonationPayload): Promise<DonationResult> {
+    return this.call<DonationPayload, DonationResult>(session, 'submitDonation', payload);
   }
 }
 

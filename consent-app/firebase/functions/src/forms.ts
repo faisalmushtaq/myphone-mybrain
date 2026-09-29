@@ -50,4 +50,9 @@ export const study = {
   maxAge: 17,
   maxImages: 6,
   maxSignatureBytes: 200 * 1024,
+  /** Shortest school name accepted when "another school" is typed in. */
+  schoolMin: 3,
 };
+
+/** Shape of the reference codes issued by submitConsent. */
+export const REFERENCE_CODE = /^MPMB-[A-Z2-9]{4}-[A-Z2-9]{3}$/;

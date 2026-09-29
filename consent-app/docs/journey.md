@@ -1,11 +1,15 @@
-# Consent and screen-time donation: user journey (v2)
+# Consent and screen-time donation: user journey (v3)
 
-This document defines who does what, in which order, and where the device
-changes hands. `src/model/journey.ts` is the executable version.
+This document defines who does what, in which order, where the device
+changes hands, and when things are sent. `src/model/journey.ts` is the
+executable version.
 
-Version 2 shortens the journey from ten screens to five (six on the young
-person's route) after testing showed the first version was clear but slower
-than it needed to be. What changed and why is at the end.
+Version 3 follows a round of testing with the streamlined v2 flow. The big
+change is *when* things are sent: the permission and agreement go to the
+server the moment the young person has signed, screenshots go when the send
+button on the screen-time page is pressed, and the last page is a check of
+what has already been sent rather than a "send" button. What changed and why
+is at the end.
 
 ## Design principles
 
@@ -13,26 +17,41 @@ than it needed to be. What changed and why is at the end.
    something. Explanations sit beside the question they support, folded
    until needed.
 2. **Always clear who is holding the phone.** Every step has an *actor*. A
-   full-screen handover appears whenever the device must change hands, and
-   the strip under the progress bar names whose section is open.
+   full-screen handover appears whenever the device must change hands into
+   the permission or agreement sections, and the strip under the progress
+   bar names whose section is open.
 3. **Consent is captured from the parent directly.** Name, relationship,
    parental responsibility, active choices, and a signature. A young person
    cannot tick a box saying a parent agreed.
 4. **The required statements are one confirmation; the permissions are
    separate choices.** The four statements needed to take part sit under one
    tick (each is still recorded individually, marked `via: 'group'`). The
-   three optional permissions (screenshots, linking with records already held through Connected West Yorkshire, and recontact) are explicit Yes/No rows with no default.
+   three optional permissions (screenshots, linking with records already held
+   through Connected West Yorkshire, and recontact) are explicit Yes/No rows
+   with no default.
 5. **The young person's agreement is their signature.** The three things it
    means are listed above the box. Saying no and deciding later are equally
-   visible. Sharing screenshots is agreed by doing it (pressing send), and
-   skipping is always available.
-6. **Review is available, not compulsory.** The send screen shows a four-line
-   summary; the full record with change links is one tap away.
-7. **Identifying details are kept apart from research data**, in the model,
-   the payload, the database collections and on screen.
-8. **Nothing sensitive stays in the browser.** Progress lives in
-   `sessionStorage` for the tab, expires after two hours or 30 minutes of
-   inactivity, and is cleared on send. Images are never stored in the browser.
+   visible. Sharing screenshots is agreed by doing it (pressing send).
+6. **Participation is recorded as soon as it exists.** The permission and
+   agreement are saved the moment the young person has signed (or declined,
+   or deferred), before the screenshots. A family that stops there has still
+   taken part; nothing depends on a final "send".
+7. **Screenshots are asked for, not demanded.** They are the one thing no one
+   else can provide, so skipping is a two-step choice with a short appeal,
+   but it is always possible, and the thank-you page says the team can send
+   a link to add them later.
+8. **Checking is a page, not a gate.** The last step shows the record the
+   team holds, with "Change" beside each section. Changes are saved as
+   amendments; the original is kept.
+9. **Errors do not chase the person.** They appear when Continue is pressed
+   and the summary takes focus once. Fixing a field removes its error as it
+   is fixed; a new problem waits for the next Continue.
+10. **Identifying details are kept apart from research data**, in the model,
+    the payloads, the database collections and on screen.
+11. **Nothing sensitive stays in the browser.** Progress lives in
+    `sessionStorage` for the tab, expires after two hours or 30 minutes of
+    inactivity, and is cleared when the thank-you page is reached. Images
+    are never stored in the browser.
 
 ## The two ways in
 
@@ -49,46 +68,77 @@ Actors: **P** parent/guardian, **Y** young person, **A** anyone.
 | # | Step id | Actor | What happens |
 |---|---|---|---|
 | — | `welcome` | A | Choose who is starting; what the study is (folded); three reassurances. Not counted as a step. |
-| 1 | `child-details` | route | Names, date of birth, school, year group. Route P also asks for the parent's name, relationship, parental-responsibility confirmation and email here (phone and postcode folded, optional). |
+| 1 | `child-details` | route | Names, date of birth, school (a typed-in school name needs at least three letters), year group. Route P also asks for the parent's name, relationship, parental-responsibility confirmation and whether they want a copy by email; the email address is asked for only then (phone and postcode folded, optional). |
 | — | *handover Y→P* | | Route Y only. |
-| 2 | `parent-details` | P | Route Y only: check the child's details, then the parent's own. |
-| 3 | `parent-consent` | P | **One screen.** Six one-line information summaries (each opens to the full wording, with links to the full sheet and privacy notice and the information version); the four required statements under one tick; three Yes/No permissions; name (pre-filled from the details), signature, date. |
+| 2 | `parent-details` | P | Route Y only: check the child's details, then the parent's own (same fields as above). |
+| 3 | `parent-consent` | P | **One screen.** Six one-line information summaries (each opens to the full wording); the four required statements under one tick; three Yes/No permissions; name (pre-filled), signature, date. |
 | — | *handover P→Y* | | Route P offers "{child} isn't here right now" (agreement deferred, screen-time skipped). |
-| 4 | `child-assent` | Y | Three-line recap; "Signing your name means…" with the three statements; signature (draw, or type first name). "I don't want to take part" and "I'd like to decide later" alongside. |
-| 5 | `phone-use` | A | **One screen.** Why we ask (folded); which phone (chips); how to find the summary (illustrated steps, open until images are added); add, check, hide parts of, and send screenshots; skip. |
-| 6 | `send` | A | Four-line summary (young person, permission with yes/no choices, agreement, screen time), "Review everything before sending" (full record with change links, contact details masked), Send. |
-| — | `done` | A | Reference code, what happens next, changing your mind, independent contact, "Finish and clear this device". |
+| 4 | `child-assent` | Y | Three-line recap; "Signing your name means…"; signature. "I don't want to take part" and "I'd like to decide later" alongside. **Finishing this step sends the permission and agreement to the server.** |
+| 5 | `phone-use` | A | **One screen.** Status line ("Permission saved. Reference …"); why we ask (folded); which phone; how to find the summary (open until images are added); add, check, hide parts of, and **send** screenshots. Each image gets a quick on-device check; a photo-like image is flagged and must be confirmed before it goes. Skip is a two-step choice. |
+| 6 | `check` | A | "Check what you've sent": the whole record with "Change" beside each section (changes are saved as amendments), "Add screenshots"/"Add more screenshots", and "Everything is right — finish". |
+| — | `done` | A | Thank you: why taking part matters (draft wording), reference, what happens next, changing your mind, independent contact, "See what was recorded", "Finish and clear this device". |
 
 Route P is five counted steps; route Y is six.
 
+### When things are sent
+
+| What | When | If it fails |
+|---|---|---|
+| Permission and agreement (`submitConsent`) | Automatically, a moment after step 4 is finished (the first time step 5 or 6 is shown). "Let the team know" on the declined page sends the minimal record. | The status line says "Your permission has not been saved yet" with "Try again". Nothing retries in a loop. The check page cannot be finished until it is saved. |
+| Amendments (`submitConsent` with the reference) | Automatically when anything in the details, permission or agreement changes and the screen-time or check page is shown again. | Same status line, "Your changes have not been saved yet". |
+| Screenshots (`submitDonation`) | When "Send this screenshot" / "Send these N screenshots" is pressed on step 5 (including from "Add more screenshots" on the check page). Each send is its own record, linked by the reference. | The images stay on the page marked "Not sent" with a reason and a retry. An image the server would not keep is marked with the reason so it can be removed or replaced. |
+
+Sent screenshots cannot be removed from the app; the check page says to
+contact the team quoting the reference.
+
 ### Branching rules
 
-* Parent declines screenshots → step 5 removed; the send screen says "Not sharing".
-* Young person presses "I don't want to take part" → `assent-declined`: "Let the team know" (sends a minimal record: names, school, parent's name and email, no permission record) or "Finish without sending anything".
-* Young person presses "I'd like to decide later", or the parent says the young person isn't here → agreement `deferred` (with who deferred it), step 5 removed, the send screen says so.
+* Parent declines screenshots → step 5 removed; the check page says "Not shared".
+* Young person presses "I don't want to take part" → `assent-declined`: "Let the team know" (sends a minimal record: names, school, the parent's name, and an email address only if a copy was asked for; no permission record) or "Finish without sending anything".
+* Young person presses "I'd like to decide later", or the parent says the young person isn't here → agreement `deferred` (with who deferred it), step 5 removed, the check page says so.
+* "Skip this for now" on step 5 → "Before you skip": the screenshots are the part nobody else can provide, taking part is already recorded, it takes about a minute. "OK, I'll add them now" opens the instructions; "I really can't right now — skip" moves on.
+* An image that looks like a photograph rather than a screenshot → warning under the image; pressing send asks "It's right — send anyway" or "Let me check".
+* An image the server will not keep (not an image, unsafe content, or clearly not a screen-time page when the thorough checks are on) → "Not all of the images could be accepted" with the reason under the image; the rest are sent.
 * Age outside 11–17 → specific message (an 18-year-old consents for themselves; the team will send that form).
-* A permission statement changed after signing → signature cleared, "please sign again".
+* A permission statement changed after signing → signature cleared, "please sign again". A change after the record was sent → saved as an amendment.
 
 ### Handover screens
 
 Addressed to the person receiving the device, with their name on the button.
-The parent → young person handover explains why a parent also signs ("because
-you're under 18, research rules need their permission as well as yours — your
-answer still counts") and asks the parent to let the young person answer
-themselves. Handover confirmation and agreement start/finish times are
-recorded so the server can flag an agreement completed within seconds.
+The parent → young person handover explains why a parent also signs and asks
+the parent to let the young person answer themselves. Handover confirmation
+and agreement start/finish times are recorded so the server can flag an
+agreement completed within seconds. Handovers guard the permission and
+agreement sections only; either person may correct identifying details from
+the check page.
 
-## What changed from v1, and why
+## What changed from v2, and why
+
+| v2 | v3 | Why |
+|---|---|---|
+| Email address always required | "Email me a copy of what I agree to" tick; the address is asked for only then | Many families do not want a copy; the address was the only reason to ask. |
+| Errors re-validated on every keystroke and the summary took focus again | Summary focuses once, on Continue; fixing a field removes its error; new errors wait for the next Continue | Testing: "when I go to fix it, it bounces back up". |
+| "Skip" on the screen-time page moved straight on | Two-step skip with a short appeal | The screenshots are the key part of the study; participation is already recorded, so the appeal carries no pressure. |
+| Everything sent by one "Send" button at the end | Permission and agreement sent when the young person has signed; screenshots sent from their own page | A family that stops at the screenshots still counts; nothing can be lost by closing the tab after signing. |
+| "Ready to send" page | "Check what you've sent" page, with amendments | By that point everything is on the server; the page is for checking and correcting. |
+| Confirmation page | Thank-you page with "Why this matters" | Asked for in testing: say thank you, and say briefly why it matters. |
+| No check on what an image is | On-device check (shape and colour) with a warning and confirmation; server checks (SafeSearch and text detection when enabled) that refuse unsafe or plainly wrong images | Families add the wrong image by mistake; nothing harmful should be stored. |
+| Typed school name of any length | At least three letters | Testing. |
+
+Everything kept from v2: the one-screen permission, the signature-only
+agreement, the handover guards, re-signing after a change, the decline and
+decide-later paths, contact-detail masking, and the separation of identifying
+details from research data.
+
+## What changed from v1 to v2
 
 | v1 | v2 | Why |
 |---|---|---|
-| Welcome, then "About the study" | About folded into Welcome | The about screen asked for nothing; the same three facts now sit under the route cards. |
+| Welcome, then "About the study" | About folded into Welcome | The about screen asked for nothing. |
 | Child details, then parent details (both routes) | One details screen on the parent route | The same person was filling in both. |
-| Information screen, then consent screen | One permission screen | Reading and agreeing belong together; the summaries are visible and the detail opens in place. |
-| Four required checkboxes | One confirmation tick over a list (configurable) | Four ticks for statements that must all be yes added nothing but time. Each is still recorded individually. |
-| Optional permissions as large cards with Yes/No buttons | Compact Yes/No rows | Same explicit choice, a third of the height. |
-| Young person: two checkboxes, two Yes/No choices, typed name | One signature over a three-line list; screenshot consent by sending | Signing is a single clear act; the "phone-use" statement is now recorded by the action it refers to. |
-| Phone type, then walkthrough, then upload (three screens) | One screen | Most families know where Screen Time is; the instructions open when needed and fold once images are added. |
-| Full review page before sending | Four-line summary with the full record one tap away | Families who want to check everything still can; everyone else sends. |
-| Name typed again on the consent screen | Pre-filled from the details | Same person, moments later. |
-| Phone and postcode always shown | Folded behind "Add a phone number or home postcode (optional)" | Shorter screen; both remain available. |
+| Information screen, then consent screen | One permission screen | Reading and agreeing belong together. |
+| Four required checkboxes | One confirmation tick over a list (configurable) | Each is still recorded individually. |
+| Optional permissions as large cards | Compact Yes/No rows | Same explicit choice, a third of the height. |
+| Young person: two checkboxes, two Yes/No choices, typed name | One signature over a three-line list; screenshot consent by sending | Signing is a single clear act. |
+| Phone type, walkthrough, upload (three screens) | One screen | The instructions open when needed and fold once images are added. |
+| Full review page before sending | Short summary with the full record one tap away | Families who want to check everything still can. |

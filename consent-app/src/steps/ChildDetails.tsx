@@ -29,11 +29,11 @@ export function ChildDetails() {
 
   const updateIdentity = (patch: Partial<typeof identity>) => {
     dispatch({ type: 'update-identity', patch });
-    if (attempted) setErrors(validate({ ...identity, ...patch }, guardian));
+    if (attempted) setErrors((prev) => validate({ ...identity, ...patch }, guardian).filter((e) => prev.some((p) => p.field === e.field)));
   };
   const updateGuardian = (patch: Partial<typeof guardian>) => {
     dispatch({ type: 'update-guardian', patch });
-    if (attempted) setErrors(validate(identity, { ...guardian, ...patch }));
+    if (attempted) setErrors((prev) => validate(identity, { ...guardian, ...patch }).filter((e) => prev.some((p) => p.field === e.field)));
   };
 
   const next = () => {

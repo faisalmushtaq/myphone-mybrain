@@ -125,6 +125,7 @@ async function inner() {
     await page.getByLabel('Your full name', { exact: true }).fill('Priya Patel');
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     await page.getByLabel(/parental responsibility for/).check();
+    await page.getByLabel('Email me a copy of what I agree to').check();
     await page.getByLabel('Your email address').fill('priya@example.com');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: /Your permission for Kai/ }).waitFor();
@@ -136,7 +137,17 @@ async function inner() {
     await page.getByRole('heading', { name: /Do you want to take part/ }).waitFor();
     await draw(page.locator('#assent-signature'), [[0.2, 0.6], [0.5, 0.35], [0.8, 0.6]]);
     await page.getByRole('button', { name: 'Sign and continue' }).click();
+
+    // 1. The permission and agreement are saved as soon as the young person has signed.
     await page.getByRole('heading', { name: /Share your screen-time summary/ }).waitFor();
+    await page.locator('.mpmb-save', { hasText: 'Permission saved' }).waitFor({ timeout: 60000 });
+    const code = (await page.locator('.mpmb-save strong').innerText()).trim();
+    ok('reference code returned by submitConsent before any screenshot', /^MPMB-[A-Z2-9]{4}-[A-Z2-9]{3}$/.test(code), code);
+    let submission = (await db.collection('submissions').doc(code).get()).data();
+    ok('submission row written at version 1 with no images yet', Boolean(submission) && submission.kind === 'consent' && submission.version === 1 && submission.imageCount === 0);
+    const firstConsentId = submission?.consentId;
+
+    // 2. Screenshots are sent from the screen-time page and linked to the record.
     await page.getByRole('radio', { name: 'iPhone' }).check();
     const input = page.locator('input[type=file]').first();
     await input.setInputFiles([{ name: 'a.png', mimeType: 'image/png', buffer: await png('Last 7 days') }, { name: 'b.png', mimeType: 'image/png', buffer: await png('Today') }]);
@@ -146,26 +157,37 @@ async function inner() {
     await page.getByRole('button', { name: 'Apply changes' }).click();
     await page.getByText('Parts hidden').waitFor();
     await page.getByRole('button', { name: /Send these 2 screenshots/ }).click();
-    await page.getByRole('heading', { name: /Ready to send/ }).waitFor({ timeout: 60000 });
-    ok('browser uploaded both images to the Storage emulator', true);
-    await page.getByRole('button', { name: 'Send', exact: true }).click();
-    await page.getByRole('heading', { name: /Thank you. Everything has been sent/ }).waitFor({ timeout: 90000 });
-    const code = (await page.locator('.mpmb-done__ref strong').innerText()).trim();
-    ok('reference code returned by the function', /^MPMB-[A-Z2-9]{4}-[A-Z2-9]{3}$/.test(code), code);
+    await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor({ timeout: 90000 });
+    ok('browser uploaded both images and submitDonation accepted them', await page.getByText(/2 sent/).count() > 0);
+
+    // 3. A change on the check page is saved as an amendment (new records, nothing overwritten).
+    await page.getByRole('button', { name: /Change parent or guardian$/i }).click();
+    await page.getByRole('heading', { name: /Your details/ }).waitFor();
+    await page.getByRole('button', { name: /Add a phone number or home postcode/ }).click();
+    await page.getByLabel('Your phone number').fill('07700 900123');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
+    await page.locator('.mpmb-save', { hasText: 'Changes saved' }).waitFor({ timeout: 60000 });
+    await page.getByRole('button', { name: /Everything is right/ }).click();
+    await page.getByRole('heading', { name: /Thank you for taking part/ }).waitFor({ timeout: 30000 });
+    ok('thank-you page shows the same reference', (await page.locator('.mpmb-done__ref strong').innerText()).trim() === code);
     ok('no browser errors', errors.length === 0, errors.join(' | '));
 
-    // What did the function store?
-    const submission = (await db.collection('submissions').doc(code).get()).data();
-    ok('submissions row written', Boolean(submission) && submission.kind === 'consent' && submission.imageCount === 2);
+    // What did the functions store?
+    submission = (await db.collection('submissions').doc(code).get()).data();
+    ok('submission row at version 2 with two images and one donation', submission.version === 2 && submission.imageCount === 2 && submission.donationIds?.length === 1 && submission.versions?.length === 2);
+    ok('amendment points at a new consent record', submission.consentId && submission.consentId !== firstConsentId);
     const participant = (await db.collection('participants').doc(submission.participantId).get()).data();
-    ok('participant record holds identity', participant?.firstName === 'Kai' && participant?.dateOfBirth === '2013-03-14' && participant?.guardian?.email === 'priya@example.com');
+    ok('participant record holds identity, updated by the amendment', participant?.firstName === 'Kai' && participant?.dateOfBirth === '2013-03-14' && participant?.guardian?.email === 'priya@example.com' && participant?.guardian?.phone === '07700 900123' && participant?.version === 2);
+    const consents = await db.collection('consents').where('participantId', '==', submission.participantId).get();
     const consent = (await db.collection('consents').doc(submission.consentId).get()).data();
+    ok('two consent records, the second superseding the first', consents.size === 2 && consent?.version === 2 && consent?.supersedes === firstConsentId);
     ok('consent record complete', consent?.responses?.['link-records']?.response === 'declined' && consent?.responses?.['take-part']?.via === 'group' && consent?.signature?.image?.path?.startsWith('signatures/'));
     ok('consent record has server receipt time', consent?.receivedAt && consent?.createdAt);
     const assent = (await db.collection('assents').doc(submission.assentId).get()).data();
-    ok('assent record signed', assent?.status === 'completed' && assent?.responses?.['take-part']?.via === 'signature' && assent?.responses?.['phone-use']?.via === 'action');
-    const donation = (await db.collection('donations').doc(submission.donationId).get()).data();
-    ok('donation record has no names', donation && !JSON.stringify(donation).includes('Patel') && donation.images.length === 2 && donation.images[0].redacted === true);
+    ok('assent record signed, screenshot agreement by action', assent?.status === 'completed' && assent?.responses?.['take-part']?.via === 'signature' && assent?.responses?.['phone-use']?.via === 'action');
+    const donation = (await db.collection('donations').doc(submission.donationIds[0]).get()).data();
+    ok('donation record has no names, carries the agreement and quality checks', donation && !JSON.stringify(donation).includes('Patel') && donation.images.length === 2 && donation.images[0].redacted === true && donation.agreement?.via === 'action' && ['accepted', 'review'].includes(donation.images[0].quality?.verdict));
     const [quarantine] = await bucket.getFiles({ prefix: 'quarantine/' });
     ok('quarantine emptied after submit', quarantine.length === 0, `${quarantine.length} left`);
     const [donated] = await bucket.getFiles({ prefix: `donations/${submission.participantId}/` });
@@ -174,9 +196,9 @@ async function inner() {
     const meta = await sharp(buffer).metadata();
     ok('stored image is a clean PNG without metadata', meta.format === 'png' && !meta.exif && !meta.icc && !meta.xmp);
     const [sigs] = await bucket.getFiles({ prefix: `signatures/${submission.participantId}/` });
-    ok('both signatures stored', sigs.length === 2);
+    ok('signatures stored for every version', sigs.length === 4, `${sigs.length} files`);
     const mail = await db.collection('mail').get();
-    ok('confirmation email queued', mail.size === 1 && mail.docs[0].data().to === 'priya@example.com');
+    ok('one confirmation email queued (copy requested, not repeated by the amendment)', mail.size === 1 && mail.docs[0].data().to === 'priya@example.com');
 
     // Security rules: what a client must not be able to do.
     const web = createRequire(path.join(root, 'node_modules/x.js'));
@@ -205,6 +227,20 @@ async function inner() {
     ok('client cannot upload into another session', await denied(() => uploadBytes(ref(webStorage, 'quarantine/someone-else/123e4567-e89b-12d3-a456-426614174000'), new Uint8Array([1, 2, 3]), { contentType: 'image/png' })));
     ok('client cannot upload a non-image', await denied(() => uploadBytes(ref(webStorage, `quarantine/${user.uid}/123e4567-e89b-12d3-a456-426614174000`), new Uint8Array([1, 2, 3]), { contentType: 'text/plain' })));
     ok('client cannot read donated images', await denied(() => getBytes(ref(webStorage, donated[0].name))));
+    const { getFunctions, httpsCallable, connectFunctionsEmulator } = web('firebase/functions');
+    const fns = getFunctions(webApp, 'europe-west2');
+    connectFunctionsEmulator(fns, '127.0.0.1', 5001);
+    const stranger = async (fn) => {
+      try {
+        await fn();
+        return false;
+      } catch (e) {
+        return /failed-precondition/.test(String(e.code));
+      }
+    };
+    const client = { userAgent: 'rules-check', submittedAt: new Date().toISOString(), timezoneOffset: 0 };
+    const agreement = { statementId: 'phone-use', version: '0.3-draft', response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' };
+    ok('another session cannot add screenshots to this reference', await stranger(() => httpsCallable(fns, 'submitDonation')({ referenceCode: code, platform: 'ios', uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: false, cropped: false, acknowledgedWarning: false }], agreement, client })));
     ok('client cannot read its own quarantine upload', await denied(async () => {
       await uploadBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`), buffer, { contentType: 'image/png' });
       await getBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`));

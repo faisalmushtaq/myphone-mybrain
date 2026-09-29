@@ -90,3 +90,50 @@ paths, and contact-detail masking on the review.
 
 The Firebase backend was then built (`docs/firebase.md`) and tested end to
 end against the emulator suite, including the security rules.
+
+## Third round: testing feedback (v3)
+
+Testing of v2 with the mock backend produced a short list of changes, all in
+the direction of "send at the natural moment, and never lose a family":
+
+* **Email optional.** "Email me a copy of what I agree to" is a tick; the
+  address is asked for only then. The server requires an address only when a
+  copy was asked for.
+* **No bouncing.** The error summary takes focus once, when Continue is
+  pressed; fixing a field removes its error as it is fixed; a new problem
+  waits for the next Continue.
+* **Participation is recorded the moment it exists.** The permission and
+  agreement are sent as soon as the young person has signed (or declined, or
+  deferred). A status line on the following screens shows "Permission saved"
+  with the reference, or "not saved yet" with a retry.
+* **The screenshots are asked for.** Skipping is a two-step choice with a
+  short appeal that says the screenshots are the part no one else can
+  provide, that taking part is already recorded, and that it takes about a
+  minute.
+* **Send from the screen-time page**, not from a final page; each send is its
+  own record.
+* **The last page checks rather than sends.** Every section has "Change";
+  changes are saved as amendments (new records that point at the ones they
+  supersede) and the original is kept. More screenshots can be added from
+  here.
+* **A thank-you page** with a short "Why this matters" (draft wording).
+* **A typed-in school name needs at least three letters.**
+* **Photo checks.** On the device, a content-blind check of shape and colour
+  warns when an image looks like a photograph and asks for confirmation
+  before it goes. On the server, the metadata-stripped copy is checked with
+  Cloud Vision SafeSearch (unsafe content is refused and never stored) and
+  text detection (an image with none of the words a screen-time page carries,
+  that also looks like a photograph, is refused; an unclear one is kept and
+  flagged for a coordinator to look at). Without Vision the server never
+  refuses on relevance alone.
+
+Points the reviewers would raise about these, and the answers built in:
+
+| Perspective | Concern | Answer |
+|---|---|---|
+| Ethics | Does the skip appeal pressure a young person? | It states that taking part is already recorded and that skipping is fine; the skip remains one tap away, and the thank-you page offers a link to add them later rather than asking again. Wording is draft (`docs/content-placeholders.md`). |
+| Ethics | Can a family remove a screenshot after sending? | Not from the app; the check page says to contact the team quoting the reference. Withdrawal is a team process, as before. |
+| Data protection | Where do the images go for the Vision checks? | To the Cloud Vision API's EU endpoint, as the metadata-stripped copy, only when `MPMB_VISION` is on; nothing about the content is logged. To be covered in the DPIA before it is switched on. |
+| Data protection | Are amendments an audit risk? | No record is edited: each amendment is a new consent and assent document with `supersedes`, and the submission lists every version. |
+| Young people | Will the photo warning make them feel accused? | It says "doesn't look like a screen-time page" and explains that a photo of another phone showing the app list is fine; the only hard refusals are for unsafe content or a plain photograph with no screen-time words. |
+| Low-literacy parent | Is it clear when things are saved? | One status line, always in the same place, with three states: saving, saved with the reference, not saved with a retry. |

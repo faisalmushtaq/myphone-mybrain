@@ -29,7 +29,7 @@ export function initialState(): AppState {
     childPresent: null,
     returnTo: null,
     identity: { firstName: '', lastName: '', dateOfBirth: { day: '', month: '', year: '' }, schoolId: '', schoolOther: '', yearGroup: '' },
-    guardian: { fullName: '', relationship: '', relationshipOther: '', hasParentalResponsibility: false, email: '', phone: '', postcode: '' },
+    guardian: { fullName: '', relationship: '', relationshipOther: '', hasParentalResponsibility: false, wantsCopy: false, email: '', phone: '', postcode: '' },
     consent: {
       formId: parentConsentForm.id,
       formVersion: parentConsentForm.version,
@@ -53,7 +53,7 @@ export function initialState(): AppState {
       completedAt: null,
     },
     donation: { platform: null, images: [], status: 'not-started' },
-    submission: { stage: 'idle', stageLabel: '', error: null, referenceCode: null, receivedAt: null },
+    submission: { referenceCode: null, participantId: null, consentStage: 'idle', consentError: null, consentSentAt: null, consentVersion: 0, sentSnapshot: null, donationStage: 'idle', donationError: null, donationsSent: 0, declinedSentAt: null },
     session: null,
     prototype: { failUploads: false, failSubmit: false, showDraftMarkers: true },
     restored: false,
@@ -94,6 +94,8 @@ export type Action =
   | { type: 'add-image'; image: DonationImage }
   | { type: 'update-image'; id: string; patch: Partial<DonationImage> }
   | { type: 'remove-image'; id: string }
+  /** Uploads the server has accepted and linked to the record. */
+  | { type: 'images-sent'; ids: string[] }
   | { type: 'donation-status'; status: DonationStatus }
   | { type: 'submission'; patch: Partial<SubmissionState> }
   | { type: 'session'; session: SessionInfo | null }
@@ -107,11 +109,11 @@ function moveTo(state: AppState, target: StepId): AppState {
   return { ...state, stepId: target, handover: null };
 }
 
-/** After a change made from the send page, return there once everything in between is complete. */
+/** After a change made from the check page, return there once everything in between is complete. */
 function nextAfterChange(state: AppState): StepId | null {
   const journey = buildJourney(state);
   const from = journey.indexOf(state.stepId);
-  const to = journey.indexOf(state.returnTo ?? 'send');
+  const to = journey.indexOf(state.returnTo ?? 'check');
   if (from < 0 || to < 0) return null;
   for (let i = from + 1; i < to; i += 1) {
     if (!isStepComplete(journey[i], state)) return journey[i];
@@ -256,6 +258,8 @@ export function reducer(state: AppState, action: Action): AppState {
       const status: DonationStatus = images.length === 0 && state.donation.status === 'completed' ? 'in-progress' : state.donation.status;
       return { ...state, donation: { ...state.donation, images, status } };
     }
+    case 'images-sent':
+      return { ...state, donation: { ...state.donation, images: state.donation.images.map((img) => (action.ids.includes(img.id) ? { ...img, status: 'sent', progress: 1, error: null } : img)) } };
     case 'donation-status':
       return { ...state, donation: { ...state.donation, status: action.status } };
     case 'submission':

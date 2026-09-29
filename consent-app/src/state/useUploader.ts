@@ -4,6 +4,7 @@ import { ApiError } from '../api/types';
 import { announce } from '../lib/announce';
 import { clientId } from '../lib/ids';
 import { checkFile, loadImage, processImage } from '../lib/image';
+import { assessImage } from '../lib/imageQuality';
 import { imageStore } from '../lib/imageStore';
 import type { DonationImage, SessionInfo } from '../model/types';
 import { useStore } from './context';
@@ -52,11 +53,11 @@ export function useUploader() {
   );
 
   const uploadOne = useCallback(
-    async (image: DonationImage, index: number, total: number): Promise<boolean> => {
+    async (image: DonationImage, index: number, total: number): Promise<string | null> => {
       const stored = imageStore.get(image.id);
       if (!stored) {
         dispatch({ type: 'update-image', id: image.id, patch: { status: 'failed', error: 'This image is no longer available. Please add it again.' } });
-        return false;
+        return null;
       }
       dispatch({ type: 'update-image', id: image.id, patch: { status: 'uploading', progress: 0, error: null } });
       announce(`Uploading image ${index + 1} of ${total}.`);
@@ -77,28 +78,37 @@ export function useUploader() {
         }
         dispatch({ type: 'update-image', id: image.id, patch: { status: 'uploaded', progress: 1, uploadId, error: null } });
         announce(`Image ${index + 1} uploaded.`);
-        return true;
+        return uploadId;
       } catch (error) {
         const message = friendlyUploadError(error);
         dispatch({ type: 'update-image', id: image.id, patch: { status: 'failed', progress: 0, error: message } });
         announce(`Image ${index + 1} failed to upload. ${message}`);
-        return false;
+        return null;
       }
     },
     [dispatch, ensureSession],
   );
 
-  /** Uploads everything that is waiting. Resolves true when every image is uploaded. */
-  const uploadPending = useCallback(async (): Promise<boolean> => {
-    const images = imagesRef.current;
-    let allOk = true;
+  /**
+   * Uploads everything that is waiting. Resolves with whether every image is
+   * now uploaded, and the images as they now stand. The list is returned
+   * explicitly because React state may not have re-rendered by the time the
+   * caller continues, and the send must include every image just uploaded.
+   */
+  const uploadPending = useCallback(async (): Promise<{ ok: boolean; images: DonationImage[] }> => {
+    const images = imagesRef.current.slice();
+    let ok = true;
     for (let i = 0; i < images.length; i += 1) {
       const image = images[i];
-      if (image.status === 'uploaded') continue;
-      const ok = await uploadOne(image, i, images.length);
-      allOk = allOk && ok;
+      if (image.status === 'uploaded' || image.status === 'sent') continue;
+      const uploadId = await uploadOne(image, i, images.length);
+      if (uploadId) images[i] = { ...image, status: 'uploaded', progress: 1, uploadId, error: null };
+      else {
+        ok = false;
+        images[i] = { ...image, status: 'failed', uploadId: null };
+      }
     }
-    return allOk;
+    return { ok, images };
   }, [uploadOne]);
 
   const addFiles = useCallback(
@@ -126,10 +136,11 @@ export function useUploader() {
         }
         const id = clientId();
         imageStore.put(id, blob);
-        const image: DonationImage = { id, name: file.name, type: blob.type, size: blob.size, width, height, redacted: false, cropped: false, status: 'pending', progress: 0, uploadId: null, error: null };
+        const quality = await assessImage(blob).catch(() => null);
+        const image: DonationImage = { id, name: file.name, type: blob.type, size: blob.size, width, height, redacted: false, cropped: false, status: 'pending', progress: 0, uploadId: null, error: null, quality, acknowledged: false };
         dispatch({ type: 'add-image', image });
         count += 1;
-        announce(`Image ${count} added. Nothing is sent until you press the send button.`);
+        announce(quality?.verdict === 'unlikely' ? `Image ${count} added, but it does not look like a screen-time page. Check it before sending.` : `Image ${count} added. Nothing is sent until you press the send button.`);
       }
       setRejected(problems);
       if (problems.length) announce(`${problems.length} file${problems.length === 1 ? ' was' : 's were'} not added.`);
@@ -172,12 +183,20 @@ export function useUploader() {
       } catch {
         /* keep previous dimensions */
       }
-      dispatch({ type: 'update-image', id: image.id, patch: { type: blob.type, size: blob.size, width, height, redacted: image.redacted || flags.redacted, cropped: image.cropped || flags.cropped, status: 'pending', progress: 0, uploadId: null, error: null } });
+      const quality = await assessImage(blob).catch(() => image.quality);
+      dispatch({ type: 'update-image', id: image.id, patch: { type: blob.type, size: blob.size, width, height, redacted: image.redacted || flags.redacted, cropped: image.cropped || flags.cropped, status: 'pending', progress: 0, uploadId: null, error: null, quality, acknowledged: false } });
       if (image.status === 'uploaded') dispatch({ type: 'donation-status', status: 'in-progress' });
       announce(flags.redacted ? 'Hidden areas applied. The image will be sent when you press the send button.' : 'Crop applied.');
     },
     [dispatch],
   );
 
-  return { addFiles, uploadPending, remove, replace, rejected, clearRejected: () => setRejected([]) };
+  const acknowledge = useCallback(
+    (ids: string[]) => {
+      for (const id of ids) dispatch({ type: 'update-image', id, patch: { acknowledged: true } });
+    },
+    [dispatch],
+  );
+
+  return { addFiles, uploadPending, remove, replace, acknowledge, rejected, clearRejected: () => setRejected([]) };
 }

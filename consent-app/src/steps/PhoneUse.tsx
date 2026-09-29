@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ImageCapture } from '../components/ImageCapture';
 import { ImageEditor } from '../components/ImageEditor';
+import { SaveStatus } from '../components/SaveStatus';
 import { StepShell } from '../components/StepShell';
 import { UploadList } from '../components/UploadList';
 import { Walkthrough } from '../components/Walkthrough';
@@ -10,29 +11,38 @@ import { Disclosure } from '../components/ui/Disclosure';
 import { Draft } from '../components/ui/Draft';
 import { Icon } from '../components/ui/Icon';
 import { whyPhoneUse } from '../config/copy';
-import { childAssentForm } from '../config/statements';
 import { study } from '../config/study';
 import { platforms, walkthroughs, type PlatformId } from '../config/walkthroughs';
 import type { DonationImage } from '../model/types';
 import { useStore } from '../state/context';
+import { useSync } from '../state/useSync';
 import { useUploader } from '../state/useUploader';
 
 /**
- * The whole phone-use part on one screen: why we ask (folded), which phone,
- * how to find the summary (folded once images exist), add and check the
- * screenshots, send. Sending is also how the young person agrees to share
- * them; skipping is always available.
+ * The whole screen-time part on one screen: why we ask (folded), which
+ * phone, how to find the summary (folded once images are added), add and
+ * check the screenshots, send. Sending uploads the images and records them
+ * against the permission straight away; it is also how the young person
+ * agrees to share them. Skipping is possible, but not without an appeal:
+ * the screenshots are the part of the study nobody else can provide.
  */
 export function PhoneUse() {
   const { state, dispatch } = useStore();
   const uploader = useUploader();
+  const { sendDonation, submission } = useSync();
   const [editing, setEditing] = useState<DonationImage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [howOpen, setHowOpen] = useState<boolean | null>(null);
+  const [appeal, setAppeal] = useState(false);
+  const [confirmDoubtful, setConfirmDoubtful] = useState(false);
+  const [rejectedNote, setRejectedNote] = useState<string | null>(null);
   const images = state.donation.images;
   const platform = state.donation.platform;
+  const unsent = images.filter((i) => i.status !== 'sent');
+  const sentCount = images.length - unsent.length;
   const failed = images.some((i) => i.status === 'failed');
+  const doubtful = unsent.filter((i) => i.quality?.verdict === 'unlikely' && !i.acknowledged);
   const young = state.route === 'young' || state.assent.status === 'completed';
   const walkthrough = platform ? walkthroughs[platform] : null;
   const hasImages = images.length > 0;
@@ -47,29 +57,47 @@ export function PhoneUse() {
     setHowOpen(null);
   }, [hasImages]);
 
-  const next = async () => {
-    if (!images.length) {
-      setError('Add at least one screenshot, or choose “Skip this for now”.');
+  /** `acknowledged` names images the person has just confirmed as right, ahead of the store catching up. */
+  const send = async (acknowledged: string[] = []) => {
+    setRejectedNote(null);
+    if (!unsent.length) {
+      if (sentCount) {
+        dispatch({ type: 'next' });
+        return;
+      }
+      setError('Add at least one screenshot. If you really can’t right now, choose “Skip this for now”.');
+      return;
+    }
+    if (doubtful.some((i) => !acknowledged.includes(i.id)) && !confirmDoubtful) {
+      setConfirmDoubtful(true);
       return;
     }
     setError(null);
     setSending(true);
-    const ok = await uploader.uploadPending();
-    setSending(false);
-    if (!ok) {
-      setError('One of your images did not upload. Try again, or remove it.');
-      return;
+    try {
+      const { ok, images: fresh } = await uploader.uploadPending();
+      if (!ok) {
+        setError('One of your images did not upload. Try again, or remove it.');
+        return;
+      }
+      const result = await sendDonation(fresh.map((i) => (acknowledged.includes(i.id) ? { ...i, acknowledged: true } : i)));
+      if (!result) {
+        setError(submission.consentError ?? submission.donationError ?? 'The screenshots could not be sent. Please try again.');
+        return;
+      }
+      if (result.rejected.length) {
+        setRejectedNote(`${result.accepted.length ? `${result.accepted.length} screenshot${result.accepted.length === 1 ? ' was' : 's were'} sent. ` : ''}${result.rejected.length} could not be accepted — see the note under the image. Remove it, or replace it with a screenshot of the screen-time page.`);
+        return;
+      }
+      dispatch({ type: 'next' });
+    } finally {
+      setSending(false);
+      setConfirmDoubtful(false);
     }
-    const phoneStatement = childAssentForm.statements.find((s) => s.id === 'phone-use');
-    if (phoneStatement && state.assent.status === 'completed') {
-      dispatch({ type: 'assent-response', statementId: phoneStatement.id, version: phoneStatement.version, response: 'agreed', via: 'action' });
-    }
-    dispatch({ type: 'donation-status', status: 'completed' });
-    dispatch({ type: 'next' });
   };
 
   const skip = () => {
-    dispatch({ type: 'donation-status', status: 'skipped' });
+    dispatch({ type: 'donation-status', status: sentCount ? 'completed' : 'skipped' });
     dispatch({ type: 'next' });
   };
 
@@ -82,6 +110,8 @@ export function PhoneUse() {
     [editing, uploader],
   );
 
+  const sendLabel = unsent.length ? (unsent.length === 1 ? 'Send this screenshot' : `Send these ${unsent.length} screenshots`) : sentCount ? 'Continue' : 'Send';
+
   return (
     <StepShell
       kicker="Screen time"
@@ -92,20 +122,24 @@ export function PhoneUse() {
       }
       intro={
         <p>
-          A screenshot of the phone’s screen-time page: which apps were used and for how long. Not messages, photos or posts. <strong>Nothing is sent until you press the button at the bottom</strong>, and you can hide any part of an image first.
+          A screenshot of the phone’s screen-time page: which apps were used and for how long. Not messages, photos or posts. <strong>This is the most important part of the study</strong> — it is the one thing nobody else can tell us. You can hide any part of an image before it goes.
         </p>
       }
       errors={error ? [{ field: 'mpmb-capture-choose', message: error }] : []}
-      onContinue={() => void next()}
-      continueLabel={images.length ? (images.length === 1 ? 'Send this screenshot' : `Send these ${images.length} screenshots`) : 'Continue'}
+      onContinue={() => void send()}
+      continueLabel={sendLabel}
       continueLoading={sending}
       secondaryAction={
-        <Button variant="link" onClick={skip}>
-          Skip this for now
-        </Button>
+        !appeal ? (
+          <Button variant="link" onClick={() => setAppeal(true)}>
+            Skip this for now
+          </Button>
+        ) : undefined
       }
       width="wide"
     >
+      <SaveStatus />
+
       <Disclosure summary="Why we ask, and what we do with it">
         <p>{whyPhoneUse.intro}</p>
         <ul className="mpmb-list">
@@ -188,19 +222,69 @@ export function PhoneUse() {
         </Callout>
       )}
 
-      {state.restored && images.some((i) => i.status === 'uploaded') && (
+      {rejectedNote && (
+        <Callout tone="warning" role="alert" title="Not all of the images could be accepted">
+          <p>{rejectedNote}</p>
+        </Callout>
+      )}
+
+      {state.restored && images.some((i) => i.status === 'uploaded' || i.status === 'sent') && (
         <Callout tone="info" role="status">
           <p>Your uploaded images are still saved. Previews are not shown after the page is refreshed, because images are never kept in your browser.</p>
         </Callout>
       )}
 
-      <UploadList images={images} onRemove={uploader.remove} onRetry={() => void next()} onEdit={setEditing} busy={sending} />
+      <UploadList images={images} onRemove={uploader.remove} onRetry={() => void send()} onEdit={setEditing} busy={sending} />
 
-      {images.length > 0 && (
+      {images.length > 0 && !confirmDoubtful && (
         <Callout tone="important" title="Take a moment to check">
           <p>
             If a screenshot shows a notification, a message, a website or an app you would rather not show, use “Hide part of it” or remove it. Hidden parts are removed from the image itself. You can add up to {study.upload.maxImages} images.
           </p>
+        </Callout>
+      )}
+
+      {confirmDoubtful && (
+        <Callout tone="warning" role="alert" title={doubtful.length === 1 ? 'One image doesn’t look like a screen-time page' : `${doubtful.length} images don’t look like screen-time pages`}>
+          <p>Screenshots of the screen-time page are flat, tidy screens with a list of apps. {doubtful.length === 1 ? 'This one looks' : 'These look'} more like a photograph of something else. Please check before sending: if it was added by mistake, remove it.</p>
+          <div className="mpmb-callout__actions">
+            <Button
+              variant="primary"
+              onClick={() => {
+                const ids = doubtful.map((i) => i.id);
+                uploader.acknowledge(ids);
+                void send(ids);
+              }}
+            >
+              It’s right — send anyway
+            </Button>
+            <Button variant="secondary" onClick={() => setConfirmDoubtful(false)}>
+              Let me check
+            </Button>
+          </div>
+        </Callout>
+      )}
+
+      {appeal && (
+        <Callout tone="important" role="alert" title="Before you skip">
+          <p>
+            The screenshots are the part of MyPhone/MyBrain that no one else can provide — real screen-time from real young people, not guesses. Taking part is already recorded, so there is no pressure, but it takes about a minute and it makes a real difference to the study.
+          </p>
+          <div className="mpmb-callout__actions">
+            <Button
+              variant="primary"
+              onClick={() => {
+                setAppeal(false);
+                setHowOpen(true);
+                document.getElementById('mpmb-capture-choose')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+              }}
+            >
+              OK, I’ll add them now
+            </Button>
+            <Button variant="link" onClick={skip}>
+              I really can’t right now — skip
+            </Button>
+          </div>
         </Callout>
       )}
 

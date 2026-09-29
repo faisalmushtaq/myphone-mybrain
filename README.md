@@ -40,7 +40,7 @@ myphone-mybrain/
 
 ## Consent and phone-use donation app (prototype)
 
-`consent-app/` contains a React + TypeScript application (built with Vite) that mounts inside the site at `/take-part/consent/`. It lets a parent or guardian give consent, records the young person's own agreement, and collects screenshots of the phone's screen-time summary. All participant-facing wording is placeholder text marked "Draft wording" in the interface.
+`consent-app/` contains a React + TypeScript application (built with Vite) that mounts inside the site at `/take-part/consent/`. It lets a parent or guardian give consent, records the young person's own agreement (sent to the server the moment they have signed, so participation is on record even if the family stops there), and collects screenshots of the phone's screen-time summary, which are checked for safety and relevance before they are kept. All participant-facing wording is placeholder text marked "Draft wording" in the interface.
 
 It has two backends: an in-memory **mock** (the default; nothing leaves the page) and **Firebase** (`consent-app/firebase/`, see `consent-app/docs/firebase.md`), chosen by repository variables at build time.
 

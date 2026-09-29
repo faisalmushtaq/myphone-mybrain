@@ -32,6 +32,8 @@ export interface GuardianIdentity {
   relationship: RelationshipId | '';
   relationshipOther: string;
   hasParentalResponsibility: boolean;
+  /** Whether the parent asked for a copy of the record by email (email is only required if so). */
+  wantsCopy: boolean;
   email: string;
   phone: string;
   postcode: string;
@@ -103,7 +105,16 @@ export interface AssentRecord {
    Research data: phone-use donation
    ──────────────────────────────────────────────────────────────────────── */
 
-export type UploadStatus = 'pending' | 'uploading' | 'uploaded' | 'failed';
+export type UploadStatus = 'pending' | 'uploading' | 'uploaded' | 'sent' | 'failed';
+
+/** Result of the in-browser check that an image looks like a screen-time page. */
+export interface ImageQuality {
+  verdict: 'likely' | 'unsure' | 'unlikely';
+  reasons: string[];
+  /** Fraction of pixels covered by the eight most common colours (flat UI is high, photographs low). */
+  flatness: number;
+  portrait: boolean;
+}
 
 /**
  * Metadata about an image. The image bytes themselves live in
@@ -124,6 +135,9 @@ export interface DonationImage {
   progress: number;
   uploadId: string | null;
   error: string | null;
+  quality: ImageQuality | null;
+  /** The person looked at a warning and chose to send anyway. */
+  acknowledged: boolean;
 }
 
 export type DonationStatus = 'not-started' | 'in-progress' | 'completed' | 'skipped' | 'not-consented' | 'deferred';
@@ -145,18 +159,33 @@ export interface SessionInfo {
   expiresAt: string;
 }
 
-export type SubmissionStage = 'idle' | 'submitting' | 'done' | 'failed';
+export type SendStage = 'idle' | 'sending' | 'sent' | 'failed';
 
+/**
+ * What has reached the server. The permission and agreement are sent as soon
+ * as the agreement step is finished; screenshots are sent from the
+ * screen-time screen; later changes are sent as amendments.
+ */
 export interface SubmissionState {
-  stage: SubmissionStage;
-  /** Human-readable description of the current stage, for the status region. */
-  stageLabel: string;
-  error: string | null;
   referenceCode: string | null;
-  receivedAt: string | null;
+  participantId: string | null;
+  /** Saving the permission and agreement (first time or amendment). */
+  consentStage: SendStage;
+  consentError: string | null;
+  consentSentAt: string | null;
+  /** How many times the record has been sent (1 = original, 2+ = amendments). */
+  consentVersion: number;
+  /** Snapshot of what was last sent, to detect changes that need an amendment. */
+  sentSnapshot: string | null;
+  /** Sending screenshots. */
+  donationStage: SendStage;
+  donationError: string | null;
+  donationsSent: number;
+  /** Set when a whole record was sent as a decline ("let the team know"). */
+  declinedSentAt: string | null;
 }
 
-export type StepId = 'welcome' | 'child-details' | 'parent-details' | 'parent-consent' | 'child-assent' | 'assent-declined' | 'phone-use' | 'send' | 'done';
+export type StepId = 'welcome' | 'child-details' | 'parent-details' | 'parent-consent' | 'child-assent' | 'assent-declined' | 'phone-use' | 'check' | 'done';
 
 export interface Handover {
   from: Actor;
