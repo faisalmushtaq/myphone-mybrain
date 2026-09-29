@@ -184,13 +184,13 @@ Run it again any time; it skips what is already done.
    firebase login
    firebase deploy --only firestore:rules,storage,functions
    ```
-   or from GitHub: the **Deploy Firebase backend** workflow
+   or, after the one-off `scripts/setup-github-deploys.sh` in Cloud Shell,
+   automatically: the **Deploy Firebase backend** workflow
    (`.github/workflows/firebase-deploy.yml`) runs the function tests and
-   deploys when started from the Actions tab. It needs a service-account
-   JSON key in the repository secret `FIREBASE_SERVICE_ACCOUNT` (roles
-   listed at the top of the workflow file) and the `FIREBASE_PROJECT_ID`
-   variable. Some University Google Cloud organisations block
-   service-account keys; the laptop route needs nothing but a sign-in.
+   deploys on every push to main that touches `consent-app/firebase/`, and
+   can be started by hand from the Actions tab. It authenticates without
+   keys (Workload Identity Federation), so nothing secret is stored in
+   GitHub.
 6. **Web app settings.** Project settings → Your apps → Add web app. Put
    `apiKey`, `projectId`, `appId`, `authDomain`, `storageBucket` into
    `consent-app/.env.production` as `VITE_FIREBASE_API_KEY` and so on, with
