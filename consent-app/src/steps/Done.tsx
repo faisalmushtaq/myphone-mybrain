@@ -29,8 +29,8 @@ export function Done() {
   const steps: string[] = [];
   if (!declined) {
     steps.push(`A copy of the consent summary is emailed to ${state.guardian.email || 'the parent or guardian'}. Keep it somewhere safe.`);
-    if (state.assent.status === 'deferred') steps.push(`The team will ask ${childName} for their own agreement separately, for example at school, before any phone-use information is requested.`);
-    if (state.donation.status === 'skipped') steps.push('You skipped the phone-use part for now. The team can send a link to add it later.');
+    if (state.assent.status === 'deferred') steps.push(state.assent.deferredBy === 'young' ? `${childName} wanted to decide later. The team will ask again, for example at school, before any screen-time information is requested.` : `The team will ask ${childName} for their own agreement separately, for example at school, before any screen-time information is requested.`);
+    if (state.donation.status === 'skipped') steps.push('You skipped the screen-time part for now. The team can send a link to add it later.');
     steps.push('The team will be in touch about the next parts of the study, such as the surveys and the school session.');
   }
 

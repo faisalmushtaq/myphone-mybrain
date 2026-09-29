@@ -156,10 +156,9 @@ export const whyPhoneUse = {
 export const youngRecap = {
   heading: 'Before you decide',
   points: [
-    'Taking part means short surveys, and for some people a session at school where you wear a cap that records brain activity while you do simple computer tasks. You can choose which parts to do.',
-    'Your parent or guardian has said it is okay with them, but it is still your choice.',
-    'Your answers are kept with a code instead of your name. We only report results for groups of young people. If we were ever seriously worried about your safety, we might need to tell someone who can help, and we would talk to you first if we could.',
-    'You can ask a parent, a teacher or the research team anything before you answer.',
+    'Taking part means short surveys, and for some people a session at school where you wear a cap that records brain activity while you do simple computer tasks. You choose which parts to do.',
+    'Your answers get a code number instead of your name, and we only report results for groups of young people. If we were ever seriously worried about your safety we might need to tell someone who can help, and we would talk to you first if we could.',
+    'You can ask a parent, a teacher or the research team anything before you sign.',
   ],
   draft: true,
 };

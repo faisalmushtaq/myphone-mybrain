@@ -5,33 +5,25 @@ import { PrototypePanel } from './components/PrototypePanel';
 import { buildJourney } from './model/journey';
 import type { StepId } from './model/types';
 import { StoreProvider, useStore } from './state/context';
-import { About } from './steps/About';
 import { AssentDeclined } from './steps/AssentDeclined';
 import { ChildAssent } from './steps/ChildAssent';
 import { ChildDetails } from './steps/ChildDetails';
 import { Done } from './steps/Done';
-import { FindScreenTime } from './steps/FindScreenTime';
 import { ParentConsent } from './steps/ParentConsent';
 import { ParentDetails } from './steps/ParentDetails';
-import { ParentInformation } from './steps/ParentInformation';
-import { PhoneType } from './steps/PhoneType';
-import { Review } from './steps/Review';
-import { Upload } from './steps/Upload';
+import { PhoneUse } from './steps/PhoneUse';
+import { Send } from './steps/Send';
 import { Welcome } from './steps/Welcome';
 
 const steps: Record<StepId, ComponentType> = {
   welcome: Welcome,
-  about: About,
   'child-details': ChildDetails,
   'parent-details': ParentDetails,
-  'parent-information': ParentInformation,
   'parent-consent': ParentConsent,
   'child-assent': ChildAssent,
   'assent-declined': AssentDeclined,
-  'phone-type': PhoneType,
-  'find-screen-time': FindScreenTime,
-  upload: Upload,
-  review: Review,
+  'phone-use': PhoneUse,
+  send: Send,
   done: Done,
 };
 
@@ -77,7 +69,6 @@ function useHistorySync() {
         else dispatch({ type: 'back' });
         return;
       }
-      // Forward navigation (or unknown state): stay where we are.
       window.history.pushState({ mpmb: key, depth: depth.current }, '');
     };
     window.addEventListener('popstate', onPop);

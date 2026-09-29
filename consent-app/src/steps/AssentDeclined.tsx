@@ -52,7 +52,7 @@ export function AssentDeclined() {
       <Button
         variant="link"
         onClick={() => {
-          dispatch({ type: 'assent-status', status: 'not-started' });
+          dispatch({ type: 'assent-signature', signature: null });
           dispatch({ type: 'go-to', stepId: 'child-assent' });
         }}
       >

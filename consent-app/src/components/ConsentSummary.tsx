@@ -5,14 +5,14 @@ import { OTHER_SCHOOL_ID, schools } from '../config/schools';
 import { platforms } from '../config/walkthroughs';
 import { formatIsoDate, formatParts, formatTimestamp } from '../lib/dates';
 import { imageStore } from '../lib/imageStore';
-import type { StepId } from '../model/types';
+import type { SignatureRecord, StepId } from '../model/types';
 import { useStore } from '../state/context';
 import { Button } from './ui/Button';
 import { Icon } from './ui/Icon';
 
 interface Props {
   onChange?: (step: StepId) => void;
-  /** Include the technical rows (form versions, exact times) — for the final record, not the review page. */
+  /** Include the technical rows (form versions, exact times) — for the final record, not the send page. */
   detailed?: boolean;
 }
 
@@ -36,6 +36,12 @@ function Response({ response }: { response: 'agreed' | 'declined' | undefined })
   return <span className="mpmb-summary__empty">Not answered</span>;
 }
 
+function Signature({ signature, who }: { signature: SignatureRecord | null; who: string }) {
+  if (!signature) return null;
+  if (signature.method === 'drawn' && signature.imageDataUrl) return <img className="mpmb-summary__signature" src={signature.imageDataUrl} alt={`Drawn signature of ${who}`} />;
+  return <span className="mpmb-summary__typed-signature">{signature.typedName} (typed)</span>;
+}
+
 /** Partly hides contact details so they are not on show to whoever is holding the phone. */
 function mask(value: string, keep = 2): string {
   const v = value.trim();
@@ -48,7 +54,7 @@ function mask(value: string, keep = 2): string {
 }
 
 /**
- * The record of who agreed to what, and when. Used on the review page (with
+ * The record of who agreed to what, and when. Used on the send page (with
  * change links) and on the confirmation page (read-only).
  */
 export function ConsentSummary({ onChange, detailed = false }: Props) {
@@ -59,6 +65,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
   const relationship = guardian.relationship === 'other' ? guardian.relationshipOther : relationships.find((r) => r.id === guardian.relationship)?.label ?? '';
   const childName = identity.firstName.trim() || 'the young person';
   const show = (value: string) => (reveal || detailed ? value : mask(value));
+  const guardianStep: StepId = state.route === 'parent' ? 'child-details' : 'parent-details';
 
   const section = (title: string, step: StepId | null, kind: 'identity' | 'record' | 'research', body: React.ReactNode) => (
     <section className={`mpmb-summary mpmb-summary--${kind}`} aria-labelledby={`summary-${step ?? title}`}>
@@ -92,7 +99,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
 
       {section(
         'Parent or guardian',
-        'parent-details',
+        guardianStep,
         'identity',
         <>
           <dl className="mpmb-summary__list">
@@ -111,7 +118,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
       )}
 
       {section(
-        'Parent or guardian consent',
+        'Parent or guardian permission',
         'parent-consent',
         'record',
         <>
@@ -125,18 +132,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
           </ul>
           <dl className="mpmb-summary__list">
             <Row label="Signed by" value={consent.typedName} />
-            <Row
-              label="Signature"
-              value={
-                consent.signature ? (
-                  consent.signature.method === 'drawn' && consent.signature.imageDataUrl ? (
-                    <img className="mpmb-summary__signature" src={consent.signature.imageDataUrl} alt={`Drawn signature of ${consent.typedName || 'the parent or guardian'}`} />
-                  ) : (
-                    <span className="mpmb-summary__typed-signature">{consent.signature.typedName} (typed)</span>
-                  )
-                ) : null
-              }
-            />
+            <Row label="Signature" value={<Signature signature={consent.signature} who={consent.typedName || 'the parent or guardian'} />} />
             <Row label="Date" value={consent.confirmedDate ? formatIsoDate(consent.confirmedDate) : ''} />
             {detailed && <Row label="Recorded" value={consent.completedAt ? formatTimestamp(consent.completedAt) : ''} />}
             {detailed && <Row label="Form version" value={`${consent.formId} ${consent.formVersion}`} />}
@@ -151,7 +147,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
         'record',
         assent.status === 'deferred' ? (
           <p className="mpmb-summary__note">
-            {assent.deferredBy === 'young' ? `${childName} would like to decide later.` : 'To be collected separately, for example at school.'} The phone-use part will wait until then.
+            {assent.deferredBy === 'young' ? `${childName} would like to decide later.` : 'To be collected separately, for example at school.'} The screen-time part will wait until then.
           </p>
         ) : assent.status === 'not-started' ? (
           <p className="mpmb-summary__note">Not completed yet.</p>
@@ -159,7 +155,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
           <>
             <ul className="mpmb-summary__statements" role="list">
               {childAssentForm.statements
-                .filter((s) => assent.responses[s.id] || s.kind === 'required')
+                .filter((s) => assent.responses[s.id])
                 .map((s) => (
                   <li key={s.id}>
                     <span>{s.label}</span>
@@ -168,7 +164,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
                 ))}
             </ul>
             <dl className="mpmb-summary__list">
-              <Row label="Name" value={assent.typedName} />
+              <Row label="Signature" value={<Signature signature={assent.signature} who={childName} />} />
               {detailed && <Row label="Recorded" value={assent.completedAt ? formatTimestamp(assent.completedAt) : ''} />}
               {detailed && <Row label="Form version" value={`${assent.formId} ${assent.formVersion}`} />}
             </dl>
@@ -177,11 +173,11 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
       )}
 
       {section(
-        'Phone-use information',
-        donation.status === 'not-consented' || donation.status === 'deferred' ? null : 'phone-type',
+        'Screen-time screenshots',
+        donation.status === 'not-consented' || donation.status === 'deferred' ? null : 'phone-use',
         'research',
         donation.status === 'not-consented' ? (
-          <p className="mpmb-summary__note">Not shared — you chose not to share phone-use information. You can change this later by contacting the team.</p>
+          <p className="mpmb-summary__note">Not shared — you chose not to share screen-time information. You can change this later by contacting the team.</p>
         ) : donation.status === 'deferred' ? (
           <p className="mpmb-summary__note">Waiting until {childName} has given their agreement.</p>
         ) : donation.status === 'skipped' ? (

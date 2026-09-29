@@ -129,7 +129,7 @@ export function useUploader() {
         const image: DonationImage = { id, name: file.name, type: blob.type, size: blob.size, width, height, redacted: false, cropped: false, status: 'pending', progress: 0, uploadId: null, error: null };
         dispatch({ type: 'add-image', image });
         count += 1;
-        announce(`Image ${count} added. Nothing is sent until you press “These are ready”.`);
+        announce(`Image ${count} added. Nothing is sent until you press the send button.`);
       }
       setRejected(problems);
       if (problems.length) announce(`${problems.length} file${problems.length === 1 ? ' was' : 's were'} not added.`);
@@ -174,7 +174,7 @@ export function useUploader() {
       }
       dispatch({ type: 'update-image', id: image.id, patch: { type: blob.type, size: blob.size, width, height, redacted: image.redacted || flags.redacted, cropped: image.cropped || flags.cropped, status: 'pending', progress: 0, uploadId: null, error: null } });
       if (image.status === 'uploaded') dispatch({ type: 'donation-status', status: 'in-progress' });
-      announce(flags.redacted ? 'Hidden areas applied. The image will be sent when you press “These are ready”.' : 'Crop applied.');
+      announce(flags.redacted ? 'Hidden areas applied. The image will be sent when you press the send button.' : 'Crop applied.');
     },
     [dispatch],
   );

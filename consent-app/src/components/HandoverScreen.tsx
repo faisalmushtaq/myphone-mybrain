@@ -44,8 +44,7 @@ export function HandoverScreen() {
         <div className="mpmb-handover__body">
           {phase === 'details' || handover.nextStep === 'parent-details' ? (
             <p>
-              <strong>For the parent or guardian:</strong> {childName} has started the MyPhone/MyBrain form. The next part asks for your details, explains the study, and asks for your
-              permission. It takes about five minutes.
+              <strong>For the parent or guardian:</strong> {childName} has started the MyPhone/MyBrain form. The next part asks for your details and your permission. It takes about three minutes.
             </p>
           ) : (
             <p>
@@ -67,7 +66,7 @@ export function HandoverScreen() {
                 <strong>For {childName}:</strong> your parent or guardian has given their permission. Because you are under 18, research rules need their permission as well as yours — but your
                 answer still counts, and you can say no even though they said yes.
               </p>
-              <p>The next part is written for you. Saying no won’t change anything at school.</p>
+              <p>Signing your name means yes. Saying no won’t change anything at school.</p>
               <p className="mpmb-handover__note">
                 <strong>For the parent or guardian:</strong> please let {childName} read and answer this part themselves.
               </p>

@@ -8,17 +8,23 @@ interface Props {
   value: SignatureRecord | null;
   onChange: (signature: SignatureRecord | null) => void;
   error?: string;
+  /** Text shown in the empty box. */
+  placeholder?: string;
+  /** Wording for the typed alternative. */
+  typedLabel?: string;
+  typedHint?: string;
+  switchLabel?: string;
 }
 
-const HEIGHT = 190;
+const HEIGHT = 170;
 
 /**
  * Finger/stylus signature capture on a canvas. The signature is exported as a
- * PNG data URL together with stroke count, pointer type and time, and stored in
- * the consent record. A typed alternative is offered for people who cannot
- * draw (configurable in config/study.ts).
+ * PNG data URL together with stroke count, pointer type and time. A typed
+ * alternative is offered for people who cannot draw (configurable in
+ * config/study.ts); switching to it never counts as signing by itself.
  */
-export function SignaturePad({ id, value, onChange, error }: Props) {
+export function SignaturePad({ id, value, onChange, error, placeholder = 'Sign here', typedLabel = 'Type your full name as your signature', typedHint = 'Typing your full name here, yourself, counts as your signature.', switchLabel = 'I can’t draw my signature' }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const drawing = useRef(false);
@@ -43,13 +49,12 @@ export function SignaturePad({ id, value, onChange, error }: Props) {
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, HEIGHT);
-    // Baseline
     ctx.strokeStyle = '#c8ddda';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(18, HEIGHT - 40);
-    ctx.lineTo(width - 18, HEIGHT - 40);
+    ctx.moveTo(18, HEIGHT - 36);
+    ctx.lineTo(width - 18, HEIGHT - 36);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.lineCap = 'round';
@@ -63,7 +68,6 @@ export function SignaturePad({ id, value, onChange, error }: Props) {
     }
   }, []);
 
-  // (Re)draw on mount, when the stored value changes from outside, and on resize.
   useEffect(() => {
     if (mode !== 'drawn') return;
     paint(value?.method === 'drawn' ? value.imageDataUrl : null);
@@ -120,14 +124,7 @@ export function SignaturePad({ id, value, onChange, error }: Props) {
     }
     const canvas = canvasRef.current;
     if (!canvas) return;
-    onChange({
-      method: 'drawn',
-      imageDataUrl: canvas.toDataURL('image/png'),
-      typedName: null,
-      strokeCount: strokes.current,
-      pointerType: pointerType.current,
-      capturedAt: new Date().toISOString(),
-    });
+    onChange({ method: 'drawn', imageDataUrl: canvas.toDataURL('image/png'), typedName: null, strokeCount: strokes.current, pointerType: pointerType.current, capturedAt: new Date().toISOString() });
   };
 
   const clear = () => {
@@ -142,7 +139,6 @@ export function SignaturePad({ id, value, onChange, error }: Props) {
   };
 
   const switchMode = (next: 'drawn' | 'typed') => {
-    // Switching modes never counts as signing: the person must draw, or type their name, themselves.
     setMode(next);
     strokes.current = 0;
     setTyped('');
@@ -169,17 +165,17 @@ export function SignaturePad({ id, value, onChange, error }: Props) {
             />
             {(!value || value.strokeCount === 0) && (
               <span className="mpmb-signature__placeholder" aria-hidden="true">
-                Sign here
+                {placeholder}
               </span>
             )}
           </div>
           <div className="mpmb-signature__tools">
             <Button variant="secondary" onClick={clear}>
-              Clear and sign again
+              Clear
             </Button>
             {study.allowTypedSignature && (
               <Button variant="link" onClick={() => switchMode('typed')}>
-                I can’t draw my signature
+                {switchLabel}
               </Button>
             )}
           </div>
@@ -187,12 +183,12 @@ export function SignaturePad({ id, value, onChange, error }: Props) {
       ) : (
         <div className="mpmb-signature__typed">
           <label className="mpmb-label" htmlFor={id}>
-            Type your full name as your signature
+            {typedLabel}
           </label>
           <p className="mpmb-hint" id={`${id}-typed-hint`}>
-            Typing your full name here, yourself, counts as your signature.
+            {typedHint}
           </p>
-          <input id={id} className="mpmb-input mpmb-input--signature" value={typed} onChange={(e) => commitTyped(e.target.value)} autoComplete="name" aria-describedby={`${id}-typed-hint`} />
+          <input id={id} className="mpmb-input mpmb-input--signature" value={typed} onChange={(e) => commitTyped(e.target.value)} autoComplete="off" aria-describedby={`${id}-typed-hint`} />
           <div className="mpmb-signature__tools">
             <Button variant="link" onClick={() => switchMode('drawn')}>
               Draw my signature instead

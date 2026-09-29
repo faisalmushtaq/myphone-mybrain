@@ -66,3 +66,27 @@ not acted on, and the things that were already working well.
 * Identifying details, the consent record and research information are separated in the data model, the payload, and visually on the review page; image bytes never touch React state or browser storage; redaction replaces pixels rather than overlaying them.
 * Handover screens are addressed to the person receiving the device, with their name on the button, and the actor strip makes it clear whose section is open.
 * Form primitives follow GOV.UK-style patterns: real inputs under custom visuals, hint and error association, error summary with links, three-part date of birth with a numeric keypad, large targets.
+
+## Second round: streamlining (v2)
+
+After the first version was tested, the journey was shortened from ten
+screens to five or six without removing any of the safeguards above:
+
+* Information and permission share one screen; the required statements sit
+  under one confirmation tick (configurable in `config/study.ts`) and each is
+  still recorded individually with `via: 'group'`.
+* The young person's agreement is a single signature over a three-line list;
+  their screenshot consent is recorded by the act of sending (`via: 'action'`).
+* Phone type, instructions and upload are one screen; the instructions open
+  when a phone is chosen and fold once images are added.
+* The review page became an optional "Review everything before sending"
+  section on a short send screen.
+* The parent route enters the child's and the parent's details on one screen;
+  phone and postcode are folded away as optional.
+
+Things deliberately kept: the handover screens, the explicit Yes/No for each
+optional permission, re-signing after a change, the decline and decide-later
+paths, and contact-detail masking on the review.
+
+The Firebase backend was then built (`docs/firebase.md`) and tested end to
+end against the emulator suite, including the security rules.

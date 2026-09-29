@@ -1,18 +1,27 @@
 import { useState } from 'react';
+import { PermissionRows } from '../components/PermissionRows';
 import { SignaturePad } from '../components/SignaturePad';
-import { StatementList } from '../components/StatementList';
 import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
-import { TextField } from '../components/ui/Field';
-import { parentInformationVersion } from '../config/copy';
+import { CheckboxField, TextField } from '../components/ui/Field';
+import { Disclosure } from '../components/ui/Disclosure';
+import { Draft } from '../components/ui/Draft';
+import { parentInformation, parentInformationVersion } from '../config/copy';
 import { parentConsentForm } from '../config/statements';
 import { study } from '../config/study';
 import { formatIsoDate, todayIso } from '../lib/dates';
 import { limits, namesLookDifferent, validateConsent, type FieldError } from '../lib/validation';
 import { useStore } from '../state/context';
 
-/** Statements, typed name, drawn signature and date: the consent record. */
+/**
+ * One screen: the information, the statements, and the signature.
+ *
+ * The information sits at the top as six one-line summaries, each opening to
+ * the full wording, so it is all available without a separate page. The
+ * required statements are listed under one confirmation tick (each still
+ * recorded individually); the optional permissions are compact Yes/No rows.
+ */
 export function ParentConsent() {
   const { state, dispatch } = useStore();
   const [errors, setErrors] = useState<FieldError[]>([]);
@@ -21,10 +30,13 @@ export function ParentConsent() {
   const consent = state.consent;
   const childName = state.identity.firstName.trim() || 'the young person';
   const nameWarning = consent.typedName && namesLookDifferent(consent.typedName, state.guardian.fullName);
-  const requiredCount = parentConsentForm.statements.filter((s) => s.kind === 'required').length;
+  const required = parentConsentForm.statements.filter((s) => s.kind === 'required');
+  const optional = parentConsentForm.statements.filter((s) => s.kind === 'optional');
+  const allRequiredAgreed = required.every((s) => consent.responses[s.id]?.response === 'agreed');
+  const grouped = study.groupRequiredStatements;
 
   const next = () => {
-    const found = validateConsent(consent, parentConsentForm);
+    const found = validateConsent(consent, parentConsentForm, grouped);
     setErrors(found);
     if (found.length) return;
     dispatch({ type: 'consent-complete', informationVersion: parentInformationVersion.version });
@@ -33,41 +45,91 @@ export function ParentConsent() {
 
   return (
     <StepShell
-      kicker={parentConsentForm.title}
+      kicker="Parent or guardian"
       title={<>Your permission for {childName} to take part.</>}
-      intro={
-        <p>
-          Please read each statement and choose. The first {requiredCount} are needed to take part; the others are separate choices, and you can say no to any of them. The{' '}
-          <a href={study.contact.privacyPageUrl} target="_blank" rel="noopener">
-            privacy notice
-          </a>{' '}
-          explains how information is looked after.
-        </p>
-      }
+      intro={<p>Read the short summary, confirm the statements, choose the separate permissions, and sign. About three minutes.</p>}
       errors={errors}
       onContinue={next}
-      continueLabel="Confirm my consent"
+      continueLabel="Confirm and sign"
+      width="wide"
     >
       {consent.revisedAt && !consent.signature && (
         <Callout tone="important" role="status">
           <p>You changed one of your answers after signing, so please sign again at the bottom to confirm the new answers.</p>
         </Callout>
       )}
-      <StatementList
-        statements={parentConsentForm.statements}
-        responses={consent.responses}
-        errors={errs}
-        onRespond={(s, response) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, response })}
-        onClear={(s) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, response: 'declined' })}
-        yesLabel="Yes, I agree"
-        noLabel="No"
-      />
 
-      <div className="mpmb-sign">
-        <h2 className="mpmb-h3">Sign to confirm</h2>
-        <p>Your signature confirms the choices above. It is stored with this record as evidence of your consent.</p>
+      <section className="mpmb-info-compact" aria-labelledby="info-heading">
+        <h2 className="mpmb-h3" id="info-heading">
+          What you need to know <Draft />
+        </h2>
+        <ul role="list">
+          {parentInformation.map((section) => (
+            <li key={section.id}>
+              <details className="mpmb-info-compact__item">
+                <summary>
+                  <span className="mpmb-info-compact__title">{section.title}</span>
+                  <span className="mpmb-info-compact__summary">{section.summary}</span>
+                  <span className="mpmb-disclosure__chevron" aria-hidden="true" />
+                </summary>
+                <div className="mpmb-info-compact__body">
+                  {section.detail.map((para, j) => (
+                    <p key={j}>{para}</p>
+                  ))}
+                </div>
+              </details>
+            </li>
+          ))}
+        </ul>
+        <p className="mpmb-hint">
+          Full documents:{' '}
+          <a href={study.contact.documentsPageUrl} target="_blank" rel="noopener">
+            participant information sheet
+          </a>{' '}
+          and{' '}
+          <a href={study.contact.privacyPageUrl} target="_blank" rel="noopener">
+            privacy notice
+          </a>
+          . Questions: <a href={`mailto:${study.contact.email}`}>{study.contact.email}</a>. Version {parentInformationVersion.version}, {formatIsoDate(parentInformationVersion.date)}.
+        </p>
+      </section>
+
+      <section className="mpmb-required" aria-labelledby="required-heading">
+        <h2 className="mpmb-h3" id="required-heading">
+          Needed to take part <Draft />
+        </h2>
+        {grouped ? (
+          <div className={`mpmb-required__group${errs['stmt-required-group'] ? ' has-error' : ''}`}>
+            <ul className="mpmb-required__list" role="list">
+              {required.map((s) => (
+                <li key={s.id}>{s.text}</li>
+              ))}
+            </ul>
+            <CheckboxField id="stmt-required-group" checked={allRequiredAgreed} onChange={(checked) => dispatch({ type: 'consent-required-group', agreed: checked })} label={<strong>I confirm all of the above.</strong>} error={errs['stmt-required-group']} emphasis />
+          </div>
+        ) : (
+          <div className="mpmb-fields">
+            {required.map((s) => (
+              <CheckboxField key={s.id} id={`stmt-${s.id}`} checked={consent.responses[s.id]?.response === 'agreed'} onChange={(checked) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, response: checked ? 'agreed' : 'declined' })} label={s.text} error={errs[`stmt-${s.id}`]} emphasis />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mpmb-choices" aria-labelledby="choices-heading">
+        <h2 className="mpmb-h3" id="choices-heading">
+          Your choices
+        </h2>
+        <p className="mpmb-hint">Each of these is separate. You can say no to any of them and still take part.</p>
+        <PermissionRows statements={optional} responses={consent.responses} errors={errs} onRespond={(s, response) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, response })} />
+      </section>
+
+      <section className="mpmb-sign" aria-labelledby="sign-heading">
+        <h2 className="mpmb-h3" id="sign-heading">
+          Sign to confirm
+        </h2>
         <div className="mpmb-fields">
-          <TextField id="consent-typed-name" label="Your full name" required autoComplete="name" maxLength={limits.name} value={consent.typedName} onChange={(e) => dispatch({ type: 'consent-typed-name', name: e.target.value })} error={errs['consent-typed-name']} />
+          <TextField id="consent-typed-name" label="Your full name" required autoComplete="name" maxLength={limits.name} width="half" value={consent.typedName} onChange={(e) => dispatch({ type: 'consent-typed-name', name: e.target.value })} error={errs['consent-typed-name']} />
           {nameWarning && (
             <Callout tone="warning" role="status">
               <p>
@@ -76,12 +138,7 @@ export function ParentConsent() {
             </Callout>
           )}
           <div className={`mpmb-field${errs['signature-pad'] ? ' has-error' : ''}`}>
-            <p className="mpmb-label" id="signature-label">
-              Your signature
-            </p>
-            <p className="mpmb-hint" id="signature-hint">
-              Sign in the box using your finger, a stylus or a mouse.
-            </p>
+            <p className="mpmb-label">Your signature</p>
             {errs['signature-pad'] && (
               <p className="mpmb-error" id="signature-pad-error">
                 <span className="mpmb-sr-only">Error: </span>
@@ -91,7 +148,6 @@ export function ParentConsent() {
             <SignaturePad id="signature-pad" value={consent.signature} onChange={(signature) => dispatch({ type: 'consent-signature', signature })} error={errs['signature-pad']} />
           </div>
           <div className={`mpmb-field mpmb-field--date${errs['consent-date'] ? ' has-error' : ''}`} id="consent-date" tabIndex={-1}>
-            <p className="mpmb-label">Date</p>
             {errs['consent-date'] && (
               <p className="mpmb-error">
                 <span className="mpmb-sr-only">Error: </span>
@@ -100,23 +156,28 @@ export function ParentConsent() {
             )}
             {editDate ? (
               <div className="mpmb-inline">
-                <input id="consent-date-input" type="date" className="mpmb-input mpmb-input--short" value={consent.confirmedDate} max={todayIso()} onChange={(e) => dispatch({ type: 'consent-date', date: e.target.value })} aria-label="Date of consent" />
+                <label className="mpmb-label" htmlFor="consent-date-input">
+                  Date
+                </label>
+                <input id="consent-date-input" type="date" className="mpmb-input mpmb-input--short" value={consent.confirmedDate} max={todayIso()} onChange={(e) => dispatch({ type: 'consent-date', date: e.target.value })} />
                 <Button variant="link" onClick={() => setEditDate(false)}>
                   Done
                 </Button>
               </div>
             ) : (
-              <p className="mpmb-inline">
-                <strong>{formatIsoDate(consent.confirmedDate)}</strong>
+              <p className="mpmb-inline mpmb-date-line">
+                Date: <strong>{formatIsoDate(consent.confirmedDate)}</strong>
                 <Button variant="link" onClick={() => setEditDate(true)}>
-                  Change date
+                  Change
                 </Button>
               </p>
             )}
-            <p className="mpmb-hint">Today’s date is filled in automatically. The exact time you confirm is also recorded.</p>
           </div>
+          <Disclosure summary="What happens with this record">
+            <p>Your choices, name, signature and the version of the information you read are stored as the record of your permission. The time you confirm is also recorded. You can withdraw at any time by contacting the team.</p>
+          </Disclosure>
         </div>
-      </div>
+      </section>
     </StepShell>
   );
 }

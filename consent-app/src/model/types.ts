@@ -50,6 +50,8 @@ export interface StatementRecord {
   response: StatementResponse;
   /** ISO timestamp from the device clock. The server adds its own on receipt. */
   respondedAt: string;
+  /** How the response was given: its own control, one tick covering a group, or a signature. */
+  via: 'individual' | 'group' | 'signature' | 'action';
 }
 
 export interface SignatureRecord {
@@ -88,7 +90,8 @@ export interface AssentRecord {
   /** Who chose to defer: the parent (child not present) or the young person ("decide later"). */
   deferredBy: 'parent' | 'young' | null;
   responses: Record<string, StatementRecord>;
-  typedName: string;
+  /** The young person's signature (drawn, or their typed first name). */
+  signature: SignatureRecord | null;
   /** When the device was handed to the young person (parent pressed "continue" on the handover screen). */
   handoverConfirmedAt: string | null;
   /** When the agreement screen was first shown to the young person. */
@@ -123,13 +126,7 @@ export interface DonationImage {
   error: string | null;
 }
 
-export type DonationStatus =
-  | 'not-started'
-  | 'in-progress'
-  | 'completed'
-  | 'skipped'
-  | 'not-consented'
-  | 'deferred';
+export type DonationStatus = 'not-started' | 'in-progress' | 'completed' | 'skipped' | 'not-consented' | 'deferred';
 
 export interface PhoneUseDonation {
   platform: PlatformId | null;
@@ -143,6 +140,7 @@ export interface PhoneUseDonation {
 
 export interface SessionInfo {
   sessionId: string;
+  /** Anti-forgery token for cookie-based backends; empty for token-based ones such as Firebase. */
   csrfToken: string;
   expiresAt: string;
 }
@@ -158,20 +156,7 @@ export interface SubmissionState {
   receivedAt: string | null;
 }
 
-export type StepId =
-  | 'welcome'
-  | 'about'
-  | 'child-details'
-  | 'parent-details'
-  | 'parent-information'
-  | 'parent-consent'
-  | 'child-assent'
-  | 'assent-declined'
-  | 'phone-type'
-  | 'find-screen-time'
-  | 'upload'
-  | 'review'
-  | 'done';
+export type StepId = 'welcome' | 'child-details' | 'parent-details' | 'parent-consent' | 'child-assent' | 'assent-declined' | 'phone-use' | 'send' | 'done';
 
 export interface Handover {
   from: Actor;
@@ -194,7 +179,7 @@ export interface AppState {
   clearedReason: 'inactivity' | 'expired' | null;
   /** Parent route: whether the young person is present to give their agreement. */
   childPresent: boolean | null;
-  /** When set, "Continue" returns to the review step once later steps are complete. */
+  /** When set, "Continue" returns to this step once later steps are complete. */
   returnTo: StepId | null;
   identity: ParticipantIdentity;
   guardian: GuardianIdentity;

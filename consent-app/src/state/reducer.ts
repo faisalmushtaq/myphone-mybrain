@@ -14,6 +14,7 @@ import type {
   Route,
   SessionInfo,
   SignatureRecord,
+  StatementRecord,
   StatementResponse,
   StepId,
   SubmissionState,
@@ -46,7 +47,7 @@ export function initialState(): AppState {
       status: 'not-started',
       deferredBy: null,
       responses: {},
-      typedName: '',
+      signature: null,
       handoverConfirmedAt: null,
       startedAt: null,
       completedAt: null,
@@ -57,6 +58,10 @@ export function initialState(): AppState {
     prototype: { failUploads: false, failSubmit: false, showDraftMarkers: true },
     restored: false,
   };
+}
+
+function record(statementId: string, version: string, response: StatementResponse, via: StatementRecord['via']): StatementRecord {
+  return { statementId, version, response, respondedAt: new Date().toISOString(), via };
 }
 
 export type Action =
@@ -72,13 +77,18 @@ export type Action =
   | { type: 'update-identity'; patch: Partial<ParticipantIdentity> }
   | { type: 'update-guardian'; patch: Partial<GuardianIdentity> }
   | { type: 'consent-response'; statementId: string; version: string; response: StatementResponse }
+  /** One tick that agrees to every required statement at once (each is still recorded individually). */
+  | { type: 'consent-required-group'; agreed: boolean }
   | { type: 'consent-typed-name'; name: string }
   | { type: 'consent-signature'; signature: SignatureRecord | null }
   | { type: 'consent-date'; date: string }
   | { type: 'consent-complete'; informationVersion: string }
   | { type: 'assent-started' }
-  | { type: 'assent-response'; statementId: string; version: string; response: StatementResponse }
-  | { type: 'assent-typed-name'; name: string }
+  | { type: 'assent-signature'; signature: SignatureRecord | null }
+  /** The young person signs: every statement covered by the signature is recorded as agreed. */
+  | { type: 'assent-sign' }
+  | { type: 'assent-decline' }
+  | { type: 'assent-response'; statementId: string; version: string; response: StatementResponse; via?: StatementRecord['via'] }
   | { type: 'assent-status'; status: AssentStatus; deferredBy?: 'parent' | 'young' }
   | { type: 'set-platform'; platform: PlatformId }
   | { type: 'add-image'; image: DonationImage }
@@ -97,11 +107,11 @@ function moveTo(state: AppState, target: StepId): AppState {
   return { ...state, stepId: target, handover: null };
 }
 
-/** After a change made from the review page, return there once everything in between is complete. */
+/** After a change made from the send page, return there once everything in between is complete. */
 function nextAfterChange(state: AppState): StepId | null {
   const journey = buildJourney(state);
   const from = journey.indexOf(state.stepId);
-  const to = journey.indexOf(state.returnTo ?? 'review');
+  const to = journey.indexOf(state.returnTo ?? 'send');
   if (from < 0 || to < 0) return null;
   for (let i = from + 1; i < to; i += 1) {
     if (!isStepComplete(journey[i], state)) return journey[i];
@@ -112,6 +122,18 @@ function nextAfterChange(state: AppState): StepId | null {
 function deferDonation(state: AppState): AppState['donation'] {
   // A parent's "no" to phone-use takes precedence over "waiting for the young person".
   return state.donation.status === 'not-consented' ? state.donation : { ...state.donation, status: 'deferred' };
+}
+
+/** Changing a consent statement after signing invalidates the signature. */
+function withConsentResponses(state: AppState, responses: Record<string, StatementRecord>): AppState['consent'] {
+  const signedBefore = state.consent.completedAt !== null;
+  return {
+    ...state.consent,
+    responses,
+    completedAt: null,
+    signature: signedBefore ? null : state.consent.signature,
+    revisedAt: signedBefore ? new Date().toISOString() : state.consent.revisedAt,
+  };
 }
 
 export function reducer(state: AppState, action: Action): AppState {
@@ -136,7 +158,7 @@ export function reducer(state: AppState, action: Action): AppState {
     }
     case 'go-to': {
       const next = { ...state, returnTo: action.returnTo === undefined ? state.returnTo : action.returnTo };
-      // Changing identifying details is open to either person; consent and agreement sections are not.
+      // Changing identifying details is open to either person; permission and agreement sections are not.
       const guarded = stepDefs[action.stepId].phase === 'consent' || stepDefs[action.stepId].phase === 'agreement';
       return guarded ? moveTo(next, action.stepId) : { ...next, stepId: action.stepId, handover: null };
     }
@@ -150,8 +172,8 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'set-child-present': {
       const next = { ...state, childPresent: action.present };
       if (!action.present) {
-        // The young person's part is collected separately, so their agreement and the phone-use steps are skipped.
-        next.assent = { ...state.assent, status: 'deferred', deferredBy: 'parent', responses: {}, typedName: '', completedAt: null };
+        // The young person's part is collected separately, so their agreement and the phone-use step are skipped.
+        next.assent = { ...state.assent, status: 'deferred', deferredBy: 'parent', responses: {}, signature: null, completedAt: null };
         next.donation = deferDonation(state);
       } else if (state.assent.status === 'deferred') {
         next.assent = { ...state.assent, status: 'not-started', deferredBy: null };
@@ -161,29 +183,30 @@ export function reducer(state: AppState, action: Action): AppState {
     }
     case 'update-identity':
       return { ...state, identity: { ...state.identity, ...action.patch } };
-    case 'update-guardian':
-      return { ...state, guardian: { ...state.guardian, ...action.patch } };
+    case 'update-guardian': {
+      const guardian = { ...state.guardian, ...action.patch };
+      // The name on the permission screen starts as the name given here, unless the parent has already changed it.
+      const typedName = state.consent.typedName === state.guardian.fullName || !state.consent.typedName ? guardian.fullName : state.consent.typedName;
+      return { ...state, guardian, consent: { ...state.consent, typedName } };
+    }
     case 'consent-response': {
-      const responses = {
-        ...state.consent.responses,
-        [action.statementId]: { statementId: action.statementId, version: action.version, response: action.response, respondedAt: new Date().toISOString() },
-      };
-      // A signature attests to the statements as they stood; changing one after signing means signing again.
-      const signedBefore = state.consent.completedAt !== null;
-      const consent = {
-        ...state.consent,
-        responses,
-        completedAt: null,
-        signature: signedBefore ? null : state.consent.signature,
-        revisedAt: signedBefore ? new Date().toISOString() : state.consent.revisedAt,
-      };
+      const responses = { ...state.consent.responses, [action.statementId]: record(action.statementId, action.version, action.response, 'individual') };
       const donation =
         action.statementId === 'phone-use' && action.response === 'declined'
           ? { ...state.donation, status: 'not-consented' as DonationStatus }
           : action.statementId === 'phone-use' && state.donation.status === 'not-consented'
             ? { ...state.donation, status: 'not-started' as DonationStatus }
             : state.donation;
-      return { ...state, consent, donation };
+      return { ...state, consent: withConsentResponses(state, responses), donation };
+    }
+    case 'consent-required-group': {
+      const responses = { ...state.consent.responses };
+      for (const s of parentConsentForm.statements) {
+        if (s.kind !== 'required') continue;
+        if (action.agreed) responses[s.id] = record(s.id, s.version, 'agreed', 'group');
+        else delete responses[s.id];
+      }
+      return { ...state, consent: withConsentResponses(state, responses) };
     }
     case 'consent-typed-name':
       return { ...state, consent: { ...state.consent, typedName: action.name, completedAt: null } };
@@ -195,26 +218,30 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, consent: { ...state.consent, completedAt: new Date().toISOString(), informationVersion: action.informationVersion } };
     case 'assent-started':
       return state.assent.startedAt ? state : { ...state, assent: { ...state.assent, startedAt: new Date().toISOString() } };
-    case 'assent-response': {
-      const responses = {
-        ...state.assent.responses,
-        [action.statementId]: { statementId: action.statementId, version: action.version, response: action.response, respondedAt: new Date().toISOString() },
-      };
-      return { ...state, assent: { ...state.assent, responses, status: 'not-started', deferredBy: null, completedAt: null } };
+    case 'assent-signature':
+      return { ...state, assent: { ...state.assent, signature: action.signature, status: 'not-started', completedAt: null } };
+    case 'assent-sign': {
+      const responses = { ...state.assent.responses };
+      for (const s of childAssentForm.statements) {
+        if (s.coveredBySignature) responses[s.id] = record(s.id, s.version, 'agreed', 'signature');
+      }
+      const assent = { ...state.assent, responses, status: 'completed' as AssentStatus, deferredBy: null, completedAt: new Date().toISOString() };
+      const donation = (state.donation.status === 'deferred' || state.donation.status === 'not-consented') && state.consent.responses['phone-use']?.response !== 'declined' ? { ...state.donation, status: 'not-started' as DonationStatus } : state.donation;
+      return { ...state, assent, donation };
     }
-    case 'assent-typed-name':
-      return { ...state, assent: { ...state.assent, typedName: action.name } };
+    case 'assent-decline': {
+      const takePart = childAssentForm.statements.find((s) => s.id === 'take-part');
+      const responses = { ...state.assent.responses, 'take-part': record('take-part', takePart?.version ?? childAssentForm.version, 'declined', 'individual') };
+      return { ...state, assent: { ...state.assent, responses, signature: null, status: 'declined', deferredBy: null, completedAt: new Date().toISOString() } };
+    }
+    case 'assent-response': {
+      const responses = { ...state.assent.responses, [action.statementId]: record(action.statementId, action.version, action.response, action.via ?? 'individual') };
+      return { ...state, assent: { ...state.assent, responses } };
+    }
     case 'assent-status': {
       const completedAt = action.status === 'completed' || action.status === 'declined' ? new Date().toISOString() : null;
       const assent = { ...state.assent, status: action.status, deferredBy: action.status === 'deferred' ? (action.deferredBy ?? 'young') : null, completedAt };
-      let donation = state.donation;
-      if (action.status === 'deferred') {
-        donation = deferDonation(state);
-      } else if (action.status === 'completed' && state.assent.responses['phone-use']?.response === 'declined') {
-        donation = { ...state.donation, status: 'not-consented' };
-      } else if (action.status === 'completed' && (state.donation.status === 'not-consented' || state.donation.status === 'deferred') && state.consent.responses['phone-use']?.response !== 'declined') {
-        donation = { ...state.donation, status: 'not-started' };
-      }
+      const donation = action.status === 'deferred' ? deferDonation(state) : state.donation;
       return { ...state, assent, donation };
     }
     case 'set-platform':

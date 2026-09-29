@@ -35,6 +35,14 @@ export const study = {
   inactivityMinutes: 30,
 
   /**
+   * Show the required consent statements as a list under ONE confirmation
+   * tick (fast, common in online consent) rather than one checkbox each.
+   * Each statement is still recorded individually. The ethics committee may
+   * prefer itemised ticks; set false to get them.
+   */
+  groupRequiredStatements: true,
+
+  /**
    * Accessibility alternative to a drawn signature. When true, a parent who
    * cannot draw can type their full name instead; the record stores which
    * method was used. Whether this is acceptable must be agreed with ethics.

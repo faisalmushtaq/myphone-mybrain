@@ -1,0 +1,55 @@
+rules_version = '2';
+
+// Browsers never read or write Firestore directly. Every record is written by
+// the submitConsent Cloud Function using the Admin SDK (which bypasses these
+// rules), and the research team reads through admin tooling or a separate
+// signed-in app whose users carry custom claims.
+//
+// participants/   identifying details (names, date of birth, contact details)
+// consents/       parent or guardian permission records
+// assents/        young people's agreement records
+// donations/      research data: references to screen-time images
+// submissions/    one row per submission (reference code, links to the above)
+// mail/           outgoing emails for the Trigger Email extension
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function hasRole(role) {
+      return request.auth != null && 'roles' in request.auth.token && role in request.auth.token.roles;
+    }
+
+    // Identifying details: only study coordinators.
+    match /participants/{participantId} {
+      allow read: if hasRole('coordinator');
+      allow write: if false;
+    }
+
+    // Consent and assent records: coordinators and auditors, never edited.
+    match /consents/{consentId} {
+      allow read: if hasRole('coordinator') || hasRole('auditor');
+      allow write: if false;
+    }
+    match /assents/{assentId} {
+      allow read: if hasRole('coordinator') || hasRole('auditor');
+      allow write: if false;
+    }
+
+    // Research data: researchers see references to images labelled by study id only.
+    match /donations/{donationId} {
+      allow read: if hasRole('researcher') || hasRole('coordinator');
+      allow write: if false;
+    }
+
+    match /submissions/{referenceCode} {
+      allow read: if hasRole('coordinator');
+      allow write: if false;
+    }
+
+    match /mail/{mailId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

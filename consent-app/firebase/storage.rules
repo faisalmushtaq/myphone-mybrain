@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// quarantine/{uid}/{uploadId}
+//   Written by the browser during a session. A session may create and delete
+//   its own objects only, within size and type limits, and can never read
+//   them back. The submitConsent function moves accepted images out of here;
+//   a bucket lifecycle rule deletes anything left after 1 day.
+//
+// donations/{participantId}/...   research images (metadata stripped)
+// signatures/{participantId}/...  signature images from consent records
+//   Only reachable through the Admin SDK and signed-in admin tooling.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isImage() {
+      return request.resource.contentType in ['image/png', 'image/jpeg', 'image/webp'];
+    }
+    function underLimit() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    function ownsPath(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function hasRole(role) {
+      return request.auth != null && 'roles' in request.auth.token && role in request.auth.token.roles;
+    }
+
+    match /quarantine/{uid}/{uploadId} {
+      allow create: if ownsPath(uid) && isImage() && underLimit() && uploadId.matches('^[0-9a-f-]{36}$');
+      allow delete: if ownsPath(uid);
+      allow read, update: if false;
+    }
+
+    match /donations/{participantId}/{file} {
+      allow read: if hasRole('researcher') || hasRole('coordinator');
+      allow write: if false;
+    }
+
+    match /signatures/{participantId}/{file} {
+      allow read: if hasRole('coordinator') || hasRole('auditor');
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

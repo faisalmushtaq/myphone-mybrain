@@ -34,6 +34,17 @@ jobs:
       - name: Build consent app
         run: npm ci && npm run build
         working-directory: consent-app
+        env:
+          # Repository → Settings → Variables. Defaults keep the prototype (mock backend) until these are set.
+          MPMB_PROTOTYPE: ${{ vars.MPMB_PROTOTYPE || 'true' }}
+          VITE_MPMB_BACKEND: ${{ vars.MPMB_BACKEND || 'mock' }}
+          VITE_FIREBASE_API_KEY: ${{ vars.FIREBASE_API_KEY }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.FIREBASE_APP_ID }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_REGION: ${{ vars.FIREBASE_REGION || 'europe-west2' }}
+          VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ vars.FIREBASE_APPCHECK_SITE_KEY }}
 
       - name: Build Jekyll
         run: bundle exec jekyll build

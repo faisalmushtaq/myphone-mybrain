@@ -9,7 +9,7 @@ import { ageOn, partsToDate, toInt } from './dates';
  * Validation rules for each step. Messages are written for the person
  * filling in the form: specific, calm, and saying what to do next.
  *
- * The same rules must be re-implemented server-side in production.
+ * The same rules are re-implemented server-side (firebase/functions).
  */
 export interface FieldError {
   /** The id of the element to focus when the error is chosen from the summary. */
@@ -127,57 +127,40 @@ export function statementField(statementId: string, kind: 'required' | 'optional
   return kind === 'required' ? `stmt-${statementId}` : `stmt-${statementId}-agreed`;
 }
 
-export function validateConsent(consent: ConsentRecord, form: StatementForm): FieldError[] {
+export function validateConsent(consent: ConsentRecord, form: StatementForm, groupedRequired = study.groupRequiredStatements): FieldError[] {
   const errors: FieldError[] = [];
+  const required = form.statements.filter((s) => s.kind === 'required');
+  const missingRequired = required.filter((s) => consent.responses[s.id]?.response !== 'agreed');
+  if (groupedRequired) {
+    if (missingRequired.length) errors.push({ field: 'stmt-required-group', message: 'Tick the box to confirm the statements needed to take part.' });
+  } else {
+    for (const s of missingRequired) errors.push({ field: statementField(s.id, 'required'), message: `Tick “${s.label}” to continue. This one is needed to take part.` });
+  }
   for (const statement of form.statements) {
-    const record = consent.responses[statement.id];
-    if (statement.kind === 'required') {
-      if (!record || record.response !== 'agreed') {
-        errors.push({ field: statementField(statement.id, 'required'), message: `Tick “${statement.label}” to continue. This one is needed to take part.` });
-      }
-    } else if (!record) {
+    if (statement.kind === 'optional' && !consent.responses[statement.id]) {
       errors.push({ field: statementField(statement.id, 'optional'), message: `Choose Yes or No for “${statement.label}”.` });
     }
   }
   if (blank(consent.typedName)) {
     errors.push({ field: 'consent-typed-name', message: 'Type your full name.' });
   }
-  if (!consent.signature) {
-    errors.push({ field: 'signature-pad', message: 'Add your signature in the box. Use your finger or a stylus, or choose “I can’t draw my signature”.' });
-  } else if (consent.signature.method === 'drawn' && consent.signature.strokeCount < 1) {
-    errors.push({ field: 'signature-pad', message: 'Your signature looks empty. Please sign in the box.' });
-  }
+  errors.push(...signatureErrors(consent.signature, 'signature-pad', 'Add your signature in the box. Use your finger or a stylus, or choose “I can’t draw my signature”.'));
   if (!/^\d{4}-\d{2}-\d{2}$/.test(consent.confirmedDate)) {
     errors.push({ field: 'consent-date', message: 'Check the date.' });
   }
   return errors;
 }
 
-export function validateAssent(assent: AssentRecord, form: StatementForm, includePhoneUse = true): FieldError[] {
-  const errors: FieldError[] = [];
-  const takePart = assent.responses['take-part'];
-  if (!takePart) {
-    errors.push({ field: statementField('take-part', 'optional'), message: 'Choose Yes or No for “Taking part”.' });
-  }
-  // If the young person has said no, nothing else is required.
-  if (takePart?.response === 'declined') return errors;
+/** The young person's agreement is their signature. */
+export function validateAssent(assent: AssentRecord): FieldError[] {
+  return signatureErrors(assent.signature, 'assent-signature', 'Sign your name in the box to say yes, or choose one of the other options below.');
+}
 
-  for (const statement of form.statements) {
-    if (statement.id === 'take-part') continue;
-    if (statement.id === 'phone-use' && !includePhoneUse) continue;
-    const record = assent.responses[statement.id];
-    if (statement.kind === 'required') {
-      if (!record || record.response !== 'agreed') {
-        errors.push({ field: statementField(statement.id, 'required'), message: `Tick “${statement.label}”. If you are not sure, ask your parent, guardian or teacher first.` });
-      }
-    } else if (!record) {
-      errors.push({ field: statementField(statement.id, 'optional'), message: `Choose Yes or No for “${statement.label}”.` });
-    }
-  }
-  if (blank(assent.typedName)) {
-    errors.push({ field: 'assent-typed-name', message: 'Type your first name.' });
-  }
-  return errors;
+function signatureErrors(signature: ConsentRecord['signature'], field: string, missing: string): FieldError[] {
+  if (!signature) return [{ field, message: missing }];
+  if (signature.method === 'drawn' && signature.strokeCount < 1) return [{ field, message: 'The signature looks empty. Please sign in the box.' }];
+  if (signature.method === 'typed' && !signature.typedName?.trim()) return [{ field, message: 'Type your name to sign.' }];
+  return [];
 }
 
 export const isValidChildDetails = (identity: ParticipantIdentity) => validateChildDetails(identity).length === 0;

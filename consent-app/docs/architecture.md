@@ -52,6 +52,16 @@ submit(sessionId, csrfToken, payload)      → { referenceCode, receivedAt }
 delay and two failure toggles (upload, submit) exposed in the on-screen
 "Prototype controls" panel.
 
+## The backend that is built: Firebase
+
+`docs/firebase.md` describes the implemented backend: anonymous Firebase
+Authentication for the session, Cloud Storage for uploads (browser writes
+into its own quarantine folder only), one callable Cloud Function that
+validates everything again and writes five separated Firestore collections,
+and security rules that give browsers no read access at all. The section
+below is the general architecture it implements; where the two differ, the
+Firebase document is current.
+
 ## Proposed production architecture
 
 This is a proposal to be agreed with University of Leeds IT, the data
@@ -59,11 +69,11 @@ protection team and the ethics committee. It describes mechanisms, not
 compliance claims.
 
 ### Hosting
-* The consent page and the API must be served from the **same registrable
-  domain** (University hosting, for example `consent.myphonemybrain.leeds.ac.uk`
-  with the API under `/api/`). GitHub Pages cannot set security headers and a
-  cross-site cookie would be blocked by browsers, so the form should not be
-  served from GitHub Pages in production, even though the marketing site is.
+* With Firebase, sessions are bearer tokens rather than cookies, so the
+  consent page can stay on GitHub Pages with the marketing site. (A
+  cookie-based API would need the page and the API on the same registrable
+  domain, because GitHub Pages cannot set security headers and browsers block
+  cross-site cookies.)
 * HTTPS only with HSTS; `Referrer-Policy: no-referrer`; `X-Frame-Options`
   / `frame-ancestors 'none'`.
 * Content-Security-Policy: `default-src 'self'; img-src 'self' blob: data:;

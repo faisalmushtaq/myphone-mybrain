@@ -1,22 +1,26 @@
-import { study } from '../config/study';
-import { useStore } from '../state/context';
-import { Button } from '../components/ui/Button';
-import { Icon } from '../components/ui/Icon';
 import { useEffect, useRef } from 'react';
 import family from '../assets/family.jpg';
+import { Button } from '../components/ui/Button';
+import { Disclosure } from '../components/ui/Disclosure';
+import { Draft } from '../components/ui/Draft';
+import { Icon } from '../components/ui/Icon';
+import { aboutStudy } from '../config/copy';
+import { study } from '../config/study';
+import { useStore } from '../state/context';
 
-/** Entry screen: two clear ways in, and a short reassurance. */
+/** Entry screen: who is starting, what this involves, and three reassurances. */
 export function Welcome() {
   const { state, dispatch } = useStore();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
+    document.title = 'Take part online – MyPhone/MyBrain';
     headingRef.current?.focus({ preventScroll: true });
   }, []);
 
   const choose = (route: 'parent' | 'young') => {
     dispatch({ type: 'set-route', route });
-    dispatch({ type: 'go-to', stepId: 'about', returnTo: null });
+    dispatch({ type: 'go-to', stepId: 'child-details', returnTo: null });
   };
 
   const resume = state.route !== null && state.stepId === 'welcome' && (state.identity.firstName || state.consent.completedAt);
@@ -28,8 +32,7 @@ export function Welcome() {
         Take part in MyPhone/MyBrain.
       </h1>
       <p className="mpmb-lead">
-        This takes about ten minutes, and you do it together. A parent or guardian gives their permission, the young person says whether they want to take part, and, if you are both happy, you share
-        a screenshot of the phone’s screen-time summary.
+        About five minutes, done together: a parent or guardian gives permission, the young person signs to say yes, and, if you both want to, you share a screenshot of the phone’s screen-time summary.
       </p>
 
       {state.clearedReason && (
@@ -67,7 +70,7 @@ export function Welcome() {
             I’m a parent or guardian
           </span>
           <span className="mpmb-route__body" id="route-parent-body">
-            You will enter your child’s details, read the information and give your permission. Your child can then add their own agreement.
+            You enter the details and give your permission, then hand the phone to your child to sign.
           </span>
           <span className="mpmb-route__cta" aria-hidden="true">
             Start →
@@ -81,13 +84,30 @@ export function Welcome() {
             I’m the young person
           </span>
           <span className="mpmb-route__body" id="route-young-body">
-            Do this when your parent or guardian is with you. You fill in your details, then hand them the phone for their part, then it comes back to you.
+            Do this when your parent or guardian is with you: you enter your details, they give permission, then you sign.
           </span>
           <span className="mpmb-route__cta" aria-hidden="true">
             Start →
           </span>
         </button>
       </div>
+
+      <section className="mpmb-welcome__about" aria-labelledby="about-heading">
+        <h2 className="mpmb-h3" id="about-heading">
+          What the study is <Draft />
+        </h2>
+        <p>{aboutStudy.parent.intro}</p>
+        <Disclosure summary="What taking part involves">
+          {aboutStudy.parent.cards.map((card) => (
+            <p key={card.title}>
+              <strong>{card.title}.</strong> {card.body}
+            </p>
+          ))}
+          <p>
+            More on the <a href={study.contact.familiesPageUrl}>information for families</a> and <a href={study.contact.privacyPageUrl}>data and privacy</a> pages.
+          </p>
+        </Disclosure>
+      </section>
 
       <figure className="mpmb-welcome__figure">
         <img src={family} alt="Simple silhouettes of a parent or carer and a young person looking at study information together" loading="lazy" width="1280" height="720" />
@@ -96,7 +116,7 @@ export function Welcome() {
       <ul className="mpmb-reassure" aria-label="Good to know">
         <li>
           <Icon name="shield" size={20} />
-          <span>Your details are kept separately from research information and are stored securely by the {study.organisation}.</span>
+          <span>Names and contact details are kept apart from research information, and stored by the {study.organisation}.</span>
         </li>
         <li>
           <Icon name="check" size={20} />

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { getApi } from '../api';
 import { ApiError, type SubmissionPayload } from '../api/types';
-import { childAssentForm, parentConsentForm } from '../config/statements';
+import { parentConsentForm } from '../config/statements';
 import { study } from '../config/study';
 import { announce } from '../lib/announce';
 import { validateAssent, validateChildDetails, validateConsent, validateGuardian } from '../lib/validation';
@@ -15,7 +15,7 @@ function friendlySubmitError(error: unknown): string {
       case 'network':
         return 'We couldn’t reach the server. Check your connection and try again — nothing you entered has been lost.';
       case 'validation':
-        return 'The server found a problem with the information. Please check the details and try again.';
+        return `The server found a problem with the information${error.message ? `: ${error.message}` : ''}. Please check the details and try again.`;
       case 'expired':
         return 'Your session timed out. Please try again.';
       default:
@@ -35,23 +35,21 @@ export function useSubmission() {
 
   /** Returns the first step that still needs attention, or null. */
   const firstIncomplete = useCallback((): StepId | null => {
-    const phoneAllowedByParent = state.consent.responses['phone-use']?.response !== 'declined';
     if (validateChildDetails(state.identity).length) return 'child-details';
-    if (validateGuardian(state.guardian).length) return 'parent-details';
+    if (validateGuardian(state.guardian).length) return state.route === 'parent' ? 'child-details' : 'parent-details';
     if (validateConsent(state.consent, parentConsentForm).length || !state.consent.completedAt) return 'parent-consent';
     if (state.assent.status === 'not-started') return 'child-assent';
-    if (state.assent.status === 'completed' && validateAssent(state.assent, childAssentForm, phoneAllowedByParent).length) return 'child-assent';
-    if (state.donation.status === 'in-progress' || state.donation.status === 'not-started') {
-      if (phoneAllowedByParent && state.assent.status === 'completed' && state.assent.responses['phone-use']?.response !== 'declined') return 'phone-type';
-    }
-    if (state.donation.status === 'completed' && state.donation.images.some((i) => i.status !== 'uploaded')) return 'upload';
+    if (state.assent.status === 'completed' && validateAssent(state.assent).length) return 'child-assent';
+    const phoneApplies = state.consent.responses['phone-use']?.response !== 'declined' && state.assent.status === 'completed';
+    if (phoneApplies && (state.donation.status === 'in-progress' || state.donation.status === 'not-started')) return 'phone-use';
+    if (state.donation.status === 'completed' && state.donation.images.some((i) => i.status !== 'uploaded')) return 'phone-use';
     return null;
   }, [state]);
 
   const buildPayload = useCallback((): SubmissionPayload => {
     const client = { userAgent: navigator.userAgent.slice(0, 200), submittedAt: new Date().toISOString(), timezoneOffset: new Date().getTimezoneOffset() };
     if (state.assent.status === 'declined') {
-      // Only what the team needs to avoid asking again. No consent record, date of birth, postcode or phone details.
+      // Only what the team needs to avoid asking again. No permission record, date of birth, postcode or phone details.
       return {
         kind: 'declined',
         studyId: study.studyId,
@@ -86,7 +84,7 @@ export function useSubmission() {
   const submit = useCallback(async () => {
     const problem = state.assent.status === 'declined' ? null : firstIncomplete();
     if (problem) {
-      dispatch({ type: 'go-to', stepId: problem, returnTo: 'review' });
+      dispatch({ type: 'go-to', stepId: problem, returnTo: 'send' });
       return;
     }
     dispatch({ type: 'submission', patch: { stage: 'submitting', stageLabel: 'Checking everything…', error: null } });

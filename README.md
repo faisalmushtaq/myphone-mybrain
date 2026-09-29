@@ -40,11 +40,14 @@ myphone-mybrain/
 
 ## Consent and phone-use donation app (prototype)
 
-`consent-app/` contains a React + TypeScript application (built with Vite) that mounts inside the site at `/take-part/consent/`. It lets a parent or guardian give consent, records the young person's own agreement, and collects screenshots of the phone's screen-time summary. It currently uses a **mock API** — nothing is sent anywhere — and all participant-facing wording is placeholder text marked "Draft wording" in the interface.
+`consent-app/` contains a React + TypeScript application (built with Vite) that mounts inside the site at `/take-part/consent/`. It lets a parent or guardian give consent, records the young person's own agreement, and collects screenshots of the phone's screen-time summary. All participant-facing wording is placeholder text marked "Draft wording" in the interface.
+
+It has two backends: an in-memory **mock** (the default; nothing leaves the page) and **Firebase** (`consent-app/firebase/`, see `consent-app/docs/firebase.md`), chosen by repository variables at build time.
 
 * Design and data model: `consent-app/docs/journey.md`, `consent-app/docs/architecture.md`
 * Wording that must be replaced before use: `consent-app/docs/content-placeholders.md`
 * Review findings and what was changed: `consent-app/docs/review.md`
+* Backend set-up and data model: `consent-app/docs/firebase.md`
 
 The deploy workflow builds the app (`npm ci && npm run build` in `consent-app/`, output to `assets/consent-app/`, which is git-ignored) before building Jekyll. For a local preview, run that build first and then `bundle exec jekyll serve`; for a self-contained preview without Jekyll, run `npm run build:standalone` and open `consent-app/dist-standalone/preview.html`.
 
