@@ -134,10 +134,13 @@ async function inner() {
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.35, 0.3], [0.55, 0.7], [0.8, 0.4]]);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
-    for (const [i, label] of ['Somewhat', '2 to 4 hours', 'About the same', 'Sometimes', 'A mix of good and bad'].entries()) {
-      await page.getByText(`Question ${i + 1} of 5`).waitFor();
+    for (const [i, label] of ['Somewhat', 'About the same', 'Sometimes'].entries()) {
+      await page.getByText(`Question ${i + 1} of 4`).waitFor();
       await page.getByRole('button', { name: label, exact: true }).click();
     }
+    await page.getByText('Question 4 of 4').waitFor();
+    await page.getByRole('textbox').fill('Mostly YouTube, often late at night.');
+    await page.getByRole('button', { name: 'Finish', exact: true }).click();
     await page.getByRole('button', { name: /I’m Kai/ }).click();
     await page.getByRole('heading', { name: /Do you want to take part/ }).waitFor();
     await draw(page.locator('#assent-signature'), [[0.2, 0.6], [0.5, 0.35], [0.8, 0.6]]);
@@ -192,7 +195,7 @@ async function inner() {
     const assent = (await db.collection('assents').doc(submission.assentId).get()).data();
     ok('assent record signed, screenshot agreement by action', assent?.status === 'completed' && assent?.responses?.['take-part']?.via === 'signature' && assent?.responses?.['phone-use']?.via === 'action');
     const survey = (await db.collection('surveys').doc(submission.surveyId).get()).data();
-    ok('parent’s questions stored as research data without names, re-sent with the amendment', survey && !JSON.stringify(survey).includes('Patel') && survey.status === 'completed' && survey.responses?.concern?.value === 'somewhat' && Object.keys(survey.responses).length === 5 && survey.version === 2 && survey.supersedes);
+    ok('parent’s questions stored as research data without names, re-sent with the amendment', survey && !JSON.stringify(survey).includes('Patel') && survey.status === 'completed' && survey.responses?.concern?.value === 'somewhat' && survey.responses?.['anything-else']?.value === 'Mostly YouTube, often late at night.' && Object.keys(survey.responses).length === 4 && survey.version === 2 && survey.supersedes);
     const donation = (await db.collection('donations').doc(submission.donationIds[0]).get()).data();
     ok('donation record has no names, carries the agreement and quality checks', donation && !JSON.stringify(donation).includes('Patel') && donation.images.length === 2 && donation.images[0].redacted === true && donation.agreement?.via === 'action' && ['accepted', 'review'].includes(donation.images[0].quality?.verdict));
     const [quarantine] = await bucket.getFiles({ prefix: 'quarantine/' });

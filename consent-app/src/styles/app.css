@@ -2600,3 +2600,13 @@
     transition: border-color 120ms, background-color 120ms;
   }
 }
+.mpmb-app .mpmb-input--area {
+  display: block;
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+.mpmb-app .mpmb-quiz__count-chars {
+  margin: 0.35rem 0 0.9rem;
+}

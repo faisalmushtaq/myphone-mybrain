@@ -72,14 +72,14 @@ Actors: **P** parent/guardian, **Y** young person, **A** anyone.
 | — | *handover Y→P* | | Route Y only. |
 | 2 | `parent-details` | P | Route Y only: check the child's details, then the parent's own (same fields as above). |
 | 3 | `parent-consent` | P | **One screen.** Six one-line information summaries (each opens to the full wording); the four required statements under one tick; three Yes/No permissions; name (pre-filled), signature, date. |
-| 4 | `parent-questions` | P | **Optional, about a minute.** Five one-tap questions about how the parent sees the young person's phone use (how concerned, time on a school day, compared with others, gets in the way, overall). Tapping an answer moves to the next question; the last answer moves on. "Skip this question" and "Skip these questions" are always visible. Coming back shows the answers with "Change my answers" rather than asking again. Clearly labelled as research information, not part of the permission. |
+| 4 | `parent-questions` | P | **Optional, about a minute.** Three one-tap questions about how the parent sees the young person's phone use (how concerned, compared with others, gets in the way) and an open box for anything else (up to 500 characters, with a note not to include names). Tapping an answer moves to the next question; the box has a Finish button. "Skip this question" and "Skip these questions" are always visible. Coming back shows the answers with "Change my answers" rather than asking again. Clearly labelled as research information, not part of the permission. |
 | — | *handover P→Y* | | Route P offers "{child} isn't here right now" (agreement deferred, screen-time skipped). |
 | 5 | `child-assent` | Y | Three-line recap; "Signing your name means…"; signature. "I don't want to take part" and "I'd like to decide later" alongside. **Finishing this step sends the permission and agreement to the server.** |
 | 6 | `phone-use` | A | **One screen.** Status line ("Permission saved. Reference …"); why we ask (folded); which phone; how to find the summary (open until images are added); add, check, hide parts of, and **send** screenshots. The page, the instructions and the permission statement all say the same thing: we want the **list of apps with the time on each**, not just the total, because how a phone is used matters as much as how much. Each image gets a quick on-device check; a photo-like image is flagged and must be confirmed before it goes. Skip is a two-step choice. |
 | 7 | `check` | A | "Check what you've sent": the whole record with "Change" beside each section (changes are saved as amendments), "Add screenshots"/"Add more screenshots", and "Everything is right — finish". |
 | — | `done` | A | Thank you: why taking part matters (draft wording), reference, what happens next, changing your mind, independent contact, "See what was recorded", "Finish and clear this device". |
 
-Route P is six counted steps; route Y is seven. The parent's answers are shown on the check page as a count only ("4 of 5 answered"), because whoever is holding the phone may be the young person; changing them means a handover to the parent.
+Route P is six counted steps; route Y is seven. The parent's answers are shown on the check page as a count only ("3 of 4 answered"), because whoever is holding the phone may be the young person; changing them means a handover to the parent.
 
 ### When things are sent
 
@@ -126,7 +126,7 @@ the check page.
 | No check on what an image is | On-device check (shape and colour) with a warning and confirmation; server checks (SafeSearch and text detection when enabled) that refuse unsafe or plainly wrong images | Families add the wrong image by mistake; nothing harmful should be stored. |
 | Typed school name of any length | At least three letters | Testing. |
 | "Screen-time screenshots" | "Screen time and the apps you use": the statement, the page, the instructions and the check all ask for the list of apps with times, and say why | The study wants to know *how* a phone is used, not only how much; a screenshot of the total alone is much less useful. |
-| — | Five optional one-tap questions for the parent after their permission | Asked for in testing: a quick read of how parents see, and how concerned they are about, their child's phone use. |
+| — | Three optional one-tap questions and an open box for the parent after their permission | Asked for in testing: a quick read of how parents see, and how concerned they are about, their child's phone use. |
 
 Everything kept from v2: the one-screen permission, the signature-only
 agreement, the handover guards, re-signing after a change, the decline and

@@ -213,6 +213,10 @@ the validation and quality-rule unit tests.
   images or use them to improve its models; confirm this against the Cloud
   Data Processing Addendum in the DPIA. Nothing about the image content is
   logged by the function.
+* **Free text.** The parent's open answer (up to 500 characters) may contain
+  names or details about other people despite the request not to include
+  them. It sits in `surveys/` with the participant id only; decide who reads
+  it before researchers do.
 * **Processor.** Google Cloud under the Google Cloud Data Processing Addendum;
   the University must have it in place for this project.
 * **Access.** No client can read data. Staff access is by role claim, and the

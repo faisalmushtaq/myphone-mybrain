@@ -24,6 +24,7 @@ export function ParentQuestions() {
   const [reviewing, setReviewing] = useState(false);
   const [index, setIndex] = useState(() => Math.max(0, questions.findIndex((q) => !survey.responses[q.id])));
   const [selecting, setSelecting] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
   const questionRef = useRef<HTMLHeadingElement>(null);
   const timer = useRef<number | null>(null);
   const asking = !finished || reviewing;
@@ -38,6 +39,12 @@ export function ParentQuestions() {
     },
     [],
   );
+
+  // The text box starts with whatever was written before, so coming back never loses it.
+  useEffect(() => {
+    if (q.type === 'text') setDraft(survey.responses[q.id]?.value ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
 
   const moveTo = (i: number) => {
     setIndex(i);
@@ -63,6 +70,13 @@ export function ParentQuestions() {
     dispatch({ type: 'skip-question', questionId: q.id });
     advance();
   };
+  /** The open question is saved when its button is pressed; an empty box counts as skipped. */
+  const submitText = () => {
+    const value = draft.trim();
+    if (value) dispatch({ type: 'answer-question', questionId: q.id, version: q.version, value: value.slice(0, q.type === 'text' ? q.maxLength : value.length) });
+    else dispatch({ type: 'skip-question', questionId: q.id });
+    advance();
+  };
   const skipAll = () => {
     dispatch({ type: 'survey-status', status: 'skipped' });
     dispatch({ type: 'next' });
@@ -82,7 +96,7 @@ export function ParentQuestions() {
             {questions.map((qq) => (
               <div className="mpmb-summary__row" key={qq.id}>
                 <dt>{qq.label}</dt>
-                <dd>{qq.options.find((o) => o.value === survey.responses[qq.id]?.value)?.label ?? <span className="mpmb-summary__empty">Skipped</span>}</dd>
+                <dd>{(qq.type === 'choice' ? qq.options.find((o) => o.value === survey.responses[qq.id]?.value)?.label : survey.responses[qq.id]?.value) ?? <span className="mpmb-summary__empty">Skipped</span>}</dd>
               </div>
             ))}
           </dl>
@@ -119,14 +133,29 @@ export function ParentQuestions() {
         <h2 className="mpmb-h3 mpmb-quiz__question" id="mpmb-quiz-question" tabIndex={-1} ref={questionRef}>
           {text(q.text)}
         </h2>
-        <div className="mpmb-quiz__options" role="group" aria-labelledby="mpmb-quiz-question">
-          {q.options.map((o) => (
-            <button key={o.value} type="button" className={`mpmb-quiz__option${chosen === o.value ? ' is-selected' : ''}`} aria-pressed={chosen === o.value} onClick={() => choose(o.value)}>
-              <span className="mpmb-quiz__dot" aria-hidden="true" />
-              {o.label}
-            </button>
-          ))}
-        </div>
+        {q.type === 'choice' ? (
+          <div className="mpmb-quiz__options" role="group" aria-labelledby="mpmb-quiz-question">
+            {q.options.map((o) => (
+              <button key={o.value} type="button" className={`mpmb-quiz__option${chosen === o.value ? ' is-selected' : ''}`} aria-pressed={chosen === o.value} onClick={() => choose(o.value)}>
+                <span className="mpmb-quiz__dot" aria-hidden="true" />
+                {o.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="mpmb-field">
+            <p className="mpmb-hint" id="mpmb-quiz-text-hint">
+              {q.hint}
+            </p>
+            <textarea id="mpmb-quiz-text" className="mpmb-input mpmb-input--area" rows={4} maxLength={q.maxLength} value={draft} onChange={(e) => setDraft(e.target.value)} aria-labelledby="mpmb-quiz-question" aria-describedby="mpmb-quiz-text-hint mpmb-quiz-text-count" />
+            <p className="mpmb-hint mpmb-quiz__count-chars" id="mpmb-quiz-text-count" aria-live="polite">
+              {q.maxLength - draft.length} characters left
+            </p>
+            <Button variant="primary" arrow onClick={submitText}>
+              {last ? 'Finish' : 'Next'}
+            </Button>
+          </div>
+        )}
         <div className="mpmb-quiz__nav">
           {index > 0 && (
             <Button variant="link" onClick={() => moveTo(index - 1)}>

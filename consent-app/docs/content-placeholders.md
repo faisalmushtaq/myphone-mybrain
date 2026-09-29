@@ -20,7 +20,7 @@ controls panel).
 | Study, site and form identifiers | `src/config/study.ts` → `studyId`, `siteId`; form ids in `statements.ts` | Identifiers used in the study database |
 | Participating schools | `src/config/schools.ts` | Real school list with database ids |
 | Eligible age range; whether 16–17s may self-consent; deferred assent; typed signature | `src/config/study.ts` | Decisions from the ethics application |
-| The parent's quick questions about the young person's phone use (five items, one tap each) and the form version | `src/config/questions.ts` (mirrored in `firebase/functions/src/forms.ts`) | Validated or ethics-approved items if the team has them; keep the ids stable or bump the versions |
+| The parent's quick questions about the young person's phone use (three items, one tap each, and an open box) and the form version | `src/config/questions.ts` (mirrored in `firebase/functions/src/forms.ts`) | Validated or ethics-approved items if the team has them; keep the ids stable or bump the versions |
 | Thank-you page: "Why this matters" and what happens next | `src/config/copy.ts` → `thankYou`; `src/steps/Done.tsx` | Approved wording |
 | Confirmation email (queued only when a copy was asked for) | `firebase/functions/src/index.ts` (`mail` document) | Approved wording; sent by the Trigger Email extension, not this app |
 | The appeal shown before skipping the screenshots, and the "most important part of the study" sentence | `src/steps/PhoneUse.tsx` | Wording the ethics committee is comfortable with: it must not read as pressure |

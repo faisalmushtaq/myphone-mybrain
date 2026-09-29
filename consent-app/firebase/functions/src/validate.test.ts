@@ -47,9 +47,9 @@ function valid(): ConsentPayload {
     },
     survey: {
       formId: 'mpmb-parent-perceptions',
-      formVersion: '0.1-draft',
+      formVersion: '0.2-draft',
       status: 'completed',
-      responses: { concern: { questionId: 'concern', version: '0.1-draft', value: 'somewhat', answeredAt: now }, overall: { questionId: 'overall', version: '0.1-draft', value: 'mixed', answeredAt: now } },
+      responses: { concern: { questionId: 'concern', version: '0.1-draft', value: 'somewhat', answeredAt: now }, 'anything-else': { questionId: 'anything-else', version: '0.1-draft', value: 'Mostly YouTube, late at night.', answeredAt: now } },
       startedAt: now,
       completedAt: now,
     },
@@ -136,6 +136,13 @@ test('the parent’s questions are optional, checked against the form, and never
   const w = valid();
   w.survey!.responses.concern.version = '0.0-draft';
   assert.ok(validateConsentPayload(w).some((m) => m.includes('"concern"') && m.includes('version')));
+  const t = valid();
+  t.survey!.responses['anything-else'].value = 'x'.repeat(501);
+  assert.ok(validateConsentPayload(t).some((m) => m.includes('"anything-else"')));
+  t.survey!.responses['anything-else'].value = '   ';
+  assert.ok(validateConsentPayload(t).some((m) => m.includes('"anything-else"')));
+  t.survey!.responses['anything-else'].value = 'Fine.';
+  assert.deepEqual(validateConsentPayload(t), []);
 });
 
 test('declined record carries no permission record and no date of birth', () => {

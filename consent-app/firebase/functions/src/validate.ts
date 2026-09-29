@@ -278,7 +278,12 @@ export function validateConsentPayload(input: unknown): string[] {
             problems.push(`Unknown question "${key}".`);
             continue;
           }
-          if (!isObj(r) || r.questionId !== key || !q.options.includes(String(r.value)) || !validTime(r.answeredAt)) problems.push(`Malformed answer for "${key}".`);
+          if (!isObj(r)) {
+            problems.push(`Malformed answer for "${key}".`);
+            continue;
+          }
+          const valueOk = q.type === 'text' ? typeof r.value === 'string' && !blank(r.value) && r.value.length <= q.maxLength : q.options.includes(String(r.value));
+          if (r.questionId !== key || !valueOk || !validTime(r.answeredAt)) problems.push(`Malformed answer for "${key}".`);
           else if (r.version !== q.version) problems.push(`Question "${key}" was shown as version ${String(r.version)} but the current version is ${q.version}.`);
         }
       }

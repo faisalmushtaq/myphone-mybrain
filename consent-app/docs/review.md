@@ -147,9 +147,9 @@ Points the reviewers would raise about these, and the answers built in:
   statements have a new version; the server flags an accepted screenshot
   whose text shows screen-time words but no app list, so the team can ask for
   it.
-* **Five one-tap questions for the parent**, straight after their
-  permission: how concerned they are, time on a school day, compared with
-  other young people, whether it gets in the way, and their overall view.
+* **Three one-tap questions and an open box for the parent**, straight after
+  their permission: how concerned they are, compared with other young people,
+  whether it gets in the way, and anything else they want to say.
   Optional at every level (skip a question, skip them all), with a visible
   "Previous question", and a summary with "Change my answers" when the parent
   comes back rather than asking everything again.
@@ -157,6 +157,7 @@ Points the reviewers would raise about these, and the answers built in:
 | Perspective | Concern | Answer |
 |---|---|---|
 | Ethics | Survey items inside a consent journey could be read as a condition of taking part. | The step is labelled optional, says the answers are research information and "not part of your permission", sits after the permission has been signed, and can be skipped in one tap. The record stores `skipped` distinctly from `completed`. |
-| Young person | Seeing "Very concerned" about themselves on the shared phone. | The check page and the thank-you page show a count only ("4 of 5 answered"); the answers are behind a handover to the parent. |
+| Young person | Seeing "Very concerned" about themselves on the shared phone. | The check page and the thank-you page show a count only ("3 of 4 answered"); the answers are behind a handover to the parent. |
+| Data protection | Free text can carry names or details about other people. | The box says not to include names; it is limited to 500 characters; the record is stored with the participant id only, and the DPIA should say who reads free text before it reaches researchers. |
 | Accessibility | Auto-advance on selection can strand keyboard and screen-reader users. | The options are real buttons (one press = one answer), focus moves to the next question and its number is announced; nothing advances on arrow keys. |
 | Data protection | Where are the answers stored? | In a `surveys` collection labelled by participant id only, readable by the researcher and coordinator roles; re-sent as a new versioned record with any amendment. |
