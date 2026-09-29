@@ -48,7 +48,9 @@ for_schools:
     compass_note: "Schools can record participation through their usual Compass or Compass+ process."
 
   what_schools_need: |
-    Schools need a named contact, a suitable space and help with the timetable and safeguarding arrangements. We will also ask you to share approved information with families.
+    - Two-hour session slots for groups of up to 30 pupils.
+    - Two or more year groups taking part.
+    - A named contact who can help with timetabling, a suitable space and safeguarding arrangements, and who can share the approved information with families.
 
 for_parents:
   heading: "Information for parents and carers"

@@ -1,48 +1,53 @@
 <section id="signup" class="section signup-section">
   <div class="container signup-layout">
     <div class="signup-copy reveal">
-      <p class="section-kicker">For schools</p>
       <h2>{{ site.data.content.signup.title }}</h2>
       <div class="prose">
         {{ site.data.content.signup.intro | markdownify }}
       </div>
-      <p class="privacy-note">{{ site.data.content.signup.privacy_note }}</p>
       <div class="enquiry-follow-up">
+        <h3>To take part, a school needs to</h3>
+        <ul>
+          <li>offer two-hour session slots for groups of up to 30 pupils</li>
+          <li>involve two or more year groups</li>
+          <li>name a contact for timetabling, space and safeguarding, who can share the study information with families</li>
+        </ul>
         <h3>What happens next</h3>
         <ol>
-          <li>Your email app opens with the school details filled in.</li>
-          <li>You check the message and decide whether to send it.</li>
-          <li>We reply within five working days to arrange a conversation or share more information.</li>
+          <li>Your message comes straight to the research team.</li>
+          <li>We reply within five working days to arrange a conversation.</li>
         </ol>
       </div>
+      <p class="privacy-note">{{ site.data.content.signup.privacy_note }}</p>
     </div>
 
-    <form class="signup-form reveal" id="school-interest-form" data-recipient="{{ site.data.content.signup.email }}" novalidate>
+    <form class="signup-form reveal" id="school-interest-form" data-kind="school" data-endpoint="{{ site.enquiry_endpoint }}" data-recipient="{{ site.data.content.signup.email }}" novalidate>
+      <p class="form-status" role="alert" aria-live="assertive" hidden></p>
+
       <div class="form-section">
         <span class="form-section-label">Your school</span>
         <label>
           School name <span>required</span>
           <input type="text" name="school" autocomplete="organization" required placeholder="For example, Woodfield Academy">
         </label>
-        <label>
-          Local authority <span>optional</span>
-          <select name="area">
-            <option value="">Choose your local authority</option>
-            <option value="Bradford Council">Bradford Council</option>
-            <option value="Leeds City Council">Leeds City Council</option>
-            <option value="Calderdale Council">Calderdale Council</option>
-            <option value="Kirklees Council">Kirklees Council</option>
-            <option value="Wakefield Council">Wakefield Council</option>
-            <option value="Other local authority">Other local authority</option>
-          </select>
-        </label>
-        <label>
-          Number of pupils
-          <div class="slider-wrapper">
-            <input type="range" name="school_size" id="school_size_slider" min="100" max="2000" step="50" value="800">
-            <output class="slider-output" for="school_size_slider">800</output>
-          </div>
-        </label>
+        <div class="field-row">
+          <label>
+            Local authority <span>optional</span>
+            <select name="area">
+              <option value="">Choose</option>
+              <option value="Bradford Council">Bradford Council</option>
+              <option value="Leeds City Council">Leeds City Council</option>
+              <option value="Calderdale Council">Calderdale Council</option>
+              <option value="Kirklees Council">Kirklees Council</option>
+              <option value="Wakefield Council">Wakefield Council</option>
+              <option value="Other local authority">Other local authority</option>
+            </select>
+          </label>
+          <label>
+            Approximate number of pupils <span>optional</span>
+            <input type="text" name="pupils" inputmode="numeric" placeholder="For example, 900">
+          </label>
+        </div>
       </div>
 
       <div class="form-section">
@@ -70,9 +75,9 @@
       </div>
 
       <div class="form-section">
-        <span class="form-section-label">Year groups</span>
+        <span class="form-section-label">What your school can offer</span>
         <fieldset>
-          <legend>Year groups you are interested in</legend>
+          <legend>Year groups you would involve <span>choose at least two</span></legend>
           <div class="checkbox-grid">
             <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 7"> <span>Year 7</span></label>
             <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 8"> <span>Year 8</span></label>
@@ -82,19 +87,25 @@
             <label class="checkbox"><input type="checkbox" name="year_groups" value="Year 12/13"> <span>Year 12/13</span></label>
           </div>
         </fieldset>
+        <label class="checkbox checkbox--single">
+          <input type="checkbox" name="slots" value="yes" required>
+          <span>We can offer two-hour session slots for groups of up to 30 pupils <em>required</em></span>
+        </label>
       </div>
 
       <div class="form-section">
         <span class="form-section-label">Anything else?</span>
         <label>
-          More information <span>optional</span>
-          <textarea name="message" rows="4" placeholder="Add any questions or useful context."></textarea>
+          Message <span>optional</span>
+          <textarea name="message" rows="4" placeholder="Questions, timing, or anything useful for us to know."></textarea>
         </label>
       </div>
 
+      <label class="hp-field" aria-hidden="true">Leave this empty <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+
       <div class="form-submit">
-        <button type="submit" class="btn btn-primary">Open my email app &nbsp;&rarr;</button>
-        <p class="form-help">This opens your email app with the details filled in. You can check everything before sending.</p>
+        <button type="submit" class="btn btn-primary">Send &nbsp;&rarr;</button>
+        <p class="form-help">Goes straight to the research team. We reply within five working days.</p>
       </div>
     </form>
   </div>

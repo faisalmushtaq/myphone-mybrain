@@ -3,4 +3,4 @@ title: MyPhone/MyBrain
 ---
 
 {% include hero.html %}
-{% include invitation_journey.html %}
+{% include home_summary.html %}

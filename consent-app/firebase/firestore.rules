@@ -11,6 +11,8 @@ rules_version = '2';
 // donations/      research data: references to screen-time images
 // surveys/        research data: the parent's quick questions about phone use
 // submissions/    one row per submission (reference code, links to the above)
+// enquiries/      messages from the website's contact and school forms
+// ratelimits/     hashed-address counters for the enquiry function
 // mail/           outgoing emails for the Trigger Email extension
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -49,6 +51,15 @@ service cloud.firestore {
     match /submissions/{referenceCode} {
       allow read: if hasRole('coordinator');
       allow write: if false;
+    }
+
+    // Website enquiries: coordinators read them; the enquiry function writes them.
+    match /enquiries/{enquiryId} {
+      allow read: if hasRole('coordinator');
+      allow write: if false;
+    }
+    match /ratelimits/{key} {
+      allow read, write: if false;
     }
 
     match /mail/{mailId} {

@@ -1,7 +1,6 @@
 <section id="contact" class="contact-section">
   <div class="container contact-inner">
     <div class="contact-text reveal">
-      <p class="section-kicker light">Get in touch</p>
       <h2>Ask us a question.</h2>
       <div class="prose prose-light">
         {{ site.data.content.contact.body | markdownify }}
@@ -9,27 +8,26 @@
       <a href="mailto:{{ site.email }}" class="contact-link">
         {{ site.email }}
       </a>
-      <form id="contact-enquiry" class="contact-form" novalidate>
+      <form id="contact-enquiry" class="contact-form" data-kind="contact" data-endpoint="{{ site.enquiry_endpoint }}" data-recipient="{{ site.email }}" novalidate>
+        <p class="form-status" role="alert" aria-live="assertive" hidden></p>
         <label for="enquiry-topic">What is your question about?</label>
         <select id="enquiry-topic" name="topic">
-          <option value="General enquiry">The project</option>
-          <option value="Joining MyPhone/MyBrain">Joining MyPhone/MyBrain</option>
-          <option value="Stories About Me">Stories About Me</option>
-          <option value="Participant information">Taking part</option>
-          <option value="School participation">Taking part as a school</option>
+          <option value="The study">The study</option>
+          <option value="Taking part">Taking part</option>
+          <option value="Taking part as a school">Taking part as a school</option>
+          <option value="Something else">Something else</option>
         </select>
         <label for="enquiry-name">Your name</label>
-        <input id="enquiry-name" name="name" type="text" autocomplete="name">
+        <input id="enquiry-name" name="name" type="text" autocomplete="name" required>
         <label for="enquiry-email">Your email address</label>
-        <input id="enquiry-email" name="email" type="email" autocomplete="email">
+        <input id="enquiry-email" name="email" type="email" autocomplete="email" required>
         <label for="enquiry-message">Your question</label>
         <textarea id="enquiry-message" name="message" rows="4" required></textarea>
+        <label class="hp-field" aria-hidden="true">Leave this empty <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
         <div class="contact-form-actions">
-          <button class="btn btn-primary" type="submit">Open my email app &nbsp;→</button>
-          <button class="btn btn-outline" id="copy-contact-email" type="button">Copy our email address</button>
+          <button class="btn btn-primary" type="submit">Send &nbsp;→</button>
         </div>
-        <p class="contact-form-note">This form opens your email app. You can check the message before you send it. We aim to reply within five working days after we receive your email.</p>
-        <p id="contact-copy-status" class="contact-form-note" aria-live="polite"></p>
+        <p class="contact-form-note">Goes straight to the research team. We aim to reply within five working days.</p>
       </form>
     </div>
     <div class="contact-card reveal">
@@ -37,16 +35,7 @@
       <p>Wolfson Centre for Applied Health Research<br>Bradford Royal Infirmary<br>Bradford, BD9 6RJ, UK</p>
       <p style="margin-top: 0.75rem; font-size: var(--step--1); color: var(--c-muted-dark);">The Centre for Applied Education Research coordinates the project. The academic team is at the University of Leeds.</p>
       <p style="margin-top: 1.25rem;">
-        <strong style="color: var(--c-lavender);">For schools</strong><br>
-        Use the school form or email us. We can arrange a call to talk through what taking part could involve.
-      </p>
-      <p style="margin-top: 0.75rem;">
-        <strong style="color: var(--c-lavender);">For parents and carers</strong><br>
-        If your child's school is involved, the team will send information home. You can also contact us with any question.
-      </p>
-      <p style="margin-top: 0.75rem;">
-        <strong style="color: var(--c-lavender);">For young people</strong><br>
-        We will explain the study before asking you to take part. It is always your choice.
+        <strong style="color: var(--c-lavender);">Schools:</strong> the <a href="{{ '/schools/#signup' | relative_url }}">school form</a> is the quickest way to start.
       </p>
     </div>
   </div>
@@ -57,23 +46,6 @@
     const form = document.getElementById('contact-enquiry');
     if (!form) return;
     const topic = new URLSearchParams(window.location.search).get('topic');
-    if (topic) form.elements.topic.value = topic;
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const data = new FormData(form);
-      const subject = `MyPhone/MyBrain: ${data.get('topic')}`;
-      const body = `Name: ${data.get('name') || ''}\nEmail: ${data.get('email') || ''}\n\nQuestion:\n${data.get('message') || ''}`;
-      window.location.href = `mailto:{{ site.email }}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    });
-    const copyButton = document.getElementById('copy-contact-email');
-    const copyStatus = document.getElementById('contact-copy-status');
-    copyButton?.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText('{{ site.email }}');
-        copyStatus.textContent = 'Email address copied.';
-      } catch (_) {
-        copyStatus.textContent = 'Please copy this address: {{ site.email }}';
-      }
-    });
+    if (topic && [...form.elements.topic.options].some((o) => o.value === topic)) form.elements.topic.value = topic;
   })();
 </script>

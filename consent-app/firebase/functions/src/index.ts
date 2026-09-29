@@ -10,6 +10,8 @@ import { study } from './forms.js';
 import { assess, flatnessOfPixels, inspectWithVision, visionEnabled, type Quality } from './quality.js';
 import { parseDate, validateConsentPayload, validateDonationPayload, type ConsentPayload, type DonationPayload } from './validate.js';
 
+export { enquiry } from './enquiry.js';
+
 initializeApp();
 
 const REGION = 'europe-west2';

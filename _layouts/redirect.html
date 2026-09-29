@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <title>{{ page.title }}</title>
+  <meta name="robots" content="noindex">
+  <meta http-equiv="refresh" content="0; url={{ page.redirect_to | relative_url }}">
+  <link rel="canonical" href="{{ page.redirect_to | absolute_url }}">
+  <script>window.location.replace("{{ page.redirect_to | relative_url }}");</script>
+</head>
+<body>
+  <p>Taking you to <a href="{{ page.redirect_to | relative_url }}">{{ page.redirect_to | absolute_url }}</a>…</p>
+</body>
+</html>

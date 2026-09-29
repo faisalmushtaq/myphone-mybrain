@@ -2610,3 +2610,6 @@
 .mpmb-app .mpmb-quiz__count-chars {
   margin: 0.35rem 0 0.9rem;
 }
+
+/* Fraunces: fixed small optical size, no softness (see the site stylesheet). */
+.mpmb-app .mpmb-h1, .mpmb-app .mpmb-h2, .mpmb-app .mpmb-h3, .mpmb-app h1, .mpmb-app h2, .mpmb-app h3 { font-optical-sizing: none; font-variation-settings: "opsz" 14, "SOFT" 0, "WONK" 0; }

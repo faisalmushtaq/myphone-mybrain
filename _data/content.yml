@@ -2,13 +2,12 @@ hero:
   badge: "Research across Bradford and Leeds"
   headline_main: "Have you been invited"
   headline_accent: "to take part?"
-  tagline: "Clear information for young people, parents and carers who have been invited. There is also information for teachers and school leaders."
   cta_primary:
     label: "I have been invited"
-    href: "/take-part/young-person/"
+    href: "/take-part/consent/?who=young"
   cta_secondary:
     label: "My child has been invited"
-    href: "/take-part/parent-carer/"
+    href: "/take-part/consent/?who=parent"
   cta_tertiary:
     label: "For schools"
     href: "/schools/"
@@ -29,7 +28,6 @@ stats:
 
 about:
   heading: "About MyPhone/MyBrain"
-  subheading: "A research project with secondary schools in Bradford and Leeds"
   body: |
     **MyPhone/MyBrain** is a four-year research project funded by the Huo Family Foundation. The team is based at the **Centre for Applied Education Research** and the **Wolfson Centre for Applied Health Research**. We work with secondary schools in Bradford and Leeds.
 
@@ -58,7 +56,7 @@ process_intro: |
 steps:
   - number: "01"
     title: "Talk with the school"
-    body: "We talk with teachers and school leaders about timing, year groups, safeguarding and what the school needs. We are inviting secondary schools in Bradford and Leeds."
+    body: "We talk with the school about timing, year groups, safeguarding and what the school needs. We are inviting secondary schools in Bradford and Leeds."
 
   - number: "02"
     title: "Share information"
@@ -73,11 +71,11 @@ steps:
     body: "With the right consent and approvals, we may link research data to education and health records through Connected West Yorkshire. Some young people may be invited again later. Schools receive updates about group findings."
 
 signup:
-  title: "Talk to us about your school"
+  title: "Join the study with your school"
   intro: |
-    Teachers and school leaders at secondary schools in **Bradford and Leeds** can use this form to contact us. The form prepares an email. We can talk through what taking part could involve. You are under no pressure to continue.
+    Secondary schools in **Bradford and Leeds** can join MyPhone/MyBrain. Tell us about your school and we will get in touch to talk it through. Nothing is agreed until you have all the information and want to go ahead.
   email: "brainpop@leeds.ac.uk"
-  privacy_note: "Before a school joins the study, the team will provide full study information, consent materials and data protection information."
+  privacy_note: "We use these details only to reply to you. Before a school joins, the team provides the full study information, consent materials and data protection information."
 
 contact:
   heading: "Get in touch"

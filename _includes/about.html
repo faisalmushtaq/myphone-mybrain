@@ -1,11 +1,7 @@
 <section id="about" class="section">
-  <div class="container split">
-    <div class="section-kicker reveal">About the study</div>
+  <div class="container narrow-content">
     <div class="reveal">
       <h2>{{ site.data.content.about.heading }}</h2>
-      {% if site.data.content.about.subheading %}
-      <p class="section-subheading">{{ site.data.content.about.subheading }}</p>
-      {% endif %}
       <div class="prose">
         {{ site.data.content.about.body | markdownify }}
       </div>
@@ -15,8 +11,7 @@
 </section>
 
 <section id="why" class="section section-light">
-  <div class="container split">
-    <div class="section-kicker reveal">Why it matters</div>
+  <div class="container narrow-content">
     <div class="reveal">
       <h2>{{ site.data.content.why.heading }}</h2>
       <div class="prose">

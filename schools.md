@@ -3,10 +3,9 @@ layout: default
 title: "For schools | MyPhone/MyBrain"
 description: "Information for Bradford and Leeds secondary schools considering MyPhone/MyBrain."
 permalink: /schools/
-eyebrow: "For teachers and school leaders"
 title_main: "Thinking about"
 title_accent: "taking part?"
-page_intro: "Start with a conversation. We will explain what the study involves, talk through practical arrangements and help you decide whether it is right for your school."
+page_intro: "Secondary schools in Bradford and Leeds can join the study. Here is what it involves, what we ask of a school, and the form to get started."
 ---
 
 {% include page_hero.html %}

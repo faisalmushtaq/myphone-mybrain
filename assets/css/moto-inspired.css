@@ -41,7 +41,8 @@
 }
 
 body { font-family: var(--f-sans); background: var(--mpb-paper); color: var(--mpb-ink); font-weight: 400; line-height: 1.58; }
-h1, h2, h3 { font-family: var(--f-serif); letter-spacing: -.055em; }
+/* Fraunces at a fixed, small optical size with no softness: the f and j keep their shape instead of growing display-size swashes. */
+h1, h2, h3 { font-family: var(--f-serif); letter-spacing: -.045em; font-optical-sizing: none; font-variation-settings: "opsz" 14, "SOFT" 0, "WONK" 0; }
 h1 { line-height: .93; }
 h2 { line-height: .98; }
 p { max-width: 70ch; }
@@ -185,8 +186,8 @@ p { max-width: 70ch; }
 .split > :first-child { padding-top: .35rem; font-family: var(--f-mono); color: var(--mpb-teal); font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; }
 
 /* Sticky masthead: EEG101-style stable logo bar with a compact menu directly below it on mobile. */
-.site-header { position: sticky; top: 0; height: var(--nav-h); z-index: 1000; background: var(--mpb-teal); border: 0; box-shadow: 0 1px 10px rgba(0, 53, 59, .16); backdrop-filter: none; }
-.site-header.scrolled { background: var(--mpb-teal); box-shadow: 0 4px 14px rgba(0, 53, 59, .24); }
+.site-header { position: sticky; top: 0; height: var(--nav-h); z-index: 1000; background: var(--mpb-teal); border: 0; box-shadow: none; backdrop-filter: none; }
+.site-header.scrolled { background: var(--mpb-teal); box-shadow: none; }
 .header-inner { position: relative; height: 100%; max-width: 1200px; margin: 0 auto; padding-inline: clamp(1.35rem, 4vw, 3.5rem); display: flex; align-items: center; gap: 1.35rem; }
 .logo { position: static; z-index: 5; flex: 0 0 auto; width: 205px; height: 62px; display: grid; place-items: center; }
 .logo img { width: 100%; height: 100%; object-fit: contain; }
@@ -413,3 +414,21 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
 .illustration-banner { background: var(--mpb-mist); border: 1px solid var(--mpb-line); }
 .illustration-banner img { object-position: center; filter: saturate(.84) contrast(.94); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+
+/* ── Simplified site: homepage summary ─────────────────────────────── */
+.home-summary h2 { max-width: 18ch; margin-bottom: 1.2rem; color: var(--mpb-teal); font-size: clamp(2.4rem, 4.6vw, 4rem); }
+.home-summary .prose p { max-width: 62ch; }
+.home-summary-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.6rem; }
+
+/* ── Enquiry forms ─────────────────────────────────────────────────── */
+.form-status { margin: 0 0 1rem; padding: .8rem 1rem; border-left: 5px solid var(--mpb-pink); background: #fff3f6; color: #7a1030; font-weight: 700; }
+.form-status[hidden] { display: none; }
+.form-success { padding: clamp(1.5rem, 4vw, 2.5rem); border: 1px solid var(--mpb-line); border-top: 6px solid var(--mpb-yellow); background: #fff; color: #113b3f; }
+.form-success h3 { margin: 0 0 .5rem; color: var(--mpb-teal); }
+.form-success p { margin: 0; }
+.hp-field { position: absolute !important; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.checkbox--single { display: flex; gap: .6rem; align-items: flex-start; margin-top: 1rem; font-weight: 600; }
+.checkbox--single em { font-style: normal; font-weight: 400; color: var(--mpb-pink); font-size: .85em; margin-left: .3rem; }
+fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin-left: .3rem; }
+.contact-text h2 { margin-bottom: 1rem; }
+.checkbox--single span { text-transform: none; font-size: 1rem; letter-spacing: 0; line-height: 1.4; }

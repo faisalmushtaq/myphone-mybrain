@@ -166,7 +166,7 @@ fi
 ok "functions deployed to $REGION"
 # Callable functions must be invokable by anyone (Firebase Auth and App Check are checked inside them). A deploy that
 # failed half-way can leave the service without that setting, which shows up as a plain "401 Unauthorized" page.
-for fn in submitconsent submitdonation; do
+for fn in submitconsent submitdonation enquiry; do
   gcloud run services add-iam-policy-binding "$fn" --region="$REGION" --member=allUsers --role=roles/run.invoker --project="$PROJECT" --quiet >/dev/null 2>&1 \
     && ok "$fn is invokable by the website" || echo "  (could not set the invoker on $fn; run: gcloud run services add-iam-policy-binding $fn --region=$REGION --member=allUsers --role=roles/run.invoker --project=$PROJECT)"
 done
@@ -178,6 +178,8 @@ for fn in submitConsent submitDonation; do
   BODY="$(curl -sS -X POST "https://$REGION-$PROJECT.cloudfunctions.net/$fn" -H "Authorization: Bearer $ID_TOKEN" -H 'Content-Type: application/json' -d '{"data":{}}')"
   if echo "$BODY" | grep -q '"status":"INVALID_ARGUMENT"'; then ok "$fn answers (rejects an empty request, as it should)"; else echo "  ✗ $fn did not answer as expected: $(echo "$BODY" | head -c 160)"; fi
 done
+ENQ="$(curl -sS -X POST "https://$REGION-$PROJECT.cloudfunctions.net/enquiry" -H 'Content-Type: application/json' -H "Origin: https://$DOMAIN" -d '{}')"
+if echo "$ENQ" | grep -q '"ok":false'; then ok "enquiry answers (rejects an empty form, as it should)"; else echo "  ✗ enquiry did not answer as expected: $(echo "$ENQ" | head -c 160)"; fi
 
 say "10. Pointing the website at the project"
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then

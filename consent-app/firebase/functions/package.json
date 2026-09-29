@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "serve": "npm run build && firebase emulators:start --only functions",
-    "test": "npm run build && node --test lib/validate.test.js lib/quality.test.js"
+    "test": "npm run build && node --test lib/validate.test.js lib/quality.test.js lib/enquiry.test.js"
   },
   "dependencies": {
     "@google-cloud/vision": "^5.3.7",

@@ -51,9 +51,9 @@ It has two backends: an in-memory **mock** (the default; nothing leaves the page
 
 The deploy workflow builds the app (`npm ci && npm run build` in `consent-app/`, output to `assets/consent-app/`, which is git-ignored) before building Jekyll. For a local preview, run that build first and then `bundle exec jekyll serve`; for a self-contained preview without Jekyll, run `npm run build:standalone` and open `consent-app/dist-standalone/preview.html`.
 
-## School sign-up form
+## Contact and school forms
 
-Because this site runs on GitHub Pages, there is no server-side form processor. The form is therefore implemented as a styled, accessible `mailto:` workflow. When a teacher completes the form, it opens their email client with a structured message already populated. The team can later swap this for Qualtrics, Microsoft Forms, REDCap, Formspree, or another approved University of Leeds form service by changing the form script or replacing the sign-up section.
+Both forms post to the `enquiry` Cloud Function in `consent-app/firebase/functions` (the address is `enquiry_endpoint` in `_config.yml`). Each message is stored in the Firestore `enquiries` collection and queued for the Trigger Email extension, which emails the team once it is installed. If the address is left empty, the forms fall back to opening an email draft. The school form requires two or more year groups and confirmation that the school can offer two-hour session slots for groups of up to 30 pupils.
 
 ## Local preview
 

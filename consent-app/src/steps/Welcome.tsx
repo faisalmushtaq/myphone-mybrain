@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import family from '../assets/family.jpg';
 import { Button } from '../components/ui/Button';
 import { Disclosure } from '../components/ui/Disclosure';
 import { Draft } from '../components/ui/Draft';
@@ -13,15 +12,22 @@ export function Welcome() {
   const { state, dispatch } = useStore();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
-  useEffect(() => {
-    document.title = 'Take part online – MyPhone/MyBrain';
-    headingRef.current?.focus({ preventScroll: true });
-  }, []);
-
   const choose = (route: 'parent' | 'young') => {
     dispatch({ type: 'set-route', route });
     dispatch({ type: 'go-to', stepId: 'child-details', returnTo: null });
   };
+
+  useEffect(() => {
+    document.title = 'Take part online – MyPhone/MyBrain';
+    // The website's buttons link here with ?who=young or ?who=parent, so the choice is already made.
+    const who = new URLSearchParams(window.location.search).get('who');
+    if ((who === 'young' || who === 'parent') && state.route === null) {
+      choose(who);
+      return;
+    }
+    headingRef.current?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const resume = state.route !== null && state.stepId === 'welcome' && (state.identity.firstName || state.consent.completedAt);
 
@@ -108,10 +114,6 @@ export function Welcome() {
           </p>
         </Disclosure>
       </section>
-
-      <figure className="mpmb-welcome__figure">
-        <img src={family} alt="Simple silhouettes of a parent or carer and a young person looking at study information together" loading="lazy" width="1280" height="720" />
-      </figure>
 
       <ul className="mpmb-reassure" aria-label="Good to know">
         <li>
