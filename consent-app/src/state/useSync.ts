@@ -41,6 +41,7 @@ export function snapshotOf(state: AppState): string {
     guardian: state.guardian,
     consent: state.consent,
     assent: { ...state.assent, responses: assentResponses },
+    survey: state.survey,
   });
 }
 
@@ -59,9 +60,9 @@ function buildConsentPayload(state: AppState): ConsentPayload {
   const base = { referenceCode: state.submission.referenceCode, studyId: study.studyId, siteId: study.siteId, route: state.route ?? ('parent' as const), client: clientInfo() };
   if (state.assent.status === 'declined') {
     // Only what the team needs to avoid asking again. No permission record, date of birth, postcode or phone.
-    return { ...base, kind: 'declined', identity: { ...state.identity, dateOfBirth: { day: '', month: '', year: '' } }, guardian: { ...state.guardian, phone: '', postcode: '', email: state.guardian.wantsCopy ? state.guardian.email : '' }, consent: null, assent: state.assent };
+    return { ...base, kind: 'declined', identity: { ...state.identity, dateOfBirth: { day: '', month: '', year: '' } }, guardian: { ...state.guardian, phone: '', postcode: '', email: state.guardian.wantsCopy ? state.guardian.email : '' }, consent: null, assent: state.assent, survey: null };
   }
-  return { ...base, kind: 'consent', identity: state.identity, guardian: state.guardian, consent: state.consent, assent: state.assent };
+  return { ...base, kind: 'consent', identity: state.identity, guardian: state.guardian, consent: state.consent, assent: state.assent, survey: state.survey };
 }
 
 /**

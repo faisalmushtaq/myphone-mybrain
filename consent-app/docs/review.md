@@ -137,3 +137,26 @@ Points the reviewers would raise about these, and the answers built in:
 | Data protection | Are amendments an audit risk? | No record is edited: each amendment is a new consent and assent document with `supersedes`, and the submission lists every version. |
 | Young people | Will the photo warning make them feel accused? | It says "doesn't look like a screen-time page" and explains that a photo of another phone showing the app list is fine; the only hard refusals are for unsafe content or a plain photograph with no screen-time words. |
 | Low-literacy parent | Is it clear when things are saved? | One status line, always in the same place, with three states: saving, saved with the reference, not saved with a retry. |
+
+## Fourth round: apps, and the parent's questions
+
+* **Apps, not just totals.** The permission statement, the young person's
+  statement, the screen-time page, the walkthroughs and the check now all say
+  the same thing: we want the list of apps with the time on each, and why
+  (how a phone is used matters as much as how much). Both `phone-use`
+  statements have a new version; the server flags an accepted screenshot
+  whose text shows screen-time words but no app list, so the team can ask for
+  it.
+* **Five one-tap questions for the parent**, straight after their
+  permission: how concerned they are, time on a school day, compared with
+  other young people, whether it gets in the way, and their overall view.
+  Optional at every level (skip a question, skip them all), with a visible
+  "Previous question", and a summary with "Change my answers" when the parent
+  comes back rather than asking everything again.
+
+| Perspective | Concern | Answer |
+|---|---|---|
+| Ethics | Survey items inside a consent journey could be read as a condition of taking part. | The step is labelled optional, says the answers are research information and "not part of your permission", sits after the permission has been signed, and can be skipped in one tap. The record stores `skipped` distinctly from `completed`. |
+| Young person | Seeing "Very concerned" about themselves on the shared phone. | The check page and the thank-you page show a count only ("4 of 5 answered"); the answers are behind a handover to the parent. |
+| Accessibility | Auto-advance on selection can strand keyboard and screen-reader users. | The options are real buttons (one press = one answer), focus moves to the next question and its number is announced; nothing advances on arrow keys. |
+| Data protection | Where are the answers stored? | In a `surveys` collection labelled by participant id only, readable by the researcher and coordinator roles; re-sent as a new versioned record with any amendment. |

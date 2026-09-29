@@ -14,13 +14,13 @@ export interface ServedStatement {
 
 export const parentConsentForm = {
   id: 'mpmb-parent-consent',
-  version: '0.4-draft',
+  version: '0.5-draft',
   statements: [
     { id: 'read-information', version: '0.3-draft', kind: 'required' },
     { id: 'take-part', version: '0.3-draft', kind: 'required' },
     { id: 'understand-withdraw', version: '0.3-draft', kind: 'required' },
     { id: 'records-checked', version: '0.3-draft', kind: 'required' },
-    { id: 'phone-use', version: '0.3-draft', kind: 'optional' },
+    { id: 'phone-use', version: '0.4-draft', kind: 'optional' },
     { id: 'link-records', version: '0.4-draft', kind: 'optional' },
     { id: 'recontact', version: '0.3-draft', kind: 'optional' },
   ] as ServedStatement[],
@@ -28,7 +28,7 @@ export const parentConsentForm = {
 
 export const childAssentForm = {
   id: 'mpmb-child-assent',
-  version: '0.3-draft',
+  version: '0.4-draft',
   /** Agreed to by the young person's signature. */
   signed: ['understand', 'can-stop', 'take-part'],
   /** Agreed to by sending screenshots. */
@@ -37,11 +37,24 @@ export const childAssentForm = {
     { id: 'understand', version: '0.3-draft', kind: 'required' },
     { id: 'can-stop', version: '0.3-draft', kind: 'required' },
     { id: 'take-part', version: '0.3-draft', kind: 'required' },
-    { id: 'phone-use', version: '0.3-draft', kind: 'optional' },
+    { id: 'phone-use', version: '0.4-draft', kind: 'optional' },
   ] as ServedStatement[],
 };
 
 export const informationVersion = '0.3-draft';
+
+/** The parent's quick questions (src/config/questions.ts in the app). */
+export const parentQuestionsForm = {
+  id: 'mpmb-parent-perceptions',
+  version: '0.1-draft',
+  questions: [
+    { id: 'concern', version: '0.1-draft', options: ['not-at-all', 'a-little', 'somewhat', 'very', 'extremely'] },
+    { id: 'time-school-day', version: '0.1-draft', options: ['under-1h', '1-2h', '2-4h', '4-6h', 'over-6h', 'unsure'] },
+    { id: 'compared-peers', version: '0.1-draft', options: ['much-less', 'a-bit-less', 'about-the-same', 'a-bit-more', 'much-more', 'unsure'] },
+    { id: 'gets-in-the-way', version: '0.1-draft', options: ['never', 'rarely', 'sometimes', 'often', 'almost-always'] },
+    { id: 'overall', version: '0.1-draft', options: ['mostly-good', 'mixed', 'mostly-bad', 'unsure'] },
+  ],
+};
 
 export const study = {
   studyId: 'MPMB',

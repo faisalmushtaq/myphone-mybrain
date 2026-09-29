@@ -12,6 +12,7 @@ import { ChildDetails } from './steps/ChildDetails';
 import { Done } from './steps/Done';
 import { ParentConsent } from './steps/ParentConsent';
 import { ParentDetails } from './steps/ParentDetails';
+import { ParentQuestions } from './steps/ParentQuestions';
 import { PhoneUse } from './steps/PhoneUse';
 import { Check } from './steps/Check';
 import { Welcome } from './steps/Welcome';
@@ -21,6 +22,7 @@ const steps: Record<StepId, ComponentType> = {
   'child-details': ChildDetails,
   'parent-details': ParentDetails,
   'parent-consent': ParentConsent,
+  'parent-questions': ParentQuestions,
   'child-assent': ChildAssent,
   'assent-declined': AssentDeclined,
   'phone-use': PhoneUse,

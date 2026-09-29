@@ -142,6 +142,29 @@ export interface DonationImage {
 
 export type DonationStatus = 'not-started' | 'in-progress' | 'completed' | 'skipped' | 'not-consented' | 'deferred';
 
+/* ────────────────────────────────────────────────────────────────────────
+   The parent's quick questions (research data, optional)
+   ──────────────────────────────────────────────────────────────────────── */
+
+export type SurveyStatus = 'not-started' | 'in-progress' | 'completed' | 'skipped';
+
+export interface QuestionResponse {
+  questionId: string;
+  /** Version of the question wording that was shown. */
+  version: string;
+  value: string;
+  answeredAt: string;
+}
+
+export interface SurveyRecord {
+  formId: string;
+  formVersion: string;
+  status: SurveyStatus;
+  responses: Record<string, QuestionResponse>;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
 export interface PhoneUseDonation {
   platform: PlatformId | null;
   images: DonationImage[];
@@ -185,7 +208,7 @@ export interface SubmissionState {
   declinedSentAt: string | null;
 }
 
-export type StepId = 'welcome' | 'child-details' | 'parent-details' | 'parent-consent' | 'child-assent' | 'assent-declined' | 'phone-use' | 'check' | 'done';
+export type StepId = 'welcome' | 'child-details' | 'parent-details' | 'parent-consent' | 'parent-questions' | 'child-assent' | 'assent-declined' | 'phone-use' | 'check' | 'done';
 
 export interface Handover {
   from: Actor;
@@ -215,6 +238,8 @@ export interface AppState {
   consent: ConsentRecord;
   assent: AssentRecord;
   donation: PhoneUseDonation;
+  /** The parent's quick questions about the young person's phone use. */
+  survey: SurveyRecord;
   submission: SubmissionState;
   session: SessionInfo | null;
   prototype: PrototypeFlags;

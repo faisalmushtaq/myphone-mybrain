@@ -24,7 +24,7 @@ export const aboutStudy = {
     cards: [
       {
         title: 'What we ask for today',
-        body: 'Your permission for your child to take part, your child’s own agreement, and, if you are both happy, a screenshot of your child’s screen-time summary.',
+        body: 'Your permission for your child to take part, your child’s own agreement, and, if you are both happy, screenshots of your child’s screen-time summary showing which apps they use and for how long.',
       },
       {
         title: 'What we are not doing',
@@ -45,7 +45,7 @@ export const aboutStudy = {
     cards: [
       {
         title: 'What taking part means',
-        body: 'Short surveys about everyday life and how you feel. Some people are invited to a session at school, where you wear a cap that records brain activity while you do simple tasks on a computer. If you want, you can also share a screenshot of your phone’s screen-time summary. You choose which parts to do.',
+        body: 'Short surveys about everyday life and how you feel. Some people are invited to a session at school, where you wear a cap that records brain activity while you do simple tasks on a computer. If you want, you can also share screenshots of your phone’s screen-time summary — which apps you use and for how long. You choose which parts to do.',
       },
       {
         title: 'What we are not doing',
@@ -75,7 +75,7 @@ export const parentInformation: InfoSection[] = [
     summary: 'Short surveys, an optional session at school, and (if you choose) sharing phone-use information.',
     detail: [
       'Young people complete short surveys about everyday life, wellbeing and technology. Some are invited to a session at school that may include an EEG recording, which measures brain activity safely and painlessly using a cap with sensors.',
-      'Families can also choose to share a summary of the young person’s phone use, usually as a screenshot of the phone’s screen-time or digital-wellbeing screen.',
+      'Families can also choose to share a summary of the young person’s phone use: screenshots of the phone’s screen-time or digital-wellbeing screen, including the list of apps and the time spent on each. How a phone is used matters as much as how much.',
       'Everything is optional. Your child can choose which parts to do.',
     ],
     draft: true,
@@ -83,7 +83,7 @@ export const parentInformation: InfoSection[] = [
   {
     id: 'phone-use',
     title: 'Phone-use information',
-    summary: 'A screenshot of the screen-time summary: which apps were used and for how long. Not messages, photos or posts.',
+    summary: 'Screenshots of the screen-time summary showing which apps were used and for how long — the apps, not just the total. Not messages, photos or posts.',
     detail: [
       'Patterns of phone use differ a lot between young people. We want to understand those differences scientifically, rather than rely on guesses about screen time.',
       'We use this information to look for patterns across many young people. We do not assess or report on any individual child.',
@@ -138,11 +138,11 @@ export const parentInformation: InfoSection[] = [
 
 /** Reasons shown on the phone-type screen. */
 export const whyPhoneUse = {
-  heading: 'Share your phone-use information',
+  heading: 'Share your screen time and the apps you use',
   intro:
-    'Phones are part of everyday life. We want to understand how young people actually use them, not how much people guess they do. Patterns differ a lot from person to person, and that is exactly what we want to understand.',
+    'Phones are part of everyday life. We want to understand how young people actually use them, not how much people guess they do. Patterns differ a lot from person to person, and that is exactly what we want to understand. Which apps, and for how long, tells us far more than the total alone: how a phone is used matters as much as how much.',
   points: [
-    { title: 'What you share', body: 'A screenshot of the phone’s screen-time summary: which apps were used and for roughly how long.' },
+    { title: 'What you share', body: 'Screenshots of the phone’s screen-time summary showing the list of apps and roughly how long each was used. The apps matter as much as the total.' },
     { title: 'Why we want it', body: 'To understand patterns across lots of young people, and how those patterns relate to wellbeing, learning and brain development.' },
     { title: 'How we use it', body: 'Researchers look at the information for groups of people. Nobody is judged or ranked, and nobody gets an individual “profile”.' },
     { title: 'How it is protected', body: 'Images are stored by the University of Leeds with a code instead of a name. They are never sold, and never shared with phone or social-media companies or with your school.' },
@@ -169,7 +169,7 @@ export const thankYou = {
   heading: 'Thank you for taking part.',
   why: [
     'Almost everything people say about young people and phones is guesswork, because nobody has had good evidence. MyPhone/MyBrain is collecting it, carefully, from thousands of young people in Bradford and Leeds.',
-    'Every family that takes part makes the picture clearer, and the screen-time screenshots are the part no one else can provide. What we learn goes back to young people, families and schools, and to the people who make decisions about education and health.',
+    'Every family that takes part makes the picture clearer, and the screenshots of screen time and app use are the part no one else can provide. What we learn goes back to young people, families and schools, and to the people who make decisions about education and health.',
   ],
   draft: true,
 };

@@ -15,7 +15,7 @@ httpsCallable('submitConsent') ──────────▶ Cloud Function 
   again with the reference code              amendment → new consent/assent records that
   when something is changed                    point at the ones they supersede
                                              writes participants · consents · assents ·
-                                               submissions (· mail) in one batch
+                                               surveys · submissions (· mail) in one batch
 
 uploadBytesResumable ────────────────────▶ Cloud Storage  quarantine/{uid}/{uploadId}
   when "Send" is pressed on the              rules: own path only, image/*, < 10 MB,
@@ -30,7 +30,7 @@ httpsCallable('submitDonation') ─────────▶ Cloud Function su
                                              returns { accepted, rejected: [{uploadId, reason}] }
 
                                           Firestore: participants · consents · assents
-                                                     donations · submissions · mail
+                                                     surveys · donations · submissions · mail
                                              rules: no browser access at all
 ```
 
@@ -62,6 +62,7 @@ with a role claim.
 | `participants/{participantId}` | names, date of birth, school, year group, parent/guardian name, relationship, whether a copy was asked for, email, phone, postcode. Updated in place by an amendment (`version`, `updatedAt`). | `coordinator` |
 | `consents/{consentId}` | form id and version, information version, every statement with its version, response, time and how it was given (`individual`, `group`, `signature`, `action`), typed name, signature (method, strokes, and a reference to the PNG in Storage), confirmed date, completion time, `revisedAt`, route, client info, `version` and `supersedes` (the previous consent record, or null). Never edited. | `coordinator`, `auditor` |
 | `assents/{assentId}` | the same shape for the young person, plus `deferredBy`, handover and start times, `quickAgreementFlag` (agreement completed within 15 seconds of the handover), `version`, `supersedes`. The screenshot agreement (`responses.phone-use`, given by the act of sending) is added when screenshots are first sent. | `coordinator`, `auditor` |
+| `surveys/{surveyId}` | one document per send: `participantId`, the questions form id and version, status (completed, skipped or in progress), each answer with the question version and time, `version` and `supersedes`. **No names.** | `researcher`, `coordinator` |
 | `donations/{donationId}` | one document per send: `participantId`, platform, the young person's `agreement` record, `needsReview`, and for each image its Storage path, dimensions, size, SHA-256, whether it was redacted or cropped, and its `quality` result (verdict, reasons, terms found, SafeSearch likelihoods, flatness, whether Vision ran, whether the family confirmed a warning). **No names.** | `researcher`, `coordinator` |
 | `submissions/{referenceCode}` | one row per family: kind, route, the *current* `consentId` and `assentId`, `version`, `versions[]` (one entry per send with the record ids and time), `donationIds[]`, `imageCount`, `copyEmailedTo`, session uid, user agent | `coordinator` |
 | `mail/{id}` | the confirmation email for the Trigger Email extension, queued only when a copy was asked for, once per address | nobody |
@@ -86,8 +87,10 @@ three letters for a typed-in school, an email address only when a copy was
 asked for, that every statement id exists and carries the **current**
 version, that all required statements are agreed and every optional one
 answered, that a completed agreement carries a signature and the three signed
-statements, that a declined submission carries no permission record, and that
-the signature is a real PNG under 200 KB. A payload with a reference code is
+statements, that the parent's quick questions (if present) use known question
+ids, current versions and listed answers, that a declined submission carries
+no permission record and no questions, and that the signature is a real PNG
+under 200 KB. A payload with a reference code is
 an amendment: the reference must exist and belong to the same anonymous
 session, the participant document is updated, new consent and assent records
 are written pointing at the ones they supersede, and the submission's version
@@ -120,6 +123,7 @@ harmful should be stored.
    | Flatness | share of pixels covered by the eight most common colours, computed with `sharp` | backs up the other signals; never rejects on its own |
    | SafeSearch | Cloud Vision `SAFE_SEARCH_DETECTION` | adult, violence or racy at *likely* or above → **rejected**, not stored; *possible* → kept, flagged for review |
    | Text | Cloud Vision `TEXT_DETECTION`, matched against the words on iOS Screen Time and Android Digital Wellbeing pages ("Screen Time", "Digital Wellbeing", "Most used", "Daily average", durations…) | words found → **accepted**; none found and the image is photo-like → **rejected** with "This doesn't look like a screenshot of the screen-time page"; none found but flat → kept, flagged for review |
+   | App list | several durations, or the words that head an app list ("Most used", "See all app & website activity", "Show more") | recorded as `appsVisible`; screen-time words without an app list → kept, flagged for review as "may be the summary only", so the team can ask for the app list |
 
    Without Vision (the default until it is switched on) the server never
    rejects on relevance: a flat portrait image is accepted, anything else is

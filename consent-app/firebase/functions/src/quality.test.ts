@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { randomBytes } from 'node:crypto';
-import { assess, FAMILY_REASONS, findTerms, flatnessOfPixels, type SafeSearch } from './quality.js';
+import { appListVisible, assess, FAMILY_REASONS, findTerms, flatnessOfPixels, type SafeSearch } from './quality.js';
 
 const safe: SafeSearch = { adult: 'VERY_UNLIKELY', violence: 'VERY_UNLIKELY', racy: 'UNLIKELY', medical: 'VERY_UNLIKELY', spoof: 'UNLIKELY' };
 const screenText = 'Screen Time\nDaily Average\n4h 12m\nMost Used\nInstagram 1h 40m\nYouTube 55m\nMessages 30m';
@@ -10,6 +10,16 @@ test('finds screen-time words and durations', () => {
   const found = findTerms(screenText);
   assert.ok(found.includes('screen time') && found.includes('most used') && found.some((t) => t.endsWith('durations')));
   assert.deepEqual(findTerms('Happy birthday Grandma!'), []);
+});
+
+test('the app list is recognised by several durations or the words that head it', () => {
+  assert.equal(appListVisible(screenText), true);
+  assert.equal(appListVisible('Screen Time\nDaily Average 3h 12m'), false);
+  assert.equal(appListVisible('Digital Wellbeing\nShow more'), true);
+  const summaryOnly = assess({ width: 1170, height: 2532, flatness: 0.8, vision: { safeSearch: safe, text: 'Screen Time\nDaily Average 3h 12m' }, acknowledgedWarning: false });
+  assert.equal(summaryOnly.verdict, 'review');
+  assert.equal(summaryOnly.appsVisible, false);
+  assert.ok(summaryOnly.reasons.some((r) => r.includes('no list of apps')));
 });
 
 test('flatness is high for flat colour and low for noise', () => {

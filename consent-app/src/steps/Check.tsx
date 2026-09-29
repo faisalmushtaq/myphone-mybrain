@@ -48,7 +48,7 @@ export function Check() {
           <Icon name="check" size={16} /> Permission and agreement
         </span>
         <span className="mpmb-legend__item mpmb-legend__item--research">
-          <Icon name="image" size={16} /> Screen-time screenshots
+          <Icon name="image" size={16} /> Screen time and apps
         </span>
       </div>
 

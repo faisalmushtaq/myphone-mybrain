@@ -56,6 +56,9 @@ export const study = {
    */
   allowDeferredAssent: true,
 
+  /** Ask the parent or guardian a few one-tap questions about how they see the young person's phone use, straight after their permission. */
+  parentQuestions: true,
+
   /** Phone-use information is only requested once the young person has agreed. */
   requireAssentBeforeDonation: true,
 

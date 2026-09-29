@@ -25,6 +25,7 @@ export const stepDefs: Record<StepId, StepDef> = {
   'child-details': { id: 'child-details', phase: 'details', actor: 'route', title: 'Details' },
   'parent-details': { id: 'parent-details', phase: 'details', actor: 'parent', title: 'Parent or guardian details' },
   'parent-consent': { id: 'parent-consent', phase: 'consent', actor: 'parent', title: 'Parent or guardian permission' },
+  'parent-questions': { id: 'parent-questions', phase: 'consent', actor: 'parent', title: 'Quick questions' },
   'child-assent': { id: 'child-assent', phase: 'agreement', actor: 'young', title: 'Young person’s agreement' },
   'assent-declined': { id: 'assent-declined', phase: 'agreement', actor: 'young', title: 'Not taking part' },
   'phone-use': { id: 'phone-use', phase: 'phone', actor: 'anyone', title: 'Share your screen time' },
@@ -64,6 +65,7 @@ export function buildJourney(state: AppState): StepId[] {
   const steps: StepId[] = ['welcome', 'child-details'];
   if (state.route !== 'parent') steps.push('parent-details');
   steps.push('parent-consent');
+  if (study.parentQuestions) steps.push('parent-questions');
   if (assentApplies(state)) {
     steps.push('child-assent');
     if (state.assent.status === 'declined') {
@@ -107,6 +109,8 @@ export function isStepComplete(stepId: StepId, state: AppState): boolean {
       return isValidGuardian(state.guardian);
     case 'parent-consent':
       return state.consent.completedAt !== null;
+    case 'parent-questions':
+      return state.survey.status === 'completed' || state.survey.status === 'skipped';
     case 'child-assent':
       return state.assent.status !== 'not-started';
     case 'assent-declined':

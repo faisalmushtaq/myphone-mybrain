@@ -14,7 +14,7 @@ import { initialState } from './reducer';
  * young person does not force the parent to sign again; it is removed with
  * everything else when the form is cleared.
  */
-const KEY = 'mpmb-consent:v4';
+const KEY = 'mpmb-consent:v5';
 const MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
 type Persisted = Omit<AppState, 'handover' | 'restored' | 'prototype' | 'clearedReason'> & { savedAt: string };
@@ -57,6 +57,7 @@ export function loadState(): { state: AppState; expired: boolean } | null {
           // Uploaded and sent images live on the server; anything still on the device is gone after a refresh.
           images: (parsed.donation?.images ?? []).map((img) => (img.status === 'uploaded' || img.status === 'sent' ? img : { ...img, status: 'failed', progress: 0, error: 'This image was lost when the page was refreshed. Please add it again.' })),
         },
+        survey: { ...base.survey, ...(parsed.survey ?? {}) },
         submission: { ...base.submission, ...(parsed.submission ?? {}) },
         prototype: base.prototype,
         handover: null,

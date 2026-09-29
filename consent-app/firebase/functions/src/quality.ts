@@ -54,6 +54,8 @@ export interface Quality {
   familyReason: string | null;
   looksLikeScreen: boolean;
   termsFound: string[];
+  /** Whether the text suggests the list of apps with times is in the picture, not just the total. */
+  appsVisible: boolean;
   safeSearch: SafeSearch | null;
   checkedWithVision: boolean;
   flatness: number;
@@ -72,6 +74,9 @@ const TERMS = [
   'daily average',
   'daily total',
   'most used',
+  'see all app',
+  'app & website activity',
+  'app and website activity',
   'pickups',
   'app limits',
   'downtime',
@@ -108,6 +113,15 @@ export function findTerms(text: string): string[] {
   return found;
 }
 
+const APP_LIST_TERMS = ['most used', 'see all app', 'app & website activity', 'app and website activity', 'app activity', 'app usage', 'show more', 'show apps'];
+
+/** The study wants the apps, not just the total: several durations, or the words that head an app list. */
+export function appListVisible(text: string): boolean {
+  const lower = text.toLowerCase().replace(/\s+/g, ' ');
+  const durations = lower.match(DURATION)?.length ?? 0;
+  return durations >= 3 || APP_LIST_TERMS.some((t) => lower.includes(t));
+}
+
 /**
  * Coverage of the eight most common colours (5 bits per channel), from raw
  * pixels of a small resized copy. Flat UI scores high, photographs low.
@@ -134,11 +148,13 @@ export function assess(input: QualityInput): Quality {
   const looksLikeScreen = input.flatness >= 0.45 && portrait;
   const reasons: string[] = [];
   const termsFound = input.vision ? findTerms(input.vision.text) : [];
+  const appsVisible = input.vision ? appListVisible(input.vision.text) : false;
   const safeSearch = input.vision?.safeSearch ?? null;
   const base: Omit<Quality, 'verdict' | 'familyReason'> = {
     reasons,
     looksLikeScreen,
     termsFound,
+    appsVisible,
     safeSearch,
     checkedWithVision: input.vision !== null,
     flatness: input.flatness,
@@ -161,6 +177,7 @@ export function assess(input: QualityInput): Quality {
   if (input.vision) {
     if (termsFound.length) {
       if (!looksLikeScreen) reasons.push('Screen-time words found, but the image is not flat and portrait (a photo of a screen?).');
+      if (!appsVisible) reasons.push('Screen-time words found but no list of apps with times: may be the summary only.');
       return { ...base, verdict: reasons.length ? 'review' : 'accepted', familyReason: null };
     }
     reasons.push(input.vision.text.trim() ? 'No screen-time words in the text found.' : 'No text found in the image.');

@@ -34,6 +34,7 @@ The model deliberately separates three kinds of information:
 | `ParticipantIdentity` | child's names, date of birth, school, year group, postcode | Matching the participant within the study and (with consent) with external records. **Identifying.** |
 | `GuardianIdentity` | parent's name, relationship, parental-responsibility declaration, email, phone | Establishing who gave consent and how to reach them. **Identifying.** |
 | `ConsentRecord` / `AssentRecord` | form id + version, every statement with its version and response, typed name, signature (PNG + stroke metadata + method), confirmed date, device timestamp, study/site/school identifiers | The audit record of what was agreed, by whom, and when. |
+| `SurveyRecord` | the parent's answers to five one-tap questions about the young person's phone use, each with the question version and time; status completed, skipped or in progress | **Research data**, optional and separate from consent; stored with the participant id only. |
 | `PhoneUseDonation` | platform, list of uploaded image references (server upload ids, dimensions, whether redacted), status | **Research data.** Never stored alongside identity in the browser; linked server-side by participant id. |
 
 The submission payload sends these as separate top-level objects so the server

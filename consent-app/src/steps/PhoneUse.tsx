@@ -117,12 +117,12 @@ export function PhoneUse() {
       kicker="Screen time"
       title={
         <>
-          Share {young ? 'your' : 'the'} screen-time summary. {whyPhoneUse.draft && <Draft />}
+          Share {young ? 'your screen time and the apps you use' : 'the screen time and the apps used'}. {whyPhoneUse.draft && <Draft />}
         </>
       }
       intro={
         <p>
-          A screenshot of the phone’s screen-time page: which apps were used and for how long. Not messages, photos or posts. <strong>This is the most important part of the study</strong> — it is the one thing nobody else can tell us. You can hide any part of an image before it goes.
+          Screenshots of the phone’s screen-time page showing <strong>which apps were used and for how long</strong> — the list of apps, not just the total, because how a phone is used matters as much as how much. Not messages, photos or posts. <strong>This is the most important part of the study</strong>: it is the one thing nobody else can tell us. You can hide any part of an image before it goes.
         </p>
       }
       errors={error ? [{ field: 'mpmb-capture-choose', message: error }] : []}
@@ -239,7 +239,7 @@ export function PhoneUse() {
       {images.length > 0 && !confirmDoubtful && (
         <Callout tone="important" title="Take a moment to check">
           <p>
-            If a screenshot shows a notification, a message, a website or an app you would rather not show, use “Hide part of it” or remove it. Hidden parts are removed from the image itself. You can add up to {study.upload.maxImages} images.
+            Check that at least one screenshot shows the list of apps with the time next to each. If a screenshot shows a notification, a message, a website or an app you would rather not show, use “Hide part of it” or remove it. Hidden parts are removed from the image itself. You can add up to {study.upload.maxImages} images.
           </p>
         </Callout>
       )}
@@ -268,7 +268,7 @@ export function PhoneUse() {
       {appeal && (
         <Callout tone="important" role="alert" title="Before you skip">
           <p>
-            The screenshots are the part of MyPhone/MyBrain that no one else can provide — real screen-time from real young people, not guesses. Taking part is already recorded, so there is no pressure, but it takes about a minute and it makes a real difference to the study.
+            The screenshots are the part of MyPhone/MyBrain that no one else can provide — real screen time and real app use from real young people, not guesses. Taking part is already recorded, so there is no pressure, but it takes about a minute and it makes a real difference to the study.
           </p>
           <div className="mpmb-callout__actions">
             <Button

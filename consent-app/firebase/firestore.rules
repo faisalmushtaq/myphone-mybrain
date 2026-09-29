@@ -9,6 +9,7 @@ rules_version = '2';
 // consents/       parent or guardian permission records
 // assents/        young people's agreement records
 // donations/      research data: references to screen-time images
+// surveys/        research data: the parent's quick questions about phone use
 // submissions/    one row per submission (reference code, links to the above)
 // mail/           outgoing emails for the Trigger Email extension
 service cloud.firestore {
@@ -35,6 +36,12 @@ service cloud.firestore {
 
     // Research data: researchers see references to images labelled by study id only.
     match /donations/{donationId} {
+      allow read: if hasRole('researcher') || hasRole('coordinator');
+      allow write: if false;
+    }
+
+    // Research data: the parent's answers, labelled by participant id only.
+    match /surveys/{surveyId} {
       allow read: if hasRole('researcher') || hasRole('coordinator');
       allow write: if false;
     }

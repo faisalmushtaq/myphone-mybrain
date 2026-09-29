@@ -1,3 +1,4 @@
+import { parentQuestionsForm } from '../config/questions';
 import { childAssentForm, parentConsentForm } from '../config/statements';
 import type { PlatformId } from '../config/walkthroughs';
 import { todayIso } from '../lib/dates';
@@ -18,6 +19,7 @@ import type {
   StatementResponse,
   StepId,
   SubmissionState,
+  SurveyStatus,
 } from '../model/types';
 
 export function initialState(): AppState {
@@ -53,6 +55,7 @@ export function initialState(): AppState {
       completedAt: null,
     },
     donation: { platform: null, images: [], status: 'not-started' },
+    survey: { formId: parentQuestionsForm.id, formVersion: parentQuestionsForm.version, status: 'not-started', responses: {}, startedAt: null, completedAt: null },
     submission: { referenceCode: null, participantId: null, consentStage: 'idle', consentError: null, consentSentAt: null, consentVersion: 0, sentSnapshot: null, donationStage: 'idle', donationError: null, donationsSent: 0, declinedSentAt: null },
     session: null,
     prototype: { failUploads: false, failSubmit: false, showDraftMarkers: true },
@@ -95,6 +98,9 @@ export type Action =
   | { type: 'update-image'; id: string; patch: Partial<DonationImage> }
   | { type: 'remove-image'; id: string }
   /** Uploads the server has accepted and linked to the record. */
+  | { type: 'answer-question'; questionId: string; version: string; value: string }
+  | { type: 'skip-question'; questionId: string }
+  | { type: 'survey-status'; status: SurveyStatus }
   | { type: 'images-sent'; ids: string[] }
   | { type: 'donation-status'; status: DonationStatus }
   | { type: 'submission'; patch: Partial<SubmissionState> }
@@ -257,6 +263,19 @@ export function reducer(state: AppState, action: Action): AppState {
       const images = state.donation.images.filter((img) => img.id !== action.id);
       const status: DonationStatus = images.length === 0 && state.donation.status === 'completed' ? 'in-progress' : state.donation.status;
       return { ...state, donation: { ...state.donation, images, status } };
+    }
+    case 'answer-question': {
+      const now = new Date().toISOString();
+      const responses = { ...state.survey.responses, [action.questionId]: { questionId: action.questionId, version: action.version, value: action.value, answeredAt: now } };
+      return { ...state, survey: { ...state.survey, responses, status: state.survey.status === 'completed' ? 'completed' : 'in-progress', startedAt: state.survey.startedAt ?? now } };
+    }
+    case 'skip-question': {
+      const { [action.questionId]: _skipped, ...responses } = state.survey.responses;
+      return { ...state, survey: { ...state.survey, responses, startedAt: state.survey.startedAt ?? new Date().toISOString() } };
+    }
+    case 'survey-status': {
+      const done = action.status === 'completed' || action.status === 'skipped';
+      return { ...state, survey: { ...state.survey, status: action.status, completedAt: done ? new Date().toISOString() : state.survey.completedAt } };
     }
     case 'images-sent':
       return { ...state, donation: { ...state.donation, images: state.donation.images.map((img) => (action.ids.includes(img.id) ? { ...img, status: 'sent', progress: 1, error: null } : img)) } };

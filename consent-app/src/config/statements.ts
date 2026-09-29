@@ -45,7 +45,7 @@ export interface StatementForm {
 
 export const parentConsentForm: StatementForm = {
   id: 'mpmb-parent-consent',
-  version: '0.4-draft', // PLACEHOLDER — ethics-approved version identifier
+  version: '0.5-draft', // PLACEHOLDER — ethics-approved version identifier
   title: 'Parent or guardian permission',
   statements: [
     {
@@ -82,12 +82,12 @@ export const parentConsentForm: StatementForm = {
     },
     {
       id: 'phone-use',
-      version: '0.3-draft',
+      version: '0.4-draft',
       kind: 'optional',
-      label: 'Screen-time screenshots',
-      text: 'The research team may collect and analyse screenshots of my child’s screen-time summary (the apps used and the time spent on each).',
+      label: 'Screen-time and app-use screenshots',
+      text: 'The research team may collect and analyse screenshots of my child’s screen-time summary showing which apps they use and how long they spend on each.',
       more:
-        'This is a screenshot of the phone’s Screen Time or Digital Wellbeing screen. It does not show messages, photos or what was posted. Your child can hide parts of an image before sharing it, and images are stored with a code rather than a name.',
+        'This is a screenshot of the phone’s Screen Time or Digital Wellbeing screen, including the list of apps. We ask for the apps as well as the total because how a phone is used matters as much as how long. It does not show messages, photos or what was posted. Your child can hide parts of an image before sharing it, and images are stored with a code rather than a name.',
       affects: 'phone-use',
       draft: true,
     },
@@ -115,7 +115,7 @@ export const parentConsentForm: StatementForm = {
 
 export const childAssentForm: StatementForm = {
   id: 'mpmb-child-assent',
-  version: '0.3-draft', // PLACEHOLDER — ethics-approved version identifier
+  version: '0.4-draft', // PLACEHOLDER — ethics-approved version identifier
   title: 'Young person’s agreement',
   statements: [
     {
@@ -147,11 +147,11 @@ export const childAssentForm: StatementForm = {
     },
     {
       id: 'phone-use',
-      version: '0.3-draft',
+      version: '0.4-draft',
       kind: 'optional',
-      label: 'Sharing a screen-time screenshot',
-      text: 'I am happy to share a screenshot of my phone’s screen-time summary.',
-      more: 'It shows which apps you use and for how long, not what you do in them. You can hide any part before sharing, and you can skip it.',
+      label: 'Sharing screenshots of your screen time and apps',
+      text: 'I am happy to share screenshots of my phone’s screen-time summary, including which apps I use and for how long.',
+      more: 'It shows which apps you use and for how long — not what you do in them. Both matter: how you use your phone, not just how much. You can hide any part before sharing, and you can skip it.',
       affects: 'phone-use',
       draft: true,
     },

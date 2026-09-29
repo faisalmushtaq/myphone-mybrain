@@ -133,13 +133,18 @@ async function inner() {
     for (const [id, v] of [['phone-use', 'agreed'], ['link-records', 'declined'], ['recontact', 'declined']]) await page.locator(`#stmt-${id}-${v}`).check();
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.35, 0.3], [0.55, 0.7], [0.8, 0.4]]);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
+    for (const [i, label] of ['Somewhat', '2 to 4 hours', 'About the same', 'Sometimes', 'A mix of good and bad'].entries()) {
+      await page.getByText(`Question ${i + 1} of 5`).waitFor();
+      await page.getByRole('button', { name: label, exact: true }).click();
+    }
     await page.getByRole('button', { name: /I’m Kai/ }).click();
     await page.getByRole('heading', { name: /Do you want to take part/ }).waitFor();
     await draw(page.locator('#assent-signature'), [[0.2, 0.6], [0.5, 0.35], [0.8, 0.6]]);
     await page.getByRole('button', { name: 'Sign and continue' }).click();
 
     // 1. The permission and agreement are saved as soon as the young person has signed.
-    await page.getByRole('heading', { name: /Share your screen-time summary/ }).waitFor();
+    await page.getByRole('heading', { name: /Share your screen time/ }).waitFor();
     await page.locator('.mpmb-save', { hasText: 'Permission saved' }).waitFor({ timeout: 60000 });
     const code = (await page.locator('.mpmb-save strong').innerText()).trim();
     ok('reference code returned by submitConsent before any screenshot', /^MPMB-[A-Z2-9]{4}-[A-Z2-9]{3}$/.test(code), code);
@@ -186,6 +191,8 @@ async function inner() {
     ok('consent record has server receipt time', consent?.receivedAt && consent?.createdAt);
     const assent = (await db.collection('assents').doc(submission.assentId).get()).data();
     ok('assent record signed, screenshot agreement by action', assent?.status === 'completed' && assent?.responses?.['take-part']?.via === 'signature' && assent?.responses?.['phone-use']?.via === 'action');
+    const survey = (await db.collection('surveys').doc(submission.surveyId).get()).data();
+    ok('parent’s questions stored as research data without names, re-sent with the amendment', survey && !JSON.stringify(survey).includes('Patel') && survey.status === 'completed' && survey.responses?.concern?.value === 'somewhat' && Object.keys(survey.responses).length === 5 && survey.version === 2 && survey.supersedes);
     const donation = (await db.collection('donations').doc(submission.donationIds[0]).get()).data();
     ok('donation record has no names, carries the agreement and quality checks', donation && !JSON.stringify(donation).includes('Patel') && donation.images.length === 2 && donation.images[0].redacted === true && donation.agreement?.via === 'action' && ['accepted', 'review'].includes(donation.images[0].quality?.verdict));
     const [quarantine] = await bucket.getFiles({ prefix: 'quarantine/' });
@@ -239,7 +246,7 @@ async function inner() {
       }
     };
     const client = { userAgent: 'rules-check', submittedAt: new Date().toISOString(), timezoneOffset: 0 };
-    const agreement = { statementId: 'phone-use', version: '0.3-draft', response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' };
+    const agreement = { statementId: 'phone-use', version: '0.4-draft', response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' };
     ok('another session cannot add screenshots to this reference', await stranger(() => httpsCallable(fns, 'submitDonation')({ referenceCode: code, platform: 'ios', uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: false, cropped: false, acknowledgedWarning: false }], agreement, client })));
     ok('client cannot read its own quarantine upload', await denied(async () => {
       await uploadBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`), buffer, { contentType: 'image/png' });

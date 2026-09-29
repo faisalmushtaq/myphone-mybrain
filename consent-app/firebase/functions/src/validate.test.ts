@@ -17,14 +17,14 @@ function valid(): ConsentPayload {
     guardian: { fullName: 'Priya Patel', relationship: 'mother', relationshipOther: '', hasParentalResponsibility: true, wantsCopy: false, email: '', phone: '', postcode: '' },
     consent: {
       formId: 'mpmb-parent-consent',
-      formVersion: '0.4-draft',
+      formVersion: '0.5-draft',
       informationVersion: '0.3-draft',
       responses: {
         'read-information': r('read-information', 'agreed', 'group'),
         'take-part': r('take-part', 'agreed', 'group'),
         'understand-withdraw': r('understand-withdraw', 'agreed', 'group'),
         'records-checked': r('records-checked', 'agreed', 'group'),
-        'phone-use': r('phone-use', 'agreed', 'individual'),
+        'phone-use': r('phone-use', 'agreed', 'individual', '0.4-draft'),
         'link-records': r('link-records', 'declined', 'individual', '0.4-draft'),
         recontact: r('recontact', 'declined', 'individual'),
       },
@@ -36,12 +36,20 @@ function valid(): ConsentPayload {
     },
     assent: {
       formId: 'mpmb-child-assent',
-      formVersion: '0.3-draft',
+      formVersion: '0.4-draft',
       status: 'completed',
       deferredBy: null,
       responses: { understand: r('understand', 'agreed', 'signature'), 'can-stop': r('can-stop', 'agreed', 'signature'), 'take-part': r('take-part', 'agreed', 'signature') },
       signature,
       handoverConfirmedAt: now,
+      startedAt: now,
+      completedAt: now,
+    },
+    survey: {
+      formId: 'mpmb-parent-perceptions',
+      formVersion: '0.1-draft',
+      status: 'completed',
+      responses: { concern: { questionId: 'concern', version: '0.1-draft', value: 'somewhat', answeredAt: now }, overall: { questionId: 'overall', version: '0.1-draft', value: 'mixed', answeredAt: now } },
       startedAt: now,
       completedAt: now,
     },
@@ -54,7 +62,7 @@ function validDonation(): DonationPayload {
     referenceCode: 'MPMB-AB2C-D3E',
     platform: 'ios',
     uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: true, cropped: false, acknowledgedWarning: false }],
-    agreement: r('phone-use', 'agreed', 'action'),
+    agreement: r('phone-use', 'agreed', 'action', '0.4-draft'),
     client: { userAgent: 'test', submittedAt: now, timezoneOffset: 0 },
   };
 }
@@ -115,14 +123,31 @@ test('rejects an empty drawn signature', () => {
   assert.ok(validateConsentPayload(p).some((m) => m.includes('empty')));
 });
 
+test('the parent’s questions are optional, checked against the form, and never sent with a declined record', () => {
+  const p = valid();
+  p.survey = null;
+  assert.deepEqual(validateConsentPayload(p), []);
+  const q = valid();
+  q.survey!.responses.evil = { questionId: 'evil', version: '0.1-draft', value: 'x', answeredAt: now };
+  assert.ok(validateConsentPayload(q).some((m) => m.includes('Unknown question')));
+  const v = valid();
+  v.survey!.responses.concern.value = 'wildly';
+  assert.ok(validateConsentPayload(v).some((m) => m.includes('Malformed answer')));
+  const w = valid();
+  w.survey!.responses.concern.version = '0.0-draft';
+  assert.ok(validateConsentPayload(w).some((m) => m.includes('"concern"') && m.includes('version')));
+});
+
 test('declined record carries no permission record and no date of birth', () => {
   const p = valid();
   p.kind = 'declined';
   p.assent.status = 'declined';
   p.assent.responses = { 'take-part': r('take-part', 'declined', 'individual') };
   p.assent.signature = null;
-  assert.ok(validateConsentPayload(p).some((m) => m.includes('must not carry')));
+  assert.ok(validateConsentPayload(p).some((m) => m.includes('must not carry a permission')));
+  assert.ok(validateConsentPayload(p).some((m) => m.includes('must not carry the questions')));
   p.consent = null;
+  p.survey = null;
   p.identity.dateOfBirth = { day: '', month: '', year: '' };
   assert.deepEqual(validateConsentPayload(p), []);
 });
@@ -141,7 +166,7 @@ test('accepts a screenshot record', () => {
 
 test('screenshots need the young person’s agreement by action, at the current version', () => {
   const d = validDonation();
-  d.agreement = r('phone-use', 'agreed', 'individual');
+  d.agreement = r('phone-use', 'agreed', 'individual', '0.4-draft');
   assert.ok(validateDonationPayload(d).some((m) => m.includes('agreement to share')));
   d.agreement = r('phone-use', 'agreed', 'action', '0.1-draft');
   assert.ok(validateDonationPayload(d).some((m) => m.includes('version')));

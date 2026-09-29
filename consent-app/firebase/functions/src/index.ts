@@ -177,6 +177,26 @@ export const submitConsent = onCall(callOptions, async (request) => {
     createdAt: FieldValue.serverTimestamp(),
   });
 
+  // 3b. The parent's quick questions: research data, labelled by participant id only (no names, no reference).
+  const surveyRef = payload.kind === 'consent' && payload.survey && payload.survey.status !== 'not-started' ? db.collection('surveys').doc() : null;
+  if (surveyRef && payload.survey) {
+    batch.set(surveyRef, {
+      studyId: payload.studyId,
+      siteId: payload.siteId,
+      participantId,
+      formId: payload.survey.formId,
+      formVersion: payload.survey.formVersion,
+      status: payload.survey.status,
+      responses: payload.survey.responses,
+      startedAt: payload.survey.startedAt,
+      completedAt: payload.survey.completedAt,
+      version,
+      supersedes: (previous?.surveyId as string | null | undefined) ?? null,
+      receivedAt,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+
   // 4. Submission index: one row per reference, pointing at the current records and listing every version.
   const wantsCopy = payload.kind === 'consent' && payload.guardian.wantsCopy && email !== '';
   const sendCopy = wantsCopy && previous?.copyEmailedTo !== email;
@@ -187,8 +207,9 @@ export const submitConsent = onCall(callOptions, async (request) => {
     route: payload.route,
     consentId: consentRef?.id ?? null,
     assentId: assentRef.id,
+    surveyId: surveyRef?.id ?? (previous?.surveyId as string | null | undefined) ?? null,
     userAgent: payload.client.userAgent.slice(0, 200),
-    versions: FieldValue.arrayUnion({ version, kind: payload.kind, consentId: consentRef?.id ?? null, assentId: assentRef.id, receivedAt }),
+    versions: FieldValue.arrayUnion({ version, kind: payload.kind, consentId: consentRef?.id ?? null, assentId: assentRef.id, surveyId: surveyRef?.id ?? null, receivedAt }),
     ...(sendCopy ? { copyEmailedTo: email } : {}),
     ...(amendment ? { updatedAt: FieldValue.serverTimestamp() } : { donationIds: [], imageCount: 0, createdAt: FieldValue.serverTimestamp() }),
   };

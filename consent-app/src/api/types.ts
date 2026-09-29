@@ -1,4 +1,4 @@
-import type { AssentRecord, ConsentRecord, GuardianIdentity, ParticipantIdentity, SessionInfo, StatementRecord } from '../model/types';
+import type { AssentRecord, ConsentRecord, GuardianIdentity, ParticipantIdentity, SessionInfo, StatementRecord, SurveyRecord } from '../model/types';
 import type { PlatformId } from '../config/walkthroughs';
 
 /**
@@ -48,6 +48,8 @@ export interface ConsentPayload {
   guardian: GuardianIdentity;
   consent: ConsentRecord | null;
   assent: AssentRecord;
+  /** The parent's quick questions; never sent with a declined record. */
+  survey: SurveyRecord | null;
   client: ClientInfo;
 }
 

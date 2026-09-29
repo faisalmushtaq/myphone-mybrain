@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { parentQuestionsForm } from '../config/questions';
 import { childAssentForm, parentConsentForm } from '../config/statements';
+import { study } from '../config/study';
 import { relationships } from '../config/fields';
 import { OTHER_SCHOOL_ID, schools } from '../config/schools';
 import { platforms } from '../config/walkthroughs';
@@ -60,7 +62,8 @@ function mask(value: string, keep = 2): string {
 export function ConsentSummary({ onChange, detailed = false }: Props) {
   const { state } = useStore();
   const [reveal, setReveal] = useState(false);
-  const { identity, guardian, consent, assent, donation } = state;
+  const { identity, guardian, consent, assent, donation, survey } = state;
+  const answered = parentQuestionsForm.questions.filter((q) => survey.responses[q.id]).length;
   const schoolName = identity.schoolId === OTHER_SCHOOL_ID ? identity.schoolOther : schools.find((s) => s.id === identity.schoolId)?.name ?? '';
   const relationship = guardian.relationship === 'other' ? guardian.relationshipOther : relationships.find((r) => r.id === guardian.relationship)?.label ?? '';
   const childName = identity.firstName.trim() || 'the young person';
@@ -141,6 +144,16 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
         </>,
       )}
 
+      {study.parentQuestions &&
+        section(
+          'Parent or guardian’s quick questions',
+          'parent-questions',
+          'research',
+          <p className="mpmb-summary__note">
+            {survey.status === 'not-started' ? 'Not answered yet.' : survey.status === 'skipped' && !answered ? 'Skipped — these questions are optional.' : `${answered} of ${parentQuestionsForm.questions.length} answered.`} The answers are kept with {childName}’s code and are only shown to the parent or guardian.
+          </p>,
+        )}
+
       {section(
         `${childName}’s agreement`,
         assent.status === 'deferred' ? null : 'child-assent',
@@ -173,7 +186,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
       )}
 
       {section(
-        'Screen-time screenshots',
+        'Screen time and apps',
         donation.status === 'not-consented' || donation.status === 'deferred' ? null : 'phone-use',
         'research',
         donation.status === 'not-consented' ? (

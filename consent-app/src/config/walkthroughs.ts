@@ -50,17 +50,17 @@ export const walkthroughs: Record<PlatformId, Walkthrough> = {
       { title: 'Choose “Week”', detail: 'Tap “Week” at the top so the summary shows the last 7 days.', illustration: 'week-view' },
       {
         title: 'Take a screenshot',
-        detail: 'Press the side button and the volume-up button at the same time, then let go.',
+        detail: 'With the list of apps on the screen, press the side button and the volume-up button at the same time, then let go.',
         note: 'On an iPhone with a home button, press the home button and the side button together.',
         illustration: 'screenshot',
       },
       {
         title: 'Scroll down and take one more',
-        detail: 'If the list of apps carries on below the screen, scroll down and take another screenshot so we can see the whole list.',
+        detail: 'If the list of apps carries on below the screen, scroll down and take another screenshot so we can see every app.',
         illustration: 'scroll',
       },
     ],
-    screenshotHint: 'The screenshots you want show the bar chart for the week and the list of apps with time next to each one.',
+    screenshotHint: 'The screenshots we need show the bar chart for the week and, most importantly, the list of apps with the time next to each one. The apps matter as much as the total.',
     websitesNote: 'On an iPhone the list also shows websites visited in Safari. We only need the apps: hide any row, app or website, that you would rather not show. Nobody will ask why.',
   },
   android: {
@@ -85,17 +85,17 @@ export const walkthroughs: Record<PlatformId, Walkthrough> = {
       { title: 'Choose the weekly view', detail: 'If there is a choice between “Day” and “Week”, choose “Week”.', note: 'If your phone only shows one day, that is fine.', illustration: 'week-view' },
       {
         title: 'Take a screenshot',
-        detail: 'Press the power (side) button and the volume-down button together — a quick press, don’t hold.',
+        detail: 'With the list of apps on the screen, press the power (side) button and the volume-down button together — a quick press, don’t hold.',
         note: 'On some phones you can also swipe down with three fingers.',
         illustration: 'screenshot',
       },
       {
         title: 'Scroll down and take one more',
-        detail: 'If the list of apps carries on below the screen, scroll down and take another screenshot.',
+        detail: 'If the list of apps carries on below the screen, scroll down and take another screenshot so we can see every app.',
         illustration: 'scroll',
       },
     ],
-    screenshotHint: 'The screenshots you want show the total time and the list of apps with time next to each one.',
+    screenshotHint: 'The screenshots we need show the total time and, most importantly, the list of apps with the time next to each one. The apps matter as much as the total.',
   },
   other: {
     id: 'other',

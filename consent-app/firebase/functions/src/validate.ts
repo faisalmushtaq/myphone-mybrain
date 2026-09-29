@@ -1,4 +1,4 @@
-import { childAssentForm, parentConsentForm, informationVersion, REFERENCE_CODE, study } from './forms.js';
+import { childAssentForm, parentConsentForm, parentQuestionsForm, informationVersion, REFERENCE_CODE, study } from './forms.js';
 
 /**
  * Server-side validation. Mirrors the browser rules in src/lib/validation.ts
@@ -67,6 +67,15 @@ export interface ConsentPayload {
     startedAt: string | null;
     completedAt: string | null;
   };
+  /** The parent's quick questions; research data, never sent with a declined record. */
+  survey: {
+    formId: string;
+    formVersion: string;
+    status: 'not-started' | 'in-progress' | 'completed' | 'skipped';
+    responses: Record<string, { questionId: string; version: string; value: string; answeredAt: string }>;
+    startedAt: string | null;
+    completedAt: string | null;
+  } | null;
   client: ClientInfo;
 }
 
@@ -248,6 +257,33 @@ export function validateConsentPayload(input: unknown): string[] {
       if (a.deferredBy !== 'parent' && a.deferredBy !== 'young') problems.push('A deferred agreement must say who deferred it.');
     } else if (a.status === 'not-started') {
       problems.push('The agreement was not completed, deferred or declined.');
+    }
+  }
+
+  // The parent's quick questions (optional; only with a permission record)
+  const sv = p.survey;
+  if (p.kind === 'declined') {
+    if (sv !== null && sv !== undefined) problems.push('A declined submission must not carry the questions.');
+  } else if (sv !== null && sv !== undefined) {
+    if (!isObj(sv)) problems.push('The questions record is malformed.');
+    else {
+      if (sv.formId !== parentQuestionsForm.id || sv.formVersion !== parentQuestionsForm.version) problems.push(`The questions form must be ${parentQuestionsForm.id} ${parentQuestionsForm.version}.`);
+      if (!['not-started', 'in-progress', 'completed', 'skipped'].includes(String(sv.status))) problems.push('Unknown questions status.');
+      if (!isObj(sv.responses)) problems.push('Question responses are missing.');
+      else {
+        for (const key of Object.keys(sv.responses)) {
+          const q = parentQuestionsForm.questions.find((qq) => qq.id === key);
+          const r = sv.responses[key];
+          if (!q) {
+            problems.push(`Unknown question "${key}".`);
+            continue;
+          }
+          if (!isObj(r) || r.questionId !== key || !q.options.includes(String(r.value)) || !validTime(r.answeredAt)) problems.push(`Malformed answer for "${key}".`);
+          else if (r.version !== q.version) problems.push(`Question "${key}" was shown as version ${String(r.version)} but the current version is ${q.version}.`);
+        }
+      }
+      if (sv.startedAt !== null && !validTime(sv.startedAt)) problems.push('The questions record has no valid start time.');
+      if (sv.completedAt !== null && !validTime(sv.completedAt)) problems.push('The questions record has no valid completion time.');
     }
   }
 
