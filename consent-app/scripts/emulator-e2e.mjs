@@ -209,6 +209,16 @@ async function inner() {
     const mail = await db.collection('mail').get();
     ok('nothing queued for email: families download their copy instead', mail.size === 0);
 
+    // Website enquiry: stored, and nobody emailed because no SMTP password exists in the emulator.
+    const enquiryUrl = `http://127.0.0.1:5001/${PROJECT}/europe-west2/enquiry`;
+    const enquiryHeaders = { 'Content-Type': 'application/json', Origin: 'https://myphonemybrain.com' };
+    const enquiryRes = await fetch(enquiryUrl, { method: 'POST', headers: enquiryHeaders, body: JSON.stringify({ kind: 'contact', name: 'Test Parent', email: 'parent@example.com', topic: 'The study', message: 'Is Year 7 included?', website: '' }) });
+    const enquiry = await enquiryRes.json();
+    const storedEnquiry = enquiry.id ? (await db.collection('enquiries').doc(enquiry.id).get()).data() : null;
+    ok('website enquiry stored and marked as not emailed (no SMTP password here)', enquiryRes.status === 200 && enquiry.ok === true && enquiry.notified === 'not-configured' && storedEnquiry?.message === 'Is Year 7 included?' && storedEnquiry?.notified === 'not-configured', JSON.stringify(enquiry));
+    const badEnquiry = await fetch(enquiryUrl, { method: 'POST', headers: enquiryHeaders, body: '{}' });
+    ok('website enquiry without details is refused', badEnquiry.status === 400);
+
     // Security rules: what a client must not be able to do.
     const web = createRequire(path.join(root, 'node_modules/x.js'));
     const { initializeApp: initWeb } = web('firebase/app');

@@ -53,7 +53,7 @@ The deploy workflow builds the app (`npm ci && npm run build` in `consent-app/`,
 
 ## Contact and school forms
 
-Both forms post to the `enquiry` Cloud Function in `consent-app/firebase/functions` (the address is `enquiry_endpoint` in `_config.yml`). Each message is stored in the Firestore `enquiries` collection and queued for the Trigger Email extension, which emails the team once it is installed. If the address is left empty, the forms fall back to opening an email draft. The school form requires two or more year groups and confirmation that the school can offer two-hour session slots for groups of up to 30 pupils.
+Both forms post to the `enquiry` Cloud Function in `consent-app/firebase/functions` (the address is `enquiry_endpoint` in `_config.yml`). Each message is stored in the Firestore `enquiries` collection and emailed to the team by the function itself over SMTP, once the Gmail app password has been stored with `consent-app/firebase/scripts/set-mail-password.sh`. If the address is left empty, the forms fall back to opening an email draft. The school form requires two or more year groups and confirmation that the school can offer two-hour session slots for groups of up to 30 pupils.
 
 ## Local preview
 

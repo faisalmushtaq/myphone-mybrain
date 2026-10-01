@@ -7,7 +7,10 @@ name: Deploy Firebase backend
 # Authentication is keyless (Workload Identity Federation), set up once with
 # consent-app/firebase/scripts/setup-github-deploys.sh. Nothing secret is
 # stored in GitHub. Optional repository variables for the functions'
-# environment: MPMB_VISION (true/false), MPMB_ENFORCE_APP_CHECK (true/false).
+# environment: MPMB_VISION (true/false), MPMB_ENFORCE_APP_CHECK (true/false),
+# and for the emails to the team about website enquiries MPMB_SMTP_USER,
+# MPMB_MAIL_TO, MPMB_SMTP_HOST, MPMB_SMTP_PORT (the password itself is stored
+# in Secret Manager by consent-app/firebase/scripts/set-mail-password.sh).
 on:
   push:
     branches: [main]
@@ -61,6 +64,12 @@ jobs:
             echo "MPMB_VISION=${{ vars.MPMB_VISION || 'false' }}"
             echo "MPMB_VISION_ENDPOINT=eu-vision.googleapis.com"
             echo "MPMB_ENFORCE_APP_CHECK=${{ vars.MPMB_ENFORCE_APP_CHECK || 'false' }}"
+            echo "MPMB_SMTP_HOST=${{ vars.MPMB_SMTP_HOST || 'smtp.gmail.com' }}"
+            echo "MPMB_SMTP_PORT=${{ vars.MPMB_SMTP_PORT || '465' }}"
+            echo "MPMB_SMTP_USER=${{ vars.MPMB_SMTP_USER || 'brainpopresearch@gmail.com' }}"
+            echo "MPMB_MAIL_TO=${{ vars.MPMB_MAIL_TO || 'brainpop@leeds.ac.uk' }}"
+            echo "MPMB_MAIL_FROM_NAME=MyPhone/MyBrain"
+            echo "MPMB_SMTP_SECRET=mpmb-smtp-password"
           } > consent-app/firebase/functions/.env
 
       - uses: google-github-actions/auth@v2

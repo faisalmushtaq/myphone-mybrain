@@ -50,6 +50,7 @@ with a role claim.
 | `firebase/functions/src/validate.ts` | Server-side validation of both payloads (mirrors `src/lib/validation.ts`) |
 | `firebase/functions/src/quality.ts` | Image quality and safety checks: flatness, Cloud Vision SafeSearch and text detection, the verdict rules |
 | `firebase/functions/src/forms.ts` | The statement ids and versions the server accepts; keep in step with `src/config/statements.ts` |
+| `firebase/functions/src/enquiry.ts`, `mail.ts` | The website's contact and school forms: validation, storage in `enquiries/`, and the email to the team sent over SMTP |
 | `firebase/functions/src/validate.test.ts`, `quality.test.ts` | Unit tests (`npm test` in `firebase/functions`) |
 | `scripts/emulator-e2e.mjs` | Drives the real app against the emulator suite and checks what was stored |
 | `.env.example` | The environment variables the app build reads |
@@ -65,7 +66,7 @@ with a role claim.
 | `surveys/{surveyId}` | one document per send: `participantId`, the questions form id and version, status (completed, skipped or in progress), each answer with the question version and time, `version` and `supersedes`. **No names.** | `researcher`, `coordinator` |
 | `donations/{donationId}` | one document per send: `participantId`, platform, the young person's `agreement` record when they signed in the app (null otherwise), `youngPersonAgreedInApp`, `assentStatusAtSend` (their agreement may instead be on paper), `needsReview`, and for each image its Storage path, dimensions, size, SHA-256, whether it was redacted or cropped, and its `quality` result (verdict, reasons, terms found, SafeSearch likelihoods, flatness, whether Vision ran, whether the family confirmed a warning). **No names.** | `researcher`, `coordinator` |
 | `submissions/{referenceCode}` | one row per family: kind, route, the *current* `consentId` and `assentId`, `version`, `versions[]` (one entry per send with the record ids and time), `donationIds[]`, `imageCount`, session uid, user agent | `coordinator` |
-| `mail/{id}` | messages for the Trigger Email extension: the website's contact and school forms notify the team this way. Families are never emailed; they download their copy of the record instead | nobody |
+| `enquiries/{id}` | messages from the website's contact and school forms, with whether the team was emailed (`notified`: sent, failed or not-configured). Families are never emailed; they download their copy of the record instead | `coordinator` |
 
 Storage:
 
@@ -207,10 +208,15 @@ Run it again any time; it skips what is already done.
 9. **Photo checks** (recommended, once the DPIA covers it). Google Cloud
    console → APIs & Services → enable **Cloud Vision API** on the project,
    set `MPMB_VISION=true` in `functions/.env`, redeploy.
-10. **Team notifications.** Install the *Trigger Email from Firestore*
-    extension pointed at the `mail` collection (Gmail with an app password
-    is enough) so the website's enquiry messages reach the team. Nothing is
-    ever emailed to families.
+10. **Team notifications.** The `enquiry` function emails the team itself
+    over SMTP (Gmail with an app password by default; no Firebase extension,
+    as Extensions are being retired). Store the password once, in Cloud
+    Shell: `bash consent-app/firebase/scripts/set-mail-password.sh <project-id>`.
+    The sending account and recipient are the repository variables
+    `MPMB_SMTP_USER` and `MPMB_MAIL_TO`, with defaults in the deploy
+    workflow. Until the password is stored, messages are kept in
+    `enquiries/` with `notified: not-configured`. Nothing is ever emailed
+    to families.
 11. **Staff access.** Give team members roles with the Admin SDK, for example
     `admin.auth().setCustomUserClaims(uid, { roles: ['coordinator'] })`, after
     they sign in to an admin tool with a University account (Google Workspace
@@ -266,6 +272,10 @@ the validation and quality-rule unit tests.
   same way.
 * **Backups.** Enable Firestore scheduled backups (daily, 7-day retention is a
   reasonable start) and Storage object versioning.
+* **Team emails.** Enquiry notifications go out through the team's Gmail
+  account over SMTP, so copies sit in that account's Sent folder; it needs
+  2-step verification and a mention in the DPIA. The password is held in
+  Secret Manager, not in the code or in GitHub.
 * **Copies for families.** Nothing is emailed to families. The thank-you
   page builds a PDF of the record on the device, from what was recorded,
   for the family to download and keep; no personal data leaves the server

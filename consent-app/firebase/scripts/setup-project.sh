@@ -194,6 +194,6 @@ fi
 say "Done. Still by hand, when you are ready:"
 echo "  • App Check (reCAPTCHA v3):  https://console.firebase.google.com/project/$PROJECT/appcheck"
 echo "  • Photo checks (Vision API): https://console.cloud.google.com/apis/library/vision.googleapis.com?project=$PROJECT  then MPMB_VISION=true in functions/.env and redeploy"
-echo "  • Email copies:              https://extensions.dev/extensions/firebase/firestore-send-email"
+echo "  • Emails to the team about website enquiries: bash consent-app/firebase/scripts/set-mail-password.sh $PROJECT (stores the Gmail app password)"
 echo "  • Budget alert:              https://console.cloud.google.com/billing/budgets?project=$PROJECT"
 echo "  • Test the live form:        https://$DOMAIN/take-part/consent/  then look in https://console.firebase.google.com/project/$PROJECT/firestore"

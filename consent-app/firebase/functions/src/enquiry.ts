@@ -2,19 +2,20 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { createHash } from 'node:crypto';
+import { sendTeamMail } from './mail.js';
 
 /**
  * Messages from the public website: the contact form and the school form.
  * The site is static, so the browser posts JSON here. Each message is stored
- * in `enquiries/` (coordinators can read it) and queued in `mail/` for the
- * Trigger Email extension, which emails the team once it is installed.
+ * in `enquiries/` (coordinators can read it) and emailed to the team straight
+ * from this function (`mail.ts`); until the SMTP password has been stored,
+ * messages are kept but nobody is emailed, and the record says so.
  *
  * Spam control without making families do puzzles: an origin allow-list, a
  * hidden honeypot field, length limits, and at most ten messages an hour
  * from one connection (kept as a hashed address, never the address itself).
  */
 export const ALLOWED_ORIGINS = ['https://myphonemybrain.com', 'https://www.myphonemybrain.com', 'http://localhost:4000', 'http://127.0.0.1:4000'];
-const TEAM_EMAIL = 'brainpop@leeds.ac.uk';
 export const YEAR_GROUPS = ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12/13'];
 export const TOPICS = ['The study', 'Taking part', 'Taking part as a school', 'Something else'];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -140,15 +141,10 @@ export const enquiry = onRequest({ region: 'europe-west2', cors: ALLOWED_ORIGINS
   const ref = db.collection('enquiries').doc();
   const { website: _hp, ...record } = data;
   const subject = data.kind === 'school' ? `School enquiry: ${data.school}` : `Website question: ${data.topic}`;
-  const batch = db.batch();
-  batch.set(ref, { ...record, status: 'new', receivedAt, userAgent: String(req.headers['user-agent'] ?? '').slice(0, 200), createdAt: FieldValue.serverTimestamp() });
-  batch.set(db.collection('mail').doc(), {
-    to: TEAM_EMAIL,
-    replyTo: data.email,
-    message: { subject: `MyPhone/MyBrain — ${subject}`, text: `${summarise(data)}\n\nReference: enquiries/${ref.id}` },
-    createdAt: FieldValue.serverTimestamp(),
-  });
-  await batch.commit();
-  logger.info('Enquiry received', { kind: data.kind, id: ref.id });
-  res.json({ ok: true, id: ref.id });
+  await ref.set({ ...record, status: 'new', receivedAt, userAgent: String(req.headers['user-agent'] ?? '').slice(0, 200), notified: 'pending', createdAt: FieldValue.serverTimestamp() });
+  // The record is safe before any email is attempted; the team can always read enquiries/ directly.
+  const notified = await sendTeamMail({ subject: `MyPhone/MyBrain — ${subject}`, text: `${summarise(data)}\n\nReference: enquiries/${ref.id}`, replyTo: data.email });
+  await ref.update({ notified, notifiedAt: FieldValue.serverTimestamp() });
+  logger.info('Enquiry received', { kind: data.kind, id: ref.id, notified });
+  res.json({ ok: true, id: ref.id, notified });
 });
