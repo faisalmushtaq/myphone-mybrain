@@ -53,7 +53,7 @@ not acted on, and the things that were already working well.
 ## Findings not acted on, and why
 
 * **Editable consent date.** Kept, because the brief asks for the date to be confirmable; the device timestamp is recorded alongside it. The ethics committee may prefer it removed (`steps/ParentConsent.tsx`).
-* **Verifying the parent's identity** (for example a one-time code sent to their email before the record counts). This needs a server; it is described in `docs/architecture.md` as the recommended mechanism, along with a "this wasn't me" link in the confirmation email.
+* **Verifying the parent's identity** (for example a one-time code sent to their email or phone before the record counts). This needs a server; it is described in `docs/architecture.md` as the recommended mechanism.
 * **Progress lost if a young person closes the tab while waiting for a parent.** Saved progress is deliberately per-tab and short-lived for privacy; the young-person route now says to do it when a parent is present, and the handover screen says what to do if they are not. A resumable link would need the server.
 * **Self-consent at 16–17.** Left as a documented configuration point for the ethics application.
 * **Draft-wording markers.** Kept on by default because every piece of wording is still draft; they can be switched off from the prototype controls and must be removed before any real family uses the form.
@@ -96,9 +96,9 @@ end against the emulator suite, including the security rules.
 Testing of v2 with the mock backend produced a short list of changes, all in
 the direction of "send at the natural moment, and never lose a family":
 
-* **Email optional.** "Email me a copy of what I agree to" is a tick; the
-  address is asked for only then. The server requires an address only when a
-  copy was asked for.
+* **Email optional.** The address is a plain optional contact detail.
+  Nothing is emailed to families; the thank-you page offers a PDF copy of the
+  record to download instead.
 * **No bouncing.** The error summary takes focus once, when Continue is
   pressed; fixing a field removes its error as it is fixed; a new problem
   waits for the next Continue.

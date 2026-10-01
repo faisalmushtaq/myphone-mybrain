@@ -143,14 +143,14 @@ compliance claims.
   (recorded by the act of sending) and the quality result for each image.
   Both agreements are checked against the server's own copy of the records,
   never the client's claim.
-* A copy of the consent summary is emailed to the guardian only when they
-  asked for one (without date of birth, postcode or signature image; content
-  to be agreed with ethics). The email carries a "this wasn't me" link.
+* Nothing is emailed to families. The thank-you page builds a PDF copy of
+  the record on the device (`src/lib/consentPdf.ts`) for the family to
+  download and keep; the server is not involved.
 * **Parent identity.** Nothing in a browser form can prove who pressed the
-  buttons. Recommended: treat the consent as provisional until the parent
-  acknowledges the confirmation email (or, for the young-person route, enters
-  a one-time code sent to their email before submission), or until the school
-  confirms it. The record stores which of these happened.
+  buttons. Recommended: treat the consent as provisional until the school
+  confirms it, or until the parent confirms through a one-time code sent to
+  an address or number they give for that purpose. The record stores which
+  of these happened.
 * Records also keep the time the device was handed to the young person and
   the time their agreement screen opened, so an agreement completed within
   seconds of the parent's consent can be flagged for follow-up.

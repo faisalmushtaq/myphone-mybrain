@@ -104,7 +104,7 @@ export function validateGuardian(guardian: GuardianIdentity): FieldError[] {
   }
   if (guardianFields.email.enabled) {
     if (blank(guardian.email)) {
-      if (guardianFields.email.required || guardian.wantsCopy) errors.push({ field: 'guardian-email', message: 'Enter your email address so we can send you the copy, or untick the box.' });
+      if (guardianFields.email.required) errors.push({ field: 'guardian-email', message: 'Enter your email address.' });
     } else if (!EMAIL.test(guardian.email.trim())) {
       errors.push({ field: 'guardian-email', message: 'Enter an email address in the format name@example.com.' });
     }

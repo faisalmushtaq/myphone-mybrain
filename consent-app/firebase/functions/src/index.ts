@@ -128,7 +128,6 @@ export const submitConsent = onCall(callOptions, async (request) => {
         relationship: payload.guardian.relationship,
         relationshipOther: payload.guardian.relationshipOther.trim() || null,
         hasParentalResponsibility: payload.guardian.hasParentalResponsibility,
-        wantsCopy: payload.guardian.wantsCopy,
         email: email || null,
         phone: payload.guardian.phone.trim() || null,
         postcode: payload.guardian.postcode.trim().toUpperCase() || null,
@@ -200,8 +199,6 @@ export const submitConsent = onCall(callOptions, async (request) => {
   }
 
   // 4. Submission index: one row per reference, pointing at the current records and listing every version.
-  const wantsCopy = payload.kind === 'consent' && payload.guardian.wantsCopy && email !== '';
-  const sendCopy = wantsCopy && previous?.copyEmailedTo !== email;
   const submissionRef = db.collection('submissions').doc(code);
   const submission = {
     ...common,
@@ -212,30 +209,11 @@ export const submitConsent = onCall(callOptions, async (request) => {
     surveyId: surveyRef?.id ?? (previous?.surveyId as string | null | undefined) ?? null,
     userAgent: payload.client.userAgent.slice(0, 200),
     versions: FieldValue.arrayUnion({ version, kind: payload.kind, consentId: consentRef?.id ?? null, assentId: assentRef.id, surveyId: surveyRef?.id ?? null, receivedAt }),
-    ...(sendCopy ? { copyEmailedTo: email } : {}),
     ...(amendment ? { updatedAt: FieldValue.serverTimestamp() } : { donationIds: [], imageCount: 0, createdAt: FieldValue.serverTimestamp() }),
   };
   batch.set(submissionRef, submission, { merge: amendment });
 
-  // 5. A copy by email, only when asked for and not already sent to this address (Trigger Email extension; wording to be agreed with ethics).
-  if (sendCopy) {
-    batch.set(db.collection('mail').doc(), {
-      to: email,
-      message: {
-        subject: `MyPhone/MyBrain: your permission has been recorded (${code})`,
-        text: [
-          `Thank you for giving permission for ${payload.identity.firstName.trim()} to take part in MyPhone/MyBrain.`,
-          `Your reference is ${code}.`,
-          '',
-          'A summary of your choices will be attached in the final version of this email.',
-          'You can withdraw at any time by emailing brainpop@leeds.ac.uk and quoting your reference.',
-          'If you did not complete this form, please tell us straight away by replying to this email.',
-        ].join('\n'),
-      },
-      createdAt: FieldValue.serverTimestamp(),
-    });
-  }
-
+  // Nothing is emailed to families: the thank-you page offers a copy of the record to download.
   await batch.commit();
   logger.info(amendment ? 'Permission record amended' : 'Permission record created', { referenceCode: code, participantId, kind: payload.kind, version });
   return { referenceCode: code, participantId, receivedAt: receivedAt.toISOString(), version };

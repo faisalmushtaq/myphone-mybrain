@@ -15,7 +15,7 @@ httpsCallable('submitConsent') ──────────▶ Cloud Function 
   again with the reference code              amendment → new consent/assent records that
   when something is changed                    point at the ones they supersede
                                              writes participants · consents · assents ·
-                                               surveys · submissions (· mail) in one batch
+                                               surveys · submissions in one batch
 
 uploadBytesResumable ────────────────────▶ Cloud Storage  quarantine/{uid}/{uploadId}
   when "Send" is pressed on the              rules: own path only, image/*, < 10 MB,
@@ -30,7 +30,7 @@ httpsCallable('submitDonation') ─────────▶ Cloud Function su
                                              returns { accepted, rejected: [{uploadId, reason}] }
 
                                           Firestore: participants · consents · assents
-                                                     surveys · donations · submissions · mail
+                                                     surveys · donations · submissions
                                              rules: no browser access at all
 ```
 
@@ -59,13 +59,13 @@ with a role claim.
 
 | Collection | Holds | Who may read (custom claim `roles`) |
 |---|---|---|
-| `participants/{participantId}` | names, date of birth, school, year group, parent/guardian name, relationship, whether a copy was asked for, email, phone, postcode. Updated in place by an amendment (`version`, `updatedAt`). | `coordinator` |
+| `participants/{participantId}` | names, date of birth, school, year group, parent/guardian name, relationship, email, phone, postcode. Updated in place by an amendment (`version`, `updatedAt`). | `coordinator` |
 | `consents/{consentId}` | form id and version, information version, every statement with its version, response, time and how it was given (`individual`, `group`, `signature`, `action`), typed name, signature (method, strokes, and a reference to the PNG in Storage), confirmed date, completion time, `revisedAt`, route, client info, `version` and `supersedes` (the previous consent record, or null). Never edited. | `coordinator`, `auditor` |
 | `assents/{assentId}` | the same shape for the young person, plus `deferredBy`, handover and start times, `quickAgreementFlag` (agreement completed within 15 seconds of the handover), `version`, `supersedes`. The screenshot agreement (`responses.phone-use`, given by the act of sending) is added when screenshots are first sent. | `coordinator`, `auditor` |
 | `surveys/{surveyId}` | one document per send: `participantId`, the questions form id and version, status (completed, skipped or in progress), each answer with the question version and time, `version` and `supersedes`. **No names.** | `researcher`, `coordinator` |
 | `donations/{donationId}` | one document per send: `participantId`, platform, the young person's `agreement` record when they signed in the app (null otherwise), `youngPersonAgreedInApp`, `assentStatusAtSend` (their agreement may instead be on paper), `needsReview`, and for each image its Storage path, dimensions, size, SHA-256, whether it was redacted or cropped, and its `quality` result (verdict, reasons, terms found, SafeSearch likelihoods, flatness, whether Vision ran, whether the family confirmed a warning). **No names.** | `researcher`, `coordinator` |
-| `submissions/{referenceCode}` | one row per family: kind, route, the *current* `consentId` and `assentId`, `version`, `versions[]` (one entry per send with the record ids and time), `donationIds[]`, `imageCount`, `copyEmailedTo`, session uid, user agent | `coordinator` |
-| `mail/{id}` | the confirmation email for the Trigger Email extension, queued only when a copy was asked for, once per address | nobody |
+| `submissions/{referenceCode}` | one row per family: kind, route, the *current* `consentId` and `assentId`, `version`, `versions[]` (one entry per send with the record ids and time), `donationIds[]`, `imageCount`, session uid, user agent | `coordinator` |
+| `mail/{id}` | messages for the Trigger Email extension: the website's contact and school forms notify the team this way. Families are never emailed; they download their copy of the record instead | nobody |
 
 Storage:
 
@@ -83,8 +83,8 @@ role can be given access to `donations/` without ever seeing a name.
 
 **`submitConsent`** re-validates the whole payload (`validate.ts`): field
 lengths and formats, the allowed relationships, the 11–17 age range, at least
-three letters for a typed-in school, an email address only when a copy was
-asked for, that every statement id exists and carries the **current**
+three letters for a typed-in school, a valid email address when one is
+given, that every statement id exists and carries the **current**
 version, that all required statements are agreed and every optional one
 answered, that a completed agreement carries a signature and the three signed
 statements, that the parent's quick questions (if present) use known question
@@ -207,9 +207,10 @@ Run it again any time; it skips what is already done.
 9. **Photo checks** (recommended, once the DPIA covers it). Google Cloud
    console → APIs & Services → enable **Cloud Vision API** on the project,
    set `MPMB_VISION=true` in `functions/.env`, redeploy.
-10. **Confirmation email.** Install the *Trigger Email from Firestore*
-    extension pointed at the `mail` collection, with the University's SMTP
-    relay. Until then the `mail` documents simply accumulate.
+10. **Team notifications.** Install the *Trigger Email from Firestore*
+    extension pointed at the `mail` collection (Gmail with an app password
+    is enough) so the website's enquiry messages reach the team. Nothing is
+    ever emailed to families.
 11. **Staff access.** Give team members roles with the Admin SDK, for example
     `admin.auth().setCustomUserClaims(uid, { roles: ['coordinator'] })`, after
     they sign in to an admin tool with a University account (Google Workspace
@@ -265,9 +266,10 @@ the validation and quality-rule unit tests.
   same way.
 * **Backups.** Enable Firestore scheduled backups (daily, 7-day retention is a
   reasonable start) and Storage object versioning.
-* **What the emailed summary contains** and the email provider are ethics
-  decisions; the `mail` document is a placeholder, and it is only queued when
-  the parent asked for a copy.
+* **Copies for families.** Nothing is emailed to families. The thank-you
+  page builds a PDF of the record on the device, from what was recorded,
+  for the family to download and keep; no personal data leaves the server
+  for this.
 
 ## Cost
 

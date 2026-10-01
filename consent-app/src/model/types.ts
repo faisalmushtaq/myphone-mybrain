@@ -32,8 +32,7 @@ export interface GuardianIdentity {
   relationship: RelationshipId | '';
   relationshipOther: string;
   hasParentalResponsibility: boolean;
-  /** Whether the parent asked for a copy of the record by email (email is only required if so). */
-  wantsCopy: boolean;
+  /** Optional contact details. Nothing is ever emailed to families; they download their copy of the record instead. */
   email: string;
   phone: string;
   postcode: string;

@@ -44,7 +44,7 @@ export interface ConsentPayload {
   siteId: string;
   route: 'parent' | 'young';
   identity: { firstName: string; lastName: string; dateOfBirth: { day: string; month: string; year: string }; schoolId: string; schoolOther: string; yearGroup: string };
-  guardian: { fullName: string; relationship: string; relationshipOther: string; hasParentalResponsibility: boolean; wantsCopy: boolean; email: string; phone: string; postcode: string };
+  guardian: { fullName: string; relationship: string; relationshipOther: string; hasParentalResponsibility: boolean; email: string; phone: string; postcode: string };
   consent: {
     formId: string;
     formVersion: string;
@@ -196,7 +196,7 @@ export function validateConsentPayload(input: unknown): string[] {
     }
   }
 
-  // Guardian. An email address is only needed when a copy was asked for.
+  // Guardian. The email address is optional; when given it must be valid. Nothing is emailed to families.
   const g = p.guardian;
   if (!isObj(g)) problems.push('Parent or guardian details are missing.');
   else {
@@ -204,9 +204,7 @@ export function validateConsentPayload(input: unknown): string[] {
     if (typeof g.relationship !== 'string' || !RELATIONSHIPS.includes(g.relationship)) problems.push('The relationship is not one of the allowed values.');
     if (g.relationship === 'other' && (!str(g.relationshipOther, limits.relationship) || blank(g.relationshipOther as string))) problems.push('The relationship description is missing.');
     if (p.kind === 'consent' && g.hasParentalResponsibility !== true) problems.push('Parental responsibility was not confirmed.');
-    if (typeof g.wantsCopy !== 'boolean') problems.push('The copy preference is malformed.');
     if (!str(g.email, limits.email)) problems.push('The email address is malformed.');
-    else if (g.wantsCopy === true && !EMAIL.test((g.email as string).trim())) problems.push('An email address is needed to send the copy.');
     else if (!blank(g.email as string) && !EMAIL.test((g.email as string).trim())) problems.push('The email address is not valid.');
     if (!str(g.phone, limits.phone) || (!blank(g.phone as string) && !PHONE.test((g.phone as string).trim()))) problems.push('The phone number is not valid.');
     if (!str(g.postcode, limits.postcode) || (!blank(g.postcode as string) && !UK_POSTCODE.test((g.postcode as string).trim()))) problems.push('The postcode is not valid.');

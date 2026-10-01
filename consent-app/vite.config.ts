@@ -1,5 +1,9 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+
+// jsPDF (the downloadable copy) optionally pulls in HTML and SVG renderers the form never uses.
+const empty = fileURLToPath(new URL('./src/lib/empty.ts', import.meta.url));
 
 // Two build modes:
 //  - default ("embedded"): output goes to ../assets/consent-app/ and is loaded by the
@@ -10,6 +14,7 @@ export default defineConfig(({ mode }) => {
   const standalone = mode === 'standalone';
   return {
     plugins: [react()],
+    resolve: { alias: { canvg: empty, html2canvas: empty, dompurify: empty } },
     base: standalone ? './' : '/assets/consent-app/',
     define: {
       __STANDALONE__: JSON.stringify(standalone),
@@ -22,6 +27,8 @@ export default defineConfig(({ mode }) => {
       assetsInlineLimit: standalone ? 300 * 1024 : 4096,
       rollupOptions: {
         output: {
+          // The preview is one inlined file, so the lazily loaded PDF code must be inlined too.
+          inlineDynamicImports: standalone,
           entryFileNames: 'consent-app.js',
           chunkFileNames: 'consent-app-[name].js',
           assetFileNames: (info) => (info.names?.[0] ?? '').endsWith('.css') ? 'consent-app.css' : 'media/[name][extname]',

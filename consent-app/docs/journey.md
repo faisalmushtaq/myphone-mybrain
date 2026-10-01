@@ -68,7 +68,7 @@ Actors: **P** parent/guardian, **Y** young person, **A** anyone.
 | # | Step id | Actor | What happens |
 |---|---|---|---|
 | — | `welcome` | A | Choose who is starting; what the study is (folded); three reassurances. Not counted as a step. |
-| 1 | `child-details` | route | Names, date of birth, school (a typed-in school name needs at least three letters), year group. Route P also asks for the parent's name, relationship, parental-responsibility confirmation and whether they want a copy by email; the email address is asked for only then (phone and postcode folded, optional). |
+| 1 | `child-details` | route | Names, date of birth, school (a typed-in school name needs at least three letters), year group. Route P also asks for the parent's name, relationship, parental-responsibility confirmation and an optional email address (phone and postcode folded, optional). |
 | — | *handover Y→P* | | Route Y only. |
 | 2 | `parent-details` | P | Route Y only: check the child's details, then the parent's own (same fields as above). |
 | 3 | `parent-consent` | P | **One screen.** Six one-line information summaries (each opens to the full wording); the four required statements under one tick; three Yes/No permissions; name (pre-filled), signature, date. |
@@ -95,7 +95,7 @@ contact the team quoting the reference.
 ### Branching rules
 
 * Parent declines screenshots → step 6 removed; the check page says "Not shared".
-* Young person presses "I don't want to take part" → `assent-declined`: "Let the team know" (sends a minimal record: names, school, the parent's name, and an email address only if a copy was asked for; no permission record) or "Finish without sending anything".
+* Young person presses "I don't want to take part" → `assent-declined`: "Let the team know" (sends a minimal record: names, school and the parent's name; no contact details and no permission record) or "Finish without sending anything".
 * Young person presses "I'd like to decide later", or the parent says the young person isn't here → agreement `deferred` (with who deferred it). Nothing waits for it: the young person's agreement may be collected separately, for example on paper at school, so the screen-time step stays and the parent can complete everything. The screen-time page says the agreement will be collected separately (and, when the young person is absent, that the parent is sharing on their behalf). Screenshots sent without an in-app agreement are recorded as such (`youngPersonAgreedInApp: false`, with the agreement status at the time); the server never refuses them on that account. `study.screenshotsWaitForAssent` makes the step wait instead.
 * "Skip this for now" on step 6 → "Before you skip": the screenshots are the part nobody else can provide, taking part is already recorded, it takes about a minute. "OK, I'll add them now" opens the instructions; "I really can't right now — skip" moves on.
 * An image that looks like a photograph rather than a screenshot → warning under the image; pressing send asks "It's right — send anyway" or "Let me check".
@@ -117,7 +117,7 @@ the check page.
 
 | v2 | v3 | Why |
 |---|---|---|
-| Email address always required | "Email me a copy of what I agree to" tick; the address is asked for only then | Many families do not want a copy; the address was the only reason to ask. |
+| Email address always required | Optional email field, a contact detail only | Nothing is emailed to families: the thank-you page offers a PDF of the record to download instead. |
 | Errors re-validated on every keystroke and the summary took focus again | Summary focuses once, on Continue; fixing a field removes its error; new errors wait for the next Continue | Testing: "when I go to fix it, it bounces back up". |
 | "Skip" on the screen-time page moved straight on | Two-step skip with a short appeal | The screenshots are the key part of the study; participation is already recorded, so the appeal carries no pressure. |
 | Everything sent by one "Send" button at the end | Permission and agreement sent when the young person has signed; screenshots sent from their own page | A family that stops at the screenshots still counts; nothing can be lost by closing the tab after signing. |

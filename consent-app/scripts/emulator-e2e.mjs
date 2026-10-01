@@ -125,7 +125,6 @@ async function inner() {
     await page.getByLabel('Your full name', { exact: true }).fill('Priya Patel');
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     await page.getByLabel(/parental responsibility for/).check();
-    await page.getByLabel('Email me a copy of what I agree to').check();
     await page.getByLabel('Your email address').fill('priya@example.com');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: /Your permission for Kai/ }).waitFor();
@@ -208,7 +207,7 @@ async function inner() {
     const [sigs] = await bucket.getFiles({ prefix: `signatures/${submission.participantId}/` });
     ok('signatures stored for every version', sigs.length === 4, `${sigs.length} files`);
     const mail = await db.collection('mail').get();
-    ok('one confirmation email queued (copy requested, not repeated by the amendment)', mail.size === 1 && mail.docs[0].data().to === 'priya@example.com');
+    ok('nothing queued for email: families download their copy instead', mail.size === 0);
 
     // Security rules: what a client must not be able to do.
     const web = createRequire(path.join(root, 'node_modules/x.js'));

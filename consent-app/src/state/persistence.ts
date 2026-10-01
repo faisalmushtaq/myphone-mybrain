@@ -14,7 +14,7 @@ import { initialState } from './reducer';
  * young person does not force the parent to sign again; it is removed with
  * everything else when the form is cleared.
  */
-const KEY = 'mpmb-consent:v5';
+const KEY = 'mpmb-consent:v6';
 const MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
 type Persisted = Omit<AppState, 'handover' | 'restored' | 'prototype' | 'clearedReason'> & { savedAt: string };

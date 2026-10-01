@@ -14,7 +14,7 @@ function valid(): ConsentPayload {
     siteId: 'LEEDS-BRADFORD',
     route: 'young',
     identity: { firstName: 'Kai', lastName: 'Patel', dateOfBirth: { day: '14', month: '3', year: '2013' }, schoolId: 'BRD-001', schoolOther: '', yearGroup: 'Year 8' },
-    guardian: { fullName: 'Priya Patel', relationship: 'mother', relationshipOther: '', hasParentalResponsibility: true, wantsCopy: false, email: '', phone: '', postcode: '' },
+    guardian: { fullName: 'Priya Patel', relationship: 'mother', relationshipOther: '', hasParentalResponsibility: true, email: '', phone: '', postcode: '' },
     consent: {
       formId: 'mpmb-parent-consent',
       formVersion: '0.5-draft',
@@ -79,13 +79,10 @@ test('accepts an amendment carrying a reference code, and rejects a malformed on
   assert.ok(validateConsentPayload(p).some((m) => m.includes('reference code')));
 });
 
-test('an email address is required only when a copy was asked for', () => {
+test('an email address is optional, but must be valid when given', () => {
   const p = valid();
-  p.guardian.wantsCopy = true;
-  assert.ok(validateConsentPayload(p).some((m) => m.includes('needed to send the copy')));
   p.guardian.email = 'priya@example.com';
   assert.deepEqual(validateConsentPayload(p), []);
-  p.guardian.wantsCopy = false;
   p.guardian.email = 'not-an-email';
   assert.ok(validateConsentPayload(p).some((m) => m.includes('not valid')));
 });

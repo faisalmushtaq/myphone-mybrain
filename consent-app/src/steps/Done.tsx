@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ConsentSummary } from '../components/ConsentSummary';
 import { Button } from '../components/ui/Button';
 import { Disclosure } from '../components/ui/Disclosure';
@@ -6,21 +6,26 @@ import { Draft } from '../components/ui/Draft';
 import { Icon } from '../components/ui/Icon';
 import { thankYou } from '../config/copy';
 import { study } from '../config/study';
+import { announce } from '../lib/announce';
 import { formatTimestamp } from '../lib/dates';
 import { useStore } from '../state/context';
 import { clearState } from '../state/persistence';
 
+type CopyStatus = { kind: 'idle' } | { kind: 'working' } | { kind: 'done'; fileName: string } | { kind: 'failed' };
+
 /**
  * The thank-you screen: why taking part matters, the reference, what happens
- * next, how to withdraw, and a way to clear the device. Everything has
- * already been sent by the time this is shown.
+ * next, a copy of the record to download, how to withdraw, and a way to clear
+ * the device. Everything has already been sent by the time this is shown.
+ * Nothing is emailed to families; the downloaded PDF is their copy.
  */
 export function Done() {
   const { state, dispatch } = useStore();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const [copy, setCopy] = useState<CopyStatus>({ kind: 'idle' });
   const declined = state.assent.status === 'declined';
   const childName = state.identity.firstName.trim() || 'the young person';
-  const { submission, guardian } = state;
+  const { submission } = state;
   const sentImages = state.donation.images.filter((i) => i.status === 'sent').length;
 
   useEffect(() => {
@@ -34,9 +39,24 @@ export function Done() {
     dispatch({ type: 'reset' });
   };
 
+  /** Builds the PDF on the device (the code for it is only fetched when asked for) and hands it to the browser to save. */
+  const download = async () => {
+    setCopy({ kind: 'working' });
+    try {
+      const { downloadConsentCopy } = await import('../lib/consentPdf');
+      const fileName = await downloadConsentCopy(state);
+      setCopy({ kind: 'done', fileName });
+      announce(`Your copy has been saved as ${fileName}.`);
+    } catch (error) {
+      console.error(error);
+      setCopy({ kind: 'failed' });
+      announce('The copy could not be made on this device.');
+    }
+  };
+
   const steps: string[] = [];
   if (!declined) {
-    if (guardian.wantsCopy && guardian.email) steps.push(`A copy of what you agreed to is on its way to ${guardian.email}. Keep it somewhere safe.`);
+    steps.push('Download a copy of what you agreed to and keep it somewhere safe. Nothing is emailed to you.');
     if (state.assent.status === 'deferred') steps.push(state.assent.deferredBy === 'young' ? `${childName} wanted to decide later. The team will ask again, for example at school.` : `The team will ask ${childName} for their own agreement separately, for example at school.`);
     if (state.assent.status === 'completed' && sentImages === 0) steps.push('No screenshots were added this time. The team can send a link to add them later — it takes about a minute and it really helps.');
     steps.push('The team will be in touch about the next parts of the study, such as the surveys and the school session.');
@@ -111,18 +131,19 @@ export function Done() {
       )}
 
       <div className="mpmb-done__actions">
-        {!__STANDALONE__ && (
-          <Button variant="secondary" onClick={() => window.print()}>
-            Print or save a copy
+        {!declined && (
+          <Button variant="secondary" onClick={download} loading={copy.kind === 'working'}>
+            Download a copy (PDF)
           </Button>
         )}
         <Button variant="primary" onClick={finish}>
           Finish and clear this device
         </Button>
       </div>
+      {copy.kind === 'done' && <p className="mpmb-hint">Saved as {copy.fileName}. It includes personal details, so keep it somewhere safe.</p>}
+      {copy.kind === 'failed' && <p className="mpmb-hint">The copy could not be made on this device. You can print this page instead, or contact the team quoting your reference.</p>}
       <p className="mpmb-hint">
-        “Finish and clear this device” removes the answers from this phone or computer; the record has already been sent. If you print, use a printer you trust, because the copy includes personal
-        details. This screen clears itself after 10 minutes without activity.
+        “Finish and clear this device” removes the answers from this phone or computer; the record has already been sent. This screen clears itself after 10 minutes without activity.
       </p>
     </div>
   );

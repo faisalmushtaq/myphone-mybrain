@@ -109,7 +109,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
           <dl className="mpmb-summary__list">
             <Row label="Name" value={guardian.fullName} />
             <Row label="Relationship" value={relationship} />
-            <Row label="Email" value={guardian.wantsCopy ? show(guardian.email) : guardian.email ? show(guardian.email) : 'Not needed — no copy requested'} />
+            <Row label="Email" value={show(guardian.email)} />
             <Row label="Phone" value={show(guardian.phone)} />
             <Row label="Postcode" value={show(guardian.postcode.toUpperCase())} />
           </dl>

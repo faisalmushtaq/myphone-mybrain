@@ -63,18 +63,7 @@ export function GuardianFields({ guardian, update, errors: errs, childName }: Pr
         emphasis
       />
       {guardianFields.email.enabled && (
-        <>
-          <CheckboxField
-            id="guardian-wants-copy"
-            checked={guardian.wantsCopy}
-            onChange={(checked) => update({ wantsCopy: checked })}
-            label="Email me a copy of what I agree to"
-            hint="Optional. Many families don’t need one — everything is shown on screen at the end."
-          />
-          {(guardian.wantsCopy || guardian.email || errs['guardian-email']) && (
-            <TextField id="guardian-email" type="email" inputMode="email" label={guardianFields.email.label} hint={guardianFields.email.hint} required={guardian.wantsCopy} autoComplete="email" maxLength={limits.email} value={guardian.email} onChange={(e) => update({ email: e.target.value })} error={errs['guardian-email']} />
-          )}
-        </>
+        <TextField id="guardian-email" type="email" inputMode="email" label={guardianFields.email.label} hint={guardianFields.email.hint} required={guardianFields.email.required} autoComplete="email" maxLength={limits.email} value={guardian.email} onChange={(e) => update({ email: e.target.value })} error={errs['guardian-email']} />
       )}
       {(guardianFields.phone.enabled || guardianFields.postcode.enabled) &&
         (optionalOpen ? (

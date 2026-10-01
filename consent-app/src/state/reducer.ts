@@ -32,7 +32,7 @@ export function initialState(): AppState {
     childPresent: null,
     returnTo: null,
     identity: { firstName: '', lastName: '', dateOfBirth: { day: '', month: '', year: '' }, schoolId: '', schoolOther: '', yearGroup: '' },
-    guardian: { fullName: '', relationship: '', relationshipOther: '', hasParentalResponsibility: false, wantsCopy: false, email: '', phone: '', postcode: '' },
+    guardian: { fullName: '', relationship: '', relationshipOther: '', hasParentalResponsibility: false, email: '', phone: '', postcode: '' },
     consent: {
       formId: parentConsentForm.id,
       formVersion: parentConsentForm.version,
