@@ -70,6 +70,7 @@ jobs:
             echo "MPMB_MAIL_TO=${{ vars.MPMB_MAIL_TO || 'brainpop@leeds.ac.uk' }}"
             echo "MPMB_MAIL_FROM_NAME=MyPhone/MyBrain"
             echo "MPMB_SMTP_SECRET=mpmb-smtp-password"
+            echo "MPMB_EXPORT_BUCKET=${{ vars.MPMB_EXPORT_BUCKET || 'myphone-mybrain-exports' }}"
           } > consent-app/firebase/functions/.env
 
       - uses: google-github-actions/auth@v2
@@ -95,6 +96,17 @@ jobs:
           for fn in submitconsent submitdonation enquiry; do
             gcloud run services add-iam-policy-binding "$fn" --region="$REGION" --member=allUsers --role=roles/run.invoker --project="$PROJECT_ID" --quiet >/dev/null
           done
+
+      - name: Refresh the data export
+        if: ${{ inputs.target != 'rules only' }}
+        run: |
+          if gcloud scheduler jobs run "firebase-schedule-exportData-$REGION" --location="$REGION" --project="$PROJECT_ID" --quiet 2>/dev/null; then
+            echo "export started; waiting for it to write"
+            sleep 75
+            gcloud storage cat "gs://${{ vars.MPMB_EXPORT_BUCKET || 'myphone-mybrain-exports' }}/manifest.json" 2>/dev/null | head -c 1500 || echo "no manifest yet; the export writes one when it finishes"
+          else
+            echo "export schedule not found; it is created by the first deploy of exportData"
+          fi
 
       - name: Check the functions answer
         if: ${{ inputs.target != 'rules only' }}

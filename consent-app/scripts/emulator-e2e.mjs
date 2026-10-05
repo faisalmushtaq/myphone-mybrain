@@ -219,6 +219,23 @@ async function inner() {
     const badEnquiry = await fetch(enquiryUrl, { method: 'POST', headers: enquiryHeaders, body: '{}' });
     ok('website enquiry without details is refused', badEnquiry.status === 400);
 
+    // Nightly export: tables and files land in the private exports bucket, identifying and research apart.
+    const exportRes = await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' });
+    const manifest = await exportRes.json();
+    const exportsBucket = getStorage().bucket(`${PROJECT}-exports`);
+    const [exportedFiles] = await exportsBucket.getFiles();
+    const exportedNames = exportedFiles.map((f) => f.name);
+    const readExport = async (name) => (await exportsBucket.file(name).download())[0].toString('utf8');
+    const participantsCsv = await readExport('identifying/participants.csv');
+    const statementsCsv = await readExport('identifying/consent_statements.csv');
+    const surveysCsv = await readExport('research/surveys.csv');
+    const imagesCsv = await readExport('research/images.csv');
+    ok('export ran and counted the records', exportRes.status === 200 && manifest.counts?.participants === 1 && manifest.counts?.consents === 2 && manifest.counts?.donations === 1 && manifest.counts?.images === 2 && manifest.counts?.signatures === 4 && manifest.counts?.enquiries === 1, JSON.stringify(manifest.counts));
+    ok('identifying tables hold the names and the statements; research tables hold none', participantsCsv.includes('Kai') && participantsCsv.includes('Patel') && statementsCsv.includes('link-records') && surveysCsv.includes('somewhat') && !surveysCsv.includes('Patel') && !imagesCsv.includes('Patel'));
+    ok('images and signatures copied under the participant id', exportedNames.filter((n) => n.startsWith(`research/images/${submission.participantId}/`)).length === 2 && exportedNames.filter((n) => n.startsWith(`identifying/signatures/${submission.participantId}/`)).length === 4 && exportedNames.includes('README.md') && exportedNames.includes('manifest.json'));
+    const rerun = await (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' })).json();
+    ok('a second run copies nothing new and keeps the mirror as it is', rerun.counts?.imagesCopiedThisRun === 0 && rerun.files?.length === manifest.files?.length);
+
     // Security rules: what a client must not be able to do.
     const web = createRequire(path.join(root, 'node_modules/x.js'));
     const { initializeApp: initWeb } = web('firebase/app');

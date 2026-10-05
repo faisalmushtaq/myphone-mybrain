@@ -51,6 +51,8 @@ with a role claim.
 | `firebase/functions/src/quality.ts` | Image quality and safety checks: flatness, Cloud Vision SafeSearch and text detection, the verdict rules |
 | `firebase/functions/src/forms.ts` | The statement ids and versions the server accepts; keep in step with `src/config/statements.ts` |
 | `firebase/functions/src/enquiry.ts`, `mail.ts` | The website's contact and school forms: validation, storage in `enquiries/`, and the email to the team sent over SMTP |
+| `firebase/functions/src/export.ts` | The nightly export of every collection and file into the private exports bucket (see "Getting the data out") |
+| `firebase/scripts/setup-exports.sh`, `mac-sync-install.sh` | One-off set-up of the export bucket and read-only key, and the Mac job that mirrors it into OneDrive |
 | `firebase/functions/src/validate.test.ts`, `quality.test.ts` | Unit tests (`npm test` in `firebase/functions`) |
 | `scripts/emulator-e2e.mjs` | Drives the real app against the emulator suite and checks what was stored |
 | `.env.example` | The environment variables the app build reads |
@@ -243,6 +245,53 @@ documents and Storage objects that resulted and that the rules and the
 functions refuse what they should. `npm test` in `firebase/functions` runs
 the validation and quality-rule unit tests.
 
+## Getting the data out: the nightly export and the OneDrive mirror
+
+Nobody reads the live database by hand. Every night at 02:30 UK time the
+`exportData` function (`firebase/functions/src/export.ts`) rewrites a private
+bucket of its own, `<project-id>-exports`, as a mirror of the current records:
+
+```
+README.md, manifest.json            what is here, when it ran, how many of each thing
+identifying/                        names, dates of birth, contact details, consent and
+  participants.csv                  agreement records with one row per statement, signatures,
+  consents.csv, consent_statements.csv   website enquiries; raw/*.jsonl holds every document
+  assents.csv, assent_statements.csv
+  submissions.csv, enquiries.csv
+  signatures/<participantId>/<recordId>.png
+research/                           the parent's answers and the screenshot records and
+  surveys.csv, survey_answers.csv   images, labelled by participant id only; no names
+  donations.csv, images.csv
+  images/<participantId>/<uploadId>.png|jpg
+```
+
+Tables are rewritten each run, images and signatures are copied once, and
+anything deleted from the study (a withdrawal) disappears from the bucket
+too. `participantId` is the only join between the two folders.
+
+**The OneDrive copy.** No Microsoft integration is needed, and no key is
+stored anywhere Microsoft can see. One Mac that is regularly on (it may
+sleep; missed runs happen on waking) mirrors the bucket into a folder the
+OneDrive app syncs, every hour, in the background:
+
+1. In Cloud Shell, once: `bash consent-app/firebase/scripts/setup-exports.sh <project-id>`.
+   It creates the bucket if needed, a service account that can read that
+   bucket and nothing else, and a key file, and starts the first export.
+   Download the key from Cloud Shell (menu ⋮ → Download).
+2. On the Mac: `bash mac-sync-install.sh ~/Downloads/<key>.json`
+   (`consent-app/firebase/scripts/mac-sync-install.sh`). It asks which
+   OneDrive folder to use, installs `rclone` and the key under
+   `~/Library/Application Support/MyPhoneMyBrain Sync/`, adds an hourly
+   launchd job, and runs the first copy. Failures show a macOS notification;
+   the log is `~/Library/Logs/MyPhoneMyBrain Sync.log`.
+   `bash mac-sync-install.sh --uninstall` removes it all. Rerun
+   `setup-exports.sh` to rotate the key.
+
+Use a restricted SharePoint or Teams library with sync turned off for
+everyone except that Mac, and give researchers access to `research/` only.
+Note that OneDrive keeps deleted files in its recycle bin for a while, so a
+withdrawal is not final there until it is emptied.
+
 ## Points for the data-protection assessment
 
 * **Where data is.** Firestore and Storage are in London. Firebase
@@ -276,6 +325,11 @@ the validation and quality-rule unit tests.
   account over SMTP, so copies sit in that account's Sent folder; it needs
   2-step verification and a mention in the DPIA. The password is held in
   Secret Manager, not in the code or in GitHub.
+* **The export and OneDrive.** The nightly export is a second copy of all
+  the data in a private bucket in London, and the OneDrive mirror a third,
+  in the University's Microsoft 365. The DPIA should name both, and the
+  OneDrive library should be restricted, unsynced except for the one Mac,
+  and emptied of deleted files when a family withdraws.
 * **Copies for families.** Nothing is emailed to families. The thank-you
   page builds a PDF of the record on the device, from what was recorded,
   for the family to download and keep; no personal data leaves the server

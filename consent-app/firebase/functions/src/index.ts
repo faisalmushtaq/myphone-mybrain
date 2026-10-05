@@ -11,6 +11,7 @@ import { assess, flatnessOfPixels, inspectWithVision, visionEnabled, type Qualit
 import { parseDate, validateConsentPayload, validateDonationPayload, type ConsentPayload, type DonationPayload } from './validate.js';
 
 export { enquiry } from './enquiry.js';
+export { exportData, exportNow } from './export.js';
 
 initializeApp();
 
