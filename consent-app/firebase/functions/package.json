@@ -7,7 +7,7 @@
   },
   "main": "lib/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "node scripts/generate-forms.mjs && tsc",
     "serve": "npm run build && firebase emulators:start --only functions",
     "test": "npm run build && node --test lib/validate.test.js lib/quality.test.js lib/enquiry.test.js lib/mail.test.js lib/export.test.js"
   },

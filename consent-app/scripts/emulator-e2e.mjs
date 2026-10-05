@@ -120,6 +120,7 @@ async function inner() {
     await page.getByLabel('Month', { exact: true }).fill('3');
     await page.getByLabel('Year', { exact: true }).fill('2013');
     await page.getByLabel('Your school', { exact: true }).selectOption('BRD-001');
+    await page.getByLabel('Your year group').selectOption('Year 8');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('button', { name: /I’m the parent or guardian/ }).click();
     await page.getByLabel('Your full name', { exact: true }).fill('Priya Patel');
@@ -219,20 +220,23 @@ async function inner() {
     const badEnquiry = await fetch(enquiryUrl, { method: 'POST', headers: enquiryHeaders, body: '{}' });
     ok('website enquiry without details is refused', badEnquiry.status === 400);
 
-    // Nightly export: tables and files land in the private exports bucket, identifying and research apart.
+    // Hourly export: a BIDS dataset for researchers and a separate identifying folder, in the private exports bucket.
     const exportRes = await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' });
     const manifest = await exportRes.json();
     const exportsBucket = getStorage().bucket(`${PROJECT}-exports`);
     const [exportedFiles] = await exportsBucket.getFiles();
     const exportedNames = exportedFiles.map((f) => f.name);
     const readExport = async (name) => (await exportsBucket.file(name).download())[0].toString('utf8');
-    const participantsCsv = await readExport('identifying/participants.csv');
-    const statementsCsv = await readExport('identifying/consent_statements.csv');
-    const surveysCsv = await readExport('research/surveys.csv');
-    const imagesCsv = await readExport('research/images.csv');
-    ok('export ran and counted the records', exportRes.status === 200 && manifest.counts?.participants === 1 && manifest.counts?.consents === 2 && manifest.counts?.donations === 1 && manifest.counts?.images === 2 && manifest.counts?.signatures === 4 && manifest.counts?.enquiries === 1, JSON.stringify(manifest.counts));
-    ok('identifying tables hold the names and the statements; research tables hold none', participantsCsv.includes('Kai') && participantsCsv.includes('Patel') && statementsCsv.includes('link-records') && surveysCsv.includes('somewhat') && !surveysCsv.includes('Patel') && !imagesCsv.includes('Patel'));
-    ok('images and signatures copied under the participant id', exportedNames.filter((n) => n.startsWith(`research/images/${submission.participantId}/`)).length === 2 && exportedNames.filter((n) => n.startsWith(`identifying/signatures/${submission.participantId}/`)).length === 4 && exportedNames.includes('README.md') && exportedNames.includes('manifest.json'));
+    const participantsTsv = await readExport('bids/participants.tsv');
+    const phenotypeTsv = await readExport('bids/phenotype/parent_perceptions.tsv');
+    const keyTsv = await readExport('identifying/participants_key.tsv');
+    const statementsTsv = await readExport('identifying/consent_statements.tsv');
+    const behTsv = await readExport('bids/sub-00001/ses-01/beh/sub-00001_ses-01_task-screentime_beh.tsv');
+    const description = JSON.parse(await readExport('bids/dataset_description.json'));
+    ok('export ran and counted the records', exportRes.status === 200 && manifest.counts?.participants === 1 && manifest.counts?.consents === 2 && manifest.counts?.sessions === 1 && manifest.counts?.screenshots === 2 && manifest.counts?.signatures === 4 && manifest.counts?.enquiries === 1, JSON.stringify(manifest.counts));
+    ok('BIDS dataset is de-identified and labelled sub-00001', description.BIDSVersion && participantsTsv.startsWith('participant_id\tage\t') && participantsTsv.includes('sub-00001\t13\tYear 8\tBRD-001') && !participantsTsv.includes('Patel') && phenotypeTsv.includes('sub-00001\tsomewhat') && !phenotypeTsv.includes('Patel') && !behTsv.includes('Patel'));
+    ok('identifying folder holds the key and the statements', keyTsv.includes('sub-00001\t') && keyTsv.includes('Kai\tPatel') && statementsTsv.includes('sub-00001\t2\tlink-records\t0.4-draft\tdeclined'));
+    ok('screenshots sit under sourcedata and signatures under identifying, named by label and session', exportedNames.filter((n) => n.startsWith('bids/sourcedata/sub-00001/ses-01/sub-00001_ses-01_task-screentime_run-0')).length === 2 && exportedNames.filter((n) => n.startsWith('identifying/signatures/sub-00001/sub-00001_')).length === 4 && exportedNames.includes('bids/sub-00001/sub-00001_sessions.tsv') && exportedNames.includes('bids/README') && exportedNames.includes('manifest.json'));
     const rerun = await (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' })).json();
     ok('a second run copies nothing new and keeps the mirror as it is', rerun.counts?.imagesCopiedThisRun === 0 && rerun.files?.length === manifest.files?.length);
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Sets up a Mac to mirror the study's export bucket into a OneDrive folder,
-# every hour, in the background, with no window open. OneDrive then carries
+# every 15 minutes, in the background, with no window open. Runs while the
+# Mac is offline are skipped quietly; the next one catches up. OneDrive then carries
 # the files to the team's shared storage. Run again any time to change the
 # folder or the key; run with --uninstall to remove everything it set up.
 #
@@ -9,7 +10,7 @@
 #
 # What it installs, all inside your own account:
 #   ~/Library/Application Support/MyPhoneMyBrain Sync/   rclone (the copying tool), the key, the settings, sync.sh
-#   ~/Library/LaunchAgents/com.myphonemybrain.sync.plist   the hourly background job
+#   ~/Library/LaunchAgents/com.myphonemybrain.sync.plist   the background job (every 15 minutes)
 #   ~/Library/Logs/MyPhoneMyBrain Sync.log                 what happened on each run
 set -eo pipefail
 LABEL="com.myphonemybrain.sync"
@@ -82,18 +83,28 @@ ok "key and settings stored in $APP_DIR"
 
 cat > "$APP_DIR/sync.sh" <<SYNC
 #!/bin/bash
-# Mirrors the export bucket into the OneDrive folder. Started by launchd every hour and at login.
+# Mirrors the export bucket into the OneDrive folder. Started by launchd every 15 minutes and at login.
 RCLONE="$RCLONE"
 CONF="$APP_DIR/rclone.conf"
 DEST="$DEST"
 LOG="$LOG"
+# Offline? Skip quietly; the next run catches up.
+if ! curl -s --max-time 10 -o /dev/null https://storage.googleapis.com/; then
+  echo "\$(date '+%Y-%m-%d %H:%M:%S') offline, skipped" >> "\$LOG"
+  exit 0
+fi
 echo "\$(date '+%Y-%m-%d %H:%M:%S') sync starting" >> "\$LOG"
 if "\$RCLONE" sync "exports:$BUCKET" "\$DEST" --config "\$CONF" --exclude ".DS_Store" --exclude "Icon?" --fast-list --transfers 8 --checkers 16 --log-file "\$LOG" --log-level NOTICE --stats 0; then
   date -u +"%Y-%m-%dT%H:%M:%SZ" > "$APP_DIR/last-success"
   echo "\$(date '+%Y-%m-%d %H:%M:%S') sync finished" >> "\$LOG"
 else
   echo "\$(date '+%Y-%m-%d %H:%M:%S') sync FAILED" >> "\$LOG"
-  osascript -e 'display notification "The copy to OneDrive did not complete. See ~/Library/Logs/MyPhoneMyBrain Sync.log" with title "MyPhone/MyBrain sync"' >/dev/null 2>&1
+  # One notification per six hours at most, so a long outage does not nag.
+  LAST="$APP_DIR/last-notified"
+  if [ ! -f "\$LAST" ] || [ \$(( \$(date +%s) - \$(cat "\$LAST") )) -gt 21600 ]; then
+    date +%s > "\$LAST"
+    osascript -e 'display notification "The copy to OneDrive did not complete. See ~/Library/Logs/MyPhoneMyBrain Sync.log" with title "MyPhone/MyBrain sync"' >/dev/null 2>&1
+  fi
   exit 1
 fi
 # Trim the log to its last 2,000 lines.
@@ -109,7 +120,7 @@ cat > "$PLIST" <<PLIST
   <key>Label</key><string>$LABEL</string>
   <key>ProgramArguments</key>
   <array><string>/bin/bash</string><string>$APP_DIR/sync.sh</string></array>
-  <key>StartInterval</key><integer>3600</integer>
+  <key>StartInterval</key><integer>900</integer>
   <key>RunAtLoad</key><true/>
   <key>ProcessType</key><string>Background</string>
   <key>LowPriorityIO</key><true/>
@@ -122,7 +133,7 @@ cat > "$PLIST" <<PLIST
 PLIST
 launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
-ok "background job installed: every hour, and whenever you log in (missed runs happen when the Mac wakes)"
+ok "background job installed: every 15 minutes and whenever you log in; offline runs are skipped and the next one catches up"
 
 echo
 echo "First copy, running now…"
@@ -140,6 +151,6 @@ else
   echo "      $RCLONE"
   echo "    then run this script again."
   echo "  • 'AccessDenied' or 'storage.objects.list': the key cannot read the bucket; rerun setup-exports.sh in Cloud Shell and download the new key."
-  echo "  • 'bucket doesn't exist': the first export has not run yet; it runs after the next backend deploy and nightly at 02:30. The hourly job will pick it up."
+  echo "  • 'bucket doesn't exist': the first export has not run yet; it runs after the next backend deploy and then hourly. The background job will pick it up."
   exit 1
 fi

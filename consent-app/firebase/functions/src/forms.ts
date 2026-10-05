@@ -1,10 +1,14 @@
+import { generated } from './generated/forms.js';
+
 /**
  * The statement forms the server currently accepts. A submission must carry
  * exactly these ids and versions; anything else is rejected, so old or
  * tampered wording can never be recorded as agreed.
  *
- * KEEP IN STEP WITH src/config/statements.ts and src/config/copy.ts in the
- * app. The emulator test (scripts/emulator-e2e.mjs) fails if they drift.
+ * Everything here is derived at build time from the app's own configuration
+ * (consent-app/src/config/statements.ts, questions.ts and copy.ts) by
+ * scripts/generate-forms.mjs, so wording and versions are edited in one
+ * place and the app, the server and the export's data dictionaries agree.
  */
 export interface ServedStatement {
   id: string;
@@ -12,49 +16,44 @@ export interface ServedStatement {
   kind: 'required' | 'optional';
 }
 
+const served = (s: { id: string; version: string; kind: string }): ServedStatement => ({ id: s.id, version: s.version, kind: s.kind as ServedStatement['kind'] });
+
 export const parentConsentForm = {
-  id: 'mpmb-parent-consent',
-  version: '0.5-draft',
-  statements: [
-    { id: 'read-information', version: '0.3-draft', kind: 'required' },
-    { id: 'take-part', version: '0.3-draft', kind: 'required' },
-    { id: 'understand-withdraw', version: '0.3-draft', kind: 'required' },
-    { id: 'records-checked', version: '0.3-draft', kind: 'required' },
-    { id: 'phone-use', version: '0.4-draft', kind: 'optional' },
-    { id: 'link-records', version: '0.4-draft', kind: 'optional' },
-    { id: 'recontact', version: '0.3-draft', kind: 'optional' },
-  ] as ServedStatement[],
+  id: generated.parentConsentForm.id,
+  version: generated.parentConsentForm.version,
+  statements: generated.parentConsentForm.statements.map(served),
 };
 
 export const childAssentForm = {
-  id: 'mpmb-child-assent',
-  version: '0.4-draft',
+  id: generated.childAssentForm.id,
+  version: generated.childAssentForm.version,
   /** Agreed to by the young person's signature. */
-  signed: ['understand', 'can-stop', 'take-part'],
+  signed: generated.childAssentForm.statements.filter((s) => s.coveredBySignature).map((s) => s.id as string),
   /** Agreed to by sending screenshots. */
-  byAction: ['phone-use'],
-  statements: [
-    { id: 'understand', version: '0.3-draft', kind: 'required' },
-    { id: 'can-stop', version: '0.3-draft', kind: 'required' },
-    { id: 'take-part', version: '0.3-draft', kind: 'required' },
-    { id: 'phone-use', version: '0.4-draft', kind: 'optional' },
-  ] as ServedStatement[],
+  byAction: generated.childAssentForm.statements.filter((s) => !s.coveredBySignature).map((s) => s.id as string),
+  statements: generated.childAssentForm.statements.map(served),
 };
 
-export const informationVersion = '0.3-draft';
+export const informationVersion: string = generated.informationVersion;
 
 /** The parent's quick questions (src/config/questions.ts in the app). */
 export type ServedQuestion = { id: string; version: string; type: 'choice'; options: string[] } | { id: string; version: string; type: 'text'; maxLength: number };
 
 export const parentQuestionsForm = {
-  id: 'mpmb-parent-perceptions',
-  version: '0.2-draft',
-  questions: [
-    { id: 'concern', version: '0.1-draft', type: 'choice', options: ['not-at-all', 'a-little', 'somewhat', 'very', 'extremely'] },
-    { id: 'compared-peers', version: '0.1-draft', type: 'choice', options: ['much-less', 'a-bit-less', 'about-the-same', 'a-bit-more', 'much-more', 'unsure'] },
-    { id: 'gets-in-the-way', version: '0.1-draft', type: 'choice', options: ['never', 'rarely', 'sometimes', 'often', 'almost-always'] },
-    { id: 'anything-else', version: '0.1-draft', type: 'text', maxLength: 500 },
-  ] as ServedQuestion[],
+  id: generated.parentQuestionsForm.id,
+  version: generated.parentQuestionsForm.version,
+  questions: generated.parentQuestionsForm.questions.map((q): ServedQuestion => (q.type === 'choice' ? { id: q.id, version: q.version, type: 'choice', options: q.options.map((o) => o.value as string) } : { id: q.id, version: q.version, type: 'text', maxLength: q.maxLength })),
+};
+
+/** The questions' wording and answer labels, for the exported data dictionary. {child} stands for the young person's name. */
+export const questionWording: Record<string, { text: string; labels?: Record<string, string> }> = Object.fromEntries(
+  generated.parentQuestionsForm.questions.map((q) => [q.id, { text: q.text as string, labels: q.type === 'choice' ? Object.fromEntries(q.options.map((o) => [o.value, o.label as string])) : undefined }]),
+);
+
+/** The statements' wording by form and id, for the exported consent tables. */
+export const statementWording: Record<string, Record<string, { label: string; text: string }>> = {
+  [generated.parentConsentForm.id]: Object.fromEntries(generated.parentConsentForm.statements.map((s) => [s.id, { label: s.label as string, text: s.text as string }])),
+  [generated.childAssentForm.id]: Object.fromEntries(generated.childAssentForm.statements.map((s) => [s.id, { label: s.label as string, text: s.text as string }])),
 };
 
 export const study = {
