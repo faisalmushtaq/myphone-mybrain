@@ -58,6 +58,16 @@ asked whether their files are from before or after the break:
   → a reminder of what was agreed and how to withdraw (consent is not taken
   again) → screenshots → guide → clean → send → done.
 
+App data is tracked app by app: the guide, the clean and send steps and
+the thank-you page show TikTok, YouTube and Instagram as a checklist. An app
+is ticked off once its cleaned data has been sent in this phase, shows as
+ready when a file is prepared on the device, and otherwise stays
+outstanding until the person sends it or presses "I don't use it", which
+greys it out (and can be undone). That answer is kept on the server
+(`updateLabPlatforms`, `platformsNotUsed` on the participant row) and
+carries over to the after-break page; a page counts as finished only when
+every app is sent or set aside.
+
 People carry on where they left off. Each page keeps its progress in
 `localStorage` for 60 days (`mpmb-lab:v1`, `mpmb-lab-checkin:v1`,
 `mpmb-lab-after:v1`), and the confirmed code is remembered separately

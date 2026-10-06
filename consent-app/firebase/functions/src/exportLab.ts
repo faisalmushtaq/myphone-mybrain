@@ -126,6 +126,7 @@ export function labParticipantsTable(snap: LabSnapshot): Row[] {
         archives_n: files.filter((f) => f.kind === 'archive').length,
         screenshots_n: files.filter((f) => f.kind === 'screenshot').length,
         platforms: Array.from(new Set(files.flatMap((f) => (Array.isArray(f.platforms) ? (f.platforms as string[]) : [])))).sort(),
+        platforms_not_used: Array.isArray(d.platformsNotUsed) ? [...(d.platformsNotUsed as string[])].sort() : [],
         phone: d.phone ?? last(sends)?.data.phone,
         first_send_at: sends[0]?.data.receivedAt,
         last_send_at: last(sends)?.data.receivedAt,
@@ -143,6 +144,7 @@ export function labSessionsTable(sessions: LabSession[]): Row[] {
     sends_n: s.donations.length,
     archives_n: s.files.filter((f) => f.file.kind === 'archive').length,
     screenshots_n: s.files.filter((f) => f.file.kind === 'screenshot').length,
+    platforms: Array.from(new Set(s.files.flatMap((f) => (Array.isArray(f.file.platforms) ? (f.file.platforms as string[]) : [])))).sort(),
     phone: last(s.donations)?.data.phone,
     needs_review: s.donations.some((d) => d.data.needsReview === true),
   }));
@@ -428,7 +430,8 @@ export function labParticipantsDictionary(): Record<string, unknown> {
     archives_n: { Description: 'Cleaned TikTok or YouTube archives accepted in total' },
     screenshots_n: { Description: 'Screen-time screenshots accepted in total' },
     platforms: { Description: 'Platforms found in the cleaned archives', Levels: { tiktok: 'TikTok', youtube: 'YouTube', instagram: 'Instagram' } },
-    phone: { Description: 'Phone the screen-time screenshots come from, as chosen in the guide', Levels: { iphone: 'iPhone', android: 'Android' } },
+    platforms_not_used: { Description: 'Apps the participant said they do not use (“I don’t use it” on the website), so no data is expected from them; an app comes off this list if its data is sent later', Levels: { tiktok: 'TikTok', youtube: 'YouTube', instagram: 'Instagram' } },
+    phone: { Description: 'Phone the screen-time screenshots come from, as chosen on the screenshots step', Levels: { iphone: 'iPhone', android: 'Android' } },
     first_send_at: { Description: 'When the first send was received (ISO 8601, UTC)' },
     last_send_at: { Description: 'When the latest send was received (ISO 8601, UTC)' },
   };
@@ -589,7 +592,7 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     jsonFile(`${B}/dataset_description.json`, labDatasetDescription(exportedAt)),
     textFile(`${B}/README`, LAB_README),
     textFile(`${B}/CHANGES`, `1.0.0 ${exportedAt.slice(0, 10)}\n  - Regenerated automatically every hour; see ../../manifest.json.\n`),
-    tsvFile(`${B}/participants.tsv`, labParticipantsTable(snap), ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'phases', 'sends_n', 'checkins_n', 'archives_n', 'screenshots_n', 'platforms', 'phone', 'first_send_at', 'last_send_at']),
+    tsvFile(`${B}/participants.tsv`, labParticipantsTable(snap), ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'phases', 'sends_n', 'checkins_n', 'archives_n', 'screenshots_n', 'platforms', 'platforms_not_used', 'phone', 'first_send_at', 'last_send_at']),
     jsonFile(`${B}/participants.json`, labParticipantsDictionary()),
     tsvFile(`${B}/phenotype/checkin.tsv`, labCheckInTable(snap.checkIns), labCheckInColumns()),
     jsonFile(`${B}/phenotype/checkin.json`, labCheckInDictionary()),
@@ -617,7 +620,7 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     bySubject.get(s.label)!.push(s);
   }
   for (const [label, mine] of bySubject) {
-    files.push(tsvFile(`${B}/${label}/${label}_sessions.tsv`, labSessionsTable(mine), ['session_id', 'phase', 'acq_time', 'last_send_at', 'sends_n', 'archives_n', 'screenshots_n', 'phone', 'needs_review']));
+    files.push(tsvFile(`${B}/${label}/${label}_sessions.tsv`, labSessionsTable(mine), ['session_id', 'phase', 'acq_time', 'last_send_at', 'sends_n', 'archives_n', 'screenshots_n', 'platforms', 'phone', 'needs_review']));
     for (const s of mine) {
       const base = `${B}/${label}/${s.session}/beh/${label}_${s.session}_task-${TASK}_beh`;
       files.push(tsvFile(`${base}.tsv`, labBehTable(s), behColumns), jsonFile(`${base}.json`, labBehDictionary()));

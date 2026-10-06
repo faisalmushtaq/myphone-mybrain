@@ -9,6 +9,7 @@ import { describeError, labSession } from '../api';
 import { labStudy } from '../config';
 import { apps, jumpTo, NextLink, Steps } from '../guideSteps';
 import { LabShell } from '../LabShell';
+import { PlatformChecklist } from '../PlatformChecklist';
 import { useLab } from '../store';
 
 /**
@@ -65,9 +66,9 @@ export function LabGuide() {
       title={after ? 'Request a new data download.' : 'Request your data download.'}
       intro={
         after ? (
-          <p>Ask the same app as last time for a fresh copy of your data, even if you still have the old file: the new one covers your break. It can take from a few minutes to a few days to arrive. Start it now, then come back to this page with the file; you will choose exactly what to share before anything is sent.</p>
+          <p>Ask each app you use for a fresh copy of your data, even if you still have the old file: the new one covers your break. It can take from a few minutes to a few days to arrive. Start now, then come back to this page with the files; you will choose exactly what to share before anything is sent.</p>
         ) : (
-          <p>Ask the app you use most, TikTok, YouTube or Instagram, for a copy of your data. It can take from a few minutes to a few days to arrive. Start it now, then come back to this page with the file; you will choose exactly what to share before anything is sent.</p>
+          <p>Ask each app you use, TikTok, YouTube or Instagram, for a copy of your data, starting with the one you use most. It can take from a few minutes to a few days to arrive. Start now, then come back to this page with the files; you will choose exactly what to share before anything is sent.</p>
         )
       }
       onContinue={next}
@@ -120,32 +121,21 @@ export function LabGuide() {
           )}
         </Callout>
       )}
-      <Callout tone="info">
-        <p>
-          <strong>Before you start:</strong> make sure you are logged in to your own account. When a format option appears, always choose <strong>JSON</strong>. You do not need to share everything: you can untick items when you request the data, and you will choose again, item by item, before anything is sent. If you use more than one of the apps, you can do each in turn.
-        </p>
-      </Callout>
-
       <section aria-labelledby="guide-apps">
         <h2 className="mpmb-h2" id="guide-apps" tabIndex={-1}>
-          Which app do you use most?
+          Your apps
         </h2>
-        <fieldset className="mpmb-field">
-          <legend className="mpmb-sr-only">Which app do you use most?</legend>
-          <div className="mpmb-chips" role="presentation">
-            {apps.map((a) => (
-              <label key={a.id} className={`mpmb-chip${app === a.id ? ' is-selected' : ''}`} htmlFor={`lab-app-${a.id}`}>
-                <input id={`lab-app-${a.id}`} type="radio" name="lab-app" value={a.id} className="mpmb-choice__input" checked={app === a.id} onChange={() => chooseApp(a.id)} />
-                <span className="mpmb-choice__dot" aria-hidden="true" />
-                {a.name}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <p>{ready ? 'Each app is ticked off once its data is sent. If you don’t use one, say so and it is set aside.' : 'Choose an app to see how to request your data from it.'}</p>
+        <PlatformChecklist onHowTo={chooseApp} statusless={!ready} />
         {chosen && (
           <div id={`guide-${chosen.id}`} className="mpmb-guide-phone" tabIndex={-1}>
-            <h3 className="mpmb-h3">{chosen.name}</h3>
+            <h3 className="mpmb-h3">How to get your {chosen.name} data</h3>
             <p className="mpmb-hint">{chosen.where}</p>
+            <Callout tone="info">
+              <p>
+                <strong>Before you start:</strong> make sure you are logged in to your own account. When a format option appears, always choose <strong>JSON</strong>. You do not need to share everything: you can untick items when you request the data, and you will choose again, item by item, before anything is sent.
+              </p>
+            </Callout>
             <Steps steps={chosen.steps} />
             <NextLink onClick={next}>{ready ? 'Continue: I have my file' : 'Continue: enter my code'}</NextLink>
           </div>

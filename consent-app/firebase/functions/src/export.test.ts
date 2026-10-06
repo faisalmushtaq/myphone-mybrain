@@ -107,7 +107,7 @@ test('the lab dataset is labelled by participant code, has one session per phase
   const snap = {
     reminders: [{ id: 'JA101CD', data: { email: 'jane@example.com', requestedAt: '2026-10-05T11:00:00.000Z', statusOutcome: 'sent', followUpDueAt: '2026-10-07T11:00:00.000Z', followUpSentAt: null, completedAt: '2026-10-08T10:00:00.000Z' } }],
     checkIns: [{ id: 'k1', data: { participantCode: 'JA101CD', number: 1, formVersion: '0.1-draft', receivedAt: '2026-10-20T10:00:00.000Z', answers: { week: '2', 'apps-used': 'never', mood: '4', difficulty: '3', missed: '2', notes: 'Brick held up fine' } } }],
-    participants: [{ id: 'JA101CD', data: { consentId: 'c1', consentVersion: 1, archiveCount: 1, screenshotCount: 2 } }, { id: 'ZZ912AB', data: { consentId: 'c2', consentVersion: 1 } }],
+    participants: [{ id: 'JA101CD', data: { consentId: 'c1', consentVersion: 1, archiveCount: 1, screenshotCount: 2, platformsNotUsed: ['youtube', 'instagram'] } }, { id: 'ZZ912AB', data: { consentId: 'c2', consentVersion: 1 } }],
     consents: [
       { id: 'c1', data: { participantCode: 'JA101CD', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-05', typedName: 'Jane Doe', codeParts: { firstName: 'Jane', house: '123', month: '01', postcode: 'AB1 2CD' }, responses: { 'take-part': { version: '1.0', response: 'agreed', respondedAt: '2026-10-05T09:00:00.000Z', via: 'individual' } }, signature: { method: 'drawn', image: { path: 'signatures/lab/JA101CD/c1.png' } } } },
       { id: 'c2', data: { participantCode: 'ZZ912AB', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-06', typedName: 'Zed Zee', responses: {}, signature: { method: 'typed', typedName: 'Zed Zee', image: null } } },
@@ -122,7 +122,7 @@ test('the lab dataset is labelled by participant code, has one session per phase
     ],
   };
   const rows = labParticipantsTable(snap);
-  assert.deepEqual(rows[0], { participant_id: 'sub-JA101CD', consented_on: '2026-10-05', consent_version: '1.0', information_version: '1.0', consent_n: 1, phases: ['pre', 'mid', 'post'], sends_n: 4, checkins_n: 1, archives_n: 1, screenshots_n: 3, platforms: ['tiktok'], phone: 'iphone', first_send_at: '2026-10-05T10:00:00.000Z', last_send_at: '2026-11-10T10:00:00.000Z' });
+  assert.deepEqual(rows[0], { participant_id: 'sub-JA101CD', consented_on: '2026-10-05', consent_version: '1.0', information_version: '1.0', consent_n: 1, phases: ['pre', 'mid', 'post'], sends_n: 4, checkins_n: 1, archives_n: 1, screenshots_n: 3, platforms: ['tiktok'], platforms_not_used: ['instagram', 'youtube'], phone: 'iphone', first_send_at: '2026-10-05T10:00:00.000Z', last_send_at: '2026-11-10T10:00:00.000Z' });
   assert.equal(rows[1].sends_n, 0, 'consented but nothing sent yet');
   assert.ok(!JSON.stringify(rows).includes('Jane'));
   const sessions = labSessionsOf(snap);
@@ -139,7 +139,7 @@ test('the lab dataset is labelled by participant code, has one session per phase
   assert.equal(beh[1].received_at, '2026-10-08T10:00:00.000Z');
   assert.equal(labBehTable(post)[0].verdict, 'review');
   const sessionRows = labSessionsTable(sessions);
-  assert.deepEqual(sessionRows[0], { session_id: 'ses-pre', phase: 'pre', acq_time: '2026-10-05T10:00:00.000Z', last_send_at: '2026-10-08T10:00:00.000Z', sends_n: 2, archives_n: 1, screenshots_n: 1, phone: 'iphone', needs_review: true });
+  assert.deepEqual(sessionRows[0], { session_id: 'ses-pre', phase: 'pre', acq_time: '2026-10-05T10:00:00.000Z', last_send_at: '2026-10-08T10:00:00.000Z', sends_n: 2, archives_n: 1, screenshots_n: 1, platforms: ['tiktok'], phone: 'iphone', needs_review: true });
   assert.equal(labSessionsOf({ ...snap, donations: [{ id: 'dx', data: { participantCode: 'JA101CD', receivedAt: '2026-10-05T10:00:00.000Z', files: [] } }] })[0].session, 'ses-unspecified', 'a send without a phase keeps its own session');
   assert.equal(labSignatureFile('JA101CD', 1), 'signatures/sub-JA101CD/sub-JA101CD_consent-v1_signature.png');
   const { records, statements } = labConsentTables(snap.consents);

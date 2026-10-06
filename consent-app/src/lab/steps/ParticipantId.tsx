@@ -8,7 +8,8 @@ import { formatTimestamp } from '../../lib/dates';
 import { describeError, labSession } from '../api';
 import { buildParticipantCode, formatPostcode, isUkPostcode, labPages, labStudy, nameHasTwoLetters, normaliseParticipantCode } from '../config';
 import { LabShell } from '../LabShell';
-import { nextFilesStep, phaseHave, resumeStep } from '../reducer';
+import { namesOf } from '../PlatformChecklist';
+import { nextFilesStep, phaseHave, platformsToDo, resumeStep } from '../reducer';
 import { useLab } from '../store';
 import { validateCode, type FieldError } from '../validation';
 import { filesPhrase } from '../words';
@@ -113,11 +114,11 @@ export function ParticipantId() {
             We already have your consent{when ? `, recorded ${formatTimestamp(when)}` : ''}. Received from you so far: <strong>{filesPhrase(have)}</strong>.
           </p>
         </Callout>
-        <p>{nextStep === 'screenshots' ? 'Next: your screen-time screenshots. They take a few minutes and go to the team straight away.' : nextStep === 'guide' ? 'Next: your app data. Request the download, or if it has arrived, clean it and send it.' : 'Everything the study needs from before your break is in. You can add more files if you like.'}</p>
+        <p>{nextStep === 'screenshots' ? 'Next: your screen-time screenshots. They take a few minutes and go to the team straight away.' : nextStep === 'guide' ? `Next: your app data. Still to do: ${namesOf(platformsToDo(state))}. Request the download, or if it has arrived, clean it and send it.` : nextStep === 'send' ? 'Next: send the files you prepared on this device.' : 'Everything the study needs from before your break is in. You can add more files if you like.'}</p>
         <p className="mpmb-hint">If you have never given consent for this study, this code belongs to someone else: press “That isn’t me”.</p>
         <div className="mpmb-actions">
           <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: nextStep === 'done' ? 'screenshots' : nextStep })}>
-            {nextStep === 'screenshots' ? 'Continue: my screenshots' : nextStep === 'guide' ? 'Continue: my app data' : 'Add more files'}
+            {nextStep === 'screenshots' ? 'Continue: my screenshots' : nextStep === 'guide' ? 'Continue: my app data' : nextStep === 'send' ? 'Continue: send my data' : 'Add more files'}
           </Button>
           <Button
             variant="ghost"

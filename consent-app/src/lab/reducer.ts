@@ -1,7 +1,10 @@
 import type { LabConsentRecord, LabLookupResult, LabPhone, LabPlatform } from '../api/types';
 import { todayIso } from '../lib/dates';
 import type { SessionInfo, SignatureRecord } from '../model/types';
-import { labConsentForm, labInformationVersion, type CodeParts } from './config';
+import { labConsentForm, labInformationVersion, labStudy, type CodeParts } from './config';
+
+/** The apps whose data the study takes, in the order they are listed. */
+export const labPlatforms: LabPlatform[] = [...labStudy.platforms];
 import { labFlowPhase, labFlowSteps, type LabArchive, type LabFlow, type LabScreenshot, type LabState, type LabStepId, type LabSubmission } from './model';
 
 export type LabAction =
@@ -18,6 +21,7 @@ export type LabAction =
   | { type: 'consent-complete' }
   | { type: 'phone'; phone: LabPhone | null }
   | { type: 'app'; app: LabPlatform | null }
+  | { type: 'not-used'; notUsed: LabPlatform[] }
   | { type: 'progress'; progress: LabLookupResult }
   | { type: 'use-code'; code: string }
   | { type: 'checkin-answer'; questionId: string; value: string }
@@ -55,6 +59,7 @@ export function initialLabState(flow: LabFlow = 'baseline'): LabState {
     progress: null,
     checkIn: { answers: {}, checkInId: null, sentAt: null, count: 0 },
     app: null,
+    notUsed: [],
     submission: { consentId: null, consentVersion: 0, consentSentAt: null, consentStage: 'idle', consentError: null, consentOnFile: false, donationStage: 'idle', donationError: null, donationIds: [], lastDonationAt: null, archivesSent: 0, screenshotsSent: 0 },
     archives: [],
     screenshots: [],
@@ -75,10 +80,34 @@ export function phaseHave(state: LabState): { screenshots: number; archives: num
   return { screenshots: state.screenshots.filter((s) => s.status === 'sent').length, archives: state.archives.filter((a) => a.status === 'sent').length };
 }
 
-/** Where someone carries on in this page's files: screenshots first, then the app data, then the summary. */
+export type PlatformStatus = 'sent' | 'ready' | 'todo' | 'not-used';
+
+/**
+ * Where each app stands for this page's phase: its cleaned data has been
+ * sent (ticked off), is prepared on this device, is still to do, or the
+ * person has said they do not use it (greyed out). Every app is either sent
+ * or set aside before the page counts as finished.
+ */
+export function platformStatuses(state: LabState): Record<LabPlatform, PlatformStatus> {
+  const sent = new Set<LabPlatform>([...(state.progress?.phases?.[state.phase]?.platforms ?? []), ...state.archives.filter((a) => a.status === 'sent').flatMap((a) => a.platforms)]);
+  const ready = new Set<LabPlatform>(state.archives.filter((a) => a.status !== 'sent').flatMap((a) => a.platforms));
+  const out = {} as Record<LabPlatform, PlatformStatus>;
+  for (const p of labPlatforms) out[p] = sent.has(p) ? 'sent' : ready.has(p) ? 'ready' : state.notUsed.includes(p) ? 'not-used' : 'todo';
+  return out;
+}
+
+/** The apps still to do: neither sent nor set aside. */
+export function platformsToDo(state: LabState): LabPlatform[] {
+  const s = platformStatuses(state);
+  return labPlatforms.filter((p) => s[p] === 'todo');
+}
+
+/** Where someone carries on in this page's files: screenshots first, then each app's data, then the summary. */
 export function nextFilesStep(state: LabState): LabStepId {
   const have = phaseHave(state);
-  return !have.screenshots ? 'screenshots' : !have.archives ? 'guide' : 'done';
+  if (!have.screenshots) return 'screenshots';
+  const s = Object.values(platformStatuses(state));
+  return s.includes('todo') ? 'guide' : s.includes('ready') ? 'send' : 'done';
 }
 
 /** Where someone goes once their code is confirmed and consent is on file. */
@@ -117,6 +146,7 @@ export function labReducer(state: LabState, action: LabAction): LabState {
         codeConfirmed: true,
         confirmedCode: action.code,
         progress: onFile ? action.lookup : null,
+        notUsed: onFile ? (action.lookup.platformsNotUsed ?? []) : base.notUsed,
         submission: onFile ? { ...base.submission, consentOnFile: true, consentStage: 'sent', consentSentAt: base.submission.consentSentAt ?? action.lookup.consentedAt } : base.submission,
       };
     }
@@ -151,10 +181,13 @@ export function labReducer(state: LabState, action: LabAction): LabState {
       return { ...state, checkIn: { answers: {}, checkInId: null, sentAt: null, count: state.checkIn.count }, screenshots: [], stepId: 'checkin' };
     case 'app':
       return { ...state, app: action.app };
+    case 'not-used':
+      return { ...state, notUsed: action.notUsed };
     case 'submission':
       return { ...state, submission: { ...state.submission, ...action.patch } };
     case 'add-archive':
-      return { ...state, archives: [...state.archives, action.archive] };
+      // Preparing an app's file means the person does use it after all.
+      return { ...state, archives: [...state.archives, action.archive], notUsed: state.notUsed.filter((p) => !action.archive.platforms.includes(p)) };
     case 'update-archive':
       return { ...state, archives: state.archives.map((a) => (a.id === action.id ? { ...a, ...action.patch } : a)) };
     case 'remove-archive':
@@ -169,6 +202,7 @@ export function labReducer(state: LabState, action: LabAction): LabState {
       const sent = new Set(action.ids);
       const newly = (f: { uploadId: string | null; status: string }) => Boolean(f.uploadId && sent.has(f.uploadId) && f.status !== 'sent');
       const added = { archives: state.archives.filter(newly).length, screenshots: state.screenshots.filter(newly).length };
+      const addedPlatforms = state.archives.filter(newly).flatMap((a) => a.platforms);
       const archives = state.archives.map((a) => (a.uploadId && sent.has(a.uploadId) ? { ...a, status: 'sent' as const } : a));
       const screenshots = state.screenshots.map((s) => (s.uploadId && sent.has(s.uploadId) ? { ...s, status: 'sent' as const } : s));
       // Keep the server's counts current, so the next step knows what is in without asking again.
@@ -178,7 +212,14 @@ export function labReducer(state: LabState, action: LabAction): LabState {
             ...p,
             archives: p.archives + added.archives,
             screenshots: p.screenshots + added.screenshots,
-            phases: { ...p.phases, [state.phase]: { archives: (p.phases?.[state.phase]?.archives ?? 0) + added.archives, screenshots: (p.phases?.[state.phase]?.screenshots ?? 0) + added.screenshots } },
+            phases: {
+              ...p.phases,
+              [state.phase]: {
+                archives: (p.phases?.[state.phase]?.archives ?? 0) + added.archives,
+                screenshots: (p.phases?.[state.phase]?.screenshots ?? 0) + added.screenshots,
+                platforms: Array.from(new Set([...(p.phases?.[state.phase]?.platforms ?? []), ...addedPlatforms])).sort(),
+              },
+            },
           }
         : null;
       return {

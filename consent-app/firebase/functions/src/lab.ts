@@ -37,6 +37,7 @@ const callOptions = { region: REGION, memory: '1GiB' as const, timeoutSeconds: 3
 const LOOKUPS_PER_HOUR = 30;
 const REMINDERS_PER_HOUR = 5;
 const CHECKINS_PER_HOUR = 10;
+const PLATFORM_UPDATES_PER_HOUR = 30;
 /** How long after a progress email the one follow-up goes, unless files have arrived. */
 const FOLLOW_UP_AFTER_MS = 48 * 3600_000;
 const SITE = 'https://myphonemybrain.com';
@@ -48,6 +49,8 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /** Bytes an archive may expand to, in total. The cleaned files are small; anything near this was not made by the cleaner. */
 const MAX_UNPACKED = 400 * 1024 * 1024;
 const PLATFORMS = ['tiktok', 'youtube', 'instagram'];
+const PLATFORM_NAMES: Record<string, string> = { tiktok: 'TikTok', youtube: 'YouTube', instagram: 'Instagram' };
+const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 const PHONES = ['iphone', 'android'];
 /** Where in the study a send belongs, set by the page it came from: before the break, a check-in during it, after it. */
 const PHASES = ['pre', 'mid', 'post'] as const;
@@ -454,16 +457,62 @@ export const lookupLabParticipant = onCall(callOptions, async (request) => {
   const db = getFirestore();
   await rateLimitLookups(db, uid);
   const participant = (await db.collection('labParticipants').doc(code).get()).data();
-  if (!participant?.consentId) return { exists: false, consentedAt: null, archives: 0, screenshots: 0, phases: emptyPhases(), checkIns: 0, lastCheckInAt: null };
+  if (!participant?.consentId) return { exists: false, consentedAt: null, archives: 0, screenshots: 0, phases: emptyPhases(), checkIns: 0, lastCheckInAt: null, platformsNotUsed: [] };
+  // Which apps' data has arrived in each phase, so the pages can tick them off on any device.
+  const phases = phaseCountsOf(participant);
+  const donations = await db.collection('labDonations').where('participantCode', '==', code).get();
+  const seen: Record<Phase, Set<string>> = { pre: new Set(), mid: new Set(), post: new Set() };
+  for (const d of donations.docs) {
+    const phase = (d.data().phase ?? 'pre') as Phase;
+    for (const f of (d.data().files ?? []) as DocumentData[]) for (const pl of (f.platforms ?? []) as string[]) seen[phase]?.add(pl);
+  }
   return {
     exists: true,
     consentedAt: toIso(participant.consentedAt),
     archives: Number(participant.archiveCount ?? 0),
     screenshots: Number(participant.screenshotCount ?? 0),
-    phases: phaseCountsOf(participant),
+    phases: Object.fromEntries(PHASES.map((ph) => [ph, { ...phases[ph], platforms: Array.from(seen[ph]).sort() }])),
     checkIns: Number(participant.checkInCount ?? 0),
     lastCheckInAt: toIso(participant.lastCheckInAt),
+    platformsNotUsed: notUsedOf(participant),
   };
+});
+
+/** The apps a participant has said they do not use. */
+export function notUsedOf(participant: DocumentData): string[] {
+  return Array.isArray(participant.platformsNotUsed) ? (participant.platformsNotUsed as unknown[]).map(String).filter((p) => PLATFORMS.includes(p)).sort() : [];
+}
+
+export function validateLabPlatformsPayload(input: unknown): string[] {
+  const problems: string[] = [];
+  if (!isObj(input)) return ['The request is not an object.'];
+  if (!normaliseCode(input.participantCode)) problems.push('The participant code is malformed.');
+  const apps = input.notUsed;
+  if (!Array.isArray(apps) || apps.length > PLATFORMS.length || apps.some((x) => !PLATFORMS.includes(String(x))) || new Set(apps).size !== apps.length) problems.push('The list of apps is malformed.');
+  return problems;
+}
+
+/**
+ * Records the apps a participant does not use (the whole list each time), so
+ * the pages grey them out and stop asking for their data. Sending an app's
+ * data later takes it off the list again.
+ */
+export const updateLabPlatforms = onCall(callOptions, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Please try again.');
+  const problems = validateLabPlatformsPayload(request.data);
+  if (problems.length) throw new HttpsError('invalid-argument', problems[0], { problems });
+  const { participantCode, notUsed } = request.data as { participantCode: string; notUsed: string[] };
+  const code = normaliseCode(participantCode)!;
+  const db = getFirestore();
+  await rateLimitLookups(db, uid, 'lab-platforms', PLATFORM_UPDATES_PER_HOUR);
+  const ref = db.collection('labParticipants').doc(code);
+  const participant = (await ref.get()).data();
+  if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant code. Please check the code.');
+  const apps = Array.from(new Set(notUsed.map(String))).sort();
+  await ref.set({ platformsNotUsed: apps, platformsNotUsedAt: new Date(), sessionUids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  logger.info('Lab apps not used', { participantCode: code, notUsed: apps });
+  return { notUsed: apps };
 });
 
 type PhaseCounts = Record<Phase, { archives: number; screenshots: number }>;
@@ -575,6 +624,8 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
   }
 
   let donationId: string | null = null;
+  // Sending an app's data means the person uses it: it comes off their "not used" list.
+  const sentPlatforms = Array.from(new Set(stored.flatMap((f) => f.platforms ?? [])));
   if (stored.length) {
     const batch = db.batch();
     const ref = db.collection('labDonations').doc();
@@ -610,6 +661,7 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
             })(),
         lastDonationAt: receivedAt,
         lastPhase: payload.phase,
+        ...(sentPlatforms.length ? { platformsNotUsed: FieldValue.arrayRemove(...sentPlatforms) } : {}),
         ...(payload.phone ? { phone: payload.phone } : {}),
         sessionUids: FieldValue.arrayUnion(uid),
         updatedAt: FieldValue.serverTimestamp(),
@@ -676,27 +728,38 @@ export interface LabProgress {
   phase: 'pre' | 'post';
   screenshots: number;
   archives: number;
+  /** The apps whose data has arrived for this page. */
   platforms: string[];
+  /** The apps the participant has said they do not use. */
+  notUsed: string[];
 }
 
-/** What a participant still owes for this page, in plain words; empty when the minimum is in. */
+/** What a participant still owes for this page, in plain words; empty when everything is in: each app they use is sent or set aside. */
 export function outstanding(p: LabProgress): string[] {
   const out: string[] = [];
   if (!p.consentedAt) out.push('your consent');
   if (!p.screenshots) out.push('screenshots of your phone’s screen-time summary');
-  if (!p.archives) out.push('your cleaned TikTok, YouTube or Instagram file');
+  const remaining = appsToCome(p);
+  if (remaining.length) out.push(`your ${list(remaining.map((pl) => PLATFORM_NAMES[pl]))} data`);
   return out;
 }
 
+/** The apps whose data has neither arrived nor been set aside as not used. */
+export function appsToCome(p: LabProgress): string[] {
+  return PLATFORMS.filter((pl) => !p.platforms.includes(pl) && !p.notUsed.includes(pl));
+}
+
+/** Said whenever apps are still to come: not using one is a fine answer, given on the page. */
+const notUsedNote = (p: LabProgress) => (appsToCome(p).length ? `If you don’t use ${appsToCome(p).length === 1 ? 'that app' : 'one of these apps'}, open the page and press “I don’t use it”, and we will stop asking for it.` : '');
+
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 const whenOf = (p: LabProgress) => (p.phase === 'post' ? 'after your break' : 'before your break');
 
 /** The email sent when someone presses "I'll come back later": where they are and how to carry on. */
 export function labStatusEmail(p: LabProgress): { subject: string; text: string } {
   const owed = outstanding(p);
   const link = pageFor(p.phase, p.participantCode);
-  const received = [p.screenshots ? plural(p.screenshots, 'screen-time screenshot', 'screen-time screenshots') : '', p.archives ? `${plural(p.archives, 'cleaned file', 'cleaned files')}${p.platforms.length ? ` (${p.platforms.join(', ')})` : ''}` : ''].filter(Boolean);
+  const received = [p.screenshots ? plural(p.screenshots, 'screen-time screenshot', 'screen-time screenshots') : '', p.archives ? `${plural(p.archives, 'cleaned file', 'cleaned files')}${p.platforms.length ? ` (${p.platforms.map((pl) => PLATFORM_NAMES[pl] ?? pl).join(', ')})` : ''}` : ''].filter(Boolean);
   const text = [
     `Hello,`,
     ``,
@@ -706,6 +769,7 @@ export function labStatusEmail(p: LabProgress): { subject: string; text: string 
     `Consent: ${p.consentedAt ? `recorded on ${p.consentedAt.slice(0, 10)}` : 'not yet given'}`,
     `Received so far: ${received.length ? list(received) : 'nothing yet'}`,
     owed.length ? `Still to come: ${list(owed)}.` : `Everything the study needs is in. Thank you!`,
+    ...(notUsedNote(p) ? [notUsedNote(p)] : []),
     ``,
     owed.length
       ? [
@@ -734,6 +798,7 @@ export function labFollowUpEmail(p: LabProgress): { subject: string; text: strin
     ``,
     `If your data download has arrived, open the link below on the device that has the file and follow the steps; your participant code is filled in for you. If it has not arrived yet, or anything is unclear, reply to this email and we will help.`,
     pageFor(p.phase, p.participantCode),
+    ...(notUsedNote(p) ? [``, notUsedNote(p)] : []),
     ``,
     `This is the only reminder we will send.`,
     ``,
@@ -770,7 +835,7 @@ async function progressOf(db: Firestore, code: string, phase: 'pre' | 'post'): P
       for (const pl of (f.platforms ?? []) as string[]) platforms.add(pl);
     }
   }
-  return { participantCode: code, consentedAt: toIso(participant.consentedAt), phase, screenshots, archives, platforms: Array.from(platforms).sort() };
+  return { participantCode: code, consentedAt: toIso(participant.consentedAt), phase, screenshots, archives, platforms: Array.from(platforms).sort(), notUsed: notUsedOf(participant) };
 }
 
 /**

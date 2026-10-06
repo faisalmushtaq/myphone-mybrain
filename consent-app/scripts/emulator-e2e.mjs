@@ -374,7 +374,8 @@ async function inner() {
     const labP1 = (await db.collection('labParticipants').doc('JA101CD').get()).data();
     ok('the screenshot is with the team before the app data is asked for', labP1?.screenshotCount === 1 && labP1?.archiveCount === 0 && labP1?.donationIds?.length === 1);
     ok('the guide shows no app steps until one is chosen', (await page.locator('#guide-tiktok').count()) === 0 && (await page.locator('#guide-youtube').count()) === 0 && (await page.locator('#guide-instagram').count()) === 0);
-    await page.getByRole('radio', { name: 'TikTok' }).check();
+    ok('the guide lists every app as still to do, each with its own steps and a way to say it is not used', (await page.locator('.mpmb-apps__row.is-todo').count()) === 3 && (await page.getByRole('button', { name: 'I don’t use Instagram' }).count()) === 1);
+    await page.getByRole('button', { name: 'Show me how to get my TikTok data' }).click();
     await page.locator('#guide-tiktok').waitFor();
     ok('choosing TikTok shows only its steps, with a link on to the file', (await page.locator('#guide-youtube').count()) === 0 && (await page.locator('#guide-instagram').count()) === 0 && (await page.getByRole('button', { name: /^Continue: I have my file/ }).count()) === 1);
     await snap('guide');
@@ -404,14 +405,35 @@ async function inner() {
     const previewText = await page.locator('.mpmb-card').innerText();
     ok('the cleaning preview shows links and dates only', previewText.includes('tiktokv.com/share/video/1/') && !previewText.includes('something private') && !previewText.includes('private words'));
     await page.getByRole('button', { name: 'Add this to my donation' }).click();
-    await page.getByRole('heading', { name: 'Ready to send' }).waitFor();
+    await page.locator('.mpmb-apps__row.is-ready[data-platform="tiktok"]').waitFor();
     await page.getByRole('button', { name: /Next: send my data/ }).click();
     await page.getByRole('heading', { name: /Check and send/ }).waitFor();
     ok('the send step asks nothing about before or after', (await page.getByRole('radio', { name: 'Before my break' }).count()) === 0);
     await snap('send');
     await page.getByRole('button', { name: 'Send my data' }).click();
     await page.getByRole('heading', { name: /Thank you. Your data has been sent/ }).waitFor({ timeout: 90000 });
+    const appRow = (p) => page.locator(`.mpmb-apps__row[data-platform="${p}"]`);
+    ok('TikTok is ticked off; YouTube and Instagram stay outstanding', (await appRow('tiktok').getAttribute('class')).includes('is-sent') && (await appRow('youtube').getAttribute('class')).includes('is-todo') && (await appRow('instagram').getAttribute('class')).includes('is-todo') && (await page.getByText(/Still to do: YouTube and Instagram/).count()) === 1);
     await snap('done');
+    // Saying an app is not used greys it out; it can be undone; the server keeps the answer.
+    await page.getByRole('button', { name: 'I don’t use YouTube' }).click();
+    await page.getByRole('button', { name: 'I do use YouTube' }).waitFor();
+    await page.getByRole('button', { name: 'I don’t use Instagram' }).click();
+    await page.getByRole('button', { name: 'I do use Instagram' }).waitFor();
+    await page.getByRole('button', { name: 'I do use Instagram' }).click();
+    await page.getByRole('button', { name: 'I don’t use Instagram' }).waitFor();
+    ok('undoing puts the app back on the list', (await appRow('instagram').getAttribute('class')).includes('is-todo'));
+    await page.getByRole('button', { name: 'I don’t use Instagram' }).click();
+    await page.getByText('Every app you use is ticked off. Thank you.').waitFor({ timeout: 30000 });
+    ok('apps not used are greyed out, and the page says everything is in', (await appRow('youtube').getAttribute('class')).includes('is-not-used') && (await appRow('instagram').getAttribute('class')).includes('is-not-used'));
+    let notUsedRow = null;
+    for (let i = 0; i < 40; i += 1) {
+      notUsedRow = (await db.collection('labParticipants').doc('JA101CD').get()).data();
+      if (JSON.stringify(notUsedRow?.platformsNotUsed) === JSON.stringify(['instagram', 'youtube'])) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    ok('the apps not used are kept against the code', JSON.stringify(notUsedRow?.platformsNotUsed) === JSON.stringify(['instagram', 'youtube']), JSON.stringify(notUsedRow?.platformsNotUsed));
+    await snap('done-apps');
     ok('no browser errors in the lab flow', errors.length === 0, errors.join(' | '));
 
     const labP2 = (await db.collection('labParticipants').doc('JA101CD').get()).data();
@@ -492,6 +514,7 @@ async function inner() {
     await page.waitForFunction(() => document.querySelectorAll('.mpmb-shots li').length === 1);
     await page.getByRole('button', { name: 'Send my screenshot', exact: true }).click();
     await page.getByRole('heading', { name: 'Request a new data download.', level: 1 }).waitFor({ timeout: 90000 });
+    ok('after the break, the apps set aside before stay greyed out and only TikTok is asked for', (await page.locator('.mpmb-apps__row[data-platform="tiktok"]').getAttribute('class')).includes('is-todo') && (await page.locator('.mpmb-apps__row[data-platform="youtube"]').getAttribute('class')).includes('is-not-used') && (await page.locator('.mpmb-apps__row[data-platform="instagram"]').getAttribute('class')).includes('is-not-used'));
     await page.getByRole('button', { name: /come back later/ }).click();
     await page.getByLabel('Your email address').fill('jane@example.com');
     await page.getByRole('button', { name: 'Email me my progress' }).click();
@@ -504,11 +527,12 @@ async function inner() {
     await page.getByRole('heading', { name: /Found: TikTok data/ }).waitFor({ timeout: 30000 });
     await page.locator('#cat-tt_search').uncheck();
     await page.getByRole('button', { name: 'Add this to my donation' }).click();
-    await page.getByRole('heading', { name: 'Ready to send' }).waitFor();
+    await page.locator('.mpmb-apps__row.is-ready[data-platform="tiktok"]').waitFor();
     await page.getByRole('button', { name: /Next: send my data/ }).click();
     await page.getByRole('heading', { name: /Check and send/ }).waitFor();
     await page.getByRole('button', { name: 'Send my data' }).click();
     await page.getByRole('heading', { name: /after-break data is in/ }).waitFor({ timeout: 90000 });
+    ok('after the break, TikTok is ticked off and nothing is left to do', (await page.getByText('Every app you use is ticked off. Thank you.').count()) === 1);
     await snap('after-done');
     const labP4 = (await db.collection('labParticipants').doc('JA101CD').get()).data();
     ok('after the break the files are filed as post, and the participant row counts each phase', labP4?.phaseCounts?.post?.screenshots === 1 && labP4?.phaseCounts?.post?.archives === 1 && labP4?.phaseCounts?.pre?.screenshots === 1 && labP4?.phaseCounts?.pre?.archives === 1 && labP4?.donationIds?.length === 5 && labP4?.phone === 'android', JSON.stringify(labP4?.phaseCounts));
@@ -521,7 +545,7 @@ async function inner() {
     ok('no browser errors on the check-in and after-break pages', errors.length === 0, errors.join(' | '));
 
     const lookup = await httpsCallable(fns, 'lookupLabParticipant')({ participantCode: 'ja101cd' });
-    ok('another session can see that the code has consent and what was sent, phase by phase', lookup.data?.exists === true && lookup.data?.archives === 2 && lookup.data?.screenshots === 3 && typeof lookup.data?.consentedAt === 'string' && lookup.data?.phases?.pre?.archives === 1 && lookup.data?.phases?.pre?.screenshots === 1 && lookup.data?.phases?.mid?.screenshots === 1 && lookup.data?.phases?.post?.archives === 1 && lookup.data?.phases?.post?.screenshots === 1 && lookup.data?.checkIns === 1, JSON.stringify(lookup.data));
+    ok('another session can see that the code has consent and what was sent, phase by phase', lookup.data?.exists === true && lookup.data?.archives === 2 && lookup.data?.screenshots === 3 && typeof lookup.data?.consentedAt === 'string' && lookup.data?.phases?.pre?.archives === 1 && lookup.data?.phases?.pre?.screenshots === 1 && lookup.data?.phases?.mid?.screenshots === 1 && lookup.data?.phases?.post?.archives === 1 && lookup.data?.phases?.post?.screenshots === 1 && lookup.data?.checkIns === 1 && JSON.stringify(lookup.data?.phases?.pre?.platforms) === '["tiktok"]' && JSON.stringify(lookup.data?.phases?.post?.platforms) === '["tiktok"]' && JSON.stringify(lookup.data?.platformsNotUsed) === '["instagram","youtube"]', JSON.stringify(lookup.data));
     const unknown = await httpsCallable(fns, 'lookupLabParticipant')({ participantCode: 'ZZ912AB' });
     ok('an unknown code is reported as not on file', unknown.data?.exists === false);
     ok('files for a code without consent are refused', await stranger(() => httpsCallable(fns, 'submitLabDonation')({ participantCode: 'ZZ912AB', uploads: [{ uploadId: '423e4567-e89b-12d3-a456-426614174000', kind: 'screenshot', name: 'x.png', contentType: 'image/png', size: 10 }], phase: 'pre', client })));
@@ -537,7 +561,7 @@ async function inner() {
     const watchTsv = await readExport('social-media-break/donations/sub-JA101CD/ses-pre/beh/sub-JA101CD_ses-pre_task-tiktokwatch_run-02_beh.tsv');
     const checkinTsv = await readExport('social-media-break/donations/phenotype/checkin.tsv');
     ok('the check-ins are exported, one row each, with their mid-break screenshot in ses-mid and the after-break files in ses-post', checkinTsv.startsWith('participant_id\tsession_id\tcheck_in_id\tcheck_in_n\tsubmitted_at\tform_version\tweek\tapps_used\tmood\tdifficulty\tmissed\tnotes\n') && checkinTsv.includes('sub-JA101CD\tses-mid\t') && checkinTsv.includes('\t2\tonce-or-twice\t4\t3\t2\tBrick held up fine.') && labManifest.counts?.labCheckIns === 1 && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-mid/sub-JA101CD_ses-mid_run-01_screenshot.png') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-post/sub-JA101CD_ses-post_run-01_screenshot.png') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-post/sub-JA101CD_ses-post_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sub-JA101CD/ses-post/beh/sub-JA101CD_ses-post_task-tiktokwatch_run-02_beh.tsv'), JSON.stringify(labManifest.counts));
-    ok('the lab study has its own folder: a pre session with unpacked tables under donations/, names only under identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 2 && labManifest.counts?.labScreenshots === 3 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-JA101CD\t') && labParticipantsTsv.includes('\tandroid\t') && labParticipantsTsv.includes('pre; mid; post') && !labParticipantsTsv.includes('Jane') && !labParticipantsTsv.includes('AB1') && labConsentsTsv.includes('Jane Doe') && labConsentsTsv.includes('AB1 2CD') && remindersTsv.includes('JA101CD\tsub-JA101CD\tjane@example.com') && !labParticipantsTsv.includes('jane@') && labBeh.includes('archive\tsourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_archive.zip') && watchTsv === 'time\tlink\n2026-09-01 20:11:03\thttps://www.tiktokv.com/share/video/1/\n2026-09-01 20:12:40\thttps://www.tiktokv.com/share/video/2/\n' && !labManifest.files?.some((n) => n.includes('tiktoksearch')) && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-01_screenshot.png') && labManifest.files?.some((n) => n.startsWith('social-media-break/identifying/signatures/sub-JA101CD/')) && !labManifest.files?.some((n) => n.startsWith('schools/') && n.includes('JA101CD')), JSON.stringify(labManifest.counts));
+    ok('the lab study has its own folder: a pre session with unpacked tables under donations/, names only under identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 2 && labManifest.counts?.labScreenshots === 3 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-JA101CD\t') && labParticipantsTsv.includes('\ttiktok\tinstagram; youtube\tandroid\t') && labParticipantsTsv.includes('pre; mid; post') && !labParticipantsTsv.includes('Jane') && !labParticipantsTsv.includes('AB1') && labConsentsTsv.includes('Jane Doe') && labConsentsTsv.includes('AB1 2CD') && remindersTsv.includes('JA101CD\tsub-JA101CD\tjane@example.com') && !labParticipantsTsv.includes('jane@') && labBeh.includes('archive\tsourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_archive.zip') && watchTsv === 'time\tlink\n2026-09-01 20:11:03\thttps://www.tiktokv.com/share/video/1/\n2026-09-01 20:12:40\thttps://www.tiktokv.com/share/video/2/\n' && !labManifest.files?.some((n) => n.includes('tiktoksearch')) && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-01_screenshot.png') && labManifest.files?.some((n) => n.startsWith('social-media-break/identifying/signatures/sub-JA101CD/')) && !labManifest.files?.some((n) => n.startsWith('schools/') && n.includes('JA101CD')), JSON.stringify(labManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {
       await uploadBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`), buffer, { contentType: 'image/png' });

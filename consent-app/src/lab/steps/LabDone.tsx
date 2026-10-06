@@ -6,7 +6,8 @@ import { formatTimestamp } from '../../lib/dates';
 import { labMyStory, labPages, labStudy } from '../config';
 import { labFileStore } from '../fileStore';
 import { clearLabState } from '../persistence';
-import { phaseHave } from '../reducer';
+import { namesOf, PlatformChecklist } from '../PlatformChecklist';
+import { phaseHave, platformsToDo } from '../reducer';
 import { useLab } from '../store';
 import { filesPhrase } from '../words';
 
@@ -41,6 +42,7 @@ export function LabDone() {
   const { submission, flow } = state;
   const canCopy = flow === 'baseline' && Boolean(state.consent.completedAt && state.consent.signature);
   const have = phaseHave(state);
+  const toDo = flow === 'checkin' ? [] : platformsToDo(state);
 
   useEffect(() => {
     document.title = 'Thank you – MyPhone/MyBrain';
@@ -86,7 +88,7 @@ export function LabDone() {
         <span className="mpmb-done__tick" aria-hidden="true">
           <Icon name="check" size={34} />
         </span>
-        <p className="mpmb-kicker">{flow === 'checkin' ? `Check-in ${state.checkIn.count || ''}`.trim() : 'All done'}</p>
+        <p className="mpmb-kicker">{flow === 'checkin' ? `Check-in ${state.checkIn.count || ''}`.trim() : toDo.length ? 'Sent so far' : 'All done'}</p>
         <h1 className="mpmb-h1" tabIndex={-1} ref={headingRef}>
           {title}
         </h1>
@@ -99,11 +101,20 @@ export function LabDone() {
         {flow === 'checkin' ? (
           <MyStoryCard code={state.code} />
         ) : (
-          <div className="mpmb-done__why">
-            <p>
-              <strong>Received {flow === 'after' ? 'from after your break' : 'from before your break'}: {filesPhrase(have)}.</strong> This is the part of the study no one else can provide: what you actually did on your phone, with your own choices about what to share.
-            </p>
-          </div>
+          <>
+            <div className="mpmb-done__why">
+              <p>
+                <strong>Received {flow === 'after' ? 'from after your break' : 'from before your break'}: {filesPhrase(have)}.</strong> This is the part of the study no one else can provide: what you actually did on your phone, with your own choices about what to share.
+              </p>
+            </div>
+            <section aria-labelledby="done-apps">
+              <h2 className="mpmb-h3" id="done-apps">
+                Your apps
+              </h2>
+              <PlatformChecklist />
+              <p className="mpmb-hint">{toDo.length ? `Still to do: ${namesOf(toDo)}. Come back with ${toDo.length === 1 ? 'it' : 'them'} when the download arrives, on any device, or tell us above if you don’t use ${toDo.length === 1 ? 'it' : 'them'}.` : 'Every app you use is ticked off. Thank you.'}</p>
+            </section>
+          </>
         )}
         <section aria-labelledby="done-next">
           <h2 className="mpmb-h3" id="done-next">
@@ -146,6 +157,10 @@ export function LabDone() {
           {flow === 'checkin' ? (
             <Button variant="secondary" onClick={() => dispatch({ type: 'checkin-new' })}>
               Start another check-in
+            </Button>
+          ) : toDo.length ? (
+            <Button variant="secondary" onClick={() => dispatch({ type: 'go-to', stepId: 'guide' })}>
+              Get my {namesOf(toDo)} data
             </Button>
           ) : (
             <Button variant="secondary" onClick={() => dispatch({ type: 'go-to', stepId: 'screenshots' })}>

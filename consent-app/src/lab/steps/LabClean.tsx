@@ -9,6 +9,7 @@ import { clientId } from '../../lib/ids';
 import { alwaysRemoved, buildCleanedZip, categories, cleanArchive, cleanedArchiveName, detectPlatforms, formatBytes, platformNames, type CategoryId, type CleanResult, type Platform } from '../cleaner';
 import { labFileStore } from '../fileStore';
 import { LabShell } from '../LabShell';
+import { PlatformChecklist } from '../PlatformChecklist';
 import { phaseHave } from '../reducer';
 import { useLab } from '../store';
 import { checkArchiveFile } from '../validation';
@@ -135,7 +136,7 @@ export function LabClean() {
   const removedList = working ? Array.from(new Set(working.platforms.flatMap((p) => alwaysRemoved[p]))) : [];
 
   return (
-    <LabShell kicker="Choose what to share" title="Choose what to share from your data." intro={<p>Pick the ZIP you downloaded from TikTok, Google Takeout (YouTube) or Instagram. This page reads it on your own device, keeps only dates, links and search words, and shows you what would be shared. Untick anything you would rather keep private. At least one of the two is needed; do both if you have them.</p>} errors={errors}
+    <LabShell kicker="Choose what to share" title="Choose what to share from your data." intro={<p>Pick a ZIP you downloaded from TikTok, Google Takeout (YouTube) or Instagram. This page reads it on your own device, keeps only dates, links and search words, and shows you what would be shared. Untick anything you would rather keep private. Do this for each app you use, one file at a time.</p>} errors={errors}
       onContinue={() => {
         // The study asks for at least one cleaned file; after two nudges the person may go on without.
         if (!state.archives.length && !phaseHave(state).archives && nudges < 2) {
@@ -149,28 +150,32 @@ export function LabClean() {
       continueLabel="Next: send my data"
       width="wide"
     >
-      {state.archives.length > 0 && (
-        <section aria-labelledby="prepared-heading">
-          <h2 className="mpmb-h3" id="prepared-heading">
-            Ready to send
-          </h2>
-          <ul className="mpmb-filelist" role="list">
-            {state.archives.map((a) => (
-              <li key={a.id}>
-                <div>
-                  <strong>{a.platforms.map((p) => platformNames[p]).join(' + ')}</strong> · {a.name} · {formatBytes(a.size)}
-                  <span className="mpmb-filelist__meta">{a.categories.length} of {categories.filter((c) => a.platforms.includes(c.platform)).length} categories kept{a.status === 'sent' ? ' · sent' : ''}</span>
-                </div>
-                {a.status !== 'sent' && (
-                  <Button variant="link" onClick={() => remove(a.id)}>
-                    Remove
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <section aria-labelledby="apps-heading">
+        <h2 className="mpmb-h3" id="apps-heading">
+          Your apps
+        </h2>
+        <PlatformChecklist
+          renderFiles={(files) => (
+            <ul className="mpmb-filelist" role="list">
+              {files.map((a) => (
+                <li key={a.id}>
+                  <div>
+                    {a.name} · {formatBytes(a.size)}
+                    <span className="mpmb-filelist__meta">
+                      {a.categories.length} of {categories.filter((c) => a.platforms.includes(c.platform)).length} categories kept{a.status === 'sent' ? ' · sent' : ''}
+                    </span>
+                  </div>
+                  {a.status !== 'sent' && (
+                    <Button variant="link" onClick={() => remove(a.id)}>
+                      Remove
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        />
+      </section>
 
       {!working && (
         <div className={`mpmb-dropzone${over ? ' is-over' : ''}`} onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>

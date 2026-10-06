@@ -95,6 +95,7 @@ export function loadLabState(flow: LabFlow): LabState | null {
       submission: { ...base.submission, ...(parsed.submission ?? {}) },
       checkIn: { ...base.checkIn, ...(parsed.checkIn ?? {}) },
       progress: parsed.progress ?? null,
+      notUsed: Array.isArray(parsed.notUsed) ? parsed.notUsed.filter((x) => x === 'tiktok' || x === 'youtube' || x === 'instagram') : [],
       confirmedCode: parsed.confirmedCode ?? (parsed.codeConfirmed && parsed.code ? parsed.code : null),
       // File bytes are gone after a reload; only what reached the server is kept.
       archives: (parsed.archives ?? []).filter((a) => a.status === 'sent' || a.status === 'uploaded'),

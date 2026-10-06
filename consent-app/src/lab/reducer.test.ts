@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import type { LabLookupResult } from '../api/types';
-import { initialLabState, labJourney, labReducer, nextFilesStep, resumeStep } from './reducer';
+import type { LabLookupResult, LabPlatform } from '../api/types';
+import { initialLabState, labJourney, labReducer, nextFilesStep, platformStatuses, platformsToDo, resumeStep } from './reducer';
 
-const found = (pre: [number, number], post: [number, number] = [0, 0]): LabLookupResult => ({
+const found = (pre: [number, number], post: [number, number] = [0, 0], prePlatforms: LabPlatform[] = pre[0] ? ['tiktok'] : [], notUsed: LabPlatform[] = []): LabLookupResult => ({
   exists: true,
   consentedAt: '2026-10-06T10:00:00.000Z',
   archives: pre[0] + post[0],
   screenshots: pre[1] + post[1],
-  phases: { pre: { archives: pre[0], screenshots: pre[1] }, mid: { archives: 0, screenshots: 0 }, post: { archives: post[0], screenshots: post[1] } },
+  phases: { pre: { archives: pre[0], screenshots: pre[1], platforms: prePlatforms }, mid: { archives: 0, screenshots: 0 }, post: { archives: post[0], screenshots: post[1], platforms: [] } },
   checkIns: 0,
   lastCheckInAt: null,
+  platformsNotUsed: notUsed,
 });
 
 describe('the three pages', () => {
@@ -28,6 +29,9 @@ describe('the three pages', () => {
     expect(labJourney(s)).not.toContain('consent');
     expect(nextFilesStep(s)).toBe('guide');
     s = labReducer(s, { type: 'confirm-code', code: 'JA101CD', returning: true, lookup: found([1, 2]) });
+    expect(nextFilesStep(s)).toBe('guide');
+    expect(platformsToDo(s)).toEqual(['youtube', 'instagram']);
+    s = labReducer(s, { type: 'confirm-code', code: 'JA101CD', returning: true, lookup: found([1, 2], [0, 0], ['tiktok'], ['youtube', 'instagram']) });
     expect(nextFilesStep(s)).toBe('done');
     expect(resumeStep(labReducer(initialLabState('after'), { type: 'confirm-code', code: 'JA101CD', returning: true, lookup: found([1, 2]) }))).toBe('reminder');
     expect(nextFilesStep(labReducer(initialLabState('after'), { type: 'confirm-code', code: 'JA101CD', returning: true, lookup: found([1, 2]) }))).toBe('screenshots');
@@ -52,12 +56,27 @@ describe('the three pages', () => {
     expect(other.codeConfirmed).toBe(false);
   });
 
+  it('each app is ticked off when sent, ready when prepared, and greyed out when not used; preparing one brings it back', () => {
+    let s = labReducer(initialLabState('baseline'), { type: 'confirm-code', code: 'JA101CD', returning: true, lookup: found([1, 1], [0, 0], ['youtube']) });
+    s = labReducer(s, { type: 'not-used', notUsed: ['instagram'] });
+    s = labReducer(s, { type: 'add-archive', archive: { id: 'z1', name: 'tiktok.zip', size: 10, platforms: ['tiktok'], categories: [], kept: {}, status: 'ready', progress: 0, uploadId: null, error: null } });
+    expect(platformStatuses(s)).toEqual({ tiktok: 'ready', youtube: 'sent', instagram: 'not-used' });
+    expect(nextFilesStep(s)).toBe('send');
+    s = labReducer(s, { type: 'add-archive', archive: { id: 'z2', name: 'instagram.zip', size: 10, platforms: ['instagram'], categories: [], kept: {}, status: 'ready', progress: 0, uploadId: null, error: null } });
+    expect(s.notUsed).toEqual([]);
+    expect(platformStatuses(s).instagram).toBe('ready');
+    s = labReducer(s, { type: 'update-archive', id: 'z1', patch: { status: 'uploaded', uploadId: 'u1' } });
+    s = labReducer(s, { type: 'files-sent', ids: ['u1'], receivedAt: '2026-10-06T11:00:00.000Z', donationId: 'd1' });
+    expect(s.progress?.phases.pre.platforms).toEqual(['tiktok', 'youtube']);
+    expect(platformStatuses(s).tiktok).toBe('sent');
+  });
+
   it('sends keep the server counts current for the page’s phase', () => {
     let s = labReducer(initialLabState('after'), { type: 'confirm-code', code: 'JA101CD', returning: true, lookup: found([1, 2]) });
     s = labReducer(s, { type: 'add-screenshot', screenshot: { id: 's1', name: 'a.png', type: 'image/png', size: 10, width: 1, height: 1, status: 'uploaded', progress: 1, uploadId: 'u1', error: null } });
     s = labReducer(s, { type: 'files-sent', ids: ['u1'], receivedAt: '2026-11-06T10:00:00.000Z', donationId: 'd1' });
-    expect(s.progress?.phases.post).toEqual({ archives: 0, screenshots: 1 });
-    expect(s.progress?.phases.pre).toEqual({ archives: 1, screenshots: 2 });
+    expect(s.progress?.phases.post).toEqual({ archives: 0, screenshots: 1, platforms: [] });
+    expect(s.progress?.phases.pre).toEqual({ archives: 1, screenshots: 2, platforms: ['tiktok'] });
     expect(nextFilesStep(s)).toBe('guide');
   });
 });

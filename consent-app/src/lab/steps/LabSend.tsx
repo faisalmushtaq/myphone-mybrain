@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
 import { formatBytes } from '../../lib/image';
-import { platformNames } from '../cleaner';
 import { LabShell } from '../LabShell';
+import { PlatformChecklist } from '../PlatformChecklist';
 import type { LabArchive, LabScreenshot } from '../model';
 import { phaseHave } from '../reducer';
 import { useLab } from '../store';
@@ -90,22 +90,22 @@ export function LabSend() {
 
       <section aria-labelledby="send-archives-heading">
         <h2 className="mpmb-h3" id="send-archives-heading">
-          Cleaned TikTok, YouTube or Instagram files
+          Your apps
         </h2>
-        {state.archives.length ? (
-          <ul className="mpmb-filelist" role="list">
-            {state.archives.map((a) => (
-              <li key={a.id} className={a.status === 'failed' ? 'is-failed' : ''}>
-                <div>
-                  <strong>{a.platforms.map((p) => platformNames[p]).join(' + ')}</strong> · {formatBytes(a.size)} · {a.categories.length} categories
-                  <span className="mpmb-filelist__meta">{status(a)}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mpmb-hint">{received.archives ? `${received.archives} already received.` : 'None prepared yet.'}</p>
-        )}
+        <PlatformChecklist
+          renderFiles={(files) => (
+            <ul className="mpmb-filelist" role="list">
+              {files.map((a) => (
+                <li key={a.id} className={a.status === 'failed' ? 'is-failed' : ''}>
+                  <div>
+                    {formatBytes(a.size)} · {a.categories.length} categories
+                    <span className="mpmb-filelist__meta">{status(a)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        />
         <Button variant="link" onClick={() => dispatch({ type: 'go-to', stepId: 'clean' })}>
           {state.archives.length ? 'Prepare another file' : 'Prepare a file'}
         </Button>

@@ -121,8 +121,10 @@ export interface LabState {
   /** What the server holds for this code, from the last lookup: lets any device carry on where the person left off. */
   progress: LabLookupResult | null;
   checkIn: LabCheckInState;
-  /** The app the person uses most, chosen in the guide so only its steps show. */
+  /** The app whose download steps are open in the guide. */
   app: LabPlatform | null;
+  /** Apps the person has said they do not use: greyed out in the checklist, kept on the server. */
+  notUsed: LabPlatform[];
   submission: LabSubmission;
   archives: LabArchive[];
   screenshots: LabScreenshot[];

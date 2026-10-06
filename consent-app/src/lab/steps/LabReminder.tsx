@@ -24,7 +24,7 @@ export function LabReminder() {
       title="Before you start: a reminder."
       intro={<p>You gave your consent{consentedAt ? ` on ${formatTimestamp(consentedAt)}` : ' at the start'}, so there is nothing to sign again. Here is what you agreed to, in short.</p>}
       onContinue={() => dispatch({ type: 'go-to', stepId: next })}
-      continueLabel={next === 'screenshots' ? 'Continue: my screenshots' : next === 'guide' ? 'Continue: my app data' : 'Continue'}
+      continueLabel={next === 'screenshots' ? 'Continue: my screenshots' : next === 'guide' ? 'Continue: my app data' : next === 'send' ? 'Continue: send my data' : 'Continue'}
       width="wide"
     >
       <ul className="mpmb-list">

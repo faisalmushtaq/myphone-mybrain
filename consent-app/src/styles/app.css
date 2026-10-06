@@ -2720,6 +2720,106 @@
   text-decoration: none;
 }
 
+/* The per-app checklist: ticked off when an app's data is sent, greyed out when the person does not use it. */
+.mpmb-app .mpmb-apps__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.mpmb-app .mpmb-apps__row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--mpb-line);
+  border-left: 5px solid var(--mpb-yellow);
+  background: #fff;
+}
+.mpmb-app .mpmb-apps__row.is-plain {
+  grid-template-columns: minmax(0, 1fr);
+  border-left-color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-apps__row.is-sent {
+  border-left-color: #1f8a5b;
+  background: #eef7f2;
+}
+.mpmb-app .mpmb-apps__row.is-ready {
+  border-left-color: var(--mpb-teal);
+  background: var(--mpb-mist);
+}
+.mpmb-app .mpmb-apps__row.is-not-used {
+  border-left-color: var(--mpb-line);
+  background: var(--mpb-paper);
+}
+.mpmb-app .mpmb-apps__mark {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid var(--mpb-border);
+  background: #fff;
+  font-weight: 700;
+  color: var(--mpb-muted);
+}
+.mpmb-app .is-sent .mpmb-apps__mark {
+  border-color: #1f8a5b;
+  background: #1f8a5b;
+  color: #fff;
+}
+.mpmb-app .is-ready .mpmb-apps__mark {
+  border-color: var(--mpb-teal);
+  background: radial-gradient(circle, var(--mpb-teal) 0 34%, #fff 36%);
+}
+.mpmb-app .is-not-used .mpmb-apps__mark {
+  border-color: var(--mpb-line);
+  background: var(--mpb-paper);
+}
+.mpmb-app .mpmb-apps__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.75rem;
+  margin: 0.2rem 0 0;
+}
+.mpmb-app .mpmb-apps__name strong {
+  font-size: 1.05rem;
+  color: var(--mpb-ink);
+}
+.mpmb-app .is-not-used .mpmb-apps__name strong {
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-apps__status {
+  font-family: var(--f-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--mpb-muted);
+}
+.mpmb-app .is-sent .mpmb-apps__status {
+  color: #1f6e4a;
+}
+.mpmb-app .is-todo .mpmb-apps__status {
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-apps__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1.25rem;
+  margin-top: 0.6rem;
+}
+.mpmb-app .mpmb-apps__actions .mpmb-btn--link {
+  padding-inline: 0;
+  min-height: 44px;
+}
+.mpmb-app .mpmb-apps__body .mpmb-filelist {
+  margin: 0.5rem 0 0;
+}
+.mpmb-app .mpmb-apps + .mpmb-error {
+  margin-top: 0.5rem;
+}
+
 /* Guide: numbered steps, each with its own screenshot. */
 .mpmb-app .mpmb-guide-steps {
   display: flex;

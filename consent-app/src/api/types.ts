@@ -138,6 +138,8 @@ export interface LabConsentResult {
 export interface LabPhaseCounts {
   archives: number;
   screenshots: number;
+  /** The apps whose cleaned data has arrived in this phase. */
+  platforms?: LabPlatform[];
 }
 
 /** What the server will say about a participant code, so someone can carry on where they left off, on any device. */
@@ -150,6 +152,8 @@ export interface LabLookupResult {
   phases: Record<LabPhase, LabPhaseCounts>;
   checkIns: number;
   lastCheckInAt: string | null;
+  /** Apps the participant has said they do not use, so no data is expected from them. */
+  platformsNotUsed?: LabPlatform[];
 }
 
 export interface LabUploadMeta {
@@ -220,4 +224,6 @@ export interface ConsentApi {
   submitLabDonation(session: SessionInfo, payload: LabDonationPayload): Promise<LabDonationResult>;
   requestLabReminder(session: SessionInfo, payload: { participantCode: string; email: string; phase: LabPhase }): Promise<LabReminderResult>;
   submitLabCheckIn(session: SessionInfo, payload: LabCheckInPayload): Promise<LabCheckInResult>;
+  /** Records which apps the participant does not use (the whole list each time). */
+  updateLabPlatforms(session: SessionInfo, payload: { participantCode: string; notUsed: LabPlatform[] }): Promise<{ notUsed: LabPlatform[] }>;
 }

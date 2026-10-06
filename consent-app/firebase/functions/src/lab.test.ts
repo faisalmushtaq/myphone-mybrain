@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import JSZip from 'jszip';
 import { cleaner, labCheckInForm, labConsentForm, labInformationVersion } from './forms.js';
 import { RejectedUpload } from './images.js';
-import { buildParticipantCode, inspectCleanedArchive, labFollowUpEmail, labStatusEmail, normaliseCode, normaliseCodeParts, outstanding, phaseCountsOf, validateLabCheckInPayload, validateLabConsentPayload, validateLabDonationPayload, validateLabReminderPayload, type LabProgress } from './lab.js';
+import { appsToCome, buildParticipantCode, inspectCleanedArchive, labFollowUpEmail, labStatusEmail, normaliseCode, normaliseCodeParts, notUsedOf, outstanding, phaseCountsOf, validateLabCheckInPayload, validateLabConsentPayload, validateLabDonationPayload, validateLabPlatformsPayload, validateLabReminderPayload, type LabProgress } from './lab.js';
 
 const now = new Date().toISOString();
 const client = { userAgent: 'test', submittedAt: now, timezoneOffset: 0 };
@@ -162,6 +162,17 @@ test('archives that are not the cleaner’s are refused with a reason', async ()
   await rejects(await noManifest.generateAsync({ type: 'nodebuffer' }), /not a cleaned export/);
 });
 
+test('the apps someone does not use: a list of known apps, each once', () => {
+  assert.deepEqual(validateLabPlatformsPayload({ participantCode: 'ja101cd', notUsed: ['instagram', 'youtube'] }), []);
+  assert.deepEqual(validateLabPlatformsPayload({ participantCode: 'JA101CD', notUsed: [] }), [], 'undoing the last one');
+  assert.ok(validateLabPlatformsPayload({ participantCode: 'JA101CD', notUsed: ['snapchat'] }).includes('The list of apps is malformed.'));
+  assert.ok(validateLabPlatformsPayload({ participantCode: 'JA101CD', notUsed: ['youtube', 'youtube'] }).includes('The list of apps is malformed.'));
+  assert.ok(validateLabPlatformsPayload({ participantCode: 'JA101CD', notUsed: 'youtube' }).includes('The list of apps is malformed.'));
+  assert.ok(validateLabPlatformsPayload({ participantCode: 'nope', notUsed: [] }).includes('The participant code is malformed.'));
+  assert.deepEqual(notUsedOf({ platformsNotUsed: ['youtube', 'snapchat', 'instagram'] }), ['instagram', 'youtube'], 'unknown apps are dropped');
+  assert.deepEqual(notUsedOf({}), []);
+});
+
 test('files are counted by phase; rows from before phases were counted are read as the first page’s', () => {
   assert.deepEqual(phaseCountsOf({ archiveCount: 1, screenshotCount: 3 }), { pre: { archives: 1, screenshots: 3 }, mid: { archives: 0, screenshots: 0 }, post: { archives: 0, screenshots: 0 } });
   assert.deepEqual(phaseCountsOf({ archiveCount: 2, screenshotCount: 5, phaseCounts: { pre: { archives: 1, screenshots: 2 }, mid: { screenshots: 1 }, post: { archives: 1, screenshots: 2 } } }), { pre: { archives: 1, screenshots: 2 }, mid: { archives: 0, screenshots: 1 }, post: { archives: 1, screenshots: 2 } });
@@ -183,18 +194,21 @@ test('a check-in carries the current questions: required ones answered with thei
 });
 
 test('the progress email says what is in and what is still to come; the follow-up names only what is missing', () => {
-  const nothing: LabProgress = { participantCode: 'JA101CD', consentedAt: '2026-10-05T09:00:00.000Z', phase: 'pre', screenshots: 0, archives: 0, platforms: [] };
-  assert.deepEqual(outstanding(nothing), ['screenshots of your phone’s screen-time summary', 'your cleaned TikTok, YouTube or Instagram file']);
+  const nothing: LabProgress = { participantCode: 'JA101CD', consentedAt: '2026-10-05T09:00:00.000Z', phase: 'pre', screenshots: 0, archives: 0, platforms: [], notUsed: [] };
+  assert.deepEqual(outstanding(nothing), ['screenshots of your phone’s screen-time summary', 'your TikTok, YouTube and Instagram data']);
   const status = labStatusEmail(nothing);
   assert.equal(status.subject, 'MyPhone/MyBrain: your data donation so far (JA101CD)');
-  assert.ok(status.text.includes('Consent: recorded on 2026-10-05') && status.text.includes('Received so far: nothing yet') && status.text.includes('Still to come: screenshots of your phone’s screen-time summary and your cleaned TikTok, YouTube or Instagram file.') && status.text.includes('https://myphonemybrain.com/break/take-part/?code=JA101CD') && status.text.includes('one reminder') && status.text.includes('before your break') && status.text.includes('unless you contact us to withdraw'));
+  assert.ok(status.text.includes('Consent: recorded on 2026-10-05') && status.text.includes('Received so far: nothing yet') && status.text.includes('Still to come: screenshots of your phone’s screen-time summary and your TikTok, YouTube and Instagram data.') && status.text.includes('press “I don’t use it”') && status.text.includes('https://myphonemybrain.com/break/take-part/?code=JA101CD') && status.text.includes('one reminder') && status.text.includes('before your break') && status.text.includes('unless you contact us to withdraw'));
   const afterBreak = labStatusEmail({ ...nothing, phase: 'post' });
   assert.ok(afterBreak.text.includes('https://myphonemybrain.com/break/after/?code=JA101CD') && afterBreak.text.includes('after your break'), 'after the break, the link opens the after-break page');
   const partial = { ...nothing, screenshots: 2, archives: 1, platforms: ['tiktok'] };
-  assert.deepEqual(outstanding(partial), []);
-  assert.ok(labStatusEmail(partial).text.includes('Received so far: 2 screen-time screenshots and 1 cleaned file (tiktok)') && labStatusEmail(partial).text.includes('Everything the study needs is in'));
+  assert.deepEqual(outstanding(partial), ['your YouTube and Instagram data'], 'one app in, the others still to come');
+  assert.deepEqual(appsToCome({ ...partial, notUsed: ['instagram'] }), ['youtube']);
+  const complete = { ...partial, notUsed: ['youtube', 'instagram'] };
+  assert.deepEqual(outstanding(complete), [], 'every app sent or set aside');
+  assert.ok(labStatusEmail(complete).text.includes('Received so far: 2 screen-time screenshots and 1 cleaned file (TikTok)') && labStatusEmail(complete).text.includes('Everything the study needs is in') && !labStatusEmail(complete).text.includes('I don’t use it'));
   const followUp = labFollowUpEmail({ ...nothing, screenshots: 1 });
-  assert.ok(followUp.text.includes('we have not yet received your cleaned TikTok, YouTube or Instagram file from before your break for participant code JA101CD') && followUp.text.includes('only reminder') && followUp.text.includes('/break/take-part/?code=JA101CD'));
+  assert.ok(followUp.text.includes('we have not yet received your TikTok, YouTube and Instagram data from before your break for participant code JA101CD') && followUp.text.includes('only reminder') && followUp.text.includes('/break/take-part/?code=JA101CD') && followUp.text.includes('press “I don’t use it”'), followUp.text);
   assert.ok(!followUp.text.includes('screenshots of your phone'));
   assert.deepEqual(validateLabReminderPayload({ participantCode: 'ja101cd', email: 'jane@example.com' }), []);
   assert.ok(validateLabReminderPayload({ participantCode: 'JA101CD', email: 'not-an-email' }).some((p) => p.includes('email address')));

@@ -93,7 +93,7 @@ jobs:
       - name: Keep the callables reachable from the website
         if: ${{ inputs.target != 'rules only' }}
         run: |
-          for fn in submitconsent submitdonation enquiry submitlabconsent lookuplabparticipant submitlabdonation requestlabreminder submitlabcheckin; do
+          for fn in submitconsent submitdonation enquiry submitlabconsent lookuplabparticipant submitlabdonation requestlabreminder submitlabcheckin updatelabplatforms; do
             gcloud run services add-iam-policy-binding "$fn" --region="$REGION" --member=allUsers --role=roles/run.invoker --project="$PROJECT_ID" --quiet >/dev/null
           done
 
@@ -111,7 +111,7 @@ jobs:
       - name: Check the functions answer
         if: ${{ inputs.target != 'rules only' }}
         run: |
-          for fn in submitConsent submitDonation enquiry submitLabConsent lookupLabParticipant submitLabDonation requestLabReminder submitLabCheckIn; do
+          for fn in submitConsent submitDonation enquiry submitLabConsent lookupLabParticipant submitLabDonation requestLabReminder submitLabCheckIn updateLabPlatforms; do
             code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "https://$REGION-$PROJECT_ID.cloudfunctions.net/$fn" -H 'Content-Type: application/json' -H 'Origin: https://myphonemybrain.com' -d '{}')
             echo "$fn → http $code"
             case "$code" in 400|401) ;; *) echo "unexpected status for $fn"; exit 1 ;; esac
