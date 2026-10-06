@@ -1,4 +1,4 @@
-import type { LabConsentRecord, LabPhone, LabPlatform } from '../api/types';
+import type { LabConsentRecord, LabPhase, LabPhone, LabPlatform } from '../api/types';
 import type { SendStage, SessionInfo, SignatureRecord, StatementRecord } from '../model/types';
 import type { CategoryId } from './cleaner';
 import type { CodeParts } from './config';
@@ -80,6 +80,8 @@ export interface LabState {
   consent: LabConsentRecord;
   /** iPhone or Android, chosen in the guide so the right steps show and the screenshots are labelled. */
   phone: LabPhone | null;
+  /** Whether the files being sent are from before or after the break. */
+  phase: LabPhase | null;
   submission: LabSubmission;
   archives: LabArchive[];
   screenshots: LabScreenshot[];

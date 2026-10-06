@@ -14,6 +14,8 @@
 export interface LabStatement {
   id: string;
   version: string;
+  /** Required statements must be agreed to take part; an optional one is a Yes or No choice. */
+  kind: 'required' | 'optional';
   text: string;
   /** Short label used in summaries and the PDF copy. */
   label: string;
@@ -26,25 +28,35 @@ export const labConsentForm: { id: string; version: string; title: string; state
   version: '1.0',
   title: 'Participant consent form',
   statements: [
-    { id: 'read-information', version: '1.0', label: 'Read the information', text: 'I confirm that I have read and understood the Participant Information Sheet.' },
+    { id: 'read-information', version: '1.0', kind: 'required', label: 'Read the information', text: 'I confirm that I have read and understood the Participant Information Sheet.' },
     {
       id: 'involves',
       version: '1.0',
+      kind: 'required',
       label: 'What taking part involves',
       text: 'I understand that participation in this study involves: two laboratory sessions; a smartphone restriction phase lasting between two weeks and one month; completion of questionnaires and computer-based tasks; and donation of summary smartphone usage data through the Smart Data Donation Service (SDDS).',
-      note: 'Donations will go through the Smart Data Donation Service (SDDS) once it is ready. Until then this website carries out that step: you download your own data, remove what you do not want to share on your own device, and send the rest here.',
+      note: 'You do this on this website: you download your own data from TikTok and YouTube, remove anything you do not want to share on your own device, and send the rest here.',
     },
-    { id: 'voluntary', version: '1.0', label: 'Voluntary', text: 'I understand that participation is voluntary and that I may withdraw at any time without giving a reason.' },
+    { id: 'voluntary', version: '1.0', kind: 'required', label: 'Voluntary', text: 'I understand that participation is voluntary and that I may withdraw at any time without giving a reason.' },
     {
       id: 'donation-required',
       version: '1.0',
+      kind: 'required',
       label: 'Data donation is part of the study',
       text: 'I understand that if I choose not to donate smartphone usage data through SDDS, I will not be able to participate in this study.',
-      note: 'Donations will go through the Smart Data Donation Service (SDDS) once it is ready. Until then this website carries out that step: you download your own data, remove what you do not want to share on your own device, and send the rest here.',
+      note: 'You do this on this website: you download your own data from TikTok and YouTube, remove anything you do not want to share on your own device, and send the rest here.',
     },
-    { id: 'publication', version: '1.0', label: 'Publication', text: 'I understand that anonymised results from this research may be published in academic journals, conference presentations, reports, or academic theses.' },
-    { id: 'data-protection', version: '1.0', label: 'Data protection', text: 'I understand that my data will be stored securely and handled in accordance with UK data protection legislation.' },
-    { id: 'take-part', version: '1.0', label: 'Agree to take part', text: 'I voluntarily agree to take part in the MyPhone/MyBrain intervention study.' },
+    { id: 'publication', version: '1.0', kind: 'required', label: 'Publication', text: 'I understand that anonymised results from this research may be published in academic journals, conference presentations, reports, or academic theses.' },
+    { id: 'data-protection', version: '1.0', kind: 'required', label: 'Data protection', text: 'I understand that my data will be stored securely and handled in accordance with UK data protection legislation.' },
+    {
+      id: 'link-records',
+      version: '0.1-draft',
+      kind: 'optional',
+      label: 'Linking with records already held',
+      text: 'My study information may be linked, through Connected West Yorkshire, with records already held about me: NHS health records, education records, and other routinely collected records.',
+      note: 'Optional: you can take part without this. Linking means adding information from records that already exist, so the study can look at longer-term patterns in health, learning and wellbeing. It happens only with the approvals in place (the study’s ethics approval, NHS Research Ethics Committee approval for NHS records, permission from each record holder, and Connected West Yorkshire’s own data access process). Linked information is labelled with your participant code, not your name. Draft wording, to be confirmed with the governance team, matching the approval held for the schools study.',
+    },
+    { id: 'take-part', version: '1.0', kind: 'required', label: 'Agree to take part', text: 'I voluntarily agree to take part in the MyPhone/MyBrain intervention study.' },
   ],
 };
 
@@ -100,7 +112,7 @@ export const labInformation: LabInfoSection[] = [
     detail: [
       'As part of this study, participants donate summary smartphone usage information through the Smart Data Donation Service (SDDS). This system provides aggregated usage statistics, such as time spent on applications. It does not provide access to personal content, including messages, photos, contacts, passwords, or browsing history. Because these usage summaries are necessary for the research, participation in the study includes donating this information through SDDS.',
     ],
-    note: 'SDDS is not ready yet, so for now this website carries out the donation step: you download your own data from TikTok and YouTube, remove anything you do not want to share on your own device, and send the rest here. Donations will go through SDDS once it is available.',
+    note: 'You do this on this website: you download your own data from TikTok and YouTube, remove anything you do not want to share on your own device, and send the rest here.',
   },
   {
     id: 'measures',

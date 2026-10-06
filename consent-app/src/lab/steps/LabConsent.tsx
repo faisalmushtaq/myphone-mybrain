@@ -4,7 +4,7 @@ import { SignaturePad } from '../../components/SignaturePad';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
 import { Disclosure } from '../../components/ui/Disclosure';
-import { CheckboxField, TextField } from '../../components/ui/Field';
+import { CheckboxField, ChoiceField, TextField } from '../../components/ui/Field';
 import { announce } from '../../lib/announce';
 import { formatIsoDate, todayIso } from '../../lib/dates';
 import { limits } from '../../lib/validation';
@@ -45,7 +45,7 @@ export function LabConsent() {
   };
 
   return (
-    <LabShell kicker="Your consent" title="Your consent to take part." intro={<p>Tick each statement to confirm it, then sign. All of them are needed to take part. Participant code <strong className="mpmb-mono">{state.code}</strong>.</p>} errors={errors} onContinue={() => void next()} continueLabel="Confirm and sign" continueLoading={busy} width="wide">
+    <LabShell kicker="Your consent" title="Your consent to take part." intro={<p>Tick each statement to confirm it, answer the Yes or No question, then sign. The ticked statements are all needed to take part; record linking is your choice. Participant code <strong className="mpmb-mono">{state.code}</strong>.</p>} errors={errors} onContinue={() => void next()} continueLabel="Confirm and sign" continueLoading={busy} width="wide">
       {submission.consentStage === 'failed' && submission.consentError && (
         <Callout tone="important" role="alert">
           <p>{submission.consentError}</p>
@@ -56,9 +56,13 @@ export function LabConsent() {
           {labConsentForm.title}
         </h2>
         <div className="mpmb-fields">
-          {labConsentForm.statements.map((s) => (
-            <CheckboxField key={s.id} id={`lab-stmt-${s.id}`} checked={consent.responses[s.id]?.response === 'agreed'} onChange={(checked) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, agreed: checked })} label={s.text} hint={s.note} error={errs[`lab-stmt-${s.id}`]} emphasis />
-          ))}
+          {labConsentForm.statements.map((s) =>
+            s.kind === 'optional' ? (
+              <ChoiceField key={s.id} id={`lab-stmt-${s.id}`} name={`lab-stmt-${s.id}`} legend={s.text} hint={s.note} value={consent.responses[s.id] ? (consent.responses[s.id].response === 'agreed' ? 'agreed' : 'declined') : null} onChange={(v) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, agreed: v === 'agreed' })} options={[{ value: 'agreed', label: 'Yes' }, { value: 'declined', label: 'No' }]} error={errs[`lab-stmt-${s.id}-agreed`]} />
+            ) : (
+              <CheckboxField key={s.id} id={`lab-stmt-${s.id}`} checked={consent.responses[s.id]?.response === 'agreed'} onChange={(checked) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, agreed: checked })} label={s.text} hint={s.note} error={errs[`lab-stmt-${s.id}`]} emphasis />
+            ),
+          )}
         </div>
       </section>
       <section className="mpmb-sign" aria-labelledby="lab-sign-heading">

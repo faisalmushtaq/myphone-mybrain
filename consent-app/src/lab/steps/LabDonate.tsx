@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getApi } from '../../api';
-import { ApiError } from '../../api/types';
+import { ApiError, type LabPhase } from '../../api/types';
 import { ImageCapture } from '../../components/ImageCapture';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
+import { ChoiceField } from '../../components/ui/Field';
 import { announce } from '../../lib/announce';
 import { clientId } from '../../lib/ids';
 import { formatBytes, loadImage, processImage } from '../../lib/image';
@@ -23,6 +24,8 @@ export function LabDonate() {
   const { state, dispatch } = useLab();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [problems, setProblems] = useState<string[]>([]);
+  const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
+  const [nudges, setNudges] = useState(0);
   const busy = state.submission.donationStage === 'sending';
   const pendingArchives = state.archives.filter((a) => a.status !== 'sent');
   const pendingShots = state.screenshots.filter((s) => s.status !== 'sent');
@@ -93,8 +96,20 @@ export function LabDonate() {
 
   const send = async () => {
     setErrors([]);
-    if (!pendingArchives.length && !pendingShots.length) {
-      setErrors([{ field: 'lab-files', message: 'Add at least one cleaned file or screenshot before sending, or go back to prepare one.' }]);
+    const found: FieldError[] = [];
+    if (!state.phase) found.push({ field: 'lab-phase-pre', message: 'Tell us whether these files are from before or after your social media break.' });
+    const shotsTotal = state.screenshots.filter((s) => s.status === 'sent').length + pendingShots.length;
+    const archivesTotal = state.archives.filter((a) => a.status === 'sent').length + pendingArchives.length;
+    // The study's minimum is a screenshot plus a cleaned file; it is asked for twice, then the send may go ahead with what there is.
+    const missingMinimum = !shotsTotal || !archivesTotal;
+    if (missingMinimum && nudges < 2) {
+      setNudges(nudges + 1);
+      const what = !shotsTotal && !archivesTotal ? 'a screen-time screenshot and a cleaned TikTok or YouTube file' : !shotsTotal ? 'at least one screen-time screenshot' : 'at least one cleaned TikTok or YouTube file';
+      found.push({ field: 'lab-files', message: nudges === 0 ? `The study needs ${what}. Please add it before sending.` : `Without ${what} the team cannot use this send fully. If you really cannot add it now, press Send once more and add it later.` });
+    }
+    if (!pendingArchives.length && !pendingShots.length) found.push({ field: 'lab-files', message: 'Nothing new to send. Add a file to send more.' });
+    if (found.length) {
+      setErrors(found);
       return;
     }
     dispatch({ type: 'submission', patch: { donationStage: 'sending', donationError: null } });
@@ -115,6 +130,7 @@ export function LabDonate() {
             ? { uploadId, kind: 'archive' as const, name: entry.item.name, contentType: 'application/zip', size: entry.item.size, platforms: entry.item.platforms, categories: entry.item.categories, kept: Object.fromEntries(Object.entries(entry.item.kept).map(([k, v]) => [k, Number(v)])) }
             : { uploadId, kind: 'screenshot' as const, name: entry.item.name, contentType: entry.item.type, size: entry.item.size },
         ),
+        phase: state.phase!,
         phone: state.phone,
         client: labClientInfo(),
       });
@@ -140,6 +156,7 @@ export function LabDonate() {
 
   return (
     <LabShell kicker="Send your data" title="Add your screenshots and send." intro={<p>Add the screen-time screenshots you took, check what is ready to go, then send everything in one go. Files are linked to your participant code <strong className="mpmb-mono">{state.code}</strong>, never to your name.</p>} errors={errors} onContinue={() => void send()} continueLabel="Send my data" continueLoading={busy} width="wide">
+      <ChoiceField id="lab-phase" name="lab-phase" legend="Are these files from before or after your social media break?" hint="The study compares the two, so each send is filed under one or the other. You can come back and send more at either point." value={state.phase} onChange={(v) => dispatch({ type: 'phase', phase: v as LabPhase })} options={[{ value: 'pre', label: 'Before my break' }, { value: 'post', label: 'After my break' }]} error={errs['lab-phase-pre']} />
       <section aria-labelledby="shots-heading" id="lab-files" tabIndex={-1}>
         <h2 className="mpmb-h3" id="shots-heading">
           Screen-time screenshots
@@ -191,7 +208,7 @@ export function LabDonate() {
             ))}
           </ul>
         ) : (
-          <p className="mpmb-hint">None prepared yet. You can send screenshots now and add the TikTok and YouTube files when they arrive.</p>
+          <p className="mpmb-hint">None prepared yet. At least one is needed before you can send.</p>
         )}
         <Button variant="link" onClick={() => dispatch({ type: 'go-to', stepId: 'clean' })}>
           {state.archives.length ? 'Prepare another file' : 'Prepare a TikTok or YouTube file'}

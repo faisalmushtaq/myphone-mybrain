@@ -53,7 +53,7 @@ with a role claim.
 | `firebase/functions/src/quality.ts` | Image quality and safety checks: flatness, Cloud Vision SafeSearch and text detection, the verdict rules |
 | `firebase/functions/src/forms.ts` | The statement ids, versions and wording the server accepts, for both studies, derived at build time from the app's `src/config` and `src/lab` by `scripts/generate-forms.mjs`, so they cannot drift; also the cleaner's file allow-list |
 | `firebase/functions/src/enquiry.ts`, `mail.ts` | The website's contact and school forms: validation, storage in `enquiries/`, and the email to the team sent over SMTP |
-| `firebase/functions/src/export.ts`, `exportLab.ts` | The hourly export: one folder per study in the private exports bucket (`schools/`, `social-media-break/`), each with a BIDS dataset and a separate identifying folder (see "Getting the data out") |
+| `firebase/functions/src/export.ts`, `exportLab.ts` | The hourly export: one folder per study in the private exports bucket (`schools/`, `social-media-break/`), each with the website's dataset `donations/` in BIDS layout (the lab study's archives unpacked into per-task tables) and a separate `identifying/` folder (see "Getting the data out") |
 | `firebase/scripts/setup-exports.sh`, `mac-sync-install.sh` | One-off set-up of the export bucket and read-only key, and the Mac job that mirrors it into OneDrive |
 | `firebase/functions/src/*.test.ts` | Unit tests (`npm test` in `firebase/functions`) |
 | `scripts/emulator-e2e.mjs` | Drives the real app, both studies, against the emulator suite and checks what was stored |
@@ -265,13 +265,17 @@ the validation and quality-rule unit tests.
 Nobody reads the live database by hand. Every hour the `exportData`
 function (`firebase/functions/src/export.ts`) rewrites a private bucket of
 its own, `<project-id>-exports`, as a mirror of the current records, with one
-folder per study and the same two subfolders in each:
+folder per study and the same two website-written subfolders in each. The
+export names its dataset `donations/` because it is one source among several:
+each team keeps its other datasets (workshop EEG, laboratory visits, tracking)
+beside it in the study folder, never inside it, and the Mac mirror copies each
+written folder on its own so those siblings are left alone:
 
 ```
 README.md, manifest.json                  what is here, when it ran, how many of each thing
 schools/                                  the young people's study
   README.md
-  bids/                                   the research dataset, BIDS layout, no names
+  donations/                              the research dataset, BIDS layout, no names
     dataset_description.json, README, CHANGES
     participants.tsv + .json              one row per consenting young person: age at consent,
                                           year group, site, consent and agreement status, counts
@@ -291,16 +295,20 @@ schools/                                  the young people's study
     signatures/sub-00001/sub-00001_consent-v1_signature.png
 social-media-break/                       the adult laboratory study
   README.md
-  bids/                                   the donated data, BIDS layout, no names
+  donations/                              the donated data, BIDS layout, no names
     dataset_description.json, README, CHANGES
     participants.tsv + .json              one row per code with consent: consent versions,
-                                          sends, archives, screenshots, platforms, phone
-    sub-JA101CD/sub-JA101CD_sessions.tsv  one session per send
-    sub-JA101CD/ses-01/beh/
-      sub-JA101CD_ses-01_task-donation_beh.tsv + .json   the files of that send: what the cleaner's
+                                          phases, sends, archives, screenshots, platforms, phone
+    sub-JA101CD/sub-JA101CD_sessions.tsv  one session per phase: ses-pre (before the break),
+                                          ses-post (after), however many sends it took
+    sub-JA101CD/ses-pre/beh/
+      sub-JA101CD_ses-pre_task-donation_beh.tsv + .json   index of the files: what the cleaner's
                                           manifest says is inside an archive, or the screenshot checks
-    sourcedata/sub-JA101CD/ses-01/
-      sub-JA101CD_ses-01_run-01_archive.zip, ..._run-02_screenshot.png   the files themselves
+      sub-JA101CD_ses-pre_task-tiktokwatch_run-01_beh.tsv + .json   one table per kind of record,
+      ..._task-tiktoksearch_, _tiktokengage_, _tiktokapp_, _tiktoktotals_,   unpacked once from each
+      ..._task-youtubewatch_, _youtubesearch_, _youtubesubs_             archive, with dictionaries
+    sourcedata/sub-JA101CD/ses-pre/
+      sub-JA101CD_ses-pre_run-01_archive.zip, ..._run-02_screenshot.png   the files as received
     sourcedata/raw/*.jsonl
   identifying/                            coordinators only
     consents.tsv, consent_statements.tsv  the consent records, with the typed names and the
@@ -313,7 +321,9 @@ Family participants are labelled `sub-00001`, `sub-00002`… in order of
 consent (the number is stored on the participant record the first time it is
 exported); lab participants are labelled by their participant code
 (`sub-JA101CD`), which the laboratory data also uses, so the two datasets join
-on it. Declined families appear in `schools/identifying/` only, without a label. Tables are
+on it. The lab study's sessions are the study's phases, `ses-pre` and
+`ses-post`, chosen by the participant at the send step, so a late-arriving
+export sent days after the first still lands in the same session. Declined families appear in `schools/identifying/` only, without a label. Tables are
 BIDS-style TSV (tab-separated, `n/a` for missing, UTF-8), rewritten each run;
 images and signatures are copied once; anything deleted from the study (a
 withdrawal) disappears from the bucket too. The screenshots have no BIDS
@@ -340,13 +350,16 @@ minutes, in the background:
    hours; the log is `~/Library/Logs/MyPhoneMyBrain Sync.log`.
    `bash mac-sync-install.sh --add <folder> [bids|all]` mirrors into a
    second place too, by default the de-identified research datasets only
-   (every study's `bids/`, no `identifying/` folder; use `all` only where
-   the DPIA allows identifying data, such as the University's own storage); `--remove <folder>` stops that, `--list`
+   (every study's `donations/`, no `identifying/` folder; use `all` only
+   where the DPIA allows identifying data, such as the University's own
+   storage). The job discovers the studies from the bucket and mirrors each
+   written folder on its own, so anything the team keeps beside them, such
+   as `social-media-break/lab-visits/`, is never touched; `--remove <folder>` stops that, `--list`
    shows the folders and runs a copy, `--uninstall` removes it all. Rerun
    `setup-exports.sh` to rotate the key.
 
 Use a restricted SharePoint or Teams library with sync turned off for
-everyone except that Mac, and give researchers access to the `bids/`
+everyone except that Mac, and give researchers access to the `donations/`
 folders only.
 Note that OneDrive keeps deleted files in its recycle bin for a while, so a
 withdrawal is not final there until it is emptied.
@@ -370,8 +383,8 @@ withdrawal is not final there until it is emptied.
   them as research variables. House number plus postcode is a home address,
   so they live only on the consent record (`labConsents`, coordinators and
   auditors) and in `social-media-break/identifying/consents.tsv`, never in
-  the `social-media-break/bids/` research dataset, which carries the code
-  alone. The approved information
+  the `social-media-break/donations/` research dataset, which carries the
+  code alone. The approved information
   sheet does not yet mention keeping them.
 * **Free text.** The parent's open answer (up to 500 characters) may contain
   names or details about other people despite the request not to include

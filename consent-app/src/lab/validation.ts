@@ -14,7 +14,9 @@ export function validateCode(code: string): FieldError[] {
 export function validateLabConsent(consent: LabConsentRecord): FieldError[] {
   const errors: FieldError[] = [];
   for (const s of labConsentForm.statements) {
-    if (consent.responses[s.id]?.response !== 'agreed') errors.push({ field: `lab-stmt-${s.id}`, message: `Tick to confirm: ${s.label.toLowerCase()}. Every statement is needed to take part.` });
+    if (s.kind === 'optional') {
+      if (!consent.responses[s.id]) errors.push({ field: `lab-stmt-${s.id}-agreed`, message: `Choose Yes or No for “${s.label}”.` });
+    } else if (consent.responses[s.id]?.response !== 'agreed') errors.push({ field: `lab-stmt-${s.id}`, message: `Tick to confirm: ${s.label.toLowerCase()}. This statement is needed to take part.` });
   }
   if (!consent.typedName.trim()) errors.push({ field: 'lab-typed-name', message: 'Enter your full name.' });
   if (!consent.signature) errors.push({ field: 'lab-signature', message: 'Add your signature in the box, or choose “I can’t draw my signature”.' });

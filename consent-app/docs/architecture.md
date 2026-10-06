@@ -22,7 +22,7 @@ consent-app/
 │   ├── components/    reusable UI (progress nav, signature pad, image capture…)
 │   └── steps/         one component per journey step
 │   ├── lab/           the social media break study (adults): config, cleaner, state, steps (see below)
-│   └── lab.tsx        its entry point, mounted at /social-media-break/take-part/ (lab.html in development)
+│   └── lab.tsx        its entry point, mounted at /break/take-part/ (lab.html in development)
 ├── docs/              this folder
 └── scripts/           build helpers
 ```

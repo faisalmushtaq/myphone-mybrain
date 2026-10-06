@@ -42,6 +42,12 @@ test('a complete lab consent is accepted; missing statements, old versions, bad 
   const declined = consent();
   declined.consent.responses['publication'].response = 'declined';
   assert.ok(validateLabConsentPayload(declined).some((p) => p.includes('"publication" was not agreed')));
+  const noLinking = consent();
+  noLinking.consent.responses['link-records'].response = 'declined';
+  assert.deepEqual(validateLabConsentPayload(noLinking), [], 'saying no to record linking is fine');
+  const unanswered = consent();
+  delete unanswered.consent.responses['link-records'];
+  assert.ok(validateLabConsentPayload(unanswered).some((p) => p.includes('"link-records" was not answered')));
   const old = consent();
   old.consent.formVersion = '0.1';
   assert.ok(validateLabConsentPayload(old).some((p) => p.includes('consent form must be')));
@@ -74,7 +80,9 @@ test('the code is rebuilt from the answers exactly as the questionnaire does, an
 test('donation payloads: kinds, sizes, duplicates and categories are checked', () => {
   const upload = { uploadId: '123e4567-e89b-12d3-a456-426614174000', kind: 'archive', name: 'tiktok_cleaned_donation.zip', contentType: 'application/zip', size: 1234, platforms: ['tiktok'], categories: ['tt_watch'], kept: { tt_watch: 2 } };
   const shot = { uploadId: '223e4567-e89b-12d3-a456-426614174000', kind: 'screenshot', name: 'IMG_1.png', contentType: 'image/png', size: 5000 };
-  assert.deepEqual(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [upload, shot], client }), []);
+  assert.deepEqual(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [upload, shot], phase: 'pre', client }), []);
+  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], client }).includes('Say whether this is before or after the break.'));
+  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], phase: 'during', client }).includes('Say whether this is before or after the break.'));
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [], client }).includes('No files were sent.'));
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [upload, upload], client }).includes('A file was listed twice.'));
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [{ ...upload, categories: ['dms'] }], client }).includes('An upload names an unknown category.'));
@@ -82,8 +90,8 @@ test('donation payloads: kinds, sizes, duplicates and categories are checked', (
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [{ ...upload, size: 200 * 1024 * 1024 }], client }).some((p) => p.includes('larger than')));
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [{ ...upload, kind: 'video' }], client }).includes('An upload reference is malformed.'));
   assert.ok(validateLabDonationPayload({ participantCode: 'nope', uploads: [upload], client }).includes('The participant code is malformed.'));
-  assert.deepEqual(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], phone: 'android', client }), []);
-  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], phone: 'blackberry', client }).includes('Unknown phone type.'));
+  assert.deepEqual(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], phase: 'post', phone: 'android', client }), []);
+  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], phase: 'post', phone: 'blackberry', client }).includes('Unknown phone type.'));
 });
 
 const manifest = (over: Record<string, unknown> = {}) => ({ cleanedAt: now, cleaner: `MyPhone/MyBrain data donation cleaner ${cleaner.version}`, platforms: ['tiktok'], categories: ['tt_watch'], kept: { tt_watch: 1 }, removed: ['Direct messages'], ...over });

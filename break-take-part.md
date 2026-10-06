@@ -2,7 +2,7 @@
 layout: default
 title: "Take part in the social media break study | MyPhone/MyBrain"
 description: "Consent and data donation for adults taking part in the MyPhone/MyBrain social media break study."
-permalink: /social-media-break/take-part/
+permalink: /break/take-part/
 noindex: true
 ---
 

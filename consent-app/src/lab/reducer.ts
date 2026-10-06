@@ -1,4 +1,4 @@
-import type { LabConsentRecord, LabPhone } from '../api/types';
+import type { LabConsentRecord, LabPhase, LabPhone } from '../api/types';
 import { todayIso } from '../lib/dates';
 import type { SessionInfo, SignatureRecord } from '../model/types';
 import { labConsentForm, labInformationVersion, type CodeParts } from './config';
@@ -18,6 +18,7 @@ export type LabAction =
   | { type: 'consent-complete' }
   | { type: 'consent-on-file'; consentedAt: string | null }
   | { type: 'phone'; phone: LabPhone | null }
+  | { type: 'phase'; phase: LabPhase | null }
   | { type: 'submission'; patch: Partial<LabSubmission> }
   | { type: 'add-archive'; archive: LabArchive }
   | { type: 'update-archive'; id: string; patch: Partial<LabArchive> }
@@ -43,6 +44,7 @@ export function initialLabState(): LabState {
     returning: false,
     consent: initialConsent(),
     phone: null,
+    phase: null,
     submission: { consentId: null, consentVersion: 0, consentSentAt: null, consentStage: 'idle', consentError: null, consentOnFile: false, donationStage: 'idle', donationError: null, donationIds: [], lastDonationAt: null, archivesSent: 0, screenshotsSent: 0 },
     archives: [],
     screenshots: [],
@@ -95,6 +97,8 @@ export function labReducer(state: LabState, action: LabAction): LabState {
       return { ...state, submission: { ...state.submission, consentOnFile: true, consentStage: 'sent', consentSentAt: action.consentedAt } };
     case 'phone':
       return { ...state, phone: action.phone };
+    case 'phase':
+      return { ...state, phase: action.phase };
     case 'submission':
       return { ...state, submission: { ...state.submission, ...action.patch } };
     case 'add-archive':

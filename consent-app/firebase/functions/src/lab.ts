@@ -31,6 +31,8 @@ const LOOKUPS_PER_HOUR = 30;
 const MAX_UNPACKED = 400 * 1024 * 1024;
 const PLATFORMS = ['tiktok', 'youtube'];
 const PHONES = ['iphone', 'android'];
+/** Where in the study a send belongs: before or after the social media break. */
+const PHASES = ['pre', 'post'];
 const NOT_OURS = 'This file is not a cleaned export made on the “Choose what to share” step. Please prepare it there again and add the result.';
 
 export interface LabConsentPayload {
@@ -71,6 +73,8 @@ export interface LabUpload {
 export interface LabDonationPayload {
   participantCode: string;
   uploads: LabUpload[];
+  /** Before or after the break, as the participant said at the send step. */
+  phase: string;
   phone?: string | null;
   client: ClientInfo;
 }
@@ -117,7 +121,11 @@ export function validateLabConsentPayload(input: unknown): string[] {
     if (c.informationVersion !== labInformationVersion) problems.push(`The information shown must be version ${labInformationVersion}.`);
     validateResponses(c.responses, labConsentForm, problems, 'Consent');
     const responses = isObj(c.responses) ? (c.responses as Record<string, StatementRecord>) : {};
-    for (const s of labConsentForm.statements) if (responses[s.id]?.response !== 'agreed') problems.push(`Statement "${s.id}" was not agreed; every statement is needed to take part.`);
+    for (const s of labConsentForm.statements) {
+      if (s.kind === 'optional') {
+        if (!responses[s.id]) problems.push(`Optional statement "${s.id}" was not answered.`);
+      } else if (responses[s.id]?.response !== 'agreed') problems.push(`Statement "${s.id}" was not agreed; it is needed to take part.`);
+    }
     if (!str(c.typedName, limits.name) || blank(c.typedName as string)) problems.push('The signer’s name is missing.');
     validateSignature(c.signature, 'Consent', problems);
     if (typeof c.confirmedDate !== 'string' || !ISO_DATE.test(c.confirmedDate) || Date.parse(c.confirmedDate) > Date.now() + 24 * 3600 * 1000) problems.push('The confirmed date is not valid.');
@@ -137,6 +145,7 @@ export function validateLabDonationPayload(input: unknown): string[] {
     if (p.uploads.length === 0) problems.push('No files were sent.');
     if (p.uploads.length > labStudy.maxArchives + labStudy.maxScreenshots) problems.push('Too many files in one send.');
     if (p.phone !== null && p.phone !== undefined && !PHONES.includes(String(p.phone))) problems.push('Unknown phone type.');
+    if (!PHASES.includes(String(p.phase))) problems.push('Say whether this is before or after the break.');
     const seen = new Set<string>();
     for (const u of p.uploads) {
       if (!isObj(u) || typeof u.uploadId !== 'string' || !UUID.test(u.uploadId) || (u.kind !== 'archive' && u.kind !== 'screenshot') || !str(u.name, 200) || !str(u.contentType, 100) || typeof u.size !== 'number' || u.size < 1) {
@@ -452,6 +461,7 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
   const screenshots = payload.uploads.length - archives;
   if (Number(participant.archiveCount ?? 0) + archives > labStudy.maxArchives) throw new HttpsError('invalid-argument', `At most ${labStudy.maxArchives} cleaned files can be sent in total. Contact the team if you need to send more.`);
   if (Number(participant.screenshotCount ?? 0) + screenshots > labStudy.maxScreenshots) throw new HttpsError('invalid-argument', `At most ${labStudy.maxScreenshots} screenshots can be sent in total.`);
+  // The study's minimum (a screenshot plus a cleaned archive) is asked for twice in the app, then may be skipped; the send records what came.
 
   const stored: StoredLabFile[] = [];
   const rejected: { uploadId: string; reason: string }[] = [];
@@ -477,6 +487,7 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
       archives: stored.filter((f) => f.kind === 'archive').length,
       screenshots: stored.filter((f) => f.kind === 'screenshot').length,
       needsReview: stored.some((f) => f.quality?.verdict === 'review'),
+      phase: payload.phase,
       phone: payload.phone ?? null,
       sessionUid: uid,
       client: payload.client,
@@ -490,6 +501,7 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
         archiveCount: FieldValue.increment(stored.filter((f) => f.kind === 'archive').length),
         screenshotCount: FieldValue.increment(stored.filter((f) => f.kind === 'screenshot').length),
         lastDonationAt: receivedAt,
+        lastPhase: payload.phase,
         ...(payload.phone ? { phone: payload.phone } : {}),
         sessionUids: FieldValue.arrayUnion(uid),
         updatedAt: FieldValue.serverTimestamp(),

@@ -73,7 +73,7 @@ export const REFERENCE_CODE = /^MPMB-[A-Z2-9]{4}-[A-Z2-9]{3}$/;
 
 /* ── The social media break study (adults, the laboratory study) ─────────── */
 
-/** The adult participant's own consent form (src/lab/config.ts in the app). Every statement is required. */
+/** The adult participant's own consent form (src/lab/config.ts in the app): required statements and an optional record-linkage choice. */
 export const labConsentForm = {
   id: generated.labConsentForm.id,
   version: generated.labConsentForm.version,

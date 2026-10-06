@@ -124,6 +124,8 @@ export interface LabConsentPayload {
 }
 
 export type LabPhone = 'iphone' | 'android';
+/** Where in the study a send belongs: before or after the social media break. */
+export type LabPhase = 'pre' | 'post';
 
 export interface LabConsentResult {
   participantCode: string;
@@ -154,6 +156,8 @@ export interface LabUploadMeta {
 export interface LabDonationPayload {
   participantCode: string;
   uploads: ({ uploadId: string } & LabUploadMeta)[];
+  /** Before or after the break, as the participant said at the send step. */
+  phase: LabPhase;
   /** The phone the screenshots come from, as chosen in the guide; null if not chosen. */
   phone: LabPhone | null;
   client: ClientInfo;

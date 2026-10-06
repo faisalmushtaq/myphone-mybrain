@@ -10,7 +10,7 @@ import { parentQuestionsForm, questionWording, study } from './forms.js';
  * The hourly export: everything the studies have recorded, written into a
  * private bucket of its own, one folder per study, each with two subfolders.
  *
- *   schools/bids/            the young people's study: the research dataset
+ *   schools/donations/       the young people's study: the research dataset
  *                            in BIDS layout, de-identified: a participants
  *                            table, the parent questionnaire as a phenotype
  *                            file, one session per screenshot send with a
@@ -21,9 +21,15 @@ import { parentQuestionsForm, questionWording, study } from './forms.js';
  *                            consent and agreement records, signatures and
  *                            website enquiries, with the key from BIDS labels
  *                            to people. Never inside the BIDS dataset.
- *   social-media-break/      the adult laboratory study, same shape: bids/
- *                            holds the donated archives and screenshots,
- *                            identifying/ the consent records (exportLab.ts).
+ *   social-media-break/      the adult laboratory study, same shape:
+ *                            donations/ holds the donated archives and
+ *                            screenshots, identifying/ the consent records
+ *                            (exportLab.ts).
+ *
+ * Each study's datasets are named by what they are, because the website's is
+ * one source among several: the teams keep their own datasets (workshop EEG,
+ * laboratory visits) beside donations/ in the study folder. The folders the
+ * export writes are mirrors, so nothing may be added inside them.
  *
  * The bucket is a mirror of the current records: every run rewrites the
  * tables, copies any image or signature that is missing, and deletes
@@ -36,7 +42,7 @@ const REGION = 'europe-west2';
 const BATCH = 8;
 /** The young people's study's folder, and its two subfolders. */
 export const SCHOOLS = 'schools';
-const B = `${SCHOOLS}/bids`;
+const B = `${SCHOOLS}/donations`;
 const I = `${SCHOOLS}/identifying`;
 const BIDS_VERSION = '1.10.0';
 const TASK = 'screentime';
@@ -495,8 +501,8 @@ raw/                       every document as JSON Lines
 
 Files are tab-separated UTF-8 with n/a for missing values; timestamps are
 ISO 8601 in UTC. The research data, labelled by participant only, is in the
-bids/ folder next to this one. The social media break study (adults) has its
-own folder, social-media-break/, with the same layout.
+donations/ folder next to this one. The social media break study (adults) has
+its own folder, social-media-break/, with the same layout.
 `;
 
 const SCHOOLS_README = `# MyPhone/MyBrain: the young people's study
@@ -506,11 +512,17 @@ and Leeds schools, the parents' quick questions, and the screen-time
 screenshots families shared. Regenerated automatically every hour; do not edit
 or add files here.
 
-bids/          the research dataset in BIDS layout, labelled sub-00001,
-               sub-00002... in order of consent, no names; for researchers
-identifying/   names, dates of birth, contact details, consent and agreement
-               records, signatures, website enquiries, and the key from labels
-               to people; for study coordinators only
+donations/     written by the website every hour: the research dataset in
+               BIDS layout, labelled sub-00001, sub-00002... in order of
+               consent, no names; for researchers
+identifying/   written by the website every hour: names, dates of birth,
+               contact details, consent and agreement records, signatures,
+               website enquiries, and the key from labels to people; for
+               study coordinators only
+
+The two folders above are mirrors: anything added inside them is removed on
+the next run. Keep the team's own datasets (for example the workshop EEG
+recordings) beside them in this folder, never inside them.
 `;
 
 const ROOT_README = `# MyPhone/MyBrain data export
@@ -529,10 +541,17 @@ social-media-break/   the adult laboratory study: cleaned TikTok and YouTube
                       archives and screen-time screenshots donated by
                       participants, labelled by their participant code
 
-  <study>/bids/          the research dataset in BIDS layout, no names;
-                         for researchers
+  <study>/donations/     what participants gave through the website, as a
+                         research dataset in BIDS layout, no names; for
+                         researchers
   <study>/identifying/   names, contact details, consent records and
                          signatures; for study coordinators only
+
+The folders the export writes are mirrors: anything added inside them is
+removed on the next run. Each team's other datasets (laboratory visits,
+workshop recordings, tracking) belong beside donations/ in the study's
+folder, never inside it. The Mac mirror copies each written folder on its
+own, so such sibling folders are left alone.
 
 manifest.json says when the last export ran and how many of each thing it holds.
 `;
@@ -657,6 +676,26 @@ export async function runExport(): Promise<Manifest> {
   const present = new Set(existing.map((f) => f.name));
   const expected = new Set<string>([...files.map((f) => f.path), ...copies.values(), 'manifest.json']);
 
+  // Tables unpacked from archives: built once, when any of them is missing; a lost archive is logged like a lost copy.
+  let built = 0;
+  for (const d of lab.derived) {
+    for (const p of d.paths) expected.add(p);
+    if (d.paths.every((p) => present.has(p))) continue;
+    const file = source.file(d.source);
+    const [exists] = await file.exists();
+    if (!exists) {
+      logger.warn('Export: archive referenced by a record is missing', { path: d.source });
+      continue;
+    }
+    try {
+      const [buffer] = await file.download();
+      files.push(...(await d.build(buffer)));
+      built += 1;
+    } catch (error) {
+      logger.warn('Export: archive could not be unpacked into tables', { path: d.source, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
   const toCopy = Array.from(copies.entries()).filter(([, target]) => !present.has(target));
   let copied = 0;
   let missing = 0;
@@ -695,6 +734,7 @@ export async function runExport(): Promise<Manifest> {
       signatures: Array.from(copies.values()).filter((t) => t.startsWith(`${I}/signatures/`)).length,
       ...lab.counts,
       filesCopiedThisRun: copied,
+      archivesUnpackedThisRun: built,
       filesMissing: missing,
     },
     files: Array.from(expected).sort(),

@@ -48,12 +48,12 @@ const generated = {
         : { id: q.id, version: q.version, type: 'text', label: q.label, text: q.text, maxLength: q.maxLength },
     ),
   },
-  // The social media break study (adults): every statement is required.
+  // The social media break study (adults): required statements plus an optional record-linkage choice.
   labConsentForm: {
     id: lab.labConsentForm.id,
     version: lab.labConsentForm.version,
     title: lab.labConsentForm.title,
-    statements: lab.labConsentForm.statements.map((s) => ({ id: s.id, version: s.version, kind: 'required', label: s.label, text: s.text })),
+    statements: lab.labConsentForm.statements.map((s) => ({ id: s.id, version: s.version, kind: s.kind, label: s.label, text: s.text })),
   },
   labInformationVersion: lab.labInformationVersion.version,
   labStudy: {

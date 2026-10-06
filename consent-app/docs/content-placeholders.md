@@ -29,20 +29,21 @@ controls panel).
 
 ## The social media break study (adults)
 
-The lab study's page (`/social-media-break/take-part/`, code in `src/lab/`) carries the **ethics-approved version 1** wording (SoPREC 4202, approved 11 June 2026) from the Participant Information Sheet and Participant Consent Form, verbatim, so it does not show the "Draft wording" marker. Donations will go through the Smart Data Donation Service (SDDS) once it is ready; until then the website carries out that step, and the interface says so under each passage that mentions SDDS.
+The lab study's page (`/break/take-part/`, code in `src/lab/`) carries the **ethics-approved version 1** wording (SoPREC 4202, approved 11 June 2026) from the Participant Information Sheet and Participant Consent Form, verbatim, so it does not show the "Draft wording" marker. Donations will go through the Smart Data Donation Service (SDDS) once it is ready; until then the website carries out that step, and the interface says so under each passage that mentions SDDS.
 
 | What | Where in the code | Replace with |
 |---|---|---|
 | Two consent statements and the "Smartphone usage data" information section describe donating data "through SDDS"; each carries a `note` explaining that the website does this step until SDDS is ready | `src/lab/config.ts` → `labConsentForm` (`involves`, `donation-required`), `labInformation` (`donation`) | When SDDS takes over, or the wording is re-approved: update the notes or remove them, and bump `labConsentForm.version` and `labInformationVersion` if the statements themselves change |
-| Compensation: the page says £25 per lab visit plus £25 for completing all parts, £75 in total (confirmed by the team); the approved sheet still reads "[£50 / course credit]" and the recruitment email £20 + £30 | `src/lab/config.ts` → `labInformation` (`compensation`); `social-media-break.md` | Bring the sheet and the leaflet into line with the £75 |
-| Ethics reference SoPREC 4202, approved 11 June 2026 (the team expects to update it) | `src/lab/config.ts` → `labStudy.ethicsReference`, `ethicsApproved`; `social-media-break.md`; both exported `dataset_description.json` files (`firebase/functions/src/export.ts`, `exportLab.ts`) | The new reference when it changes |
+| Compensation: the page says £25 per lab visit plus £25 for completing all parts, £75 in total (confirmed by the team); the approved sheet still reads "[£50 / course credit]" and the recruitment email £20 + £30 | `src/lab/config.ts` → `labInformation` (`compensation`); `break.md` | Bring the sheet and the leaflet into line with the £75 |
+| Ethics reference SoPREC 4202, approved 11 June 2026 (the team expects to update it) | `src/lab/config.ts` → `labStudy.ethicsReference`, `ethicsApproved`; `break.md`; both exported `dataset_description.json` files (`firebase/functions/src/export.ts`, `exportLab.ts`) | The new reference when it changes |
 | The four code answers (mother's first name, house number, birth month, postcode) are kept with the consent record as research variables; the approved information sheet does not say so, and house number plus postcode is a home address | `src/lab/steps/ParticipantId.tsx` (what the participant is told), `firebase/functions/src/lab.ts` (`codeParts`, stored on `labConsents` only), exported in `social-media-break/identifying/consents.tsv` | Confirm with the ethics committee and the DPIA, and add a sentence to the information sheet |
+| Record linkage: an optional Yes or No statement, draft wording copied from the schools study's statement, with the approvals it names | `src/lab/config.ts` → `labConsentForm` (`link-records`, version `0.1-draft`) | Wording and approvals confirmed for adults with the governance team; bump the version |
 | Age range 18 to 24 (the approved sheet says 18 or older; the recruitment email says 18 to 24) | `src/lab/config.ts` → `labStudy.minAge`, `maxAge` | The range the committee approved |
-| Contact names and addresses (Miftah Faizah, Professor Faisal Mushtaq) | `src/lab/config.ts` → `labStudy.contact`; `social-media-break.md`, `social-media-break/take-part.md` | As approved |
+| Contact names and addresses (Miftah Faizah, Professor Faisal Mushtaq) | `src/lab/config.ts` → `labStudy.contact`; `break.md`, `break-take-part.md` | As approved |
 | The participant-code scheme (mother's initials, house number digit, birth month, postcode letters) must match the lab questionnaire exactly | `src/lab/config.ts` → `buildParticipantCode`, `PARTICIPANT_CODE`; mirrored to the server at build time | Whatever the questionnaire does; the two must agree or the data cannot be joined |
 | The step-by-step download guide (TikTok, Google Takeout, iPhone and Android screen time) and its screenshots | `src/lab/steps/LabGuide.tsx`, `src/assets/lab-guide/` | Refreshed when the platforms move their menus |
 | The categories offered in the cleaner, their descriptions, and what is always removed | `src/lab/cleaner.ts` → `categories`, `alwaysRemoved` | Whatever the data management plan allows; the server accepts only the file names listed in `ALLOWED_CLEANED_FILES` |
-| The recruitment page | `social-media-break.md` | The approved recruitment leaflet wording |
+| The recruitment page | `break.md` | The approved recruitment leaflet wording |
 
 ## Things that are not wording
 

@@ -10,9 +10,11 @@
 #   bash mac-sync-install.sh --list                              show the folders and run a copy now
 #   bash mac-sync-install.sh --uninstall
 #
-# Scope: "all" mirrors the whole export (one folder per study, each with bids/
-# and identifying/) into <folder>/MyPhoneMyBrain data; "bids" mirrors the same
-# layout without any identifying/ folder. Use "bids" for anywhere
+# Scope: "all" mirrors every folder the website writes (one folder per study,
+# each with donations/ and identifying/) into <folder>/MyPhoneMyBrain data;
+# "bids" mirrors the same without any identifying/ folder. Each written folder
+# is mirrored on its own, so the team's own datasets kept beside them (for
+# example social-media-break/lab-visits/) are never touched. Use "bids" for anywhere
 # outside the University's own storage unless the DPIA says otherwise.
 #
 # What it installs, all inside your own account:
@@ -76,24 +78,39 @@ if ! curl -s --max-time 10 -o /dev/null https://storage.googleapis.com/; then
   exit 0
 fi
 status=0
+RC=("\$RCLONE" --config "\$CONF" --log-file "\$LOG" --log-level NOTICE --stats 0)
+# One file from the bucket root (README, manifest), copied; files beside it are left alone.
+copy_file() {
+  "\${RC[@]}" copyto "exports:\$BUCKET/\$1" "\$2/\$1" < /dev/null || { echo "\$(now) copy FAILED: \$1" >> "\$LOG"; status=1; }
+}
+# One website-written folder, mirrored exactly; folders beside it (the team's own datasets) are never touched.
 mirror() {
-  src="\$1"; target="\$2"; shift 2
-  echo "\$(now) sync starting: \$target" >> "\$LOG"
-  if "\$RCLONE" sync "\$src" "\$target" --config "\$CONF" --exclude ".DS_Store" --exclude "Icon?" --exclude "README.txt" "\$@" --fast-list --transfers 8 --checkers 16 --log-file "\$LOG" --log-level NOTICE --stats 0 < /dev/null; then
-    echo "\$(now) sync finished: \$target" >> "\$LOG"
+  echo "\$(now) sync starting: \$2/\$1" >> "\$LOG"
+  if "\${RC[@]}" sync "exports:\$BUCKET/\$1" "\$2/\$1" --exclude ".DS_Store" --exclude "Icon?" --fast-list --transfers 8 --checkers 16 < /dev/null; then
+    echo "\$(now) sync finished: \$2/\$1" >> "\$LOG"
   else
-    echo "\$(now) sync FAILED: \$target" >> "\$LOG"
+    echo "\$(now) sync FAILED: \$2/\$1" >> "\$LOG"
     status=1
   fi
 }
+# The studies and their folders are discovered from the bucket, so a new study appears by itself.
+studies="\$("\${RC[@]}" lsf "exports:\$BUCKET" --dirs-only 2>>"\$LOG")" || { echo "\$(now) could not list the bucket" >> "\$LOG"; exit 1; }
 while IFS=\$'\\t' read -r dest scope; do
   [ -z "\$dest" ] && continue
-  if [ "\$scope" = "bids" ]; then
-    # Research datasets only: every study's bids/ folder, no identifying/ folder.
-    mirror "exports:\$BUCKET" "\$dest/MyPhoneMyBrain data" --exclude "*/identifying/**"
-  else
-    mirror "exports:\$BUCKET" "\$dest/MyPhoneMyBrain data"
-  fi
+  target="\$dest/MyPhoneMyBrain data"
+  mkdir -p "\$target"
+  # Folders from the layout before October 2026 were mirrors too; clear them once.
+  for old in bids lab identifying; do [ -d "\$target/\$old" ] && rm -rf "\$target/\$old" && echo "\$(now) removed old-layout folder \$old" >> "\$LOG"; done
+  copy_file README.md "\$target"; copy_file manifest.json "\$target"
+  for study in \$studies; do
+    study="\${study%/}"
+    copy_file "\$study/README.md" "\$target"
+    for sub in \$("\${RC[@]}" lsf "exports:\$BUCKET/\$study" --dirs-only 2>>"\$LOG"); do
+      sub="\${sub%/}"
+      if [ "\$sub" = "identifying" ] && [ "\$scope" = "bids" ]; then continue; fi
+      mirror "\$study/\$sub" "\$target"
+    done
+  done
 done < "\$DESTS"
 if [ \$status -eq 0 ]; then
   date -u +"%Y-%m-%dT%H:%M:%SZ" > "\$APP_DIR/last-success"
@@ -143,7 +160,7 @@ list_destinations() {
   echo "Folders being mirrored:"
   while IFS=$'\t' read -r dest scope; do
     [[ -z "$dest" ]] && continue
-    if [[ "$scope" == "bids" ]]; then echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data   (research datasets only: each study's bids/, no identifying/)"; else echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data   (everything, including identifying/)"; fi
+    if [[ "$scope" == "bids" ]]; then echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data   (research data only: each study's donations/, no identifying/)"; else echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data   (everything, including identifying/)"; fi
   done < "$DESTS"
 }
 
@@ -188,7 +205,7 @@ case "${1:-}" in
     printf '%s\t%s\n' "$folder" "$scope" >> "$DESTS"
     mkdir -p "$folder/MyPhoneMyBrain data"
     if [[ "$scope" == "bids" ]]; then
-      printf 'This folder holds the de-identified research datasets only, mirrored automatically:\nschools/bids (the young people'"'"'s study) and social-media-break/bids (the adult lab study).\nNames, contact details and consent records are kept in the University OneDrive copy.\nDo not edit or add files here.\n' > "$folder/MyPhoneMyBrain data/README.txt"
+      printf 'This folder holds the de-identified research datasets only, mirrored automatically:\nschools/donations (the young people'"'"'s study) and social-media-break/donations (the adult lab study).\nNames, contact details and consent records are kept in the University OneDrive copy.\nThe donations/ folders are mirrors: do not edit or add files inside them. Other datasets may be kept beside them.\n' > "$folder/MyPhoneMyBrain data/README.txt"
     fi
     ok "added ${folder/#$HOME/~} ($scope)"
     write_sync_script; list_destinations; run_now; exit $? ;;

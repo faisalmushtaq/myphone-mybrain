@@ -62,7 +62,7 @@ export function LabDone() {
           <strong>
             {submission.archivesSent ? `${submission.archivesSent} cleaned ${submission.archivesSent === 1 ? 'file' : 'files'}` : ''}
             {submission.archivesSent && submission.screenshotsSent ? ' and ' : ''}
-            {submission.screenshotsSent ? `${submission.screenshotsSent} ${submission.screenshotsSent === 1 ? 'screenshot' : 'screenshots'}` : ''} received.
+            {submission.screenshotsSent ? `${submission.screenshotsSent} ${submission.screenshotsSent === 1 ? 'screenshot' : 'screenshots'}` : ''} received{state.phase ? (state.phase === 'pre' ? ', from before your break' : ', from after your break') : ''}.
           </strong>{' '}
           This is the part of the study no one else can provide: what you actually did on your phone, in your own words and your own choices about what to share.
         </p>

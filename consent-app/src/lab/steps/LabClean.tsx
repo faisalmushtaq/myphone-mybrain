@@ -34,6 +34,8 @@ export function LabClean() {
   const [problem, setProblem] = useState<string | null>(null);
   const [working, setWorking] = useState<Working | null>(null);
   const [over, setOver] = useState(false);
+  const [errors, setErrors] = useState<{ field: string; message: string }[]>([]);
+  const [nudges, setNudges] = useState(0);
   const zipCtor = useRef<JSZipCtor | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const ready = state.codeConfirmed && state.submission.consentStage === 'sent';
@@ -132,7 +134,20 @@ export function LabClean() {
   const removedList = working ? Array.from(new Set(working.platforms.flatMap((p) => alwaysRemoved[p]))) : [];
 
   return (
-    <LabShell kicker="Choose what to share" title="Choose what to share from your data." intro={<p>Pick the ZIP you downloaded from TikTok or Google Takeout. This page reads it on your own device, keeps only dates, links and search words, and shows you what would be shared. Untick anything you would rather keep private. Do this once for each file.</p>} onContinue={() => dispatch({ type: 'next' })} continueLabel={state.archives.length ? 'Next: send my data' : 'Skip to screenshots'} width="wide">
+    <LabShell kicker="Choose what to share" title="Choose what to share from your data." intro={<p>Pick the ZIP you downloaded from TikTok or Google Takeout. This page reads it on your own device, keeps only dates, links and search words, and shows you what would be shared. Untick anything you would rather keep private. At least one of the two is needed; do both if you have them.</p>} errors={errors}
+      onContinue={() => {
+        // The study asks for at least one cleaned file; after two nudges the person may go on without.
+        if (!state.archives.length && nudges < 2) {
+          setNudges(nudges + 1);
+          setErrors([{ field: 'lab-zip', message: nudges === 0 ? 'Prepare at least one TikTok or YouTube file before going on; both if you can. The study needs it alongside your screenshots.' : 'The study really does need your TikTok or YouTube data. If you cannot provide it right now, press Continue once more to go on with screenshots only and add the file later.' }]);
+          return;
+        }
+        setErrors([]);
+        dispatch({ type: 'next' });
+      }}
+      continueLabel="Next: send my data"
+      width="wide"
+    >
       {state.archives.length > 0 && (
         <section aria-labelledby="prepared-heading">
           <h2 className="mpmb-h3" id="prepared-heading">

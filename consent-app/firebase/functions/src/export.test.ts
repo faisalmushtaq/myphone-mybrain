@@ -102,41 +102,40 @@ test('consent records flatten to one row per record and one per statement, with 
   assert.deepEqual(statements[1], { consent_id: 'c1', participant_id: 'sub-00001', version: 2, statement_id: 'link-records', statement_version: '0.4-draft', response: 'declined', responded_at: 't2', via: 'individual' });
 });
 
-test('the lab dataset is labelled by participant code, names files by session and run, and keeps names in identifying/', async () => {
-  const { labBehTable, labConsentTables, labExport, labFile, labParticipantsTable, labSessionsOf, labSignatureFile } = await import('./exportLab.js');
+test('the lab dataset is labelled by participant code, has one session per phase, names files by run, and keeps names in identifying/', async () => {
+  const { labBehTable, labConsentTables, labExport, labFile, labParticipantsTable, labSessionsOf, labSessionsTable, labSignatureFile } = await import('./exportLab.js');
   const snap = {
-    participants: [{ id: 'JA101CD', data: { consentId: 'c1', consentVersion: 1, archiveCount: 1, screenshotCount: 1 } }, { id: 'ZZ912AB', data: { consentId: 'c2', consentVersion: 1 } }],
+    participants: [{ id: 'JA101CD', data: { consentId: 'c1', consentVersion: 1, archiveCount: 1, screenshotCount: 2 } }, { id: 'ZZ912AB', data: { consentId: 'c2', consentVersion: 1 } }],
     consents: [
       { id: 'c1', data: { participantCode: 'JA101CD', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-05', typedName: 'Jane Doe', codeParts: { mother: 'Jane', house: '123', month: '01', postcode: 'AB1 2CD' }, responses: { 'take-part': { version: '1.0', response: 'agreed', respondedAt: '2026-10-05T09:00:00.000Z', via: 'individual' } }, signature: { method: 'drawn', image: { path: 'signatures/lab/JA101CD/c1.png' } } } },
       { id: 'c2', data: { participantCode: 'ZZ912AB', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-06', typedName: 'Zed Zee', responses: {}, signature: { method: 'typed', typedName: 'Zed Zee', image: null } } },
     ],
     donations: [
-      {
-        id: 'd1',
-        data: {
-          participantCode: 'JA101CD',
-          receivedAt: '2026-10-05T10:00:00.000Z',
-          needsReview: true,
-          phone: 'iphone',
-          files: [
-            { kind: 'archive', path: 'lab/JA101CD/u1.zip', bytes: 10, sha256: 'aa', platforms: ['tiktok'], categories: ['tt_watch'], kept: { tt_watch: 3 }, manifest: { cleaner: 'MyPhone/MyBrain data donation cleaner 1.0', cleanedAt: '2026-10-05T09:50:00.000Z' }, entries: ['manifest.json', 'tiktok_cleaned.json'] },
-            { kind: 'screenshot', path: 'lab/JA101CD/u2.jpg', bytes: 20, sha256: 'bb', width: 100, height: 200, quality: { verdict: 'review', reasons: ['Not portrait.'] } },
-          ],
-        },
-      },
+      // Two sends before the break (the YouTube export arrived days after the TikTok one) and one after: two sessions.
+      { id: 'd2', data: { participantCode: 'JA101CD', phase: 'pre', receivedAt: '2026-10-08T10:00:00.000Z', needsReview: false, phone: 'iphone', files: [{ kind: 'screenshot', path: 'lab/JA101CD/u3.png', bytes: 30, sha256: 'cc', width: 100, height: 200, quality: { verdict: 'accepted', reasons: [] } }] } },
+      { id: 'd1', data: { participantCode: 'JA101CD', phase: 'pre', receivedAt: '2026-10-05T10:00:00.000Z', needsReview: true, phone: 'iphone', files: [{ kind: 'archive', path: 'lab/JA101CD/u1.zip', bytes: 10, sha256: 'aa', platforms: ['tiktok'], categories: ['tt_watch'], kept: { tt_watch: 3 }, manifest: { cleaner: 'MyPhone/MyBrain data donation cleaner 1.0', cleanedAt: '2026-10-05T09:50:00.000Z' }, entries: ['manifest.json', 'tiktok_cleaned.json'] }] } },
+      { id: 'd3', data: { participantCode: 'JA101CD', phase: 'post', receivedAt: '2026-11-10T10:00:00.000Z', needsReview: false, phone: 'iphone', files: [{ kind: 'screenshot', path: 'lab/JA101CD/u4.jpg', bytes: 20, sha256: 'bb', width: 100, height: 200, quality: { verdict: 'review', reasons: ['Not portrait.'] } }] } },
     ],
   };
   const rows = labParticipantsTable(snap);
-  assert.deepEqual(rows[0], { participant_id: 'sub-JA101CD', consented_on: '2026-10-05', consent_version: '1.0', information_version: '1.0', consent_n: 1, sessions_n: 1, archives_n: 1, screenshots_n: 1, platforms: ['tiktok'], phone: 'iphone', first_donation_at: '2026-10-05T10:00:00.000Z', last_donation_at: '2026-10-05T10:00:00.000Z' });
-  assert.equal(rows[1].sessions_n, 0, 'consented but nothing sent yet');
+  assert.deepEqual(rows[0], { participant_id: 'sub-JA101CD', consented_on: '2026-10-05', consent_version: '1.0', information_version: '1.0', consent_n: 1, phases: ['pre', 'post'], sends_n: 3, archives_n: 1, screenshots_n: 2, platforms: ['tiktok'], phone: 'iphone', first_send_at: '2026-10-05T10:00:00.000Z', last_send_at: '2026-11-10T10:00:00.000Z' });
+  assert.equal(rows[1].sends_n, 0, 'consented but nothing sent yet');
   assert.ok(!JSON.stringify(rows).includes('Jane'));
-  const [s] = labSessionsOf(snap);
-  assert.equal(labFile(s, 1, s.files[0]), 'sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip');
-  assert.equal(labFile(s, 2, s.files[1]), 'sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-02_screenshot.jpg');
-  const beh = labBehTable(s);
+  const sessions = labSessionsOf(snap);
+  assert.deepEqual(sessions.map((s) => [s.session, s.donations.map((d) => d.id)]), [['ses-pre', ['d1', 'd2']], ['ses-post', ['d3']]], 'one session per phase, sends in time order, pre before post');
+  const [pre, post] = sessions;
+  assert.equal(labFile(pre, 1, pre.files[0].file), 'sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-01_archive.zip');
+  assert.equal(labFile(pre, 2, pre.files[1].file), 'sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_screenshot.png');
+  assert.equal(labFile(post, 1, post.files[0].file), 'sourcedata/sub-JA101CD/ses-post/sub-JA101CD_ses-post_run-01_screenshot.jpg');
+  const beh = labBehTable(pre);
   assert.equal(beh[0].kept_tt_watch, 3);
   assert.equal(beh[0].kept_yt_watch, null);
-  assert.equal(beh[1].verdict, 'review');
+  assert.equal(beh[1].send_id, 'd2');
+  assert.equal(beh[1].received_at, '2026-10-08T10:00:00.000Z');
+  assert.equal(labBehTable(post)[0].verdict, 'review');
+  const sessionRows = labSessionsTable(sessions);
+  assert.deepEqual(sessionRows[0], { session_id: 'ses-pre', phase: 'pre', acq_time: '2026-10-05T10:00:00.000Z', last_send_at: '2026-10-08T10:00:00.000Z', sends_n: 2, archives_n: 1, screenshots_n: 1, phone: 'iphone', needs_review: true });
+  assert.equal(labSessionsOf({ ...snap, donations: [{ id: 'dx', data: { participantCode: 'JA101CD', receivedAt: '2026-10-05T10:00:00.000Z', files: [] } }] })[0].session, 'ses-unspecified', 'a send without a phase keeps its own session');
   assert.equal(labSignatureFile('JA101CD', 1), 'signatures/sub-JA101CD/sub-JA101CD_consent-v1_signature.png');
   const { records, statements } = labConsentTables(snap.consents);
   assert.equal(records[0].typed_name, 'Jane Doe');
@@ -147,12 +146,42 @@ test('the lab dataset is labelled by participant code, names files by session an
   assert.equal(statements[0].statement_id, 'take-part');
   const out = labExport(snap, '2026-10-06T12:00:00.000Z');
   const paths = out.files.map((f) => f.path);
-  assert.ok(paths.includes('social-media-break/README.md') && paths.includes('social-media-break/bids/participants.tsv') && paths.includes('social-media-break/bids/sub-JA101CD/sub-JA101CD_sessions.tsv') && paths.includes('social-media-break/bids/sub-JA101CD/ses-01/beh/sub-JA101CD_ses-01_task-donation_beh.tsv') && paths.includes('social-media-break/identifying/consents.tsv') && paths.includes('social-media-break/identifying/README.md'));
+  assert.ok(paths.includes('social-media-break/README.md') && paths.includes('social-media-break/donations/participants.tsv') && paths.includes('social-media-break/donations/sub-JA101CD/sub-JA101CD_sessions.tsv') && paths.includes('social-media-break/donations/sub-JA101CD/ses-pre/beh/sub-JA101CD_ses-pre_task-donation_beh.tsv') && paths.includes('social-media-break/donations/sub-JA101CD/ses-post/beh/sub-JA101CD_ses-post_task-donation_beh.tsv') && paths.includes('social-media-break/identifying/consents.tsv') && paths.includes('social-media-break/identifying/README.md'));
   assert.ok(paths.every((p) => p.startsWith('social-media-break/')), 'everything of this study lives in its own folder');
   assert.ok(!paths.some((p) => p.includes('/sub-ZZ912AB/')), 'no subject folder before anything is sent');
-  assert.deepEqual(Array.from(out.copies.entries()), [['lab/JA101CD/u1.zip', 'social-media-break/bids/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip'], ['lab/JA101CD/u2.jpg', 'social-media-break/bids/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-02_screenshot.jpg'], ['signatures/lab/JA101CD/c1.png', 'social-media-break/identifying/signatures/sub-JA101CD/sub-JA101CD_consent-v1_signature.png']]);
-  assert.deepEqual(out.counts, { labParticipants: 2, labConsents: 2, labDonations: 1, labArchives: 1, labScreenshots: 1, labSignatures: 1 });
-  const labTsv = out.files.find((f) => f.path === 'social-media-break/bids/participants.tsv')!.body;
+  assert.deepEqual(Array.from(out.copies.entries()), [
+    ['lab/JA101CD/u1.zip', 'social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-01_archive.zip'],
+    ['lab/JA101CD/u3.png', 'social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_screenshot.png'],
+    ['lab/JA101CD/u4.jpg', 'social-media-break/donations/sourcedata/sub-JA101CD/ses-post/sub-JA101CD_ses-post_run-01_screenshot.jpg'],
+    ['signatures/lab/JA101CD/c1.png', 'social-media-break/identifying/signatures/sub-JA101CD/sub-JA101CD_consent-v1_signature.png'],
+  ]);
+  assert.deepEqual(out.counts, { labParticipants: 2, labConsents: 2, labDonations: 3, labArchives: 1, labScreenshots: 2, labSignatures: 1 });
+  const labTsv = out.files.find((f) => f.path === 'social-media-break/donations/participants.tsv')!.body;
   assert.ok(!labTsv.includes('Jane') && !labTsv.includes('Zed') && !labTsv.includes('AB1'), 'names and postcodes stay out of the research dataset');
-  assert.ok(labTsv.includes('\tiphone\t'));
+  assert.ok(labTsv.includes('\tiphone\t') && labTsv.includes('pre; post'));
+});
+
+test('a cleaned archive is unpacked into one BIDS behavioural table per kind of record', async () => {
+  const JSZip = (await import('jszip')).default;
+  const { ARCHIVE_TABLES, archiveTablePath, archiveTablesFor, buildArchiveTables } = await import('./exportLab.js');
+  const zip = new JSZip();
+  zip.file('manifest.json', JSON.stringify({ cleaner: 'MyPhone/MyBrain data donation cleaner 1.0', platforms: ['tiktok', 'youtube'] }));
+  zip.file('tiktok_cleaned.json', JSON.stringify({ Activity: { WatchHistory: [{ Date: '2026-09-01 20:11:03', Link: 'https://t/1' }], Searches: [{ Date: '2026-09-02 08:00:00', SearchTerm: 'study tips' }], Likes: [{ date: '2026-09-01', link: 'https://t/5' }], Shares: [{ Date: '2026-09-03', Link: 'https://t/4', Method: 'copy_link' }], Reposts: [], LoginTimestamps: [{ Date: '2026-09-01 20:10:00' }] }, AggregateCounts: { 'Your Activity': 12, Profile: 3 } }));
+  zip.file('youtube/history/watch-history.json', JSON.stringify([{ header: 'YouTube', title: 'Watched How brains work', titleUrl: 'https://y/abc', subtitles: [{ name: 'Brain Channel', url: 'https://y/c/1' }], time: '2026-10-01T14:01:48.000Z' }]));
+  zip.file('youtube/subscriptions/subscriptions.csv', 'Channel Id,Channel Url,Channel Title\nUC1,https://y/c/1,"Brain, Channel"\n');
+  const file = { kind: 'archive', entries: ['manifest.json', 'tiktok_cleaned.json', 'youtube/history/watch-history.json', 'youtube/subscriptions/subscriptions.csv'], categories: ['tt_watch', 'tt_search', 'tt_engage', 'tt_login', 'tt_counts', 'yt_watch', 'yt_subs'] };
+  const tables = archiveTablesFor(file);
+  assert.deepEqual(tables.map((t) => t.task), ['tiktokwatch', 'tiktoksearch', 'tiktokengage', 'tiktokapp', 'tiktoktotals', 'youtubewatch', 'youtubesubs'], 'no table for the search history that was not exported, nor for an unticked category');
+  assert.equal(archiveTablesFor({ kind: 'archive', entries: ['manifest.json', 'tiktok_cleaned.json'], categories: ['tt_watch'] }).length, 1);
+  const session = { code: 'JA101CD', label: 'sub-JA101CD', session: 'ses-pre', phase: 'pre', donations: [], files: [] };
+  assert.equal(archiveTablePath(session, 1, 'tiktokwatch'), 'sub-JA101CD/ses-pre/beh/sub-JA101CD_ses-pre_task-tiktokwatch_run-01_beh');
+  const out = await buildArchiveTables(await zip.generateAsync({ type: 'nodebuffer' }), tables.map((table) => ({ table, base: `x/${table.task}` })));
+  const body = (task: string) => out.find((f) => f.path === `x/${task}.tsv`)!.body;
+  assert.equal(body('tiktokwatch'), 'time\tlink\n2026-09-01 20:11:03\thttps://t/1\n');
+  assert.equal(body('tiktokengage'), 'time\taction\tlink\tmethod\n2026-09-01\tlike\thttps://t/5\tn/a\n2026-09-03\tshare\thttps://t/4\tcopy_link\n');
+  assert.equal(body('tiktoktotals'), 'section\titems\nYour Activity\t12\nProfile\t3\n');
+  assert.equal(body('youtubewatch'), 'time\ttitle\turl\tchannel\tchannel_url\n2026-10-01T14:01:48.000Z\tWatched How brains work\thttps://y/abc\tBrain Channel\thttps://y/c/1\n');
+  assert.equal(body('youtubesubs'), 'channel_id\tchannel_url\tchannel_title\nUC1\thttps://y/c/1\tBrain, Channel\n');
+  assert.ok(JSON.parse(out.find((f) => f.path === 'x/tiktokwatch.json')!.body).TaskName === 'tiktokwatch');
+  assert.equal(ARCHIVE_TABLES.length, 8);
 });
