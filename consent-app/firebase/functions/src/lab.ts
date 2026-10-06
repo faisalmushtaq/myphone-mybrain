@@ -74,7 +74,7 @@ export interface LabConsentPayload {
 }
 
 export interface CodeParts {
-  mother: string;
+  firstName: string;
   house: string;
   month: string;
   postcode: string;
@@ -117,15 +117,15 @@ export function normaliseCode(code: unknown): string | null {
   return PARTICIPANT_CODE.test(c) ? c : null;
 }
 
-/** The questionnaire's rule, as in the app's src/lab/config.ts: mother's first two letters, house number's first digit, birth month, postcode's last two letters. */
+/** The questionnaire's rule, as in the app's src/lab/config.ts: the first two letters of the person's own first name (accents dropped), house number's first digit, birth month, postcode's last two letters. */
 export function buildParticipantCode(parts: CodeParts): string {
-  const letters = (s: string) => s.toUpperCase().replace(/[^A-Z]/g, '');
-  const mother = letters(parts.mother).slice(0, 2);
+  const letters = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
+  const name = letters(parts.firstName).slice(0, 2);
   const house = parts.house.replace(/\D/g, '').slice(0, 1);
   const month = parts.month.replace(/\D/g, '');
   const postcode = letters(parts.postcode).slice(-2);
   const mm = month.length === 1 ? `0${month}` : month.slice(-2);
-  return `${mother}${house}${mm}${postcode}`;
+  return `${name}${house}${mm}${postcode}`;
 }
 
 /** A postcode upper-cased with one space before the inward code ("ls29jt" → "LS2 9JT"). */
@@ -137,7 +137,7 @@ export function formatPostcode(input: string): string {
 /** The answers as kept: trimmed, the postcode in its standard form, the month two digits. */
 export function normaliseCodeParts(parts: CodeParts): CodeParts {
   const month = parts.month.replace(/\D/g, '');
-  return { mother: parts.mother.trim(), house: parts.house.trim(), month: month.length === 1 ? `0${month}` : month.slice(-2), postcode: formatPostcode(parts.postcode) };
+  return { firstName: parts.firstName.trim(), house: parts.house.trim(), month: month.length === 1 ? `0${month}` : month.slice(-2), postcode: formatPostcode(parts.postcode) };
 }
 
 export function validateLabConsentPayload(input: unknown): string[] {
@@ -148,7 +148,7 @@ export function validateLabConsentPayload(input: unknown): string[] {
   if (!code) problems.push('The participant code is malformed.');
   if (p.codeParts !== null && p.codeParts !== undefined) {
     const cp = p.codeParts;
-    if (!isObj(cp) || !str(cp.mother, 40) || !str(cp.house, 10) || !str(cp.month, 2) || !str(cp.postcode, 10)) problems.push('The code answers are malformed.');
+    if (!isObj(cp) || !str(cp.firstName, 40) || !str(cp.house, 10) || !str(cp.month, 2) || !str(cp.postcode, 10)) problems.push('The code answers are malformed.');
     else {
       if (!UK_POSTCODE.test(formatPostcode(cp.postcode as string))) problems.push('The postcode is not a full UK postcode.');
       if (code && buildParticipantCode(cp as unknown as CodeParts) !== code) problems.push('The participant code does not match the answers it was built from.');

@@ -89,7 +89,8 @@ export function loadLabState(flow: LabFlow): LabState | null {
       // The page decides the flow and the phase; saved progress from before they existed is read in as the first page's.
       flow,
       phase: labFlowPhase[flow],
-      codeParts: { ...base.codeParts, ...(parsed.codeParts ?? {}) },
+      // Only the answers the code is built from now; anything else saved under an older scheme is dropped.
+      codeParts: { firstName: parsed.codeParts?.firstName ?? '', house: parsed.codeParts?.house ?? '', month: parsed.codeParts?.month ?? '', postcode: parsed.codeParts?.postcode ?? '' },
       consent: { ...base.consent, ...(parsed.consent ?? {}) },
       submission: { ...base.submission, ...(parsed.submission ?? {}) },
       checkIn: { ...base.checkIn, ...(parsed.checkIn ?? {}) },

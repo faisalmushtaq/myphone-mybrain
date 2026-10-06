@@ -20,7 +20,7 @@ const consent = () => ({
     confirmedDate: now.slice(0, 10),
     completedAt: now as string | null,
   },
-  codeParts: { mother: 'Jane', house: '123', month: '01', postcode: 'ab1 2cd' } as Record<string, string> | null,
+  codeParts: { firstName: 'Jane', house: '123', month: '01', postcode: 'ab1 2cd' } as Record<string, string> | null,
   client,
 });
 
@@ -67,26 +67,28 @@ test('a complete lab consent is accepted; missing statements, old versions, bad 
   typedCode.codeParts = null;
   assert.deepEqual(validateLabConsentPayload(typedCode), [], 'a typed code comes without the answers');
   const mismatch = consent();
-  mismatch.codeParts = { mother: 'Sam', house: '9', month: '01', postcode: 'AB1 2CD' };
+  mismatch.codeParts = { firstName: 'Sam', house: '9', month: '01', postcode: 'AB1 2CD' };
   assert.ok(validateLabConsentPayload(mismatch).some((p) => p.includes('does not match the answers')));
   for (const postcode of ['LS2 9JT', 'ls29jt', 'M1 1AE', 'B33 8TH', 'CR2 6XH', 'DN55 1PT', 'W1A 0AX', 'EC1A 1BB', 'GIR 0AA', 'ab1 2cd']) {
     const good = consent();
-    good.codeParts = { mother: 'Jane', house: '123', month: '01', postcode };
+    good.codeParts = { firstName: 'Jane', house: '123', month: '01', postcode };
     good.participantCode = buildParticipantCode(good.codeParts as never);
     assert.deepEqual(validateLabConsentPayload(good), [], `${postcode} is a UK postcode`);
   }
   for (const postcode of ['LS2', 'LS2 9J', '12345', 'LS2 JT9', 'L 9JT', 'XX XX', 'SW1A1AAA']) {
     const bad = consent();
-    bad.codeParts = { mother: 'Jane', house: '123', month: '01', postcode };
+    bad.codeParts = { firstName: 'Jane', house: '123', month: '01', postcode };
     assert.ok(validateLabConsentPayload(bad).includes('The postcode is not a full UK postcode.'), `${postcode} is refused`);
   }
 });
 
 test('the code is rebuilt from the answers exactly as the questionnaire does, and the answers are kept tidied', () => {
-  assert.equal(buildParticipantCode({ mother: 'jane', house: '123a', month: '1', postcode: 'ab1 2cd' }), 'JA101CD');
-  assert.equal(buildParticipantCode({ mother: 'Zoë', house: '7', month: '12', postcode: 'LS2 9JT' }), 'ZO712JT');
-  assert.deepEqual(normaliseCodeParts({ mother: ' Jane ', house: '123', month: '1', postcode: 'ab1  2cd' }), { mother: 'Jane', house: '123', month: '01', postcode: 'AB1 2CD' });
-  assert.equal(normaliseCodeParts({ mother: 'Jane', house: '1', month: '01', postcode: 'ls29jt' }).postcode, 'LS2 9JT', 'the space goes before the inward code');
+  assert.equal(buildParticipantCode({ firstName: 'jane', house: '123a', month: '1', postcode: 'ab1 2cd' }), 'JA101CD');
+  assert.equal(buildParticipantCode({ firstName: 'Zoë', house: '7', month: '12', postcode: 'LS2 9JT' }), 'ZO712JT');
+  assert.equal(buildParticipantCode({ firstName: 'Élodie', house: '14', month: '03', postcode: 'LS6 1AB' }), 'EL103AB', 'accents dropped, as the app does');
+  assert.notEqual(buildParticipantCode({ firstName: 'Amira', house: '14', month: '03', postcode: 'LS6 1AB' }), buildParticipantCode({ firstName: 'Yasmin', house: '14', month: '03', postcode: 'LS6 1AB' }), 'twins get different codes');
+  assert.deepEqual(normaliseCodeParts({ firstName: ' Jane ', house: '123', month: '1', postcode: 'ab1  2cd' }), { firstName: 'Jane', house: '123', month: '01', postcode: 'AB1 2CD' });
+  assert.equal(normaliseCodeParts({ firstName: 'Jane', house: '1', month: '01', postcode: 'ls29jt' }).postcode, 'LS2 9JT', 'the space goes before the inward code');
 });
 
 test('donation payloads: kinds, sizes, duplicates and categories are checked', () => {

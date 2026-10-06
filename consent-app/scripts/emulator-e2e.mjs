@@ -332,7 +332,8 @@ async function inner() {
     await page.getByRole('heading', { name: /Take part in the social media break study/ }).waitFor();
     await snap('welcome');
     await page.getByRole('button', { name: 'Start', exact: true }).click();
-    await page.getByLabel('Your mother’s first name').fill('Jane');
+    ok('the code is built from the person’s own first name; a parent’s name is not asked', (await page.getByLabel(/mother/i).count()) === 0 && (await page.getByLabel('Your first name').count()) === 1);
+    await page.getByLabel('Your first name').fill('Jane');
     await page.getByLabel('Your house number').fill('123');
     await page.getByLabel('The month you were born').selectOption('01');
     await page.getByLabel('Your postcode').fill('ab1');
@@ -390,7 +391,7 @@ async function inner() {
     ok('lab consent recorded against the participant code', Boolean(labParticipant?.consentId) && labParticipant?.consentVersion === 1 && labParticipant?.archiveCount === 0);
     const labConsent = labParticipant?.consentId ? (await db.collection('labConsents').doc(labParticipant.consentId).get()).data() : null;
     ok('lab consent record complete, every statement agreed, drawn signature under signatures/lab/', labConsent?.typedName === 'Jane Doe' && Object.keys(labConsent?.responses ?? {}).length === 9 && labConsent?.responses?.['data-kept']?.response === 'agreed' && labConsent?.responses?.['link-records']?.response === 'declined' && labConsent?.signature?.image?.path?.startsWith('signatures/lab/JA101CD/') && labConsent?.formVersion === '2.0-draft' && labConsent?.informationVersion === '2.0');
-    ok('the four code answers are kept with the consent, tidied', labConsent?.codeParts?.mother === 'Jane' && labConsent?.codeParts?.house === '123' && labConsent?.codeParts?.month === '01' && labConsent?.codeParts?.postcode === 'AB1 2CD');
+    ok('the four code answers are kept with the consent, tidied', labConsent?.codeParts?.firstName === 'Jane' && labConsent?.codeParts?.mother === undefined && labConsent?.codeParts?.house === '123' && labConsent?.codeParts?.month === '01' && labConsent?.codeParts?.postcode === 'AB1 2CD');
     ok('the code row carries no name', !JSON.stringify(labParticipant).includes('Jane'));
 
     // Back with the download: clean it on the device, then the review page sends it under the phase already chosen.
@@ -447,6 +448,10 @@ async function inner() {
     const welcomeText = await elsewhere.locator('.mpmb-step').innerText();
     ok('on another device the person carries on where they left off: the server says what has arrived', welcomeText.includes('1 screen-time screenshot and 1 cleaned app-data file') && welcomeText.includes('Everything the study needs from before your break is in'), welcomeText.slice(0, 300));
     await elsewhere.screenshot({ path: path.join(root, 'dist-emulator', 'lab-welcome-back.png'), fullPage: true });
+    // A twin, or anyone else whose answers give the same code: "That isn't me" says what to do instead of carrying on.
+    await elsewhere.getByRole('button', { name: 'That isn’t me' }).click();
+    await elsewhere.getByText('Someone has already taken part with the code JA101CD.').waitFor();
+    ok('someone who shares a code is told not to carry on and to contact the team', (await elsewhere.getByText(/twins whose first names start with the same two letters/).count()) === 1 && (await elsewhere.getByRole('link', { name: 'M.Faizah@leeds.ac.uk' }).count()) >= 1);
     await other.close();
 
     // During the break: the check-in page recognises the code saved on this device; nothing to sign.

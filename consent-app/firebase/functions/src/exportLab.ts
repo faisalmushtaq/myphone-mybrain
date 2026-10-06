@@ -340,7 +340,7 @@ export function labConsentTables(docs: Doc[]): { records: Row[]; statements: Row
     form_version: d.formVersion,
     information_version: d.informationVersion,
     typed_name: d.typedName,
-    mother_first_name: d.codeParts?.mother,
+    first_name: d.codeParts?.firstName,
     house_number: d.codeParts?.house,
     birth_month: d.codeParts?.month,
     postcode: d.codeParts?.postcode,
@@ -417,7 +417,7 @@ export function labDatasetDescription(exportedAt: string): Record<string, unknow
 
 export function labParticipantsDictionary(): Record<string, unknown> {
   return {
-    participant_id: { Description: 'sub- followed by the participant code the lab questionnaire builds (mother’s initials, house number digit, birth month, postcode letters). The same code labels the laboratory data, so the two meet without a name.' },
+    participant_id: { Description: 'sub- followed by the participant code the lab questionnaire builds (first two letters of the participant’s first name, house number digit, birth month, postcode letters). The same code labels the laboratory data, so the two meet without a name.' },
     consented_on: { Description: 'Date the participant confirmed consent on the website, from the current consent record' },
     consent_version: { Description: 'Version of the consent form wording agreed to' },
     information_version: { Description: 'Version of the participant information sheet shown' },
@@ -518,8 +518,8 @@ Participants are labelled by the code the laboratory questionnaire builds
 (sub-JA101CD), so this data and the laboratory data can be joined without a
 name. Names and signatures from the consent records are kept outside this
 dataset, in the identifying/ folder next to it, for study coordinators only,
-together with the four answers the code was built from (mother's first name,
-house number, birth month and postcode), which the team also uses as research
+together with the four answers the code was built from (first name, house
+number, birth month and postcode), which the team also uses as research
 variables. Participants listed in participants.tsv without a subject folder
 have consented but not sent anything yet.
 
@@ -566,7 +566,7 @@ Regenerated every hour as a mirror of the database; do not edit files here.
 
 consents.tsv             every consent record, by participant code, with the typed
                          name and the four answers the code was built from
-                         (mother's first name, house number, birth month, postcode);
+                         (first name, house number, birth month, postcode);
                          a second consent for the same code is a new row and
                          supersedes points at the one before
 consent_statements.tsv   one row per statement per consent record

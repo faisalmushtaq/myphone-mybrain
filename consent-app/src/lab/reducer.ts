@@ -43,7 +43,7 @@ export function initialLabState(flow: LabFlow = 'baseline'): LabState {
   return {
     flow,
     stepId: labFlowSteps[flow][0],
-    codeParts: { mother: '', house: '', month: '', postcode: '' },
+    codeParts: { firstName: '', house: '', month: '', postcode: '' },
     code: '',
     codeConfirmed: false,
     confirmedCode: null,

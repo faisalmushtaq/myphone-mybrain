@@ -119,7 +119,7 @@ export interface LabConsentPayload {
   participantCode: string;
   consent: LabConsentRecord;
   /** The four answers the code was built from (kept as identifying data with the consent); null when an existing code was typed. */
-  codeParts: { mother: string; house: string; month: string; postcode: string } | null;
+  codeParts: { firstName: string; house: string; month: string; postcode: string } | null;
   client: ClientInfo;
 }
 

@@ -72,12 +72,12 @@ with a role claim.
 | `submissions/{referenceCode}` | one row per family: kind, route, the *current* `consentId` and `assentId`, `version`, `versions[]` (one entry per send with the record ids and time), `donationIds[]`, `imageCount`, session uid, user agent | `coordinator` |
 | `enquiries/{id}` | messages from the website's contact and school forms, with whether the team was emailed (`notified`: sent, failed or not-configured). Families are never emailed; they download their copy of the record instead | `coordinator` |
 
-The social media break study (adults; `src/lab/` in the app, `lab.ts` in the functions) keeps its own collections, keyed by the participant code the lab questionnaire builds (for example `JA101CD`: mother's first two letters, first digit of the house number, two-digit birth month, last two letters of the postcode), so the donated data and the laboratory data meet without a name:
+The social media break study (adults; `src/lab/` in the app, `lab.ts` in the functions) keeps its own collections, keyed by the participant code the lab questionnaire builds (for example `JA101CD`: the first two letters of the participant's own first name, first digit of the house number, two-digit birth month, last two letters of the postcode; the person's own name keeps twins apart), so the donated data and the laboratory data meet without a name:
 
 | Collection | Holds | Who may read |
 |---|---|---|
 | `labParticipants/{code}` | one row per code: the current `consentId` and `consentVersion`, `consentedAt`, `archiveCount`, `screenshotCount`, the same counts by phase in `phaseCounts.{pre,mid,post}`, `donationIds[]`, `checkInIds[]` and `checkInCount`, the session uids seen. **No names.** | `researcher`, `coordinator` |
-| `labConsents/{id}` | the consent record: form and information versions, the eight required statements (including that what is sent is kept unless the person formally withdraws) and the optional record-linkage answer, typed name, signature (method and a reference to the PNG), confirmed date, completion time, client info, `version` and `supersedes`, and `codeParts`: the four answers the code was built from (mother's first name, house number, birth month, postcode), which the team also uses as research variables. Never edited. | `coordinator`, `auditor` |
+| `labConsents/{id}` | the consent record: form and information versions, the eight required statements (including that what is sent is kept unless the person formally withdraws) and the optional record-linkage answer, typed name, signature (method and a reference to the PNG), confirmed date, completion time, client info, `version` and `supersedes`, and `codeParts`: the four answers the code was built from (`firstName`, house number, birth month, postcode), which the team also uses as research variables. Never edited. | `coordinator`, `auditor` |
 | `labDonations/{id}` | one document per send: the phone type chosen on the screenshots step, the phase of the page it came from (`pre` the first page, `mid` a check-in, with its `checkInId`, `post` the after-break page), and for each file its kind (`archive` or `screenshot`), Storage path, size, SHA-256; for archives the platforms, categories and row counts from the cleaner's manifest and the file names inside; for screenshots the dimensions and the same `quality` result as the family app's images. **No names.** | `researcher`, `coordinator` |
 | `labCheckIns/{id}` | one document per mid-break check-in: the code, which check-in it was for them (`number`), the form version and the answers by question id. **No names.** | `researcher`, `coordinator` |
 | `labReminders/{code}` | when a participant presses "I'll come back later" and asks for an email: the address, which page it is about (`phase`: `pre` or `post`), when the progress email went and whether it was sent, when the one follow-up is due and whether it went, and `completedAt` once files for that page arrive (which cancels the follow-up). Identifying. | `coordinator` |
@@ -393,7 +393,7 @@ withdrawal is not final there until it is emptied.
   dataset. The emails go from the study's Gmail account with the lab
   contact as reply-to.
 * **The lab study's code answers.** The participant code is built from
-  the mother's first name, the house number, the birth month and the
+  the participant's first name, the house number, the birth month and the
   postcode, and those four answers are kept as well, because the team uses
   them as research variables. House number plus postcode is a home address,
   so they live only on the consent record (`labConsents`, coordinators and

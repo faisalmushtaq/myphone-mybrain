@@ -326,30 +326,44 @@ export const labMyStory: { name: string; url: string | null; codeParam: string }
 
 /**
  * The participant code, built exactly as the lab questionnaire builds it so
- * the two match: first two letters of your mother's first name, the first
+ * the two match: the first two letters of your own first name, the first
  * digit of your house number, the month you were born (two digits), and the
  * last two letters of your postcode. For example Jane, 123, January, AB1 2CD
- * gives JA101CD. The four answers themselves are also kept, with the consent
- * record (identifying data, never in the research dataset): the team uses
- * them as research variables too.
+ * gives JA101CD. The person's own name (not a parent's) keeps twins apart,
+ * who share everything else; twins whose names start with the same two
+ * letters still share a code, and the code step tells the second of them to
+ * contact the team. Accents are dropped (Élodie gives EL), as a person
+ * writing the letters would. The four answers themselves are also kept, with
+ * the consent record (identifying data, never in the research dataset): the
+ * team uses them as research variables too.
  */
 export const PARTICIPANT_CODE = /^[A-Z]{2}\d(0[1-9]|1[0-2])[A-Z]{2}$/;
 
 export interface CodeParts {
-  mother: string;
+  firstName: string;
   house: string;
   month: string;
   postcode: string;
 }
 
+/** Plain capital letters only, accents dropped first: "Élodie" gives "ELODIE". */
+function plainLetters(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
+}
+
 export function buildParticipantCode(parts: CodeParts): string {
-  const letters = (s: string) => s.toUpperCase().replace(/[^A-Z]/g, '');
-  const mother = letters(parts.mother).slice(0, 2);
+  const letters = plainLetters;
+  const name = letters(parts.firstName).slice(0, 2);
   const house = parts.house.replace(/\D/g, '').slice(0, 1);
   const month = parts.month.replace(/\D/g, '');
   const postcode = letters(parts.postcode).slice(-2);
   const mm = month.length === 1 ? `0${month}` : month.slice(-2);
-  return `${mother}${house}${mm}${postcode}`;
+  return `${name}${house}${mm}${postcode}`;
+}
+
+/** Whether a first name gives the code its two letters. */
+export function nameHasTwoLetters(firstName: string): boolean {
+  return plainLetters(firstName).length >= 2;
 }
 
 /**

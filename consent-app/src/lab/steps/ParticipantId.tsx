@@ -6,7 +6,7 @@ import { SelectField, TextField } from '../../components/ui/Field';
 import { announce } from '../../lib/announce';
 import { formatTimestamp } from '../../lib/dates';
 import { describeError, labSession } from '../api';
-import { buildParticipantCode, formatPostcode, isUkPostcode, labPages, labStudy, normaliseParticipantCode } from '../config';
+import { buildParticipantCode, formatPostcode, isUkPostcode, labPages, labStudy, nameHasTwoLetters, normaliseParticipantCode } from '../config';
 import { LabShell } from '../LabShell';
 import { nextFilesStep, phaseHave, resumeStep } from '../reducer';
 import { useLab } from '../store';
@@ -47,6 +47,8 @@ export function ParticipantId() {
   const [busy, setBusy] = useState(false);
   const [welcome, setWelcome] = useState(false);
   const [noConsent, setNoConsent] = useState<string | null>(null);
+  // The code someone said was not theirs: it already has another person's consent.
+  const [notMine, setNotMine] = useState<string | null>(null);
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
   const parts = state.codeParts;
   const built = buildParticipantCode(parts);
@@ -59,7 +61,7 @@ export function ParticipantId() {
 
   const validateParts = (): FieldError[] => {
     const found: FieldError[] = [];
-    if (parts.mother.replace(/[^A-Za-z]/g, '').length < 2) found.push({ field: 'lab-mother', message: 'Enter your mother’s first name (at least two letters).' });
+    if (!nameHasTwoLetters(parts.firstName)) found.push({ field: 'lab-first-name', message: 'Enter your first name (at least two letters).' });
     if (!/\d/.test(parts.house)) found.push({ field: 'lab-house', message: 'Enter your house number.' });
     if (!parts.month) found.push({ field: 'lab-month', message: 'Choose the month you were born.' });
     if (!parts.postcode.trim()) found.push({ field: 'lab-postcode', message: 'Enter your postcode.' });
@@ -69,6 +71,7 @@ export function ParticipantId() {
 
   const next = async () => {
     setNoConsent(null);
+    setNotMine(null);
     const found = state.returning ? validateCode(typed) : [...validateParts(), ...(validateParts().length ? [] : validateCode(built))];
     setErrors(found);
     if (found.length) return;
@@ -92,7 +95,7 @@ export function ParticipantId() {
       }
       dispatch({ type: 'go-to', stepId: resumeStep({ ...state, progress: lookup }) });
     } catch (error) {
-      setErrors([{ field: state.returning ? 'lab-code' : 'lab-mother', message: describeError(error, 'your code') }]);
+      setErrors([{ field: state.returning ? 'lab-code' : 'lab-first-name', message: describeError(error, 'your code') }]);
     } finally {
       setBusy(false);
     }
@@ -111,6 +114,7 @@ export function ParticipantId() {
           </p>
         </Callout>
         <p>{nextStep === 'screenshots' ? 'Next: your screen-time screenshots. They take a few minutes and go to the team straight away.' : nextStep === 'guide' ? 'Next: your app data. Request the download, or if it has arrived, clean it and send it.' : 'Everything the study needs from before your break is in. You can add more files if you like.'}</p>
+        <p className="mpmb-hint">If you have never given consent for this study, this code belongs to someone else: press “That isn’t me”.</p>
         <div className="mpmb-actions">
           <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: nextStep === 'done' ? 'screenshots' : nextStep })}>
             {nextStep === 'screenshots' ? 'Continue: my screenshots' : nextStep === 'guide' ? 'Continue: my app data' : 'Add more files'}
@@ -119,7 +123,9 @@ export function ParticipantId() {
             variant="ghost"
             onClick={() => {
               setWelcome(false);
-              dispatch({ type: 'code', code: '', returning: state.returning });
+              setNotMine(code);
+              // Keep the answers so they can be checked; the typed code is cleared.
+              dispatch({ type: 'code', code: state.returning ? '' : state.code, returning: state.returning });
             }}
           >
             That isn’t me
@@ -138,7 +144,7 @@ export function ParticipantId() {
     state.returning ? (
       <p>It is the code the questionnaire gave you, such as JA101CD.</p>
     ) : (
-      <p>The questionnaire in the lab builds the same code from these four answers, so your data and your questionnaire can be matched without using your name. Your four answers are kept with your consent record too, for the research.</p>
+      <p>The questionnaire in the lab builds the same code from these four answers, so your data and your questionnaire can be matched without either of them holding your name. Your four answers are kept with your consent record too, for the research.</p>
     )
   ) : state.flow === 'checkin' ? (
     <p>A few quick questions about how your break is going: about two minutes. Your participant code joins your answers up with the rest of your data, never your name. You gave your consent at the start, so there is nothing to sign.</p>
@@ -148,6 +154,13 @@ export function ParticipantId() {
 
   return (
     <LabShell kicker={words.kicker} title={state.returning ? words.typed : words.build} intro={lead} errors={errors} onContinue={() => void next()} continueLoading={busy} hideBack={!firstPage}>
+      {notMine && (
+        <Callout tone="important" role="alert">
+          <p>
+            <strong>Someone has already taken part with the code {notMine}.</strong> Two people can end up with the same code, for example twins whose first names start with the same two letters. Check your answers below. If they are right, please do not carry on with this code: contact {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}?subject=${encodeURIComponent(`Participant code ${notMine} is already taken`)}`}>{labStudy.contact.email}</a> and the team will give you a code to use.
+          </p>
+        </Callout>
+      )}
       {noConsent && (
         <Callout tone="important" role="alert">
           <p>
@@ -178,7 +191,7 @@ export function ParticipantId() {
       ) : (
         <div className="mpmb-fields">
           {!firstPage && <p>Answer these four questions as you did at the start and we will rebuild your code.</p>}
-          <TextField id="lab-mother" label="Your mother’s first name" hint="The first two letters go into your code." required autoComplete="off" maxLength={40} width="half" value={parts.mother} onChange={(e) => dispatch({ type: 'code-parts', parts: { mother: e.target.value } })} error={errs['lab-mother']} />
+          <TextField id="lab-first-name" label="Your first name" hint="The first two letters go into your code." required autoComplete="given-name" maxLength={40} width="half" value={parts.firstName} onChange={(e) => dispatch({ type: 'code-parts', parts: { firstName: e.target.value } })} error={errs['lab-first-name']} />
           <TextField id="lab-house" label="Your house number" hint="The first digit goes into your code." required inputMode="numeric" autoComplete="off" maxLength={6} width="short" value={parts.house} onChange={(e) => dispatch({ type: 'code-parts', parts: { house: e.target.value } })} error={errs['lab-house']} />
           <SelectField id="lab-month" label="The month you were born" required options={months.map((m, i) => ({ value: String(i + 1).padStart(2, '0'), label: m }))} value={parts.month} onChange={(e) => dispatch({ type: 'code-parts', parts: { month: e.target.value } })} error={errs['lab-month']} />
           <TextField id="lab-postcode" label="Your postcode" hint="Your full UK postcode, such as LS2 9JT. The last two letters go into your code." required autoComplete="postal-code" autoCapitalize="characters" maxLength={10} width="half" className="mpmb-input--upper" value={parts.postcode} onChange={(e) => dispatch({ type: 'code-parts', parts: { postcode: e.target.value } })} onBlur={() => parts.postcode && dispatch({ type: 'code-parts', parts: { postcode: formatPostcode(parts.postcode) } })} error={errs['lab-postcode']} />

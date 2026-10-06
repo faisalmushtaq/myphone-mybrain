@@ -109,7 +109,7 @@ test('the lab dataset is labelled by participant code, has one session per phase
     checkIns: [{ id: 'k1', data: { participantCode: 'JA101CD', number: 1, formVersion: '0.1-draft', receivedAt: '2026-10-20T10:00:00.000Z', answers: { week: '2', 'apps-used': 'never', mood: '4', difficulty: '3', missed: '2', notes: 'Brick held up fine' } } }],
     participants: [{ id: 'JA101CD', data: { consentId: 'c1', consentVersion: 1, archiveCount: 1, screenshotCount: 2 } }, { id: 'ZZ912AB', data: { consentId: 'c2', consentVersion: 1 } }],
     consents: [
-      { id: 'c1', data: { participantCode: 'JA101CD', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-05', typedName: 'Jane Doe', codeParts: { mother: 'Jane', house: '123', month: '01', postcode: 'AB1 2CD' }, responses: { 'take-part': { version: '1.0', response: 'agreed', respondedAt: '2026-10-05T09:00:00.000Z', via: 'individual' } }, signature: { method: 'drawn', image: { path: 'signatures/lab/JA101CD/c1.png' } } } },
+      { id: 'c1', data: { participantCode: 'JA101CD', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-05', typedName: 'Jane Doe', codeParts: { firstName: 'Jane', house: '123', month: '01', postcode: 'AB1 2CD' }, responses: { 'take-part': { version: '1.0', response: 'agreed', respondedAt: '2026-10-05T09:00:00.000Z', via: 'individual' } }, signature: { method: 'drawn', image: { path: 'signatures/lab/JA101CD/c1.png' } } } },
       { id: 'c2', data: { participantCode: 'ZZ912AB', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-06', typedName: 'Zed Zee', responses: {}, signature: { method: 'typed', typedName: 'Zed Zee', image: null } } },
     ],
     donations: [
@@ -145,7 +145,7 @@ test('the lab dataset is labelled by participant code, has one session per phase
   const { records, statements } = labConsentTables(snap.consents);
   assert.equal(records[0].typed_name, 'Jane Doe');
   assert.equal(records[0].postcode, 'AB1 2CD');
-  assert.equal(records[0].mother_first_name, 'Jane');
+  assert.equal(records[0].first_name, 'Jane');
   assert.equal(records[0].signature_file, 'signatures/sub-JA101CD/sub-JA101CD_consent-v1_signature.png');
   assert.equal(records[1].signature_file, null);
   assert.equal(statements[0].statement_id, 'take-part');
