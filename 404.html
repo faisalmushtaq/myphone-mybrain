@@ -13,6 +13,8 @@ page_intro: "We could not find that page. It may have moved, or the address may 
   (function () {
     var path = window.location.pathname;
     var lower = path.toLowerCase();
+    // A page's address ends in a slash (/gsal/); adding it here saves the server a second redirect.
+    if (lower !== path && !/\.[a-z0-9]+$/.test(lower) && lower.slice(-1) !== '/') lower += '/';
     if (lower !== path) window.location.replace(lower + window.location.search + window.location.hash);
   })();
 </script>

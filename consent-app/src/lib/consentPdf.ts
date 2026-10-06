@@ -278,7 +278,7 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
 
   w.heading('Changing your mind');
   w.paragraph(`You can stop at any time, from the whole study or from one part such as linking to health or school records, by emailing ${study.contact.email}. Quote your reference if you have it. Nobody will ask why.`);
-  w.paragraph(`If you have a concern about how the study is being run and would rather not raise it with the research team, contact ${study.contact.concerns.name} at ${study.contact.concerns.email}, who are independent of the study.`);
+  if (study.contact.concerns.email) w.paragraph(`If you have a concern about how the study is being run and would rather not raise it with the research team, contact ${study.contact.concerns.name} at ${study.contact.concerns.email}, who are independent of the study.`);
   w.note(`Produced on ${formatTimestamp(new Date().toISOString())} by the MyPhone/MyBrain consent form from the answers on this device. ${study.contact.team}.`);
   w.footer(reference);
 

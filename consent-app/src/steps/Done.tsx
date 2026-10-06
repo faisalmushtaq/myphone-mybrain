@@ -131,10 +131,12 @@ export function Done() {
           You can stop at any time, from the whole study or from one part such as linking to health or school records, by emailing <a href={`mailto:${study.contact.email}`}>{study.contact.email}</a>.
           Quote your reference if you have it. Nobody will ask why.
         </p>
-        <p>
-          If you have a concern about how the study is being run and would rather not raise it with the research team, contact {study.contact.concerns.name} at{' '}
-          <a href={`mailto:${study.contact.concerns.email}`}>{study.contact.concerns.email}</a>, who are independent of the study.
-        </p>
+        {study.contact.concerns.email && (
+          <p>
+            If you have a concern about how the study is being run and would rather not raise it with the research team, contact {study.contact.concerns.name} at{' '}
+            <a href={`mailto:${study.contact.concerns.email}`}>{study.contact.concerns.email}</a>, who are independent of the study.
+          </p>
+        )}
       </div>
 
       {!declined && (

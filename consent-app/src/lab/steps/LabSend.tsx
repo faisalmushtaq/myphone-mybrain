@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
 import { formatBytes } from '../../lib/image';
+import { categories } from '../cleaner';
 import { LabShell } from '../LabShell';
 import { PlatformChecklist } from '../PlatformChecklist';
 import type { LabArchive, LabScreenshot } from '../model';
@@ -59,7 +60,7 @@ export function LabSend() {
   }
 
   return (
-    <LabShell kicker="Send your data" title="Check and send." intro={<p>Everything below is sent together, linked to your participant ID <strong className="mpmb-mono">{state.code}</strong>, never to your name.</p>} errors={errors} onContinue={() => void send()} continueLabel="Send my data" continueLoading={busy} width="wide">
+    <LabShell kicker="Send your data" title="Check and send." intro={<p>Pressing “Send my data” sends the files marked “Ready to send”, linked to your participant ID <strong className="mpmb-mono">{state.code}</strong>, never to your name. Anything marked “Sent” is already with the team.</p>} errors={errors} onContinue={() => void send()} continueLabel="Send my data" continueLoading={busy} width="wide">
       {state.submission.donationStage === 'failed' && state.submission.donationError && (
         <Callout tone="important" role="alert">
           <p>{state.submission.donationError}</p>
@@ -69,9 +70,10 @@ export function LabSend() {
         <h2 className="mpmb-h3" id="send-shots-heading">
           Screen-time screenshots
         </h2>
-        {state.screenshots.length ? (
+        {pendingShots.length < state.screenshots.length && <p className="mpmb-hint">{state.screenshots.length - pendingShots.length} already sent.</p>}
+        {pendingShots.length ? (
           <ul className="mpmb-filelist" role="list">
-            {state.screenshots.map((s, i) => (
+            {pendingShots.map((s, i) => (
               <li key={s.id} className={s.status === 'failed' ? 'is-failed' : ''}>
                 <div>
                   <strong>Screenshot {i + 1}</strong> · {s.width} × {s.height} · {formatBytes(s.size)}
@@ -81,7 +83,7 @@ export function LabSend() {
             ))}
           </ul>
         ) : (
-          <p className="mpmb-hint">{received.screenshots ? `${received.screenshots} already received.` : 'None added yet.'}</p>
+          <p className="mpmb-hint">{received.screenshots || state.screenshots.length ? 'No new screenshots to send.' : 'None added yet.'}</p>
         )}
         <Button variant="link" onClick={() => dispatch({ type: 'go-to', stepId: 'screenshots' })}>
           {state.screenshots.length ? 'Add or remove screenshots' : 'Add screenshots'}
@@ -98,7 +100,7 @@ export function LabSend() {
               {files.map((a) => (
                 <li key={a.id} className={a.status === 'failed' ? 'is-failed' : ''}>
                   <div>
-                    {formatBytes(a.size)} · {a.categories.length} categories
+                    Keeps: {a.categories.map((id) => categories.find((c) => c.id === id)?.title ?? id).join(', ') || 'nothing'} · {formatBytes(a.size)}
                     <span className="mpmb-filelist__meta">{status(a)}</span>
                   </div>
                 </li>

@@ -83,10 +83,14 @@ export const study = {
     email: 'brainpop@leeds.ac.uk',
     phone: null as string | null, // PLACEHOLDER — add the team phone number if one is to be published
     team: 'The MyPhone/MyBrain team, University of Leeds',
-    /** Someone independent of the research team for concerns or complaints. PLACEHOLDER. */
+    /**
+     * Someone independent of the research team for concerns or complaints.
+     * PLACEHOLDER: not shown to families until a real address is set here
+     * (the thank-you page and the PDF leave the line out while email is null).
+     */
     concerns: {
       name: 'Faculty Research Ethics Committee, University of Leeds', // PLACEHOLDER — confirm the correct independent contact
-      email: 'research-ethics@example.leeds.ac.uk', // PLACEHOLDER
+      email: null as string | null, // PLACEHOLDER — the independent contact's address
     },
     contactPageUrl: '/contact/',
     privacyPageUrl: '/privacy/',
