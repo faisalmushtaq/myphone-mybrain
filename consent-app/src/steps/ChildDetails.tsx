@@ -6,7 +6,7 @@ import { DateField, SelectField, TextField } from '../components/ui/Field';
 import { dateOfBirthRange } from '../lib/dates';
 import { Icon } from '../components/ui/Icon';
 import { childFields, yearGroups } from '../config/fields';
-import { OTHER_SCHOOL_ID, schools } from '../config/schools';
+import { OTHER_SCHOOL_ID, schoolFromLink, schools } from '../config/schools';
 import { useStore } from '../state/context';
 import { limits, validateChildDetails, validateGuardian, type FieldError } from '../lib/validation';
 
@@ -46,6 +46,9 @@ export function ChildDetails() {
   };
 
   const schoolOptions = [...schools.map((s) => ({ value: s.id, label: s.name })), { value: OTHER_SCHOOL_ID, label: 'My school is not in the list' }];
+  // Chosen already by the school's own link: say so, and that it can be changed.
+  const linked = schoolFromLink();
+  const schoolHint = linked && linked.id === identity.schoolId ? `Filled in from ${linked.name}’s link. Change it if ${young ? 'you go' : 'your child goes'} to a different school.` : undefined;
 
   return (
     <StepShell
@@ -80,7 +83,7 @@ export function ChildDetails() {
         )}
         <div className="mpmb-fields__row">
           {childFields.school.enabled && (
-            <SelectField id="child-school" label={young ? 'Your school' : childFields.school.label} required={childFields.school.required} options={schoolOptions} placeholder="Choose a school" value={identity.schoolId} onChange={(e) => updateIdentity({ schoolId: e.target.value })} error={errs['child-school']} />
+            <SelectField id="child-school" label={young ? 'Your school' : childFields.school.label} required={childFields.school.required} hint={schoolHint} options={schoolOptions} placeholder="Choose a school" value={identity.schoolId} onChange={(e) => updateIdentity({ schoolId: e.target.value })} error={errs['child-school']} />
           )}
           {childFields.yearGroup.enabled && (
             <SelectField id="child-year-group" label={young ? 'Your year group' : childFields.yearGroup.label} required={childFields.yearGroup.required} options={yearGroups.map((y) => ({ value: y, label: y }))} placeholder="Choose" value={identity.yearGroup} onChange={(e) => updateIdentity({ yearGroup: e.target.value })} error={errs['child-year-group']} />

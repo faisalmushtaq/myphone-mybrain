@@ -17,6 +17,7 @@ plugins: []
 
 exclude:
   - consent-app
+  - README.md
 
 defaults:
   - scope:

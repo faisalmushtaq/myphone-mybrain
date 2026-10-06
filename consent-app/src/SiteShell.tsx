@@ -14,7 +14,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
       <header className="mpmb-site-header">
         <div className="mpmb-site-header__inner">
           <a className="mpmb-site-logo" href={`${SITE}/`} aria-label="MyPhone/MyBrain home">
-            <img src={logo} alt="MyPhone MyBrain" width="205" height="62" />
+            <img src={logo} alt="MyPhone MyBrain" width="210" height="62" />
           </a>
           <nav className="mpmb-site-nav" aria-label="Main navigation">
             <a href={`${SITE}/study/`}>About the study</a>

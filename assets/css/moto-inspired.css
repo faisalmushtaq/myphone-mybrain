@@ -197,7 +197,7 @@ p { max-width: 70ch; }
 .site-header { position: sticky; top: 0; height: var(--nav-h); z-index: 1000; background: var(--mpb-teal); border: 0; box-shadow: none; backdrop-filter: none; }
 .site-header.scrolled { background: var(--mpb-teal); box-shadow: none; }
 .header-inner { position: relative; height: 100%; max-width: 1200px; margin: 0 auto; padding-inline: clamp(1.35rem, 4vw, 3.5rem); display: flex; align-items: center; gap: 1.35rem; }
-.logo { position: static; z-index: 5; flex: 0 0 auto; width: 205px; height: 62px; display: grid; place-items: center; }
+.logo { position: static; z-index: 5; flex: 0 0 auto; width: 210px; height: 62px; display: grid; place-items: center; }
 .logo img { width: 100%; height: 100%; object-fit: contain; }
 .nav { margin-left: auto; gap: clamp(.55rem, .85vw, .9rem); }
 .nav a { color: #fff; font-size: 1.04rem; font-weight: 700; line-height: 1.2; }
@@ -440,3 +440,30 @@ input:focus, select:focus, textarea:focus { border-color: var(--mpb-teal); box-s
 fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin-left: .3rem; }
 .contact-text h2 { margin-bottom: 1rem; }
 .checkbox--single span { text-transform: none; font-size: 1rem; letter-spacing: 0; line-height: 1.4; }
+
+/* ── A school's page for parents (/dua/, /gsal/: _layouts/school.html) ── */
+.school-hero h1 { max-width: none; font-size: clamp(2.7rem, 6.4vw, 5.6rem); }
+.school-hero .school-hero__intro { max-width: 58ch; color: rgba(255,255,255,.85); font-size: clamp(1.08rem, 2vw, 1.32rem); line-height: 1.44; }
+.school-hero__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; margin-top: 1.8rem; }
+.school-hero__more { color: #fff; font-weight: 700; text-decoration: underline; text-underline-offset: .2em; }
+.school-hero__more:hover { color: var(--mpb-yellow); }
+.school-landing__grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.school-landing__grid .info-panel { margin: 0; }
+.school-landing__grid h2, .school-landing__more h2 { margin: 0 0 1rem; color: var(--mpb-teal); font-size: clamp(1.8rem, 3vw, 2.4rem); }
+.school-landing__cta { border-top: 6px solid var(--mpb-yellow); }
+.school-landing__cta .btn { margin-top: 1.4rem; }
+.school-steps { margin: 0; padding: 0; list-style: none; counter-reset: school-step; color: #234c51; line-height: 1.5; }
+.school-steps li { position: relative; padding-left: 2.4rem; counter-increment: school-step; }
+.school-steps li::before { content: counter(school-step); position: absolute; left: 0; top: .05rem; display: grid; place-items: center; width: 1.65rem; height: 1.65rem; border-radius: 50%; background: var(--mpb-teal); color: #fff; font-family: var(--f-mono); font-size: .8rem; font-weight: 500; }
+.school-steps li + li { margin-top: .7rem; }
+.school-landing__note, .school-landing__hint { margin: 1.2rem 0 0; max-width: 60ch; color: #45666b; line-height: 1.5; }
+.school-landing .reassurance-block { margin-top: 2.5rem; }
+.school-landing__more { margin-top: 2.5rem; }
+.school-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem 2rem; margin: 0; padding: 0; list-style: none; }
+@media (max-width: 680px) {
+  .school-landing__grid, .school-links { grid-template-columns: 1fr; }
+}
+
+/* ── Page not found ────────────────────────────────────────────────── */
+.not-found-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem 2rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+@media (max-width: 680px) { .not-found-links { grid-template-columns: 1fr; } }

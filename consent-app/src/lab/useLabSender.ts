@@ -11,7 +11,7 @@ type Item = { kind: 'archive'; item: LabArchive } | { kind: 'screenshot'; item: 
 
 /**
  * Uploads whatever is waiting of the given kinds and records the send against
- * the participant code, filed under the page's phase (before, during or after
+ * the participant ID, filed under the page's phase (before, during or after
  * the break). Used for the screenshots, which go first on their own, for the
  * cleaned file when the download has arrived, and for a check-in's
  * screenshots, which carry the check-in's id.

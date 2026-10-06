@@ -2,93 +2,104 @@ import { useState } from 'react';
 import { getApi } from '../../api';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
-import { SelectField, TextField } from '../../components/ui/Field';
+import { DateField, TextField } from '../../components/ui/Field';
 import { announce } from '../../lib/announce';
-import { formatTimestamp } from '../../lib/dates';
+import { formatTimestamp, isoYearsAgo } from '../../lib/dates';
 import { describeError, labSession } from '../api';
-import { buildParticipantCode, formatPostcode, isUkPostcode, labPages, labStudy, nameHasTwoLetters, normaliseParticipantCode } from '../config';
+import { ageFrom, buildParticipantId, formatPostcode, idName, isoDateOf, isUkPostcode, labPages, labStudy } from '../config';
 import { LabShell } from '../LabShell';
 import { namesOf } from '../PlatformChecklist';
 import { nextFilesStep, phaseHave, platformsToDo, resumeStep } from '../reducer';
 import { useLab } from '../store';
-import { validateCode, type FieldError } from '../validation';
+import type { FieldError } from '../validation';
 import { filesPhrase } from '../words';
 
-const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-const intro = {
+const words = {
   baseline: {
-    kicker: 'Your participant code',
-    build: 'Make your participant code.',
-    typed: 'Enter your participant code.',
+    kicker: 'About you',
+    title: 'Tell us who you are.',
+    lead: 'Your first name, last name, date of birth and postcode make your participant ID: the label on everything you send, instead of your name. The study’s questionnaire asks for the same four details, so your answers there and your data here can be matched.',
+    leadKnown: 'Your participant ID is the label on everything you send, instead of your name.',
   },
   checkin: {
     kicker: 'Mid-break check-in',
-    build: 'Your mid-break check-in.',
-    typed: 'Your mid-break check-in.',
+    title: 'Your mid-break check-in.',
+    lead: 'A few quick questions about how your break is going: about two minutes. First, enter the details you gave at the start so we can find your record. You gave your consent then, so there is nothing to sign.',
+    leadKnown: 'A few quick questions about how your break is going: about two minutes. You gave your consent at the start, so there is nothing to sign.',
   },
   after: {
     kicker: 'After your break',
-    build: 'Welcome back after your break.',
-    typed: 'Welcome back after your break.',
+    title: 'Welcome back after your break.',
+    lead: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, from after the break. First, enter the details you gave at the start so we can find your record. There is nothing to sign.',
+    leadKnown: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, from after the break. There is nothing to sign.',
   },
 } as const;
 
 /**
- * The participant code is built exactly as the lab questionnaire builds it,
- * so the two match without anyone having to remember it. People who already
- * have theirs can type it instead; on the check-in and after-break pages
- * that is the default, filled in when this device remembers it. The server
- * then says what it already holds for the code, so the person carries on
- * where they left off, on whichever device.
+ * Who the person is: four details they always know, from which the
+ * participant ID is built exactly as the study's survey platform builds it
+ * (see PARTICIPANT_CODE in ../config). The same details find the person again
+ * on any device, so nobody has to remember a code; a link from a progress
+ * email, or this device, can also carry the ID, and then one press confirms
+ * it. The server then says what it already holds, so the person carries on
+ * where they left off.
  */
 export function ParticipantId() {
   const { state, dispatch } = useLab();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [busy, setBusy] = useState(false);
   const [welcome, setWelcome] = useState(false);
-  const [noConsent, setNoConsent] = useState<string | null>(null);
-  // The code someone said was not theirs: it already has another person's consent.
-  const [notMine, setNotMine] = useState<string | null>(null);
+  // No consent on file: for four details nobody signed up with, or for an ID from a link or this device (then the details are asked instead).
+  const [notFound, setNotFound] = useState<null | { kind: 'details' } | { kind: 'id'; id: string }>(null);
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
   const parts = state.codeParts;
-  const built = buildParticipantCode(parts);
-  // Until the postcode is complete, its letters are unknown: show placeholders rather than letters from half a postcode.
-  const preview = isUkPostcode(parts.postcode) ? built : `${buildParticipantCode({ ...parts, postcode: '' })}__`;
-  const typed = normaliseParticipantCode(state.code);
-  const code = state.returning ? typed : built;
-  const words = intro[state.flow];
   const firstPage = state.flow === 'baseline';
+  // An ID this device remembers, or one a link carried: confirmed with one press.
+  const known = state.returning && Boolean(state.code);
+  const text = words[state.flow];
+  const dob = isoDateOf(parts.dateOfBirth);
+  const age = dob ? ageFrom(dob) : null;
 
-  const validateParts = (): FieldError[] => {
+  const validateDetails = (): FieldError[] => {
     const found: FieldError[] = [];
-    if (!nameHasTwoLetters(parts.firstName)) found.push({ field: 'lab-first-name', message: 'Enter your first name (at least two letters).' });
-    if (!/\d/.test(parts.house)) found.push({ field: 'lab-house', message: 'Enter your house number.' });
-    if (!parts.month) found.push({ field: 'lab-month', message: 'Choose the month you were born.' });
+    if (!idName(parts.firstName)) found.push({ field: 'lab-first-name', message: 'Enter your first name.' });
+    if (!idName(parts.lastName)) found.push({ field: 'lab-last-name', message: 'Enter your last name.' });
+    const typedSome = Boolean(parts.dateOfBirth.day || parts.dateOfBirth.month || parts.dateOfBirth.year);
+    if (!dob) found.push({ field: 'lab-dob', message: typedSome ? 'Enter a real date of birth, such as 14 3 2005.' : 'Enter your date of birth.' });
+    else if (age !== null && age < labStudy.minAge) found.push({ field: 'lab-dob', message: `This study is for adults: you need to be ${labStudy.minAge} or over to take part.` });
+    else if (age !== null && age > 110) found.push({ field: 'lab-dob', message: 'Check the year of your date of birth.' });
     if (!parts.postcode.trim()) found.push({ field: 'lab-postcode', message: 'Enter your postcode.' });
     else if (!isUkPostcode(parts.postcode)) found.push({ field: 'lab-postcode', message: 'Enter a full UK postcode, such as LS2 9JT.' });
     return found;
   };
 
   const next = async () => {
-    setNoConsent(null);
-    setNotMine(null);
-    const found = state.returning ? validateCode(typed) : [...validateParts(), ...(validateParts().length ? [] : validateCode(built))];
+    setNotFound(null);
+    const found = known ? [] : validateDetails();
     setErrors(found);
     if (found.length) return;
     setBusy(true);
     try {
+      const code = known ? state.code : await buildParticipantId(parts);
+      if (!code) throw new Error('Your details could not be turned into a participant ID.');
       const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
       const lookup = await getApi().lookupLabParticipant(session, code);
-      if (!lookup.exists && !firstPage) {
-        setNoConsent(code);
-        return;
-      }
-      dispatch({ type: 'confirm-code', code, returning: state.returning, lookup });
       if (!lookup.exists) {
+        // Signing up needs the four details themselves (they are kept with the consent), so an ID alone cannot start the study.
+        if (known) {
+          setNotFound({ kind: 'id', id: code });
+          dispatch({ type: 'code', code: '', returning: false });
+          return;
+        }
+        if (!firstPage) {
+          setNotFound({ kind: 'details' });
+          return;
+        }
+        dispatch({ type: 'confirm-code', code, returning: false, lookup });
         dispatch({ type: 'go-to', stepId: 'information' });
         return;
       }
+      dispatch({ type: 'confirm-code', code, returning: known, lookup });
       if (firstPage) {
         setWelcome(true);
         announce('We already have your consent. You can carry on where you left off.');
@@ -96,11 +107,17 @@ export function ParticipantId() {
       }
       dispatch({ type: 'go-to', stepId: resumeStep({ ...state, progress: lookup }) });
     } catch (error) {
-      setErrors([{ field: state.returning ? 'lab-code' : 'lab-first-name', message: describeError(error, 'your code') }]);
+      setErrors([{ field: known ? 'lab-known' : 'lab-first-name', message: describeError(error, 'your details') }]);
     } finally {
       setBusy(false);
     }
   };
+
+  const contact = (
+    <>
+      {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>
+    </>
+  );
 
   // The first page, for someone whose consent is already on file: what has arrived, and the next thing to do.
   if (firstPage && (welcome || (state.codeConfirmed && state.submission.consentOnFile && state.stepId === 'participant-id'))) {
@@ -108,28 +125,16 @@ export function ParticipantId() {
     const have = phaseHave(state);
     const nextStep = nextFilesStep(state);
     return (
-      <LabShell kicker="Your participant code" title={<>Welcome back, {code}.</>} hideContinue hideBack>
+      <LabShell kicker="About you" title="Welcome back." hideContinue hideBack>
         <Callout tone="success" role="status">
           <p>
             We already have your consent{when ? `, recorded ${formatTimestamp(when)}` : ''}. Received from you so far: <strong>{filesPhrase(have)}</strong>.
           </p>
         </Callout>
         <p>{nextStep === 'screenshots' ? 'Next: your screen-time screenshots. They take a few minutes and go to the team straight away.' : nextStep === 'guide' ? `Next: your app data. Still to do: ${namesOf(platformsToDo(state))}. Request the download, or if it has arrived, clean it and send it.` : nextStep === 'send' ? 'Next: send the files you prepared on this device.' : 'Everything the study needs from before your break is in. You can add more files if you like.'}</p>
-        <p className="mpmb-hint">If you have never given consent for this study, this code belongs to someone else: press “That isn’t me”.</p>
         <div className="mpmb-actions">
           <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: nextStep === 'done' ? 'screenshots' : nextStep })}>
             {nextStep === 'screenshots' ? 'Continue: my screenshots' : nextStep === 'guide' ? 'Continue: my app data' : nextStep === 'send' ? 'Continue: send my data' : 'Add more files'}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setWelcome(false);
-              setNotMine(code);
-              // Keep the answers so they can be checked; the typed code is cleared.
-              dispatch({ type: 'code', code: state.returning ? '' : state.code, returning: state.returning });
-            }}
-          >
-            That isn’t me
           </Button>
         </div>
         {nextStep === 'done' && (
@@ -137,72 +142,67 @@ export function ParticipantId() {
             During your break, use the <a href={labPages.checkin.path}>mid-break check-in</a>; when it ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
           </p>
         )}
+        <p className="mpmb-hint">
+          Your participant ID is <strong className="mpmb-mono">{state.code}</strong>. Don’t recognise any of this? If you have never signed up for this study, someone may have used your details: contact {contact}.
+        </p>
       </LabShell>
     );
   }
 
-  const lead = firstPage ? (
-    state.returning ? (
-      <p>It is the code the questionnaire gave you, such as JA101CD.</p>
-    ) : (
-      <p>The questionnaire in the lab builds the same code from these four answers, so your data and your questionnaire can be matched without either of them holding your name. Your four answers are kept with your consent record too, for the research.</p>
-    )
-  ) : state.flow === 'checkin' ? (
-    <p>A few quick questions about how your break is going: about two minutes. Your participant code joins your answers up with the rest of your data, never your name. You gave your consent at the start, so there is nothing to sign.</p>
-  ) : (
-    <p>The second part is shorter: a reminder of what you agreed to, then your screen-time screenshots and your app data again, this time from after the break. You gave your consent at the start, so there is nothing to sign.</p>
-  );
-
   return (
-    <LabShell kicker={words.kicker} title={state.returning ? words.typed : words.build} intro={lead} errors={errors} onContinue={() => void next()} continueLoading={busy} hideBack={!firstPage}>
-      {notMine && (
+    <LabShell kicker={text.kicker} title={text.title} intro={<p>{known ? text.leadKnown : text.lead}</p>} errors={errors} onContinue={() => void next()} continueLoading={busy} hideBack={!firstPage}>
+      {notFound?.kind === 'details' && (
         <Callout tone="important" role="alert">
           <p>
-            <strong>Someone has already taken part with the code {notMine}.</strong> Two people can end up with the same code, for example twins whose first names start with the same two letters. Check your answers below. If they are right, please do not carry on with this code: contact {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}?subject=${encodeURIComponent(`Participant code ${notMine} is already taken`)}`}>{labStudy.contact.email}</a> and the team will give you a code to use.
+            <strong>We could not find anyone who signed up with these details.</strong> Check they are exactly as you gave them at the start: the same spelling of your first and last name, your date of birth, and the postcode you gave then, even if you have moved since. If you have not signed up yet, <a href={labPages.baseline.path}>start on the first page</a>. Stuck? Contact {contact}.
           </p>
         </Callout>
       )}
-      {noConsent && (
+      {notFound?.kind === 'id' && (
         <Callout tone="important" role="alert">
           <p>
-            We have no consent on file for <strong className="mpmb-mono">{noConsent}</strong>. Check the code: it is the one you made when you signed up. If you have not taken part yet, <a href={labPages.baseline.path}>start on the first page</a>. If you are stuck, contact {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>.
+            We have no consent on file for participant ID <strong className="mpmb-mono">{notFound.id}</strong>. Enter your details below instead{firstPage ? ' to sign up' : ''}. Stuck? Contact {contact}.
           </p>
         </Callout>
       )}
-      {state.returning ? (
-        <div className="mpmb-fields">
-          <TextField
-            id="lab-code"
-            label="Your participant code"
-            hint={!firstPage && typed ? 'Filled in from this device. Check it is yours.' : 'Seven characters, such as JA101CD.'}
-            required
-            autoComplete="off"
-            autoCapitalize="characters"
-            maxLength={12}
-            width="half"
-            className="mpmb-input--upper mpmb-mono"
-            value={state.code}
-            onChange={(e) => dispatch({ type: 'code', code: e.target.value, returning: true })}
-            error={errs['lab-code']}
-          />
+      {known ? (
+        <div className="mpmb-fields" id="lab-known" tabIndex={-1}>
+          <p className="mpmb-code-line">
+            Your participant ID: <strong className="mpmb-mono">{state.code}</strong>
+          </p>
+          <p className="mpmb-hint">Filled in from your link or from this device. Press Continue if it is yours.</p>
           <Button variant="link" onClick={() => dispatch({ type: 'code', code: '', returning: false })}>
-            {firstPage ? 'I don’t have one yet' : 'I don’t remember my code'}
+            Not mine: enter my details instead
           </Button>
         </div>
       ) : (
         <div className="mpmb-fields">
-          {!firstPage && <p>Answer these four questions as you did at the start and we will rebuild your code.</p>}
-          <TextField id="lab-first-name" label="Your first name" hint="The first two letters go into your code." required autoComplete="given-name" maxLength={40} width="half" value={parts.firstName} onChange={(e) => dispatch({ type: 'code-parts', parts: { firstName: e.target.value } })} error={errs['lab-first-name']} />
-          <TextField id="lab-house" label="Your house number" hint="The first digit goes into your code." required inputMode="numeric" autoComplete="off" maxLength={6} width="short" value={parts.house} onChange={(e) => dispatch({ type: 'code-parts', parts: { house: e.target.value } })} error={errs['lab-house']} />
-          <SelectField id="lab-month" label="The month you were born" required options={months.map((m, i) => ({ value: String(i + 1).padStart(2, '0'), label: m }))} value={parts.month} onChange={(e) => dispatch({ type: 'code-parts', parts: { month: e.target.value } })} error={errs['lab-month']} />
-          <TextField id="lab-postcode" label="Your postcode" hint="Your full UK postcode, such as LS2 9JT. The last two letters go into your code." required autoComplete="postal-code" autoCapitalize="characters" maxLength={10} width="half" className="mpmb-input--upper" value={parts.postcode} onChange={(e) => dispatch({ type: 'code-parts', parts: { postcode: e.target.value } })} onBlur={() => parts.postcode && dispatch({ type: 'code-parts', parts: { postcode: formatPostcode(parts.postcode) } })} error={errs['lab-postcode']} />
-          <p className="mpmb-code-line" aria-live="polite">
-            Your participant code: <strong className="mpmb-mono">{preview === '__' ? '—' : preview}</strong>
-          </p>
-          {errs['lab-code'] && <p className="mpmb-error">{errs['lab-code']}</p>}
-          <Button variant="link" onClick={() => dispatch({ type: 'code', code: '', returning: true })}>
-            {firstPage ? 'I already have my code' : 'I know my code'}
-          </Button>
+          <TextField id="lab-first-name" label="First name" hint="As on official documents, not a nickname. Just your first name, no middle names." required autoComplete="given-name" maxLength={60} width="half" value={parts.firstName} onChange={(e) => dispatch({ type: 'code-parts', parts: { firstName: e.target.value } })} error={errs['lab-first-name']} />
+          <TextField id="lab-last-name" label="Last name" required autoComplete="family-name" maxLength={60} width="half" value={parts.lastName} onChange={(e) => dispatch({ type: 'code-parts', parts: { lastName: e.target.value } })} error={errs['lab-last-name']} />
+          <DateField id="lab-dob" label="Date of birth" value={parts.dateOfBirth} onChange={(dateOfBirth) => dispatch({ type: 'code-parts', parts: { dateOfBirth } })} error={errs['lab-dob']} autofill="self" min={isoYearsAgo(100)} max={isoYearsAgo(labStudy.minAge)} />
+          <TextField
+            id="lab-postcode"
+            label="Postcode"
+            hint={firstPage ? 'Where you live now, such as LS2 9JT.' : 'The postcode you gave at the start, even if you have moved since.'}
+            required
+            autoComplete="postal-code"
+            autoCapitalize="characters"
+            maxLength={10}
+            width="half"
+            className="mpmb-input--upper"
+            value={parts.postcode}
+            onChange={(e) => dispatch({ type: 'code-parts', parts: { postcode: e.target.value } })}
+            onBlur={() => parts.postcode && dispatch({ type: 'code-parts', parts: { postcode: formatPostcode(parts.postcode) } })}
+            error={errs['lab-postcode']}
+          />
+          {firstPage && age !== null && age > labStudy.maxAge && (
+            <Callout tone="info">
+              <p>
+                This study is for people aged {labStudy.minAge} to {labStudy.maxAge}. If you are older, please check with {contact} before you carry on.
+              </p>
+            </Callout>
+          )}
+          <p className="mpmb-hint">{firstPage ? 'Use exactly the same details whenever you come back, and in the questionnaire, so everything matches up. Started already? Enter the same details and you will carry on where you left off.' : 'Your details are only used to find your record.'}</p>
         </div>
       )}
     </LabShell>

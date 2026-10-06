@@ -72,7 +72,7 @@ with a role claim.
 | `submissions/{referenceCode}` | one row per family: kind, route, the *current* `consentId` and `assentId`, `version`, `versions[]` (one entry per send with the record ids and time), `donationIds[]`, `imageCount`, session uid, user agent | `coordinator` |
 | `enquiries/{id}` | messages from the website's contact and school forms, with whether the team was emailed (`notified`: sent, failed or not-configured). Families are never emailed; they download their copy of the record instead | `coordinator` |
 
-The social media break study (adults; `src/lab/` in the app, `lab.ts` in the functions) keeps its own collections, keyed by the participant code the lab questionnaire builds (for example `JA101CD`: the first two letters of the participant's own first name, first digit of the house number, two-digit birth month, last two letters of the postcode; the person's own name keeps twins apart), so the donated data and the laboratory data meet without a name:
+The social media break study (adults; `src/lab/` in the app, `lab.ts` in the functions) keeps its own collections, keyed by the participant ID (for example `MP2670FF90A5F2`: `MP` and 12 hexadecimal digits of a SHA-256 hash of the participant's first name, last name, date of birth and postcode, built the same way by the survey platform; see `docs/participant-id.md`), so the donated data, the questionnaires and the laboratory data meet without a name:
 
 | Collection | Holds | Who may read |
 |---|---|---|
@@ -99,7 +99,7 @@ role can be given access to `donations/` without ever seeing a name.
 
 ## What the functions check before writing anything
 
-The lab study's functions check, in the same spirit: the code has the questionnaire's shape; the four code answers rebuild the code and the postcode has the shape of a full UK postcode; the consent form and information versions are the current ones, the eight required statements are agreed and the optional record-linkage question is answered; a signature is present; a donation needs consent on file for that code (not necessarily from the same session, because people come back from another device); the phase is `pre`, `mid` or `post`, a check-in sends screenshots only, and a `checkInId` must be that code's; at most 10 archives and 12 screenshots per code before the break and again after it, and 30 screenshots across the check-ins; and every archive is opened on the server and must contain only the file names the in-browser cleaner writes (`manifest.json`, `tiktok_cleaned.json`, the three `youtube/` files and the four `instagram/` files), each JSON file must parse, the manifest must be the cleaner's, and the unpacked size is capped, so a participant's raw TikTok download, a photo or anything else is refused with a plain reason and never stored. `lookupLabParticipant` says only whether a code has consent on file, how many files it has for each phase and from which apps, which apps the participant does not use, and how many check-ins, and is limited to 30 calls an hour per session. `updateLabPlatforms` (30 an hour per session) records the whole list of apps a participant does not use, which the pages grey out. `submitLabCheckIn` (10 an hour per session) needs consent on file and the current check-in questions answered: every required one with one of its options, the free text within its limit, nothing else. `requestLabReminder` (5 an hour per session) emails the participant where they stand for that page and a link that opens it with their code filled in, from the same SMTP account as the team's enquiry emails, and books one follow-up; `labFollowUps` runs hourly and sends it two days later unless a send has arrived since, after which nothing more is sent.
+The lab study's functions check, in the same spirit: the ID has its shape (`MP` and 12 hexadecimal digits); at consent, the four details rebuild the ID, the date of birth is a real date of someone 18 or over, and the postcode has the shape of a full UK postcode; the consent form and information versions are the current ones, the eight required statements are agreed and the optional record-linkage question is answered; a signature is present; a donation needs consent on file for that code (not necessarily from the same session, because people come back from another device); the phase is `pre`, `mid` or `post`, a check-in sends screenshots only, and a `checkInId` must be that code's; at most 10 archives and 12 screenshots per code before the break and again after it, and 30 screenshots across the check-ins; and every archive is opened on the server and must contain only the file names the in-browser cleaner writes (`manifest.json`, `tiktok_cleaned.json`, the three `youtube/` files and the four `instagram/` files), each JSON file must parse, the manifest must be the cleaner's, and the unpacked size is capped, so a participant's raw TikTok download, a photo or anything else is refused with a plain reason and never stored. `lookupLabParticipant` says only whether a code has consent on file, how many files it has for each phase and from which apps, which apps the participant does not use, and how many check-ins, and is limited to 30 calls an hour per session. `updateLabPlatforms` (30 an hour per session) records the whole list of apps a participant does not use, which the pages grey out. `submitLabCheckIn` (10 an hour per session) needs consent on file and the current check-in questions answered: every required one with one of its options, the free text within its limit, nothing else. `requestLabReminder` (5 an hour per session) emails the participant where they stand for that page and a link that opens it with their code filled in, from the same SMTP account as the team's enquiry emails, and books one follow-up; `labFollowUps` runs hourly and sends it two days later unless a send has arrived since, after which nothing more is sent.
 
 **`submitConsent`** re-validates the whole payload (`validate.ts`): field
 lengths and formats, the allowed relationships, the 11–17 age range, at least
@@ -304,31 +304,31 @@ social-media-break/                       the adult laboratory study
                                           platforms sent, platforms not used, phone
     phenotype/checkin.tsv + .json         the mid-break check-ins: one row each, one column
                                           per question, with the questions and answer labels
-    sub-JA101CD/sub-JA101CD_sessions.tsv  one session per phase: ses-pre (the first page,
+    sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_sessions.tsv  one session per phase: ses-pre (the first page,
                                           before the break), ses-mid (screenshots sent with
                                           the check-ins), ses-post (the after-break page),
                                           however many sends it took
-    sub-JA101CD/ses-pre/beh/
-      sub-JA101CD_ses-pre_task-donation_beh.tsv + .json   index of the files: what the cleaner's
+    sub-MP2670FF90A5F2/ses-pre/beh/
+      sub-MP2670FF90A5F2_ses-pre_task-donation_beh.tsv + .json   index of the files: what the cleaner's
                                           manifest says is inside an archive, or the screenshot checks
-      sub-JA101CD_ses-pre_task-tiktokwatch_run-01_beh.tsv + .json   one table per kind of record,
+      sub-MP2670FF90A5F2_ses-pre_task-tiktokwatch_run-01_beh.tsv + .json   one table per kind of record,
       ..._task-tiktoksearch_, _tiktokengage_, _tiktokapp_, _tiktoktotals_,   unpacked once from each
       ..._task-youtubewatch_, _youtubesearch_, _youtubesubs_             archive, with dictionaries
-    sourcedata/sub-JA101CD/ses-pre/
-      sub-JA101CD_ses-pre_run-01_archive.zip, ..._run-02_screenshot.png   the files as received
+    sourcedata/sub-MP2670FF90A5F2/ses-pre/
+      sub-MP2670FF90A5F2_ses-pre_run-01_archive.zip, ..._run-02_screenshot.png   the files as received
     sourcedata/raw/*.jsonl
   identifying/                            coordinators only
     consents.tsv, consent_statements.tsv  the consent records, with the typed names and the
                                           answers the code was built from (incl. postcode)
-    signatures/sub-JA101CD/sub-JA101CD_consent-v1_signature.png
+    signatures/sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_consent-v1_signature.png
     raw/consents.jsonl
 ```
 
 Family participants are labelled `sub-00001`, `sub-00002`… in order of
 consent (the number is stored on the participant record the first time it is
-exported); lab participants are labelled by their participant code
-(`sub-JA101CD`), which the laboratory data also uses, so the two datasets join
-on it. The lab study's sessions are the study's phases, `ses-pre`, `ses-mid`
+exported); lab participants are labelled by their participant ID
+(`sub-MP2670FF90A5F2`), which the survey platform and the laboratory data also
+use, so the datasets join on it. The lab study's sessions are the study's phases, `ses-pre`, `ses-mid`
 and `ses-post`, set by the page each send came from (nobody is asked), so a
 late-arriving export sent days after the first still lands in the same
 session; a check-in screenshot's `check_in_id` points at its row in
@@ -392,15 +392,15 @@ withdrawal is not final there until it is emptied.
   that email and at most one follow-up two days later, never in the research
   dataset. The emails go from the study's Gmail account with the lab
   contact as reply-to.
-* **The lab study's code answers.** The participant code is built from
-  the participant's first name, the house number, the birth month and the
-  postcode, and those four answers are kept as well, because the team uses
-  them as research variables. House number plus postcode is a home address,
-  so they live only on the consent record (`labConsents`, coordinators and
-  auditors) and in `social-media-break/identifying/consents.tsv`, never in
-  the `social-media-break/donations/` research dataset, which carries the
-  code alone. The approved information
-  sheet does not yet mention keeping them.
+* **The lab study's ID details.** The participant ID is a hash of the
+  participant's first name, last name, date of birth and postcode, and those
+  four details are kept as well. They live only on the consent record
+  (`labConsents`, coordinators and auditors) and in
+  `social-media-break/identifying/consents.tsv`, never in the
+  `social-media-break/donations/` research dataset, which carries the ID and
+  age at consent. The ID itself is a pseudonym, not anonymous: anyone who
+  knows the four details can rebuild it. The approved information sheet does
+  not yet mention keeping the details.
 * **Free text.** The parent's open answer (up to 500 characters) may contain
   names or details about other people despite the request not to include
   them. It sits in `surveys/` with the participant id only; decide who reads

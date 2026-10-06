@@ -123,10 +123,10 @@ export function LabClean() {
 
   if (!ready) {
     return (
-      <LabShell kicker="Choose what to share" title="Enter your participant code first." intro={<p>We need your code and your consent before any data can be sent. It takes a minute.</p>} hideContinue hideBack>
+      <LabShell kicker="Choose what to share" title="First, tell us who you are." intro={<p>We need your details and your consent before any data can be sent. It takes a minute.</p>} hideContinue hideBack>
         <div className="mpmb-actions">
           <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'participant-id' })}>
-            Enter my code
+            Enter my details
           </Button>
         </div>
       </LabShell>

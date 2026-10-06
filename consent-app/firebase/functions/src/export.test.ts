@@ -102,36 +102,36 @@ test('consent records flatten to one row per record and one per statement, with 
   assert.deepEqual(statements[1], { consent_id: 'c1', participant_id: 'sub-00001', version: 2, statement_id: 'link-records', statement_version: '0.4-draft', response: 'declined', responded_at: 't2', via: 'individual' });
 });
 
-test('the lab dataset is labelled by participant code, has one session per phase, names files by run, and keeps names in identifying/', async () => {
+test('the lab dataset is labelled by participant ID, has one session per phase, names files by run, and keeps names in identifying/', async () => {
   const { labBehTable, labConsentTables, labExport, labFile, labParticipantsTable, labSessionsOf, labSessionsTable, labSignatureFile } = await import('./exportLab.js');
   const snap = {
-    reminders: [{ id: 'JA101CD', data: { email: 'jane@example.com', requestedAt: '2026-10-05T11:00:00.000Z', statusOutcome: 'sent', followUpDueAt: '2026-10-07T11:00:00.000Z', followUpSentAt: null, completedAt: '2026-10-08T10:00:00.000Z' } }],
-    checkIns: [{ id: 'k1', data: { participantCode: 'JA101CD', number: 1, formVersion: '0.1-draft', receivedAt: '2026-10-20T10:00:00.000Z', answers: { week: '2', 'apps-used': 'never', mood: '4', difficulty: '3', missed: '2', notes: 'Brick held up fine' } } }],
-    participants: [{ id: 'JA101CD', data: { consentId: 'c1', consentVersion: 1, archiveCount: 1, screenshotCount: 2, platformsNotUsed: ['youtube', 'instagram'] } }, { id: 'ZZ912AB', data: { consentId: 'c2', consentVersion: 1 } }],
+    reminders: [{ id: 'MP2670FF90A5F2', data: { email: 'jane@example.com', requestedAt: '2026-10-05T11:00:00.000Z', statusOutcome: 'sent', followUpDueAt: '2026-10-07T11:00:00.000Z', followUpSentAt: null, completedAt: '2026-10-08T10:00:00.000Z' } }],
+    checkIns: [{ id: 'k1', data: { participantCode: 'MP2670FF90A5F2', number: 1, formVersion: '0.1-draft', receivedAt: '2026-10-20T10:00:00.000Z', answers: { week: '2', 'apps-used': 'never', mood: '4', difficulty: '3', missed: '2', notes: 'Brick held up fine' } } }],
+    participants: [{ id: 'MP2670FF90A5F2', data: { consentId: 'c1', consentVersion: 1, archiveCount: 1, screenshotCount: 2, platformsNotUsed: ['youtube', 'instagram'] } }, { id: 'MP33CE17327FF2', data: { consentId: 'c2', consentVersion: 1 } }],
     consents: [
-      { id: 'c1', data: { participantCode: 'JA101CD', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-05', typedName: 'Jane Doe', codeParts: { firstName: 'Jane', house: '123', month: '01', postcode: 'AB1 2CD' }, responses: { 'take-part': { version: '1.0', response: 'agreed', respondedAt: '2026-10-05T09:00:00.000Z', via: 'individual' } }, signature: { method: 'drawn', image: { path: 'signatures/lab/JA101CD/c1.png' } } } },
-      { id: 'c2', data: { participantCode: 'ZZ912AB', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-06', typedName: 'Zed Zee', responses: {}, signature: { method: 'typed', typedName: 'Zed Zee', image: null } } },
+      { id: 'c1', data: { participantCode: 'MP2670FF90A5F2', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-05', typedName: 'Jane Doe', codeParts: { firstName: 'Jane', lastName: 'Doe', dateOfBirth: '2005-03-14', postcode: 'AB1 2CD' }, responses: { 'take-part': { version: '1.0', response: 'agreed', respondedAt: '2026-10-05T09:00:00.000Z', via: 'individual' } }, signature: { method: 'drawn', image: { path: 'signatures/lab/MP2670FF90A5F2/c1.png' } } } },
+      { id: 'c2', data: { participantCode: 'MP33CE17327FF2', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-06', typedName: 'Zed Zee', responses: {}, signature: { method: 'typed', typedName: 'Zed Zee', image: null } } },
     ],
     donations: [
       // Two sends before the break (the YouTube export arrived days after the TikTok one) and one after: two sessions.
-      { id: 'd2', data: { participantCode: 'JA101CD', phase: 'pre', receivedAt: '2026-10-08T10:00:00.000Z', needsReview: false, phone: 'iphone', files: [{ kind: 'screenshot', path: 'lab/JA101CD/u3.png', bytes: 30, sha256: 'cc', width: 100, height: 200, quality: { verdict: 'accepted', reasons: [] } }] } },
-      { id: 'd1', data: { participantCode: 'JA101CD', phase: 'pre', receivedAt: '2026-10-05T10:00:00.000Z', needsReview: true, phone: 'iphone', files: [{ kind: 'archive', path: 'lab/JA101CD/u1.zip', bytes: 10, sha256: 'aa', platforms: ['tiktok'], categories: ['tt_watch'], kept: { tt_watch: 3 }, manifest: { cleaner: 'MyPhone/MyBrain data donation cleaner 1.0', cleanedAt: '2026-10-05T09:50:00.000Z' }, entries: ['manifest.json', 'tiktok_cleaned.json'] }] } },
-      { id: 'd3', data: { participantCode: 'JA101CD', phase: 'post', receivedAt: '2026-11-10T10:00:00.000Z', needsReview: false, phone: 'iphone', files: [{ kind: 'screenshot', path: 'lab/JA101CD/u4.jpg', bytes: 20, sha256: 'bb', width: 100, height: 200, quality: { verdict: 'review', reasons: ['Not portrait.'] } }] } },
+      { id: 'd2', data: { participantCode: 'MP2670FF90A5F2', phase: 'pre', receivedAt: '2026-10-08T10:00:00.000Z', needsReview: false, phone: 'iphone', files: [{ kind: 'screenshot', path: 'lab/MP2670FF90A5F2/u3.png', bytes: 30, sha256: 'cc', width: 100, height: 200, quality: { verdict: 'accepted', reasons: [] } }] } },
+      { id: 'd1', data: { participantCode: 'MP2670FF90A5F2', phase: 'pre', receivedAt: '2026-10-05T10:00:00.000Z', needsReview: true, phone: 'iphone', files: [{ kind: 'archive', path: 'lab/MP2670FF90A5F2/u1.zip', bytes: 10, sha256: 'aa', platforms: ['tiktok'], categories: ['tt_watch'], kept: { tt_watch: 3 }, manifest: { cleaner: 'MyPhone/MyBrain data donation cleaner 1.0', cleanedAt: '2026-10-05T09:50:00.000Z' }, entries: ['manifest.json', 'tiktok_cleaned.json'] }] } },
+      { id: 'd3', data: { participantCode: 'MP2670FF90A5F2', phase: 'post', receivedAt: '2026-11-10T10:00:00.000Z', needsReview: false, phone: 'iphone', files: [{ kind: 'screenshot', path: 'lab/MP2670FF90A5F2/u4.jpg', bytes: 20, sha256: 'bb', width: 100, height: 200, quality: { verdict: 'review', reasons: ['Not portrait.'] } }] } },
       // A screenshot sent with the week-2 check-in.
-      { id: 'd4', data: { participantCode: 'JA101CD', phase: 'mid', checkInId: 'k1', receivedAt: '2026-10-20T10:01:00.000Z', needsReview: false, phone: 'iphone', files: [{ kind: 'screenshot', path: 'lab/JA101CD/u5.png', bytes: 25, sha256: 'dd', width: 100, height: 200, quality: { verdict: 'accepted', reasons: [] } }] } },
+      { id: 'd4', data: { participantCode: 'MP2670FF90A5F2', phase: 'mid', checkInId: 'k1', receivedAt: '2026-10-20T10:01:00.000Z', needsReview: false, phone: 'iphone', files: [{ kind: 'screenshot', path: 'lab/MP2670FF90A5F2/u5.png', bytes: 25, sha256: 'dd', width: 100, height: 200, quality: { verdict: 'accepted', reasons: [] } }] } },
     ],
   };
   const rows = labParticipantsTable(snap);
-  assert.deepEqual(rows[0], { participant_id: 'sub-JA101CD', consented_on: '2026-10-05', consent_version: '1.0', information_version: '1.0', consent_n: 1, phases: ['pre', 'mid', 'post'], sends_n: 4, checkins_n: 1, archives_n: 1, screenshots_n: 3, platforms: ['tiktok'], platforms_not_used: ['instagram', 'youtube'], phone: 'iphone', first_send_at: '2026-10-05T10:00:00.000Z', last_send_at: '2026-11-10T10:00:00.000Z' });
+  assert.deepEqual(rows[0], { participant_id: 'sub-MP2670FF90A5F2', consented_on: '2026-10-05', consent_version: '1.0', information_version: '1.0', consent_n: 1, age: 21, phases: ['pre', 'mid', 'post'], sends_n: 4, checkins_n: 1, archives_n: 1, screenshots_n: 3, platforms: ['tiktok'], platforms_not_used: ['instagram', 'youtube'], phone: 'iphone', first_send_at: '2026-10-05T10:00:00.000Z', last_send_at: '2026-11-10T10:00:00.000Z' });
   assert.equal(rows[1].sends_n, 0, 'consented but nothing sent yet');
   assert.ok(!JSON.stringify(rows).includes('Jane'));
   const sessions = labSessionsOf(snap);
   assert.deepEqual(sessions.map((s) => [s.session, s.donations.map((d) => d.id)]), [['ses-pre', ['d1', 'd2']], ['ses-mid', ['d4']], ['ses-post', ['d3']]], 'one session per phase, sends in time order, pre, mid, post');
   const [pre, mid, post] = sessions;
   assert.equal(labBehTable(mid)[0].check_in_id, 'k1', 'a check-in screenshot points at its check-in');
-  assert.equal(labFile(pre, 1, pre.files[0].file), 'sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-01_archive.zip');
-  assert.equal(labFile(pre, 2, pre.files[1].file), 'sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_screenshot.png');
-  assert.equal(labFile(post, 1, post.files[0].file), 'sourcedata/sub-JA101CD/ses-post/sub-JA101CD_ses-post_run-01_screenshot.jpg');
+  assert.equal(labFile(pre, 1, pre.files[0].file), 'sourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-01_archive.zip');
+  assert.equal(labFile(pre, 2, pre.files[1].file), 'sourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-02_screenshot.png');
+  assert.equal(labFile(post, 1, post.files[0].file), 'sourcedata/sub-MP2670FF90A5F2/ses-post/sub-MP2670FF90A5F2_ses-post_run-01_screenshot.jpg');
   const beh = labBehTable(pre);
   assert.equal(beh[0].kept_tt_watch, 3);
   assert.equal(beh[0].kept_yt_watch, null);
@@ -140,36 +140,39 @@ test('the lab dataset is labelled by participant code, has one session per phase
   assert.equal(labBehTable(post)[0].verdict, 'review');
   const sessionRows = labSessionsTable(sessions);
   assert.deepEqual(sessionRows[0], { session_id: 'ses-pre', phase: 'pre', acq_time: '2026-10-05T10:00:00.000Z', last_send_at: '2026-10-08T10:00:00.000Z', sends_n: 2, archives_n: 1, screenshots_n: 1, platforms: ['tiktok'], phone: 'iphone', needs_review: true });
-  assert.equal(labSessionsOf({ ...snap, donations: [{ id: 'dx', data: { participantCode: 'JA101CD', receivedAt: '2026-10-05T10:00:00.000Z', files: [] } }] })[0].session, 'ses-unspecified', 'a send without a phase keeps its own session');
-  assert.equal(labSignatureFile('JA101CD', 1), 'signatures/sub-JA101CD/sub-JA101CD_consent-v1_signature.png');
+  assert.equal(labSessionsOf({ ...snap, donations: [{ id: 'dx', data: { participantCode: 'MP2670FF90A5F2', receivedAt: '2026-10-05T10:00:00.000Z', files: [] } }] })[0].session, 'ses-unspecified', 'a send without a phase keeps its own session');
+  assert.equal(labSignatureFile('MP2670FF90A5F2', 1), 'signatures/sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_consent-v1_signature.png');
   const { records, statements } = labConsentTables(snap.consents);
   assert.equal(records[0].typed_name, 'Jane Doe');
   assert.equal(records[0].postcode, 'AB1 2CD');
   assert.equal(records[0].first_name, 'Jane');
-  assert.equal(records[0].signature_file, 'signatures/sub-JA101CD/sub-JA101CD_consent-v1_signature.png');
+  assert.equal(records[0].last_name, 'Doe');
+  assert.equal(records[0].date_of_birth, '2005-03-14');
+  assert.equal(rows[1].age, null, 'no age without a date of birth');
+  assert.equal(records[0].signature_file, 'signatures/sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_consent-v1_signature.png');
   assert.equal(records[1].signature_file, null);
   assert.equal(statements[0].statement_id, 'take-part');
   const out = labExport(snap, '2026-10-06T12:00:00.000Z');
   const paths = out.files.map((f) => f.path);
-  assert.ok(paths.includes('social-media-break/README.md') && paths.includes('social-media-break/donations/participants.tsv') && paths.includes('social-media-break/donations/sub-JA101CD/sub-JA101CD_sessions.tsv') && paths.includes('social-media-break/donations/sub-JA101CD/ses-pre/beh/sub-JA101CD_ses-pre_task-donation_beh.tsv') && paths.includes('social-media-break/donations/sub-JA101CD/ses-post/beh/sub-JA101CD_ses-post_task-donation_beh.tsv') && paths.includes('social-media-break/identifying/consents.tsv') && paths.includes('social-media-break/identifying/README.md'));
+  assert.ok(paths.includes('social-media-break/README.md') && paths.includes('social-media-break/donations/participants.tsv') && paths.includes('social-media-break/donations/sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_sessions.tsv') && paths.includes('social-media-break/donations/sub-MP2670FF90A5F2/ses-pre/beh/sub-MP2670FF90A5F2_ses-pre_task-donation_beh.tsv') && paths.includes('social-media-break/donations/sub-MP2670FF90A5F2/ses-post/beh/sub-MP2670FF90A5F2_ses-post_task-donation_beh.tsv') && paths.includes('social-media-break/identifying/consents.tsv') && paths.includes('social-media-break/identifying/README.md'));
   assert.ok(paths.every((p) => p.startsWith('social-media-break/')), 'everything of this study lives in its own folder');
   const reminders = out.files.find((f) => f.path === 'social-media-break/identifying/reminders.tsv')!.body;
-  assert.ok(reminders.includes('JA101CD\tsub-JA101CD\tjane@example.com\t2026-10-05T11:00:00.000Z\tsent'));
-  assert.ok(!paths.some((p) => p.includes('/sub-ZZ912AB/')), 'no subject folder before anything is sent');
+  assert.ok(reminders.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\tjane@example.com\t2026-10-05T11:00:00.000Z\tsent'));
+  assert.ok(!paths.some((p) => p.includes('/sub-MP33CE17327FF2/')), 'no subject folder before anything is sent');
   assert.deepEqual(Array.from(out.copies.entries()), [
-    ['lab/JA101CD/u1.zip', 'social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-01_archive.zip'],
-    ['lab/JA101CD/u3.png', 'social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_screenshot.png'],
-    ['lab/JA101CD/u5.png', 'social-media-break/donations/sourcedata/sub-JA101CD/ses-mid/sub-JA101CD_ses-mid_run-01_screenshot.png'],
-    ['lab/JA101CD/u4.jpg', 'social-media-break/donations/sourcedata/sub-JA101CD/ses-post/sub-JA101CD_ses-post_run-01_screenshot.jpg'],
-    ['signatures/lab/JA101CD/c1.png', 'social-media-break/identifying/signatures/sub-JA101CD/sub-JA101CD_consent-v1_signature.png'],
+    ['lab/MP2670FF90A5F2/u1.zip', 'social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-01_archive.zip'],
+    ['lab/MP2670FF90A5F2/u3.png', 'social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-02_screenshot.png'],
+    ['lab/MP2670FF90A5F2/u5.png', 'social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-mid/sub-MP2670FF90A5F2_ses-mid_run-01_screenshot.png'],
+    ['lab/MP2670FF90A5F2/u4.jpg', 'social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-post/sub-MP2670FF90A5F2_ses-post_run-01_screenshot.jpg'],
+    ['signatures/lab/MP2670FF90A5F2/c1.png', 'social-media-break/identifying/signatures/sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_consent-v1_signature.png'],
   ]);
   assert.deepEqual(out.counts, { labParticipants: 2, labConsents: 2, labDonations: 4, labArchives: 1, labScreenshots: 3, labSignatures: 1, labCheckIns: 1 });
   const checkins = out.files.find((f) => f.path === 'social-media-break/donations/phenotype/checkin.tsv')!.body;
-  assert.equal(checkins, 'participant_id\tsession_id\tcheck_in_id\tcheck_in_n\tsubmitted_at\tform_version\tweek\tapps_used\tmood\tdifficulty\tmissed\tnotes\nsub-JA101CD\tses-mid\tk1\t1\t2026-10-20T10:00:00.000Z\t0.1-draft\t2\tnever\t4\t3\t2\tBrick held up fine\n');
+  assert.equal(checkins, 'participant_id\tsession_id\tcheck_in_id\tcheck_in_n\tsubmitted_at\tform_version\tweek\tapps_used\tmood\tdifficulty\tmissed\tnotes\nsub-MP2670FF90A5F2\tses-mid\tk1\t1\t2026-10-20T10:00:00.000Z\t0.1-draft\t2\tnever\t4\t3\t2\tBrick held up fine\n');
   const checkinDictionary = JSON.parse(out.files.find((f) => f.path === 'social-media-break/donations/phenotype/checkin.json')!.body);
   assert.equal(checkinDictionary.apps_used.Levels.never, 'Not at all', 'the data dictionary carries the answer labels');
   const labTsv = out.files.find((f) => f.path === 'social-media-break/donations/participants.tsv')!.body;
-  assert.ok(!labTsv.includes('Jane') && !labTsv.includes('Zed') && !labTsv.includes('AB1'), 'names and postcodes stay out of the research dataset');
+  assert.ok(!labTsv.includes('Jane') && !labTsv.includes('Zed') && !labTsv.includes('AB1') && !labTsv.includes('2005-03-14'), 'names, dates of birth and postcodes stay out of the research dataset');
   assert.ok(labTsv.includes('\tiphone\t') && labTsv.includes('pre; mid; post'));
 });
 
@@ -185,8 +188,8 @@ test('a cleaned archive is unpacked into one BIDS behavioural table per kind of 
   const tables = archiveTablesFor(file);
   assert.deepEqual(tables.map((t) => t.task), ['tiktokwatch', 'tiktoksearch', 'tiktokengage', 'tiktokapp', 'tiktoktotals', 'youtubewatch', 'youtubesubs'], 'no table for the search history that was not exported, nor for an unticked category');
   assert.equal(archiveTablesFor({ kind: 'archive', entries: ['manifest.json', 'tiktok_cleaned.json'], categories: ['tt_watch'] }).length, 1);
-  const session = { code: 'JA101CD', label: 'sub-JA101CD', session: 'ses-pre', phase: 'pre', donations: [], files: [] };
-  assert.equal(archiveTablePath(session, 1, 'tiktokwatch'), 'sub-JA101CD/ses-pre/beh/sub-JA101CD_ses-pre_task-tiktokwatch_run-01_beh');
+  const session = { code: 'MP2670FF90A5F2', label: 'sub-MP2670FF90A5F2', session: 'ses-pre', phase: 'pre', donations: [], files: [] };
+  assert.equal(archiveTablePath(session, 1, 'tiktokwatch'), 'sub-MP2670FF90A5F2/ses-pre/beh/sub-MP2670FF90A5F2_ses-pre_task-tiktokwatch_run-01_beh');
   const out = await buildArchiveTables(await zip.generateAsync({ type: 'nodebuffer' }), tables.map((table) => ({ table, base: `x/${table.task}` })));
   const body = (task: string) => out.find((f) => f.path === `x/${task}.tsv`)!.body;
   assert.equal(body('tiktokwatch'), 'time\tlink\n2026-09-01 20:11:03\thttps://t/1\n');

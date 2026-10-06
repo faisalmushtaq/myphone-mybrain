@@ -13,14 +13,14 @@ import { filesPhrase } from '../words';
 
 type CopyStatus = { kind: 'idle' } | { kind: 'working' } | { kind: 'done'; fileName: string } | { kind: 'failed' };
 
-/** MyStory: a conversation in the person's own words, filed under the same participant code. Not live yet; see labMyStory in config.ts. */
+/** MyStory: a conversation in the person's own words, filed under the same participant ID. Not live yet; see labMyStory in config.ts. */
 function MyStoryCard({ code }: { code: string }) {
   const href = labMyStory.url ? `${labMyStory.url}${labMyStory.url.includes('?') ? '&' : '?'}${encodeURIComponent(labMyStory.codeParam)}=${encodeURIComponent(code)}` : null;
   return (
     <div className="mpmb-card mpmb-card--mist mpmb-mystory">
       <p className="mpmb-kicker">Next, if you have a few minutes</p>
       <h2 className="mpmb-h3">Tell {labMyStory.name} how it is going.</h2>
-      <p>{labMyStory.name} is a short conversation about your week without social media, in your own words: what you missed, what you did instead, what surprised you. It is linked to your check-in by your participant code, never your name.</p>
+      <p>{labMyStory.name} is a short conversation about your week without social media, in your own words: what you missed, what you did instead, what surprised you. It is linked to your check-in by your participant ID, never your name.</p>
       {href ? (
         <a className="mpmb-btn mpmb-btn--primary" href={href} target="_blank" rel="noopener noreferrer">
           <span>Open {labMyStory.name}</span>
@@ -29,7 +29,7 @@ function MyStoryCard({ code }: { code: string }) {
           </span>
         </a>
       ) : (
-        <p className="mpmb-hint">{labMyStory.name} is not open yet. When it is, a button here will take you straight to it, already set up with your code.</p>
+        <p className="mpmb-hint">{labMyStory.name} is not open yet. When it is, a button here will take you straight to it, already set up with your participant ID.</p>
       )}
     </div>
   );
@@ -75,11 +75,11 @@ export function LabDone() {
     flow === 'checkin'
       ? ['Carry on with your break. Check in again in about a week, on this same page.', 'If anything goes wrong with Brick or the break, contact the team; it is useful to know.', 'When the 30 days are up, send your screenshots and app data again on the after-break page.']
       : flow === 'after'
-        ? ['Bring your phone to your second lab visit. The team will be able to see that your files have arrived.', 'If a data download arrives later, come back to this page with your participant code and add it.']
+        ? ['Bring your phone to your second lab visit. The team will be able to see that your files have arrived.', 'If a data download arrives later, come back to this page, enter your details and add it.']
         : [
             canCopy ? 'Download a copy of your consent and keep it somewhere safe. Nothing is emailed to you.' : 'Your consent was recorded earlier; the team holds the record.',
             'Bring your phone to your first lab visit. The team will be able to see that your files have arrived.',
-            'During your break, check in once a week on the mid-break check-in page; afterwards, send your data again on the after-break page. Both use your participant code; there is nothing to sign again.',
+            'During your break, check in once a week on the mid-break check-in page; afterwards, send your data again on the after-break page. Both find you from the same details you gave today; there is nothing to sign again.',
           ];
 
   return (
@@ -93,7 +93,7 @@ export function LabDone() {
           {title}
         </h1>
         <p className="mpmb-done__ref">
-          Participant code: <strong className="mpmb-mono">{state.code}</strong>
+          Participant ID: <strong className="mpmb-mono">{state.code}</strong>
           {when && <span> · sent {formatTimestamp(when)}</span>}
         </p>
       </div>
@@ -145,7 +145,7 @@ export function LabDone() {
         <div className="mpmb-card mpmb-card--mist">
           <h2 className="mpmb-h3">Changing your mind</h2>
           <p>
-            You can withdraw from the study at any time, without giving a reason, by emailing {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>. Quote your participant code. What you have sent is kept and used unless you ask for it to be withdrawn, which you can do up to one month after your final session.
+            You can withdraw from the study at any time, without giving a reason, by emailing {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>. Quote your participant ID. What you have sent is kept and used unless you ask for it to be withdrawn, which you can do up to one month after your final session.
           </p>
         </div>
         <div className="mpmb-done__actions">
@@ -172,8 +172,8 @@ export function LabDone() {
           </Button>
         </div>
         {copy.kind === 'done' && <p className="mpmb-hint">Saved as {copy.fileName}. It includes your name and signature, so keep it somewhere safe.</p>}
-        {copy.kind === 'failed' && <p className="mpmb-hint">The copy could not be made on this device. Contact the team quoting your participant code and they will send one.</p>}
-        <p className="mpmb-hint">“Finish and clear this device” removes your code and progress from this browser; everything sent is already with the team. Leave it if you will use this device for the check-ins or after your break.</p>
+        {copy.kind === 'failed' && <p className="mpmb-hint">The copy could not be made on this device. Contact the team quoting your participant ID and they will send one.</p>}
+        <p className="mpmb-hint">“Finish and clear this device” removes your participant ID and progress from this browser; everything sent is already with the team. Leave it if you will use this device for the check-ins or after your break.</p>
       </div>
     </div>
   );

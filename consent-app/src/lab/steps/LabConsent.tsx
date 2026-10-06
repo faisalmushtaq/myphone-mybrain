@@ -9,7 +9,7 @@ import { announce } from '../../lib/announce';
 import { formatIsoDate, todayIso } from '../../lib/dates';
 import { limits } from '../../lib/validation';
 import { describeError, labClientInfo, labSession } from '../api';
-import { labConsentForm } from '../config';
+import { idDetails, labConsentForm } from '../config';
 import { LabShell } from '../LabShell';
 import { useLab } from '../store';
 import { validateLabConsent, type FieldError } from '../validation';
@@ -33,7 +33,9 @@ export function LabConsent() {
     announce('Saving your consent.');
     try {
       const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
-      const result = await getApi().submitLabConsent(session, { participantCode: state.code, consent: { ...consent, completedAt }, codeParts: state.returning ? null : state.codeParts, client: labClientInfo() });
+      const details = idDetails(state.codeParts);
+      if (!details) throw new Error('Your details are missing. Go back to the first step and enter them again.');
+      const result = await getApi().submitLabConsent(session, { participantCode: state.code, consent: { ...consent, completedAt }, codeParts: details, client: labClientInfo() });
       dispatch({ type: 'submission', patch: { consentStage: 'sent', consentError: null, consentId: result.consentId, consentVersion: result.version, consentSentAt: result.receivedAt } });
       announce('Consent saved.');
       dispatch({ type: 'next' });
@@ -45,7 +47,7 @@ export function LabConsent() {
   };
 
   return (
-    <LabShell kicker="Your consent" title="Your consent to take part." intro={<p>Tick each statement to confirm it, answer the Yes or No question, then sign. The ticked statements are all needed to take part; record linking is your choice. Participant code <strong className="mpmb-mono">{state.code}</strong>.</p>} errors={errors} onContinue={() => void next()} continueLabel="Confirm and sign" continueLoading={busy} width="wide">
+    <LabShell kicker="Your consent" title="Your consent to take part." intro={<p>Tick each statement to confirm it, answer the Yes or No question, then sign. The ticked statements are all needed to take part; record linking is your choice. Participant ID <strong className="mpmb-mono">{state.code}</strong>.</p>} errors={errors} onContinue={() => void next()} continueLabel="Confirm and sign" continueLoading={busy} width="wide">
       {submission.consentStage === 'failed' && submission.consentError && (
         <Callout tone="important" role="alert">
           <p>{submission.consentError}</p>
@@ -102,7 +104,7 @@ export function LabConsent() {
             )}
           </div>
           <Disclosure summary="What happens with this record">
-            <p>Your answers, name, signature, the date and the version of the information you read are stored as the record of your consent, against your participant code. You can download a copy at the end. You can withdraw at any time by contacting the team.</p>
+            <p>Your answers, name, signature, the date and the version of the information you read are stored as the record of your consent, against your participant ID. You can download a copy at the end. You can withdraw at any time by contacting the team.</p>
           </Disclosure>
         </div>
       </section>

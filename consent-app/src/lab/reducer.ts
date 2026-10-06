@@ -47,12 +47,12 @@ export function initialLabState(flow: LabFlow = 'baseline'): LabState {
   return {
     flow,
     stepId: labFlowSteps[flow][0],
-    codeParts: { firstName: '', house: '', month: '', postcode: '' },
+    codeParts: { firstName: '', lastName: '', dateOfBirth: { day: '', month: '', year: '' }, postcode: '' },
     code: '',
     codeConfirmed: false,
     confirmedCode: null,
-    // On the check-in and after-break pages people already have a code, so they type it (or rebuild it if they must).
-    returning: flow !== 'baseline',
+    // Set when the ID comes from a link or this device's memory: confirmed with one press instead of the four details.
+    returning: false,
     consent: initialConsent(),
     phone: null,
     phase: labFlowPhase[flow],
@@ -139,8 +139,11 @@ export function labReducer(state: LabState, action: LabAction): LabState {
       // A different person on this device: their consent, files and progress are not this one's.
       const base = state.confirmedCode && state.confirmedCode !== action.code ? { ...initialLabState(state.flow), session: state.session, codeParts: state.codeParts, stepId: state.stepId } : state;
       const onFile = action.lookup.exists;
+      // Someone signing up: their name, from the details they just gave, starts the consent's typed name.
+      const typedName = base.consent.typedName || [base.codeParts.firstName.trim(), base.codeParts.lastName.trim()].filter(Boolean).join(' ');
       return {
         ...base,
+        consent: onFile ? base.consent : { ...base.consent, typedName },
         code: action.code,
         returning: action.returning,
         codeConfirmed: true,

@@ -118,8 +118,8 @@ export interface LabConsentRecord {
 export interface LabConsentPayload {
   participantCode: string;
   consent: LabConsentRecord;
-  /** The four answers the code was built from (kept as identifying data with the consent); null when an existing code was typed. */
-  codeParts: { firstName: string; house: string; month: string; postcode: string } | null;
+  /** The four details the participant ID is built from (identifying: kept with the consent only). */
+  codeParts: { firstName: string; lastName: string; dateOfBirth: string; postcode: string };
   client: ClientInfo;
 }
 

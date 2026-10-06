@@ -3,6 +3,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
+import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
 import { cleaner, labCheckInForm, labConsentForm, labInformationVersion, labStudy, PARTICIPANT_CODE, UK_POSTCODE } from './forms.js';
 import { checkImage, cleanImage, RejectedUpload, sha256 } from './images.js';
@@ -13,8 +14,9 @@ import { blank, isObj, ISO_DATE, limits, str, UUID, validateClient, validateResp
 
 /**
  * The social media break study (adults, the laboratory study). Participants
- * are known by the code the lab questionnaire builds (for example JA101CD),
- * never by name, and the process spans days: consent first, then cleaned
+ * are known by their participant ID (for example MP2670FF90A5F2), built from
+ * their first name, last name, date of birth and postcode exactly as the
+ * study's survey platform builds it, never by name, and the process spans days: consent first, then cleaned
  * TikTok and YouTube exports and screen-time screenshots when they arrive,
  * possibly from another device.
  *
@@ -71,15 +73,16 @@ export interface LabConsentPayload {
     confirmedDate: string;
     completedAt: string | null;
   };
-  /** The answers the code was built from; null when an existing code was typed. Identifying: stored with the consent only. */
-  codeParts: CodeParts | null;
+  /** The four details the participant ID is built from. Identifying: stored with the consent only. */
+  codeParts: CodeParts;
   client: ClientInfo;
 }
 
 export interface CodeParts {
   firstName: string;
-  house: string;
-  month: string;
+  lastName: string;
+  /** YYYY-MM-DD. */
+  dateOfBirth: string;
   postcode: string;
 }
 
@@ -113,22 +116,32 @@ export interface LabCheckInPayload {
   client: ClientInfo;
 }
 
-/** Upper-cased and stripped of anything but letters and digits; null unless it has the questionnaire's shape. */
+/** Upper-cased and stripped of anything but letters and digits; null unless it has the participant ID's shape. */
 export function normaliseCode(code: unknown): string | null {
   if (typeof code !== 'string') return null;
   const c = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
   return PARTICIPANT_CODE.test(c) ? c : null;
 }
 
-/** The questionnaire's rule, as in the app's src/lab/config.ts: the first two letters of the person's own first name (accents dropped), house number's first digit, birth month, postcode's last two letters. */
-export function buildParticipantCode(parts: CodeParts): string {
-  const letters = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
-  const name = letters(parts.firstName).slice(0, 2);
-  const house = parts.house.replace(/\D/g, '').slice(0, 1);
-  const month = parts.month.replace(/\D/g, '');
-  const postcode = letters(parts.postcode).slice(-2);
-  const mm = month.length === 1 ? `0${month}` : month.slice(-2);
-  return `${name}${house}${mm}${postcode}`;
+/** A name as the participant ID uses it: NFKD, upper case, letters only (as the app's src/lab/config.ts). */
+export function idName(s: string): string {
+  return Array.from(s.normalize('NFKD').toUpperCase())
+    .filter((c) => /\p{L}/u.test(c))
+    .join('');
+}
+
+/**
+ * The participant ID, by the recipe in the app's src/lab/config.ts and
+ * docs/participant-id.md: FIRST|LAST|YYYYMMDD|POSTCODE, SHA-256, "MP" and the
+ * first 12 hexadecimal digits in capitals. Null when a detail is unusable.
+ */
+export function buildParticipantId(parts: CodeParts): string | null {
+  const first = idName(parts.firstName);
+  const last = idName(parts.lastName);
+  const postcode = parts.postcode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!first || !last || !postcode || !ISO_DATE.test(parts.dateOfBirth)) return null;
+  const key = `${first}|${last}|${parts.dateOfBirth.replace(/-/g, '')}|${postcode}`;
+  return `MP${createHash('sha256').update(key, 'utf8').digest('hex').slice(0, 12).toUpperCase()}`;
 }
 
 /** A postcode upper-cased with one space before the inward code ("ls29jt" → "LS2 9JT"). */
@@ -137,10 +150,18 @@ export function formatPostcode(input: string): string {
   return compact.length > 3 ? `${compact.slice(0, -3)} ${compact.slice(-3)}` : compact;
 }
 
-/** The answers as kept: trimmed, the postcode in its standard form, the month two digits. */
+/** The details as kept: names trimmed, the postcode in its standard form. */
 export function normaliseCodeParts(parts: CodeParts): CodeParts {
-  const month = parts.month.replace(/\D/g, '');
-  return { firstName: parts.firstName.trim(), house: parts.house.trim(), month: month.length === 1 ? `0${month}` : month.slice(-2), postcode: formatPostcode(parts.postcode) };
+  return { firstName: parts.firstName.trim(), lastName: parts.lastName.trim(), dateOfBirth: parts.dateOfBirth, postcode: formatPostcode(parts.postcode) };
+}
+
+/** Whole years from a date of birth (YYYY-MM-DD) to a moment; a day's grace either side of midnight for time zones. */
+export function ageAt(dateOfBirth: string, at: Date): number {
+  const [y, m, d] = dateOfBirth.split('-').map((n) => Number.parseInt(n, 10));
+  const t = new Date(at.getTime() + 24 * 3600 * 1000);
+  let age = t.getUTCFullYear() - y;
+  if (t.getUTCMonth() + 1 < m || (t.getUTCMonth() + 1 === m && t.getUTCDate() < d)) age -= 1;
+  return age;
 }
 
 export function validateLabConsentPayload(input: unknown): string[] {
@@ -148,14 +169,19 @@ export function validateLabConsentPayload(input: unknown): string[] {
   if (!isObj(input)) return ['The submission is not an object.'];
   const p = input as Partial<LabConsentPayload>;
   const code = normaliseCode(p.participantCode);
-  if (!code) problems.push('The participant code is malformed.');
-  if (p.codeParts !== null && p.codeParts !== undefined) {
-    const cp = p.codeParts;
-    if (!isObj(cp) || !str(cp.firstName, 40) || !str(cp.house, 10) || !str(cp.month, 2) || !str(cp.postcode, 10)) problems.push('The code answers are malformed.');
-    else {
-      if (!UK_POSTCODE.test(formatPostcode(cp.postcode as string))) problems.push('The postcode is not a full UK postcode.');
-      if (code && buildParticipantCode(cp as unknown as CodeParts) !== code) problems.push('The participant code does not match the answers it was built from.');
-    }
+  if (!code) problems.push('The participant ID is malformed.');
+  const cp = p.codeParts;
+  if (!isObj(cp) || !str(cp.firstName, 60) || !str(cp.lastName, 60) || !str(cp.dateOfBirth, 10) || !str(cp.postcode, 10)) problems.push('The details the participant ID is built from are missing or malformed.');
+  else {
+    const parts = cp as unknown as CodeParts;
+    const dob = parts.dateOfBirth;
+    const real = ISO_DATE.test(dob) && !Number.isNaN(Date.parse(dob)) && new Date(dob).toISOString().slice(0, 10) === dob;
+    if (!real) problems.push('The date of birth is not a real date.');
+    else if (ageAt(dob, new Date()) < labStudy.minAge) problems.push(`Participants must be ${labStudy.minAge} or over.`);
+    else if (ageAt(dob, new Date()) > 120) problems.push('The date of birth is not plausible.');
+    if (!UK_POSTCODE.test(formatPostcode(parts.postcode))) problems.push('The postcode is not a full UK postcode.');
+    if (!idName(parts.firstName) || !idName(parts.lastName)) problems.push('A name has no letters.');
+    else if (real && code && buildParticipantId(parts) !== code) problems.push('The participant ID does not match the details it was built from.');
   }
   const c = p.consent;
   if (!isObj(c)) problems.push('The consent record is missing.');
@@ -182,7 +208,7 @@ export function validateLabDonationPayload(input: unknown): string[] {
   const problems: string[] = [];
   if (!isObj(input)) return ['The submission is not an object.'];
   const p = input as Partial<LabDonationPayload>;
-  if (!normaliseCode(p.participantCode)) problems.push('The participant code is malformed.');
+  if (!normaliseCode(p.participantCode)) problems.push('The participant ID is malformed.');
   if (!Array.isArray(p.uploads)) problems.push('Uploads are malformed.');
   else {
     if (p.uploads.length === 0) problems.push('No files were sent.');
@@ -215,7 +241,7 @@ export function validateLabCheckInPayload(input: unknown): string[] {
   const problems: string[] = [];
   if (!isObj(input)) return ['The check-in is not an object.'];
   const p = input as Partial<LabCheckInPayload>;
-  if (!normaliseCode(p.participantCode)) problems.push('The participant code is malformed.');
+  if (!normaliseCode(p.participantCode)) problems.push('The participant ID is malformed.');
   if (p.formId !== labCheckInForm.id || p.formVersion !== labCheckInForm.version) problems.push(`The check-in must be ${labCheckInForm.id} ${labCheckInForm.version}.`);
   if (!isObj(p.answers)) problems.push('The answers are malformed.');
   else {
@@ -423,7 +449,7 @@ export const submitLabConsent = onCall(callOptions, async (request) => {
     signature: signatureRecord(sig, stored),
     confirmedDate: payload.consent.confirmedDate,
     completedAt: payload.consent.completedAt,
-    codeParts: payload.codeParts ? normaliseCodeParts(payload.codeParts) : null,
+    codeParts: normaliseCodeParts(payload.codeParts),
     sessionUid: uid,
     client: payload.client,
     receivedAt,
@@ -453,7 +479,7 @@ export const lookupLabParticipant = onCall(callOptions, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Please try again.');
   const code = normaliseCode((request.data as { participantCode?: unknown } | undefined)?.participantCode);
-  if (!code) throw new HttpsError('invalid-argument', 'The participant code is malformed.');
+  if (!code) throw new HttpsError('invalid-argument', 'The participant ID is malformed.');
   const db = getFirestore();
   await rateLimitLookups(db, uid);
   const participant = (await db.collection('labParticipants').doc(code).get()).data();
@@ -486,7 +512,7 @@ export function notUsedOf(participant: DocumentData): string[] {
 export function validateLabPlatformsPayload(input: unknown): string[] {
   const problems: string[] = [];
   if (!isObj(input)) return ['The request is not an object.'];
-  if (!normaliseCode(input.participantCode)) problems.push('The participant code is malformed.');
+  if (!normaliseCode(input.participantCode)) problems.push('The participant ID is malformed.');
   const apps = input.notUsed;
   if (!Array.isArray(apps) || apps.length > PLATFORMS.length || apps.some((x) => !PLATFORMS.includes(String(x))) || new Set(apps).size !== apps.length) problems.push('The list of apps is malformed.');
   return problems;
@@ -508,7 +534,7 @@ export const updateLabPlatforms = onCall(callOptions, async (request) => {
   await rateLimitLookups(db, uid, 'lab-platforms', PLATFORM_UPDATES_PER_HOUR);
   const ref = db.collection('labParticipants').doc(code);
   const participant = (await ref.get()).data();
-  if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant code. Please check the code.');
+  if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please check your details.');
   const apps = Array.from(new Set(notUsed.map(String))).sort();
   await ref.set({ platformsNotUsed: apps, platformsNotUsedAt: new Date(), sessionUids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   logger.info('Lab apps not used', { participantCode: code, notUsed: apps });
@@ -597,7 +623,7 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
   const receivedAt = new Date();
   const participantRef = db.collection('labParticipants').doc(code);
   const participant = (await participantRef.get()).data();
-  if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant code. Please give your consent first.');
+  if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please give your consent first.');
   const phase = payload.phase as Phase;
   const archives = payload.uploads.filter((u) => u.kind === 'archive').length;
   const screenshots = payload.uploads.length - archives;
@@ -607,7 +633,7 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
   if (already.screenshots + screenshots > maxShots) throw new HttpsError('invalid-argument', `At most ${maxShots} screenshots can be sent ${phase === 'mid' ? 'with the check-ins' : phase === 'post' ? 'after the break' : 'before the break'}. Contact the team if you need to send more.`);
   if (payload.checkInId) {
     const checkIn = (await db.collection('labCheckIns').doc(payload.checkInId).get()).data();
-    if (!checkIn || checkIn.participantCode !== code) throw new HttpsError('invalid-argument', 'That check-in does not belong to this participant code.');
+    if (!checkIn || checkIn.participantCode !== code) throw new HttpsError('invalid-argument', 'That check-in does not belong to this participant ID.');
   }
   // The study's minimum (a screenshot plus a cleaned archive) is asked for twice in the app, then may be skipped; the send records what came.
 
@@ -694,7 +720,7 @@ export const submitLabCheckIn = onCall(callOptions, async (request) => {
   await rateLimitLookups(db, uid, 'lab-checkin', CHECKINS_PER_HOUR);
   const participantRef = db.collection('labParticipants').doc(code);
   const participant = (await participantRef.get()).data();
-  if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant code. Please check the code.');
+  if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please check your details.');
   const receivedAt = new Date();
   const ref = db.collection('labCheckIns').doc();
   const count = Number(participant.checkInCount ?? 0) + 1;
@@ -765,7 +791,7 @@ export function labStatusEmail(p: LabProgress): { subject: string; text: string 
     ``,
     `Thank you for taking part in the ${labStudy.name}. Here is where your data donation ${whenOf(p)} stands.`,
     ``,
-    `Participant code: ${p.participantCode}`,
+    `Participant ID: ${p.participantCode}`,
     `Consent: ${p.consentedAt ? `recorded on ${p.consentedAt.slice(0, 10)}` : 'not yet given'}`,
     `Received so far: ${received.length ? list(received) : 'nothing yet'}`,
     owed.length ? `Still to come: ${list(owed)}.` : `Everything the study needs is in. Thank you!`,
@@ -773,7 +799,7 @@ export function labStatusEmail(p: LabProgress): { subject: string; text: string 
     ``,
     owed.length
       ? [
-          `When your data download arrives, open the link below on the device that has the file. It opens the right page with your participant code filled in, so you carry on from where you left off; the guide there shows every step.`,
+          `When your data download arrives, open the link below on the device that has the file. It opens the right page with your participant ID filled in, so you carry on from where you left off without entering your details again; the guide there shows every step.`,
           link,
           ``,
           `If we have not received your files in two days, we will send one reminder.`,
@@ -794,9 +820,9 @@ export function labFollowUpEmail(p: LabProgress): { subject: string; text: strin
   const text = [
     `Hello,`,
     ``,
-    `A quick reminder from the ${labStudy.name}: we have not yet received ${list(owed)} from ${whenOf(p)} for participant code ${p.participantCode}.`,
+    `A quick reminder from the ${labStudy.name}: we have not yet received ${list(owed)} from ${whenOf(p)} for participant ID ${p.participantCode}.`,
     ``,
-    `If your data download has arrived, open the link below on the device that has the file and follow the steps; your participant code is filled in for you. If it has not arrived yet, or anything is unclear, reply to this email and we will help.`,
+    `If your data download has arrived, open the link below on the device that has the file and follow the steps; your participant ID is filled in for you. If it has not arrived yet, or anything is unclear, reply to this email and we will help.`,
     pageFor(p.phase, p.participantCode),
     ...(notUsedNote(p) ? [``, notUsedNote(p)] : []),
     ``,
@@ -812,7 +838,7 @@ export function labFollowUpEmail(p: LabProgress): { subject: string; text: strin
 export function validateLabReminderPayload(input: unknown): string[] {
   const problems: string[] = [];
   if (!isObj(input)) return ['The request is not an object.'];
-  if (!normaliseCode(input.participantCode)) problems.push('The participant code is malformed.');
+  if (!normaliseCode(input.participantCode)) problems.push('The participant ID is malformed.');
   if (!str(input.email, 254) || !EMAIL.test(String(input.email).trim())) problems.push('Enter an email address in the format name@example.com.');
   if (input.phase !== undefined && input.phase !== 'pre' && input.phase !== 'post') problems.push('Reminders are for the files before or after the break.');
   return problems;
@@ -854,7 +880,7 @@ export const requestLabReminder = onCall(callOptions, async (request) => {
   const db = getFirestore();
   await rateLimitLookups(db, uid, 'lab-reminder', REMINDERS_PER_HOUR);
   const progress = await progressOf(db, code, phase);
-  if (!progress) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant code. Please give your consent first.');
+  if (!progress) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please give your consent first.');
   const now = new Date();
   const outcome = await sendMail({ to: email.trim(), replyTo: labStudy.contactEmail, ...labStatusEmail(progress) });
   const followUpDueAt = new Date(now.getTime() + FOLLOW_UP_AFTER_MS);

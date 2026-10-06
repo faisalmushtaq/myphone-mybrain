@@ -29,14 +29,14 @@ export function LabReminder() {
     >
       <ul className="mpmb-list">
         <li>Now that your break is over, we ask for the same two things as before: screenshots of your phone’s screen-time summary, and your own TikTok, YouTube or Instagram data, which you review and clean on your device before anything is sent.</li>
-        <li>Everything is labelled with your participant code, never your name, and kept securely at the University of Leeds.</li>
+        <li>Everything is labelled with your participant ID, never your name, and kept securely at the University of Leeds.</li>
         <li>What you send is kept and used in the research even if you do not finish the study. To have it removed, contact the team and ask to withdraw, up to one month after your final session.</li>
         <li>You can still withdraw at any time, without giving a reason.</li>
       </ul>
       {before && (before.screenshots > 0 || before.archives > 0) && <p className="mpmb-hint">From before your break we have {filesPhrase(before)}. Thank you.</p>}
       <Callout tone="info">
         <p>
-          If you no longer want to take part, you do not need to go on: contact {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>, quoting your participant code <strong className="mpmb-mono">{state.code}</strong>.
+          If you no longer want to take part, you do not need to go on: contact {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>, quoting your participant ID <strong className="mpmb-mono">{state.code}</strong>.
         </p>
       </Callout>
       <Disclosure summary="Read the statements you agreed to">

@@ -539,7 +539,7 @@ schools/              the young people's study (parents' consent, young
                       screenshots), labelled sub-00001... in order of consent
 social-media-break/   the adult laboratory study: cleaned TikTok and YouTube
                       archives and screen-time screenshots donated by
-                      participants, labelled by their participant code
+                      participants, labelled by their participant ID
 
   <study>/donations/     what participants gave through the website, as a
                          research dataset in BIDS layout, no names; for

@@ -52,10 +52,10 @@ export function LabScreenshots() {
 
   if (!ready) {
     return (
-      <LabShell kicker="Your screenshots" title="Enter your participant code first." intro={<p>We need your code and your consent before any data can be sent. It takes a minute.</p>} hideContinue hideBack>
+      <LabShell kicker="Your screenshots" title="First, tell us who you are." intro={<p>We need your details and your consent before any data can be sent. It takes a minute.</p>} hideContinue hideBack>
         <div className="mpmb-actions">
           <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'participant-id' })}>
-            Enter my code
+            Enter my details
           </Button>
         </div>
       </LabShell>
@@ -118,7 +118,7 @@ export function LabScreenshots() {
         <ShotPicker busy={busy} onAdded={() => setErrors([])} />
       </section>
 
-      <p className="mpmb-hint">{pending.length ? 'Pressing Send uploads these screenshots to the study’s secure storage at the University of Leeds, linked to your participant code. Then we show you how to request your app data.' : sent.length || onServer ? 'Your screenshots are with the team. Next, request your app data.' : 'Nothing has been sent yet.'}</p>
+      <p className="mpmb-hint">{pending.length ? 'Pressing Send uploads these screenshots to the study’s secure storage at the University of Leeds, linked to your participant ID. Then we show you how to request your app data.' : sent.length || onServer ? 'Your screenshots are with the team. Next, request your app data.' : 'Nothing has been sent yet.'}</p>
     </LabShell>
   );
 }

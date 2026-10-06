@@ -1,15 +1,8 @@
 import type { LabConsentRecord } from '../api/types';
 import type { FieldError } from '../lib/validation';
-import { labConsentForm, labStudy, normaliseParticipantCode, PARTICIPANT_CODE } from './config';
+import { labConsentForm, labStudy } from './config';
 
 export type { FieldError };
-
-export function validateCode(code: string): FieldError[] {
-  const c = normaliseParticipantCode(code);
-  if (!c) return [{ field: 'lab-code', message: 'Enter your participant code.' }];
-  if (!PARTICIPANT_CODE.test(c)) return [{ field: 'lab-code', message: 'The code should look like JA101CD: two letters, a digit, a two-digit month and two letters. Check each part.' }];
-  return [];
-}
 
 export function validateLabConsent(consent: LabConsentRecord): FieldError[] {
   const errors: FieldError[] = [];

@@ -4,6 +4,7 @@ import { Disclosure } from '../components/ui/Disclosure';
 import { Draft } from '../components/ui/Draft';
 import { Icon } from '../components/ui/Icon';
 import { aboutStudy } from '../config/copy';
+import { schoolFromLink } from '../config/schools';
 import { study } from '../config/study';
 import { useStore } from '../state/context';
 
@@ -19,6 +20,9 @@ export function Welcome() {
 
   useEffect(() => {
     document.title = 'Take part online – MyPhone/MyBrain';
+    // A school's page links here with ?school=<slug>: that school is chosen already, and can be changed on the details step.
+    const school = schoolFromLink();
+    if (school && !state.identity.schoolId) dispatch({ type: 'update-identity', patch: { schoolId: school.id } });
     // The website's buttons link here with ?who=young or ?who=parent, so the choice is already made.
     const who = new URLSearchParams(window.location.search).get('who');
     if ((who === 'young' || who === 'parent') && state.route === null) {

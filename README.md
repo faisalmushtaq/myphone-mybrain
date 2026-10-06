@@ -10,6 +10,18 @@ Most public-facing text is in `_data/content.yml`. The school sign-up settings a
 
 People are listed in `_data/people.yml`, partners and funders in `_data/partners.yml`, and frequently asked questions in `_data/faqs.yml`.
 
+### A page for each school
+
+Each school taking part has its own page for parents and carers, at a short address such as `myphonemybrain.com/dua/` (Dixons Unity Academy) or `myphonemybrain.com/gsal/` (The Grammar School at Leeds), to send to parents. It has the school's name on it, and its button opens the online permission form with that school already chosen; parents can still change it in the form. Links typed in capitals (`/GSAL`) also work.
+
+To add a school, add one line to `_data/schools.json`:
+
+```json
+{ "slug": "dua", "id": "DUA", "name": "Dixons Unity Academy", "area": "Leeds" }
+```
+
+`slug` is the web address (lower case letters, digits or hyphens, not already a page of the site), `id` is what the study database records for the school, and `name` is shown to parents. The same list fills the school menu in the online form. The pages are made by `_plugins/school_pages.rb` with `_layouts/school.html`, and are kept out of search engines.
+
 ## Project structure
 
 ```text
@@ -49,7 +61,7 @@ It has two backends: an in-memory **mock** (the default; nothing leaves the page
 * Review findings and what was changed: `consent-app/docs/review.md`
 * Backend set-up and data model: `consent-app/docs/firebase.md`
 
-The same build also produces the **social media break study** pages for adults (`/break/`, with the consent and data-donation flow at `/break/take-part/`, a weekly check-in at `/break/check-in/` and the after-break donation at `/break/after/`, code in `consent-app/src/lab/`): participants make the code the lab questionnaire uses, consent with the approved wording, send screenshots of their phone's screen-time summary straight away, follow a guide to request their TikTok, YouTube or Instagram data (which can take days to arrive, so they can ask for an email reminder), clean the download on their own device (only dates, links and search words survive, and they untick categories), and send the cleaned archive. During the break they check in with a few questions, and afterwards they send both again on a shorter page without signing again; everything is filed under their participant code, on any device. The server accepts only the cleaner's own files.
+The same build also produces the **social media break study** pages for adults (`/break/`, with the consent and data-donation flow at `/break/take-part/`, a weekly check-in at `/break/check-in/` and the after-break donation at `/break/after/`, code in `consent-app/src/lab/`): participants enter their first name, last name, date of birth and postcode, which make their participant ID exactly as the survey platform makes it (the recipe is in `consent-app/docs/participant-id.md`), consent with the approved wording, send screenshots of their phone's screen-time summary straight away, follow a guide to request their TikTok, YouTube or Instagram data (which can take days to arrive, so they can ask for an email reminder), clean the download on their own device (only dates, links and search words survive, and they untick categories), and send the cleaned archive. During the break they check in with a few questions, and afterwards they send both again on a shorter page without signing again; everything is filed under their participant ID, and the same four details find them again on any device. The server accepts only the cleaner's own files.
 
 The deploy workflow builds the app (`npm ci && npm run build` in `consent-app/`, output to `assets/consent-app/`, which is git-ignored: `consent-app.js`, `lab-app.js` and a shared `consent-app.css`) before building Jekyll. For a local preview, run that build first and then `bundle exec jekyll serve`; for a self-contained preview without Jekyll, run `npm run build:standalone` and open `consent-app/dist-standalone/preview.html`.
 

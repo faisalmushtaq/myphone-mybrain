@@ -114,7 +114,7 @@ export const labCheckInForm = {
   ),
 };
 
-/** The participant code the lab questionnaire builds, for example JA101CD; see src/lab/config.ts. */
+/** The participant ID, for example MP2670FF90A5F2: "MP" and 12 hexadecimal digits of a hash of the person's details; see src/lab/config.ts. */
 export const PARTICIPANT_CODE = new RegExp(generated.labStudy.participantCodePattern);
 
 /** A full UK postcode, with one space before the inward code; see src/lab/config.ts. */

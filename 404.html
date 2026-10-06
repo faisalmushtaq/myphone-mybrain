@@ -1,0 +1,37 @@
+---
+layout: default
+title: "Page not found | MyPhone/MyBrain"
+description: "That page could not be found."
+permalink: /404.html
+noindex: true
+title_main: "Page not"
+title_accent: "found."
+page_intro: "We could not find that page. It may have moved, or the address may have a typo."
+---
+<script>
+  // Addresses are lower case: a school's link typed in capitals (/GSAL, /Dua) goes to its page (/gsal/), and so does any other address that only differs in capitals.
+  (function () {
+    var path = window.location.pathname;
+    var lower = path.toLowerCase();
+    if (lower !== path) window.location.replace(lower + window.location.search + window.location.hash);
+  })();
+</script>
+
+{% include page_hero.html %}
+
+<section class="section section-light">
+  <div class="container">
+    <div class="info-panel">
+      <h2>Where would you like to go?</h2>
+      <ul class="not-found-links">
+        <li><a class="text-link" href="{{ '/' | relative_url }}">Home &nbsp;&rarr;</a></li>
+        <li><a class="text-link" href="{{ '/families/' | relative_url }}">For parents and carers &nbsp;&rarr;</a></li>
+        <li><a class="text-link" href="{{ '/young-people/' | relative_url }}">For young people &nbsp;&rarr;</a></li>
+        <li><a class="text-link" href="{{ '/schools/' | relative_url }}">For schools &nbsp;&rarr;</a></li>
+        <li><a class="text-link" href="{{ '/take-part/' | relative_url }}">Take part &nbsp;&rarr;</a></li>
+        <li><a class="text-link" href="{{ '/break/' | relative_url }}">The social media break study &nbsp;&rarr;</a></li>
+      </ul>
+      <p class="school-landing__hint">Followed a link from your child’s school? Check it was typed exactly, or <a href="{{ '/take-part/consent/?who=parent' | relative_url }}">start the online form</a> and choose the school there. Still stuck? <a href="{{ '/contact/' | relative_url }}">Contact the team</a>.</p>
+    </div>
+  </div>
+</section>

@@ -7,7 +7,7 @@ import type { CodeParts } from './config';
  * State of the social media break study's flow. Kept deliberately separate
  * from the family consent app: adults consent for themselves, there is no
  * handover, and the process spans days (a data export can take a while to
- * arrive), so progress lives in localStorage keyed by the participant code.
+ * arrive), so progress lives in localStorage keyed by the participant ID.
  */
 
 export type LabStepId = 'welcome' | 'participant-id' | 'information' | 'consent' | 'reminder' | 'checkin' | 'guide' | 'screenshots' | 'clean' | 'send' | 'done';
@@ -36,7 +36,7 @@ export const labFlowPhase: Record<LabFlow, LabPhase> = { baseline: 'pre', checki
 
 export const labStepTitles: Record<LabStepId, string> = {
   welcome: 'Social media break study',
-  'participant-id': 'Your participant code',
+  'participant-id': 'About you',
   information: 'About the study',
   consent: 'Your consent',
   reminder: 'Before you start',
@@ -111,7 +111,7 @@ export interface LabState {
   codeConfirmed: boolean;
   /** The code everything below belongs to (consent, files, progress), once confirmed. Confirming a different code starts afresh. */
   confirmedCode: string | null;
-  /** Whether the person typed a code they already had, rather than building it. */
+  /** Whether the ID came from a link or this device (confirmed with one press), rather than from the four details. */
   returning: boolean;
   consent: LabConsentRecord;
   /** iPhone or Android, chosen on the screenshots step so the right steps show and the screenshots are labelled. */

@@ -6,14 +6,14 @@ import { cleaner, labCheckInForm, labConsentForm, labStudy } from './forms.js';
 /**
  * The social media break study's part of the hourly export: its own folder,
  * social-media-break/, holding the website's dataset, donations/, in BIDS
- * layout labelled by participant code (already a pseudonym: the lab
- * questionnaire builds the same code, so the laboratory data and this
- * donated data meet without a name), and its own identifying/ folder for the
+ * layout labelled by participant ID (already a pseudonym: the survey
+ * platform builds the same ID from the same four details, so the laboratory
+ * data and this donated data meet without a name), and its own identifying/ folder for the
  * consent records, names and signatures. The laboratory's own datasets (the
  * visits, any tracking) are expected to sit beside donations/, written by
  * the team, never inside it.
  *
- *   social-media-break/donations/participants.tsv              one row per consenting code
+ *   social-media-break/donations/participants.tsv              one row per consenting participant
  *   social-media-break/donations/sub-<CODE>/sub-<CODE>_sessions.tsv
  *                                               one session per phase of the study
  *                                               (ses-pre before the break, ses-mid the
@@ -62,7 +62,7 @@ export interface LabSession {
   files: { file: DocumentData; donation: Doc }[];
 }
 
-/** sub-JA101CD: the participant code is the BIDS label. */
+/** sub-MP2670FF90A5F2: the participant ID is the BIDS label. */
 export const labLabel = (code: string) => `sub-${code}`;
 
 /** ses-pre, ses-mid or ses-post; anything else was recorded without a phase. */
@@ -104,6 +104,16 @@ export function labSignatureFile(code: string, version: unknown): string {
 const byLabel = (a: Row, b: Row) => String(a.participant_id).localeCompare(String(b.participant_id));
 const last = <T>(xs: T[]): T | undefined => xs[xs.length - 1];
 
+/** Whole years on the day consent was confirmed, from the date of birth kept with the consent (the date itself stays in identifying/). */
+export function ageOnConsent(consent: DocumentData | undefined): number | null {
+  const dob = consent?.codeParts?.dateOfBirth;
+  const on = consent?.confirmedDate;
+  if (typeof dob !== 'string' || typeof on !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dob) || !/^\d{4}-\d{2}-\d{2}$/.test(on)) return null;
+  const [by, bm, bd] = dob.split('-').map(Number);
+  const [y, m, d] = on.split('-').map(Number);
+  return y - by - (m < bm || (m === bm && d < bd) ? 1 : 0);
+}
+
 export function labParticipantsTable(snap: LabSnapshot): Row[] {
   const sessions = labSessionsOf(snap);
   const consentBy = new Map(snap.consents.map((c) => [c.id, c]));
@@ -120,6 +130,7 @@ export function labParticipantsTable(snap: LabSnapshot): Row[] {
         consent_version: consent?.data.formVersion,
         information_version: consent?.data.informationVersion,
         consent_n: d.consentVersion,
+        age: ageOnConsent(consent?.data),
         phases: mine.map((s) => s.phase),
         sends_n: sends.length,
         checkins_n: snap.checkIns.filter((c) => c.data.participantCode === id).length,
@@ -343,8 +354,8 @@ export function labConsentTables(docs: Doc[]): { records: Row[]; statements: Row
     information_version: d.informationVersion,
     typed_name: d.typedName,
     first_name: d.codeParts?.firstName,
-    house_number: d.codeParts?.house,
-    birth_month: d.codeParts?.month,
+    last_name: d.codeParts?.lastName,
+    date_of_birth: d.codeParts?.dateOfBirth,
     postcode: d.codeParts?.postcode,
     signature_method: d.signature?.method,
     signature_typed_name: d.signature?.typedName,
@@ -391,7 +402,7 @@ export function labCheckInColumns(): string[] {
 export function labCheckInDictionary(): Record<string, unknown> {
   const out: Record<string, unknown> = {
     MeasurementToolMetadata: { Description: `The website’s mid-break check-in (${labCheckInForm.id} ${labCheckInForm.version}): a few questions answered during the social media break, as often as the participant checks in.` },
-    participant_id: { Description: 'sub- followed by the participant code' },
+    participant_id: { Description: 'sub- followed by the participant ID' },
     session_id: { Description: 'Always ses-mid: the check-ins happen during the break; screenshots sent with them are in that session, linked by check_in_id' },
     check_in_id: { Description: 'Identifier of the check-in; the check_in_id column of ses-mid’s donation index points here' },
     check_in_n: { Description: 'Which check-in this was for the participant: 1 for the first' },
@@ -419,11 +430,12 @@ export function labDatasetDescription(exportedAt: string): Record<string, unknow
 
 export function labParticipantsDictionary(): Record<string, unknown> {
   return {
-    participant_id: { Description: 'sub- followed by the participant code the lab questionnaire builds (first two letters of the participant’s first name, house number digit, birth month, postcode letters). The same code labels the laboratory data, so the two meet without a name.' },
+    participant_id: { Description: 'sub- followed by the participant ID: MP and the first 12 hexadecimal digits of the SHA-256 hash of the participant’s first name, last name, date of birth and postcode, normalised as described in the website’s docs/participant-id.md. The study’s survey platform builds the same ID from the same four details, so the two meet without a name.' },
     consented_on: { Description: 'Date the participant confirmed consent on the website, from the current consent record' },
     consent_version: { Description: 'Version of the consent form wording agreed to' },
     information_version: { Description: 'Version of the participant information sheet shown' },
-    consent_n: { Description: 'Number of consent records for this code (a second consent from another device is appended, never overwritten)' },
+    consent_n: { Description: 'Number of consent records for this participant (a second consent from another device is appended, never overwritten)' },
+    age: { Description: 'Age in whole years on the day consent was confirmed, from the date of birth given (the date itself is kept in identifying/)', Units: 'years' },
     phases: { Description: 'Phases of the study with data: one session each', Levels: { pre: 'Before the social media break, from the first page (ses-pre)', mid: 'Screenshots sent with the mid-break check-ins (ses-mid)', post: 'After the break, from the after-break page (ses-post)', unspecified: 'Sent before phases were recorded (ses-unspecified)' } },
     sends_n: { Description: 'Occasions on which files were sent, across all phases' },
     checkins_n: { Description: 'Mid-break check-ins sent; the answers are in phenotype/checkin.tsv' },
@@ -517,13 +529,13 @@ sub-<CODE>/               one session per phase of the study: ses-pre holds
 sourcedata/               the cleaned archives (.zip) and screenshots as received,
                           named by subject, session and run, plus raw JSON Lines dumps
 
-Participants are labelled by the code the laboratory questionnaire builds
-(sub-JA101CD), so this data and the laboratory data can be joined without a
-name. Names and signatures from the consent records are kept outside this
-dataset, in the identifying/ folder next to it, for study coordinators only,
-together with the four answers the code was built from (first name, house
-number, birth month and postcode), which the team also uses as research
-variables. Participants listed in participants.tsv without a subject folder
+Participants are labelled by their participant ID (sub-MP2670FF90A5F2):
+MP and 12 hexadecimal digits of a hash of their first name, last name, date
+of birth and postcode, built the same way by the study's survey platform, so
+this data and the questionnaire and laboratory data can be joined without a
+name. Names, dates of birth, postcodes and signatures from the consent
+records are kept outside this dataset, in the identifying/ folder next to
+it, for study coordinators only; participants.tsv has age at consent. Participants listed in participants.tsv without a subject folder
 have consented but not sent anything yet.
 
 Inside a cleaned archive: manifest.json (what was kept and removed),
@@ -547,8 +559,8 @@ const LAB_ROOT_README = `# MyPhone/MyBrain: the social media break study
 
 The adult laboratory study (two EEG visits around a break from social
 media). This folder gathers the study's datasets, all labelled by the
-participant code the laboratory questionnaire builds (sub-JA101CD), so they
-join without a name.
+participant ID built from first name, last name, date of birth and postcode
+(sub-MP2670FF90A5F2), so they join without a name.
 
 donations/     written by the website every hour: the TikTok, YouTube and
                Instagram data participants cleaned on their own device and
@@ -556,8 +568,9 @@ donations/     written by the website every hour: the TikTok, YouTube and
                the break, and the mid-break check-ins; BIDS layout, no
                names; for researchers
 identifying/   written by the website every hour: consent records with typed
-               names, the answers the code was built from (including
-               postcode), and signatures; for study coordinators only
+               names, the four details the participant ID is built from
+               (first name, last name, date of birth, postcode), and
+               signatures; for study coordinators only
 
 The two folders above are mirrors: anything added inside them is removed on
 the next run. Keep the laboratory's own datasets (the visits, any tracking)
@@ -567,15 +580,15 @@ beside them in this folder, for example lab-visits/, never inside them.
 const LAB_IDENTIFYING_README = `Identifying data for the social media break study. Study coordinators only.
 Regenerated every hour as a mirror of the database; do not edit files here.
 
-consents.tsv             every consent record, by participant code, with the typed
-                         name and the four answers the code was built from
-                         (first name, house number, birth month, postcode);
-                         a second consent for the same code is a new row and
+consents.tsv             every consent record, by participant ID, with the typed
+                         name and the four details the ID is built from
+                         (first name, last name, date of birth, postcode);
+                         a second consent for the same ID is a new row and
                          supersedes points at the one before
 consent_statements.tsv   one row per statement per consent record
 reminders.tsv            email addresses of participants who asked for a progress
                          email, when it and the one follow-up were sent
-signatures/              drawn signatures, named by participant code and version
+signatures/              drawn signatures, named by participant ID and version
 raw/                     every document as JSON Lines
 
 Files are tab-separated UTF-8 with n/a for missing values; timestamps are
@@ -592,7 +605,7 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     jsonFile(`${B}/dataset_description.json`, labDatasetDescription(exportedAt)),
     textFile(`${B}/README`, LAB_README),
     textFile(`${B}/CHANGES`, `1.0.0 ${exportedAt.slice(0, 10)}\n  - Regenerated automatically every hour; see ../../manifest.json.\n`),
-    tsvFile(`${B}/participants.tsv`, labParticipantsTable(snap), ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'phases', 'sends_n', 'checkins_n', 'archives_n', 'screenshots_n', 'platforms', 'platforms_not_used', 'phone', 'first_send_at', 'last_send_at']),
+    tsvFile(`${B}/participants.tsv`, labParticipantsTable(snap), ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'age', 'phases', 'sends_n', 'checkins_n', 'archives_n', 'screenshots_n', 'platforms', 'platforms_not_used', 'phone', 'first_send_at', 'last_send_at']),
     jsonFile(`${B}/participants.json`, labParticipantsDictionary()),
     tsvFile(`${B}/phenotype/checkin.tsv`, labCheckInTable(snap.checkIns), labCheckInColumns()),
     jsonFile(`${B}/phenotype/checkin.json`, labCheckInDictionary()),

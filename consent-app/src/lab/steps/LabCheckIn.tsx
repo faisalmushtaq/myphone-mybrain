@@ -15,7 +15,7 @@ import type { FieldError } from '../validation';
 /**
  * The mid-break check-in: a few quick questions and, if the person can, a
  * screenshot of this week's screen time. The answers are filed under the
- * participant code; the screenshots go with them, linked to the check-in.
+ * participant ID; the screenshots go with them, linked to the check-in.
  */
 export function LabCheckIn() {
   const { state, dispatch } = useLab();
@@ -75,10 +75,10 @@ export function LabCheckIn() {
 
   if (!ready) {
     return (
-      <LabShell kicker="Mid-break check-in" title="Enter your participant code first." intro={<p>Your code joins your answers up with the rest of your data.</p>} hideContinue hideBack>
+      <LabShell kicker="Mid-break check-in" title="First, tell us who you are." intro={<p>Your details find your record, so your answers join up with the rest of your data.</p>} hideContinue hideBack>
         <div className="mpmb-actions">
           <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'participant-id' })}>
-            Enter my code
+            Enter my details
           </Button>
         </div>
       </LabShell>
@@ -124,7 +124,7 @@ export function LabCheckIn() {
         <ShotPicker busy={busy || sending} onAdded={() => setErrors([])} />
       </section>
       <p className="mpmb-hint">
-        Sent to the study’s secure storage at the University of Leeds, labelled with your participant code <strong className="mpmb-mono">{state.code}</strong>. Problems with Brick or the break? Contact {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>.
+        Sent to the study’s secure storage at the University of Leeds, labelled with your participant ID <strong className="mpmb-mono">{state.code}</strong>. Problems with Brick or the break? Contact {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>.
       </p>
     </LabShell>
   );

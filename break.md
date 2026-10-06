@@ -67,12 +67,12 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
     <div class="participant-info-grid">
       <div class="info-panel">
         <h3>During your break</h3>
-        <p>Once a week, a quick check-in: a few questions about how it is going, a screenshot of your screen time if you can, and the chance to tell MyStory about it in your own words. All you need is your participant code.</p>
+        <p>Once a week, a quick check-in: a few questions about how it is going, a screenshot of your screen time if you can, and the chance to tell MyStory about it in your own words. You just enter the same name, date of birth and postcode as at the start.</p>
         <a class="text-link" href="{{ '/break/check-in/' | relative_url }}">Mid-break check-in &nbsp;→</a>
       </div>
       <div class="info-panel info-panel-alt">
         <h3>After your break</h3>
-        <p>Send your screen-time screenshots and your app data once more, so the study can compare before and after. It is shorter than the first time: nothing to sign again, just your participant code.</p>
+        <p>Send your screen-time screenshots and your app data once more, so the study can compare before and after. It is shorter than the first time: nothing to sign again, just the same name, date of birth and postcode as at the start.</p>
         <a class="text-link" href="{{ '/break/after/' | relative_url }}">After your break &nbsp;→</a>
       </div>
     </div>

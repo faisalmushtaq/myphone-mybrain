@@ -1,7 +1,7 @@
 /**
  * The social media break study (the laboratory study for adults): who it is
  * for, the approved participant information and consent wording, and the
- * participant-code scheme. Plain data with no imports, because the server's
+ * participant ID recipe. Plain data with no imports, because the server's
  * build reads this file too (firebase/functions/scripts/generate-forms.mjs).
  *
  * The information follows the participant information sheet of 21 February
@@ -61,7 +61,7 @@ export const labConsentForm: { id: string; version: string; title: string; state
       kind: 'optional',
       label: 'Linking with records already held',
       text: 'My study information may be linked, through Connected West Yorkshire, with records already held about me: NHS health records, education records, and other routinely collected records.',
-      note: 'Optional: you can take part without this. Linking means adding information from records that already exist, so the study can look at longer-term patterns in health, learning and wellbeing. It happens only with the approvals in place (the study’s ethics approval, NHS Research Ethics Committee approval for NHS records, permission from each record holder, and Connected West Yorkshire’s own data access process). Linked information is labelled with your participant code, not your name. Draft wording, to be confirmed with the governance team, matching the approval held for the schools study.',
+      note: 'Optional: you can take part without this. Linking means adding information from records that already exist, so the study can look at longer-term patterns in health, learning and wellbeing. It happens only with the approvals in place (the study’s ethics approval, NHS Research Ethics Committee approval for NHS records, permission from each record holder, and Connected West Yorkshire’s own data access process). Linked information is labelled with your participant ID, not your name. Draft wording, to be confirmed with the governance team, matching the approval held for the schools study.',
     },
     { id: 'take-part', version: '1.0', kind: 'required', label: 'Agree to take part', text: 'I voluntarily agree to take part in the MyPhone/MyBrain intervention study.' },
   ],
@@ -196,7 +196,7 @@ export const labStudy = {
 
 /**
  * The three pages of the study, each its own short flow on the website, all
- * keyed by the participant code:
+ * keyed by the participant ID:
  *   baseline  /break/take-part/  consent, then screenshots and app data before the break
  *   checkin   /break/check-in/   during the break: a few questions, optional screenshots, MyStory
  *   after     /break/after/      after the break: a reminder (no new consent), screenshots and app data
@@ -315,7 +315,7 @@ export const labCheckInForm: { id: string; version: string; title: string; quest
  * MyStory, the study's conversation tool: after a check-in, participants can
  * talk it through in their own words. Not live yet, so url is null and the
  * check-in page says it is coming. When it is, set url; the page then opens
- * it in a new tab with the participant code added as the codeParam query
+ * it in a new tab with the participant ID added as the codeParam query
  * parameter, so the conversation is filed under the same code, never a name.
  */
 export const labMyStory: { name: string; url: string | null; codeParam: string } = {
@@ -325,54 +325,95 @@ export const labMyStory: { name: string; url: string | null; codeParam: string }
 };
 
 /**
- * The participant code, built exactly as the lab questionnaire builds it so
- * the two match: the first two letters of your own first name, the first
- * digit of your house number, the month you were born (two digits), and the
- * last two letters of your postcode. For example Jane, 123, January, AB1 2CD
- * gives JA101CD. The person's own name (not a parent's) keeps twins apart,
- * who share everything else; twins whose names start with the same two
- * letters still share a code, and the code step tells the second of them to
- * contact the team. Accents are dropped (Élodie gives EL), as a person
- * writing the letters would. The four answers themselves are also kept, with
- * the consent record (identifying data, never in the research dataset): the
- * team uses them as research variables too.
+ * The participant ID: built from four details the person knows, the same
+ * way on this website and in the study's survey platform, so the two match
+ * without anyone remembering a code and without a name on the research data.
+ * The recipe (docs/participant-id.md has it with worked examples, and code
+ * for other platforms):
+ *   1. First name and last name: Unicode NFKD, upper case, then letters only
+ *      (accents, spaces, hyphens and apostrophes go: "Élodie" gives ELODIE,
+ *      "O'Brien-Smith" gives OBRIENSMITH).
+ *   2. Date of birth as eight digits, YYYYMMDD.
+ *   3. Postcode in upper case, letters and digits only ("ls2 9jt" gives LS29JT).
+ *   4. Joined with "|": JANE|SMITH|20050314|LS29JT.
+ *   5. SHA-256 of that text (UTF-8), in hexadecimal.
+ *   6. "MP" and the first 12 hexadecimal digits, in capitals: MP2670FF90A5F2.
+ * Twins get different IDs because their first names differ. The ID is not
+ * anonymous (anyone who knows the four details can rebuild it), so it is
+ * handled as personal data; the four details are kept with the consent
+ * record (identifying data, never in the research dataset).
  */
-export const PARTICIPANT_CODE = /^[A-Z]{2}\d(0[1-9]|1[0-2])[A-Z]{2}$/;
+export const PARTICIPANT_CODE = /^MP[0-9A-F]{12}$/;
 
 export interface CodeParts {
   firstName: string;
-  house: string;
-  month: string;
+  lastName: string;
+  /** As typed or picked; the ID uses it as YYYYMMDD. */
+  dateOfBirth: { day: string; month: string; year: string };
+  /** The postcode where the person lived when they signed up. */
   postcode: string;
 }
 
-/** Plain capital letters only, accents dropped first: "Élodie" gives "ELODIE". */
-function plainLetters(s: string): string {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
+/** A name as the ID uses it: NFKD, upper case, letters only. "Mary-Jane" gives MARYJANE, "Zoë" gives ZOE. */
+export function idName(s: string): string {
+  return Array.from(s.normalize('NFKD').toUpperCase())
+    .filter((c) => /\p{L}/u.test(c))
+    .join('');
 }
 
-export function buildParticipantCode(parts: CodeParts): string {
-  const letters = plainLetters;
-  const name = letters(parts.firstName).slice(0, 2);
-  const house = parts.house.replace(/\D/g, '').slice(0, 1);
-  const month = parts.month.replace(/\D/g, '');
-  const postcode = letters(parts.postcode).slice(-2);
-  const mm = month.length === 1 ? `0${month}` : month.slice(-2);
-  return `${name}${house}${mm}${postcode}`;
+/** A postcode as the ID uses it: upper case, letters and digits only. */
+export function idPostcode(s: string): string {
+  return s.toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
-/** Whether a first name gives the code its two letters. */
-export function nameHasTwoLetters(firstName: string): boolean {
-  return plainLetters(firstName).length >= 2;
+/** YYYY-MM-DD when the parts make a real date, else null. */
+export function isoDateOf(dob: { day: string; month: string; year: string }): string | null {
+  const [d, m, y] = [dob.day, dob.month, dob.year].map((v) => (/^\d{1,4}$/.test(v.trim()) ? Number.parseInt(v, 10) : Number.NaN));
+  if (!(y >= 1900 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31)) return null;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+/** Whole years from a date of birth (YYYY-MM-DD) to a day (default today). */
+export function ageFrom(isoDob: string, today = new Date()): number {
+  const [y, m, d] = isoDob.split('-').map((n) => Number.parseInt(n, 10));
+  let age = today.getFullYear() - y;
+  if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) age -= 1;
+  return age;
+}
+
+/** The text the ID is the hash of, for example JANE|SMITH|20050314|LS29JT; null until every detail is usable. */
+export function participantIdKey(parts: CodeParts): string | null {
+  const first = idName(parts.firstName);
+  const last = idName(parts.lastName);
+  const dob = isoDateOf(parts.dateOfBirth);
+  const postcode = idPostcode(parts.postcode);
+  if (!first || !last || !dob || !postcode) return null;
+  return `${first}|${last}|${dob.replace(/-/g, '')}|${postcode}`;
+}
+
+/** The four details as sent with the consent and kept with it: names trimmed, the date YYYY-MM-DD, the postcode in its standard form. */
+export function idDetails(parts: CodeParts): { firstName: string; lastName: string; dateOfBirth: string; postcode: string } | null {
+  const dateOfBirth = isoDateOf(parts.dateOfBirth);
+  if (!dateOfBirth || !participantIdKey(parts)) return null;
+  return { firstName: parts.firstName.trim(), lastName: parts.lastName.trim(), dateOfBirth, postcode: formatPostcode(parts.postcode) };
+}
+
+/** The participant ID for the four details (see PARTICIPANT_CODE), or null until they are complete. */
+export async function buildParticipantId(parts: CodeParts): Promise<string | null> {
+  const key = participantIdKey(parts);
+  if (!key) return null;
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
+  const hex = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+  return `MP${hex.slice(0, 12).toUpperCase()}`;
 }
 
 /**
  * The shape of a full UK postcode, in its standard form with one space:
  * outward code (one or two letters, a digit, then optionally a letter or
  * digit) and inward code (a digit and two letters), plus the special GIR 0AA.
- * Only the shape is checked, so no real postcode is refused. The inward code
- * always ends in two letters, so a valid postcode always gives the
- * participant code its last two letters.
+ * Only the shape is checked, so no real postcode is refused.
  */
 export const UK_POSTCODE = /^(GIR 0AA|[A-Z]{1,2}\d[A-Z\d]? \d[A-Z]{2})$/;
 

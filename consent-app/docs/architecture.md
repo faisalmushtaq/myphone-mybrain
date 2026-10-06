@@ -32,10 +32,12 @@ consent-app/
 A second, separate flow for adults in the laboratory study shares the UI
 components, the API client and the stylesheet but has its own state, steps
 and backend functions (`src/lab/`, `firebase/functions/src/lab.ts`). There is
-no handover and no reference code: the participant is known by the code the
-lab questionnaire builds from four answers (`src/lab/config.ts`; the postcode
-must be a full UK postcode), which is also what the EEG data is labelled
-with, so the two meet without a name.
+no handover and no reference code: the participant is known by a participant
+ID built from their first name, last name, date of birth and postcode (a hash,
+such as `MP2670FF90A5F2`; the recipe is in `docs/participant-id.md` and
+`src/lab/config.ts`, and the postcode must be a full UK postcode). The survey
+platform builds the same ID from the same four details, so the questionnaires,
+the laboratory data and the donations meet without a name.
 
 The study has three pages, each its own short flow in the same bundle,
 chosen by the mount's `data-flow` (or `?flow=` on the plain test page), and
@@ -72,12 +74,13 @@ People carry on where they left off. Each page keeps its progress in
 `localStorage` for 60 days (`mpmb-lab:v1`, `mpmb-lab-checkin:v1`,
 `mpmb-lab-after:v1`), and the confirmed code is remembered separately
 (`mpmb-lab-code:v1`) so the later pages fill it in. On any other device the
-person types the code (or rebuilds it from the four answers), and
+person enters the same four details, which give the same ID, and
 `lookupLabParticipant` returns what has arrived for each phase, so the page
 opens at the next thing still to do. Progress emails link to
-`…?code=JA101CD`, which fills the code in and removes it from the address
-bar. Progress saved on a device belongs to the code it was confirmed for:
-confirming a different code there starts afresh.
+`…?code=MP2670FF90A5F2`, which fills the ID in and removes it from the address
+bar. Progress saved on a device belongs to the ID it was confirmed for:
+confirming a different ID there starts afresh, and progress saved under the
+old code scheme is dropped.
 
 Cleaning happens entirely on the device (`src/lab/cleaner.ts`, ported from
 the lab team's single-file tool and unit-tested with Vitest): the ZIP is read

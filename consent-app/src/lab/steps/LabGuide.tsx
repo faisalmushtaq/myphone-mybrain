@@ -72,7 +72,7 @@ export function LabGuide() {
         )
       }
       onContinue={next}
-      continueLabel={ready ? 'I have my file' : 'I have my file: enter my code'}
+      continueLabel={ready ? 'I have my file' : 'I have my file: enter my details'}
       width="wide"
       secondaryAction={
         <Button variant="ghost" onClick={() => setLater(true)}>
@@ -85,7 +85,7 @@ export function LabGuide() {
           {ready ? (
             <>
               <p>
-                <strong>Come back when your download has arrived.</strong> Your progress is saved under your participant code <strong className="mpmb-mono">{state.code}</strong>. If you would like, we can email you a note of where you are, with a link that opens this page ready for you on any device; if we have not received your file two days later, we will send one reminder.
+                <strong>Come back when your download has arrived.</strong> Your progress is saved under your participant ID <strong className="mpmb-mono">{state.code}</strong>. If you would like, we can email you a note of where you are, with a link that opens this page ready for you on any device; if we have not received your file two days later, we will send one reminder.
               </p>
               {reminder.kind === 'sent' ? (
                 <p>Sent. Check your inbox (and spam folder) for an email from MyPhone/MyBrain. Your address is kept only for that email and the one reminder.</p>
@@ -117,7 +117,7 @@ export function LabGuide() {
               )}
             </>
           ) : (
-            <p>Come back to this page when your file has arrived and enter your participant code. If you want an email reminder, enter your code and give your consent first.</p>
+            <p>Come back to this page when your file has arrived and enter your details. If you want an email reminder, enter your details and give your consent first.</p>
           )}
         </Callout>
       )}
@@ -137,7 +137,7 @@ export function LabGuide() {
               </p>
             </Callout>
             <Steps steps={chosen.steps} />
-            <NextLink onClick={next}>{ready ? 'Continue: I have my file' : 'Continue: enter my code'}</NextLink>
+            <NextLink onClick={next}>{ready ? 'Continue: I have my file' : 'Continue: enter my details'}</NextLink>
           </div>
         )}
       </section>

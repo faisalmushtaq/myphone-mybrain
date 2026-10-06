@@ -11,8 +11,8 @@ export async function buildLabConsentCopy(state: LabState): Promise<{ blob: Blob
   const w = new Writer(doc);
   w.paragraph('MyPhone/MyBrain', { size: 10, style: 'bold', color: PDF_MUTED, after: 1 });
   w.paragraph('Your copy of your consent', { size: 21, style: 'bold', after: 1.5 });
-  w.paragraph(`${labStudy.formalName} · Participant code ${state.code}${submission.consentSentAt ? ` · Recorded ${formatTimestamp(submission.consentSentAt)}` : ''}`, { size: 10.5, color: PDF_MUTED, after: 4 });
-  w.paragraph(`This is a copy of the consent you gave to take part in the ${labStudy.name.toLowerCase()}. Keep it somewhere safe. To withdraw, or to ask anything, email ${labStudy.contact.email} and quote your participant code.`);
+  w.paragraph(`${labStudy.formalName} · Participant ID ${state.code}${submission.consentSentAt ? ` · Recorded ${formatTimestamp(submission.consentSentAt)}` : ''}`, { size: 10.5, color: PDF_MUTED, after: 4 });
+  w.paragraph(`This is a copy of the consent you gave to take part in the ${labStudy.name.toLowerCase()}. Keep it somewhere safe. To withdraw, or to ask anything, email ${labStudy.contact.email} and quote your participant ID.`);
 
   w.heading(labConsentForm.title);
   for (const s of labConsentForm.statements) w.statement(s.text, consent.responses[s.id]?.response);

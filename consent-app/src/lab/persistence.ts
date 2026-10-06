@@ -1,3 +1,4 @@
+import { PARTICIPANT_CODE } from './config';
 import { labFlowPhase, type LabFlow, type LabState } from './model';
 import { initialLabState } from './reducer';
 
@@ -8,10 +9,11 @@ import { initialLabState } from './reducer';
  * consent record and the list of files already sent is kept; file bytes are
  * never stored. Cleared by "Finish and clear this device", or after 60 days.
  *
- * Each of the study's pages keeps its own progress (the key for the first
- * page is unchanged, so nobody loses theirs), and the confirmed participant
- * code is also remembered on its own, so the check-in and after-break pages
- * can recognise the person without asking for the four answers again.
+ * Each of the study's pages keeps its own progress, and the confirmed
+ * participant ID is also remembered on its own, so the check-in and
+ * after-break pages can recognise the person without asking for the four
+ * details again. Progress saved under the old participant-code scheme (codes
+ * such as JA101CD) is dropped: those codes are no longer used.
  */
 const KEYS: Record<LabFlow, string> = { baseline: 'mpmb-lab:v1', checkin: 'mpmb-lab-checkin:v1', after: 'mpmb-lab-after:v1' };
 const CODE_KEY = 'mpmb-lab-code:v1';
@@ -32,18 +34,18 @@ function fresh(savedAt: string | undefined): boolean {
   return !Number.isNaN(t) && Date.now() - t <= MAX_AGE_MS;
 }
 
-/** The participant code last confirmed on this device, on any of the study's pages. */
+/** The participant ID last confirmed on this device, on any of the study's pages. */
 export function rememberedCode(): string | null {
   const store = storage();
   if (!store) return null;
   try {
     const raw = store.getItem(CODE_KEY);
     const parsed = raw ? (JSON.parse(raw) as { code?: unknown; savedAt?: string }) : null;
-    if (parsed && typeof parsed.code === 'string' && fresh(parsed.savedAt)) return parsed.code;
+    if (parsed && typeof parsed.code === 'string' && PARTICIPANT_CODE.test(parsed.code) && fresh(parsed.savedAt)) return parsed.code;
     // Someone who used the first page before the code was remembered on its own.
     const first = store.getItem(KEYS.baseline);
     const state = first ? (JSON.parse(first) as Partial<LabState> & { savedAt?: string }) : null;
-    return state && state.codeConfirmed && typeof state.code === 'string' && fresh(state.savedAt) ? state.code : null;
+    return state && state.codeConfirmed && typeof state.code === 'string' && PARTICIPANT_CODE.test(state.code) && fresh(state.savedAt) ? state.code : null;
   } catch {
     return null;
   }
@@ -73,7 +75,9 @@ export function loadLabState(flow: LabFlow): LabState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<LabState> & { savedAt?: string };
     if (!parsed || typeof parsed !== 'object' || !parsed.stepId) return null;
-    if (!fresh(parsed.savedAt)) {
+    // Too old, or from the old participant-code scheme: start afresh.
+    const oldScheme = (typeof parsed.code === 'string' && parsed.code !== '' && !PARTICIPANT_CODE.test(parsed.code)) || (typeof parsed.confirmedCode === 'string' && !PARTICIPANT_CODE.test(parsed.confirmedCode));
+    if (!fresh(parsed.savedAt) || oldScheme) {
       store.removeItem(key);
       return null;
     }
@@ -89,8 +93,13 @@ export function loadLabState(flow: LabFlow): LabState | null {
       // The page decides the flow and the phase; saved progress from before they existed is read in as the first page's.
       flow,
       phase: labFlowPhase[flow],
-      // Only the answers the code is built from now; anything else saved under an older scheme is dropped.
-      codeParts: { firstName: parsed.codeParts?.firstName ?? '', house: parsed.codeParts?.house ?? '', month: parsed.codeParts?.month ?? '', postcode: parsed.codeParts?.postcode ?? '' },
+      // Only the four details the ID is built from.
+      codeParts: {
+        firstName: parsed.codeParts?.firstName ?? '',
+        lastName: parsed.codeParts?.lastName ?? '',
+        dateOfBirth: { day: parsed.codeParts?.dateOfBirth?.day ?? '', month: parsed.codeParts?.dateOfBirth?.month ?? '', year: parsed.codeParts?.dateOfBirth?.year ?? '' },
+        postcode: parsed.codeParts?.postcode ?? '',
+      },
       consent: { ...base.consent, ...(parsed.consent ?? {}) },
       submission: { ...base.submission, ...(parsed.submission ?? {}) },
       checkIn: { ...base.checkIn, ...(parsed.checkIn ?? {}) },

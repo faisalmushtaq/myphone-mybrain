@@ -37,7 +37,7 @@ function Frame() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    // A link from a progress email names the code, so any device can carry on with one press.
+    // A link from a progress email carries the participant ID, so any device can carry on with one press.
     const code = normaliseParticipantCode(params.get('code') ?? '');
     if (PARTICIPANT_CODE.test(code)) {
       dispatch({ type: 'use-code', code });
@@ -72,7 +72,7 @@ function Frame() {
               </span>
               {state.codeConfirmed && (
                 <span>
-                  Code <strong className="mpmb-mono">{state.code}</strong>
+                  ID <strong className="mpmb-mono">{state.code}</strong>
                 </span>
               )}
             </div>

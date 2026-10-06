@@ -10,7 +10,7 @@ import { useLab } from '../store';
 import { useLabSender } from '../useLabSender';
 import type { FieldError } from '../validation';
 
-/** Everything prepared is uploaded and recorded against the participant code in one go, filed under the page's phase (before or after the break). */
+/** Everything prepared is uploaded and recorded against the participant ID in one go, filed under the page's phase (before or after the break). */
 export function LabSend() {
   const { state, dispatch } = useLab();
   const { send: sendFiles, busy } = useLabSender();
@@ -48,10 +48,10 @@ export function LabSend() {
 
   if (!ready) {
     return (
-      <LabShell kicker="Send your data" title="Enter your participant code first." intro={<p>We need your code and your consent before any data can be sent. It takes a minute.</p>} hideContinue hideBack>
+      <LabShell kicker="Send your data" title="First, tell us who you are." intro={<p>We need your details and your consent before any data can be sent. It takes a minute.</p>} hideContinue hideBack>
         <div className="mpmb-actions">
           <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'participant-id' })}>
-            Enter my code
+            Enter my details
           </Button>
         </div>
       </LabShell>
@@ -59,7 +59,7 @@ export function LabSend() {
   }
 
   return (
-    <LabShell kicker="Send your data" title="Check and send." intro={<p>Everything below is sent together, linked to your participant code <strong className="mpmb-mono">{state.code}</strong>, never to your name.</p>} errors={errors} onContinue={() => void send()} continueLabel="Send my data" continueLoading={busy} width="wide">
+    <LabShell kicker="Send your data" title="Check and send." intro={<p>Everything below is sent together, linked to your participant ID <strong className="mpmb-mono">{state.code}</strong>, never to your name.</p>} errors={errors} onContinue={() => void send()} continueLabel="Send my data" continueLoading={busy} width="wide">
       {state.submission.donationStage === 'failed' && state.submission.donationError && (
         <Callout tone="important" role="alert">
           <p>{state.submission.donationError}</p>
@@ -110,7 +110,7 @@ export function LabSend() {
           {state.archives.length ? 'Prepare another file' : 'Prepare a file'}
         </Button>
       </section>
-      <p className="mpmb-hint">Pressing “Send my data” uploads the files above to the study’s secure storage at the University of Leeds and records them against your participant code. You can come back and add more later.</p>
+      <p className="mpmb-hint">Pressing “Send my data” uploads the files above to the study’s secure storage at the University of Leeds and records them against your participant ID. You can come back and add more later.</p>
     </LabShell>
   );
 }

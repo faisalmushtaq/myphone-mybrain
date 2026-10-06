@@ -1,0 +1,65 @@
+---
+layout: default
+---
+{% assign school = page.school %}
+{% capture form_url %}{{ '/take-part/consent/' | relative_url }}?who=parent&amp;school={{ school.slug }}{% endcapture %}
+<!-- One school's page for parents and carers (made from _data/schools.json by _plugins/school_pages.rb). -->
+<section class="page-hero page-hero--teal school-hero">
+  <div class="container">
+    <p class="hero-kicker">For parents and carers at {{ school.name }}</p>
+    <h1>Your child is invited to <span>MyPhone/<wbr>MyBrain.</span></h1>
+    <p class="school-hero__intro">{{ school.name }} is taking part in MyPhone/MyBrain, a University of Leeds study about young people’s phones, brains and growing up. Here is what it involves and how to say yes online, in about five minutes.</p>
+    <div class="school-hero__actions">
+      <a class="btn btn-primary" href="{{ form_url }}">Start the form &nbsp;&rarr;</a>
+      <a class="school-hero__more" href="#what-it-involves">Read what it involves first</a>
+    </div>
+  </div>
+</section>
+
+<section class="section section-light school-landing">
+  <div class="container">
+    <div class="school-landing__grid">
+      <div class="info-panel" id="what-it-involves">
+        <h2>What taking part involves</h2>
+        <ul class="info-checklist">
+          <li>Short surveys about everyday life, phones and how your child feels.</li>
+          <li>For some young people, a session at school with our researchers: a soft cap records brain activity (EEG) while they do simple computer tasks. It is safe and painless, and it cannot read thoughts.</li>
+          <li>Only if you and your child want to: screenshots of the phone’s screen-time summary, showing which apps are used and for how long.</li>
+          <li>We never read messages, look at photos or see what is posted.</li>
+        </ul>
+        <p class="school-landing__note">Your child can only take part if you give permission and they agree too. They can say no to any part, or stop at any time, and it will not affect anything at school.</p>
+      </div>
+
+      <div class="info-panel info-panel-alt school-landing__cta" id="give-permission">
+        <h2>Say yes online</h2>
+        <ol class="school-steps">
+          <li>You enter your child’s details and give your permission.</li>
+          <li>Your child reads a short explanation and signs to say they agree.</li>
+          <li>If you both want to, you add a screenshot of the phone’s screen time.</li>
+        </ol>
+        <a class="btn btn-primary" href="{{ form_url }}">Start the form &nbsp;&rarr;</a>
+        <p class="school-landing__hint">The form already has <strong>{{ school.name }}</strong> filled in. Not your child’s school? You can change it in the form.</p>
+      </div>
+    </div>
+
+    <div class="reassurance-block">
+      <h3>Key things to know</h3>
+      <ul class="info-checklist">
+        {% for item in site.data.audience.for_parents.what_to_know %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="school-landing__more">
+      <h2>Want to know more first?</h2>
+      <ul class="school-links">
+        <li><a class="text-link" href="{{ '/families/' | relative_url }}">Full information for parents and carers &nbsp;&rarr;</a></li>
+        <li><a class="text-link" href="{{ '/young-people/' | relative_url }}">Information for your child &nbsp;&rarr;</a></li>
+        <li><a class="text-link" href="{{ '/faq/' | relative_url }}">Questions and answers &nbsp;&rarr;</a></li>
+        <li><a class="text-link" href="{{ '/contact/?topic=Participant%20information' | relative_url }}">Ask the research team &nbsp;&rarr;</a></li>
+      </ul>
+      <p class="school-landing__hint">Prefer paper, or need the information in another language or format? <a href="{{ '/contact/' | relative_url }}">Contact the team</a> and we will send you what works for you.</p>
+    </div>
+  </div>
+</section>
