@@ -2691,6 +2691,14 @@
 .mpmb-app .mpmb-lab .mpmb-step__body > section > * + * {
   margin-top: 1rem;
 }
+/* A link that acts on a section's list lines up with the text and sits close under it, not indented and spaced like a full button. */
+.mpmb-app .mpmb-lab .mpmb-step__body > section > .mpmb-btn--link {
+  padding-inline: 0;
+  min-height: 44px;
+}
+.mpmb-app .mpmb-lab .mpmb-step__body > section > * + .mpmb-btn--link {
+  margin-top: 0.35rem;
+}
 /* The check-in's questions: one clear gap between each. */
 .mpmb-app .mpmb-lab .mpmb-step__body > .mpmb-checkin > * + * {
   margin-top: 1.75rem;
