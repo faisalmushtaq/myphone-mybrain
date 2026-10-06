@@ -3,24 +3,28 @@ import { jsonFile, jsonlFile, textFile, tsvFile, type Doc, type OutFile, type Ro
 import { cleaner, labConsentForm, labStudy } from './forms.js';
 
 /**
- * The social media break study's part of the hourly export: its own BIDS
- * dataset under lab/, labelled by participant code (which is already a
- * pseudonym: the lab questionnaire builds the same code, so the EEG data and
- * this donated data meet without a name), and its consent records, names and
- * signatures under identifying/ next to the family study's.
+ * The social media break study's part of the hourly export: its own folder,
+ * social-media-break/, with a BIDS dataset labelled by participant code
+ * (already a pseudonym: the lab questionnaire builds the same code, so the
+ * EEG data and this donated data meet without a name) and its own
+ * identifying/ folder for the consent records, names and signatures.
  *
- *   lab/participants.tsv                       one row per consenting code
- *   lab/sub-<CODE>/sub-<CODE>_sessions.tsv     one session per send
- *   lab/sub-<CODE>/ses-NN/beh/*_task-donation_beh.tsv
- *                                              the files in that send, with
- *                                              what the cleaner's manifest says
- *                                              is inside, or the screenshot checks
- *   lab/sourcedata/sub-<CODE>/ses-NN/          the cleaned archives and screenshots
- *   identifying/lab_consents.tsv, lab_consent_statements.tsv, signatures/lab/
+ *   social-media-break/bids/participants.tsv              one row per consenting code
+ *   social-media-break/bids/sub-<CODE>/sub-<CODE>_sessions.tsv   one session per send
+ *   social-media-break/bids/sub-<CODE>/ses-NN/beh/*_task-donation_beh.tsv
+ *                                               the files in that send, with what the
+ *                                               cleaner's manifest says is inside, or
+ *                                               the screenshot checks
+ *   social-media-break/bids/sourcedata/sub-<CODE>/ses-NN/   the archives and screenshots
+ *   social-media-break/identifying/consents.tsv, consent_statements.tsv, signatures/
  */
 
 const BIDS_VERSION = '1.10.0';
 const TASK = 'donation';
+/** The study's folder in the export bucket, and its two subfolders. */
+export const LAB_ROOT = 'social-media-break';
+const B = `${LAB_ROOT}/bids`;
+const I = `${LAB_ROOT}/identifying`;
 const CODE_URL = 'https://github.com/faisalmushtaq/myphone-mybrain';
 const two = (n: number) => String(n).padStart(2, '0');
 
@@ -64,10 +68,10 @@ export function labFile(s: LabSession, run: number, file: DocumentData): string 
   return `sourcedata/${s.label}/${s.session}/${s.label}_${s.session}_run-${two(run)}_${kind}.${ext}`;
 }
 
-/** Where a signature image lives, relative to identifying/. */
+/** Where a signature image lives, relative to the study's identifying/ folder. */
 export function labSignatureFile(code: string, version: unknown): string {
   const label = labLabel(code);
-  return `signatures/lab/${label}/${label}_consent-v${String(version ?? 1)}_signature.png`;
+  return `signatures/${label}/${label}_consent-v${String(version ?? 1)}_signature.png`;
 }
 
 const byLabel = (a: Row, b: Row) => String(a.participant_id).localeCompare(String(b.participant_id));
@@ -257,10 +261,10 @@ sourcedata/               the cleaned archives (.zip) and screenshots
 Participants are labelled by the code the laboratory questionnaire builds
 (sub-JA101CD), so this data and the laboratory data can be joined without a
 name. Names and signatures from the consent records are kept outside this
-dataset, in identifying/lab_consents.tsv next to it, for study coordinators
-only, together with the four answers the code was built from (mother's
-first name, house number, birth month and postcode), which the team also
-uses as research variables. Participants listed in participants.tsv without a subject folder have
+dataset, in the identifying/ folder next to it, for study coordinators only,
+together with the four answers the code was built from (mother's first name,
+house number, birth month and postcode), which the team also uses as research
+variables. Participants listed in participants.tsv without a subject folder have
 consented but not sent anything yet.
 
 Inside a cleaned archive: manifest.json (what was kept and removed),
@@ -278,23 +282,57 @@ sub-<CODE>_ses-<nn>_run-<nn>_archive.zip or _screenshot.png/.jpg, and raw
 JSON Lines dumps of the lab collections. See ../README.
 `;
 
+const LAB_ROOT_README = `# MyPhone/MyBrain: the social media break study
+
+The adult laboratory study (two EEG visits around a break from social
+media). Participants download their own TikTok and YouTube data, clean it on
+their own device and donate the result, with screen-time screenshots, on the
+website. Regenerated automatically every hour; do not edit or add files here.
+
+bids/          the donated data in BIDS layout, labelled by the participant
+               code the laboratory questionnaire also uses (sub-JA101CD), no
+               names; for researchers
+identifying/   consent records with typed names, the answers the code was
+               built from (including postcode), and signatures; for study
+               coordinators only
+`;
+
+const LAB_IDENTIFYING_README = `Identifying data for the social media break study. Study coordinators only.
+Regenerated every hour as a mirror of the database; do not edit files here.
+
+consents.tsv             every consent record, by participant code, with the typed
+                         name and the four answers the code was built from
+                         (mother's first name, house number, birth month, postcode);
+                         a second consent for the same code is a new row and
+                         supersedes points at the one before
+consent_statements.tsv   one row per statement per consent record
+signatures/              drawn signatures, named by participant code and version
+raw/                     every consent document as JSON Lines
+
+Files are tab-separated UTF-8 with n/a for missing values; timestamps are
+ISO 8601 in UTC. The donated data, labelled by code only, is in the bids/
+folder next to this one.
+`;
+
 /** The lab study's files, binary copies and counts, for runExport to merge with the family study's. */
 export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFile[]; copies: Map<string, string>; counts: Record<string, number> } {
   const sessions = labSessionsOf(snap);
   const behColumns = Object.keys(labBehDictionary()).filter((k) => !['TaskName', 'TaskDescription'].includes(k));
   const files: OutFile[] = [
-    jsonFile('lab/dataset_description.json', labDatasetDescription(exportedAt)),
-    textFile('lab/README', LAB_README),
-    textFile('lab/CHANGES', `1.0.0 ${exportedAt.slice(0, 10)}\n  - Regenerated automatically every hour; see ../manifest.json.\n`),
-    tsvFile('lab/participants.tsv', labParticipantsTable(snap), ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'sessions_n', 'archives_n', 'screenshots_n', 'platforms', 'phone', 'first_donation_at', 'last_donation_at']),
-    jsonFile('lab/participants.json', labParticipantsDictionary()),
-    textFile('lab/sourcedata/README.md', LAB_SOURCEDATA_README, 'text/markdown; charset=utf-8'),
-    jsonlFile('lab/sourcedata/raw/labParticipants.jsonl', snap.participants),
-    jsonlFile('lab/sourcedata/raw/labDonations.jsonl', snap.donations),
-    jsonlFile('identifying/raw/labConsents.jsonl', snap.consents),
+    textFile(`${LAB_ROOT}/README.md`, LAB_ROOT_README, 'text/markdown; charset=utf-8'),
+    jsonFile(`${B}/dataset_description.json`, labDatasetDescription(exportedAt)),
+    textFile(`${B}/README`, LAB_README),
+    textFile(`${B}/CHANGES`, `1.0.0 ${exportedAt.slice(0, 10)}\n  - Regenerated automatically every hour; see ../../manifest.json.\n`),
+    tsvFile(`${B}/participants.tsv`, labParticipantsTable(snap), ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'sessions_n', 'archives_n', 'screenshots_n', 'platforms', 'phone', 'first_donation_at', 'last_donation_at']),
+    jsonFile(`${B}/participants.json`, labParticipantsDictionary()),
+    textFile(`${B}/sourcedata/README.md`, LAB_SOURCEDATA_README, 'text/markdown; charset=utf-8'),
+    jsonlFile(`${B}/sourcedata/raw/labParticipants.jsonl`, snap.participants),
+    jsonlFile(`${B}/sourcedata/raw/labDonations.jsonl`, snap.donations),
+    textFile(`${I}/README.md`, LAB_IDENTIFYING_README, 'text/markdown; charset=utf-8'),
+    jsonlFile(`${I}/raw/consents.jsonl`, snap.consents),
   ];
   const { records, statements } = labConsentTables(snap.consents);
-  files.push(tsvFile('identifying/lab_consents.tsv', records), tsvFile('identifying/lab_consent_statements.tsv', statements));
+  files.push(tsvFile(`${I}/consents.tsv`, records), tsvFile(`${I}/consent_statements.tsv`, statements));
 
   const bySubject = new Map<string, LabSession[]>();
   for (const s of sessions) {
@@ -302,18 +340,18 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     bySubject.get(s.label)!.push(s);
   }
   for (const [label, mine] of bySubject) {
-    files.push(tsvFile(`lab/${label}/${label}_sessions.tsv`, labSessionsTable(mine), ['session_id', 'acq_time', 'archives_n', 'screenshots_n', 'phone', 'needs_review']));
+    files.push(tsvFile(`${B}/${label}/${label}_sessions.tsv`, labSessionsTable(mine), ['session_id', 'acq_time', 'archives_n', 'screenshots_n', 'phone', 'needs_review']));
     for (const s of mine) {
-      const base = `lab/${label}/${s.session}/beh/${label}_${s.session}_task-${TASK}_beh`;
+      const base = `${B}/${label}/${s.session}/beh/${label}_${s.session}_task-${TASK}_beh`;
       files.push(tsvFile(`${base}.tsv`, labBehTable(s), behColumns), jsonFile(`${base}.json`, labBehDictionary()));
     }
   }
 
   const copies = new Map<string, string>();
-  for (const s of sessions) s.files.forEach((f, i) => typeof f.path === 'string' && copies.set(f.path, `lab/${labFile(s, i + 1, f)}`));
+  for (const s of sessions) s.files.forEach((f, i) => typeof f.path === 'string' && copies.set(f.path, `${B}/${labFile(s, i + 1, f)}`));
   for (const c of snap.consents) {
     const path = c.data.signature?.image?.path;
-    if (typeof path === 'string') copies.set(path, `identifying/${labSignatureFile(String(c.data.participantCode), c.data.version)}`);
+    if (typeof path === 'string') copies.set(path, `${I}/${labSignatureFile(String(c.data.participantCode), c.data.version)}`);
   }
 
   const all = sessions.flatMap((s) => s.files);

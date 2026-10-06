@@ -7,21 +7,23 @@ import { labExport } from './exportLab.js';
 import { parentQuestionsForm, questionWording, study } from './forms.js';
 
 /**
- * The hourly export: everything the study has recorded, written into a
- * private bucket of its own as three folders.
+ * The hourly export: everything the studies have recorded, written into a
+ * private bucket of its own, one folder per study, each with two subfolders.
  *
- *   bids/          the research dataset in BIDS layout, de-identified: a
- *                  participants table, the parent questionnaire as a
- *                  phenotype file, one session per screenshot send with a
- *                  behavioural table listing the images and their quality
- *                  checks, the images themselves under sourcedata/, and
- *                  data dictionaries for every table.
- *   lab/           the social media break study's dataset, also BIDS,
- *                  labelled by participant code (exportLab.ts).
- *   identifying/   names, dates of birth, contact details, the consent and
- *                  agreement records, signatures and website enquiries,
- *                  with the key from BIDS labels to people. Never inside
- *                  the BIDS datasets.
+ *   schools/bids/            the young people's study: the research dataset
+ *                            in BIDS layout, de-identified: a participants
+ *                            table, the parent questionnaire as a phenotype
+ *                            file, one session per screenshot send with a
+ *                            behavioural table listing the images and their
+ *                            quality checks, the images themselves under
+ *                            sourcedata/, and data dictionaries.
+ *   schools/identifying/     names, dates of birth, contact details, the
+ *                            consent and agreement records, signatures and
+ *                            website enquiries, with the key from BIDS labels
+ *                            to people. Never inside the BIDS dataset.
+ *   social-media-break/      the adult laboratory study, same shape: bids/
+ *                            holds the donated archives and screenshots,
+ *                            identifying/ the consent records (exportLab.ts).
  *
  * The bucket is a mirror of the current records: every run rewrites the
  * tables, copies any image or signature that is missing, and deletes
@@ -32,6 +34,10 @@ import { parentQuestionsForm, questionWording, study } from './forms.js';
 
 const REGION = 'europe-west2';
 const BATCH = 8;
+/** The young people's study's folder, and its two subfolders. */
+export const SCHOOLS = 'schools';
+const B = `${SCHOOLS}/bids`;
+const I = `${SCHOOLS}/identifying`;
 const BIDS_VERSION = '1.10.0';
 const TASK = 'screentime';
 const CODE_URL = 'https://github.com/faisalmushtaq/myphone-mybrain';
@@ -458,7 +464,7 @@ sourcedata/               the screenshot images themselves, named by subject,
 Participants are labelled in order of consent. The key from labels to names,
 dates of birth and contact details, together with the consent records and
 signatures, is kept outside this dataset in the identifying/ folder next to
-it, for study coordinators only. Participants listed in participants.tsv
+it (schools/identifying/), for study coordinators only. Participants listed in participants.tsv
 without a subject folder have not sent any screenshots yet.
 
 Timestamps are ISO 8601 in UTC. Missing values are n/a.
@@ -469,8 +475,9 @@ sub-<label>_ses-<nn>_task-screentime_run-<nn>_screenshot.png or .jpg, and
 raw JSON Lines dumps of the research collections. See ../README.
 `;
 
-const IDENTIFYING_README = `Identifying data for the MyPhone/MyBrain study. Study coordinators only.
-Regenerated every hour as a mirror of the database; do not edit files here.
+const IDENTIFYING_README = `Identifying data for the MyPhone/MyBrain young people's study. Study
+coordinators only. Regenerated every hour as a mirror of the database; do not
+edit files here.
 
 participants_key.tsv       the key from participant labels (sub-00001...) to
                            names, date of birth, school, parent or guardian
@@ -483,34 +490,49 @@ assent_statements.tsv      one row per statement per agreement record
 submissions.tsv            one row per family: reference code, current record
                            ids, image counts
 enquiries.tsv              messages from the website's contact and school forms
-lab_consents.tsv           the social media break study's consent records (adults,
-                           by participant code), with the typed names and the
-                           answers the code was built from (incl. postcode)
-lab_consent_statements.tsv one row per statement per lab consent record
-signatures/                drawn signatures, named by participant label and record;
-                           signatures/lab/ for the social media break study
+signatures/                drawn signatures, named by participant label and record
 raw/                       every document as JSON Lines
 
 Files are tab-separated UTF-8 with n/a for missing values; timestamps are
 ISO 8601 in UTC. The research data, labelled by participant only, is in the
-bids/ and lab/ folders next to this one.
+bids/ folder next to this one. The social media break study (adults) has its
+own folder, social-media-break/, with the same layout.
+`;
+
+const SCHOOLS_README = `# MyPhone/MyBrain: the young people's study
+
+Consent given online by parents or guardians and young people in Bradford
+and Leeds schools, the parents' quick questions, and the screen-time
+screenshots families shared. Regenerated automatically every hour; do not edit
+or add files here.
+
+bids/          the research dataset in BIDS layout, labelled sub-00001,
+               sub-00002... in order of consent, no names; for researchers
+identifying/   names, dates of birth, contact details, consent and agreement
+               records, signatures, website enquiries, and the key from labels
+               to people; for study coordinators only
 `;
 
 const ROOT_README = `# MyPhone/MyBrain data export
 
-Written automatically every hour from the study's Firebase project, as a
-mirror of the current records: tables are rewritten each run, new images are
-added, and anything deleted from the study (for example after a withdrawal)
+Written automatically every hour from the programme's Firebase project, as a
+mirror of the current records: tables are rewritten each run, new files are
+added, and anything deleted from a study (for example after a withdrawal)
 disappears from here too. Do not edit or add files in this folder.
 
-bids/          the family study's research dataset in BIDS layout, labelled
-               by participant only (no names); for researchers
-lab/           the social media break study's dataset (adults; cleaned TikTok
-               and YouTube archives and screenshots), BIDS layout, labelled by
-               participant code; for researchers
-identifying/   names, contact details, consent records, signatures and the key
-               from labels to people, for both studies; for study coordinators
-               only
+One folder per study, each with the same two subfolders:
+
+schools/              the young people's study (parents' consent, young
+                      people's agreement, the parents' questions, screen-time
+                      screenshots), labelled sub-00001... in order of consent
+social-media-break/   the adult laboratory study: cleaned TikTok and YouTube
+                      archives and screen-time screenshots donated by
+                      participants, labelled by their participant code
+
+  <study>/bids/          the research dataset in BIDS layout, no names;
+                         for researchers
+  <study>/identifying/   names, contact details, consent records and
+                         signatures; for study coordinators only
 
 manifest.json says when the last export ran and how many of each thing it holds.
 `;
@@ -580,29 +602,30 @@ export async function runExport(): Promise<Manifest> {
 
   const files: OutFile[] = [
     text('README.md', ROOT_README, 'text/markdown; charset=utf-8'),
-    json('bids/dataset_description.json', datasetDescription(exportedAt)),
-    text('bids/README', BIDS_README),
-    text('bids/CHANGES', `1.0.0 ${exportedAt.slice(0, 10)}\n  - Regenerated automatically every hour; see ../manifest.json.\n`),
-    tsv('bids/participants.tsv', participantsTable(snap), ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'assent_status', 'questions_status', 'sessions_n', 'screenshots_n', 'platform']),
-    json('bids/participants.json', participantsDictionary()),
-    tsv('bids/phenotype/parent_perceptions.tsv', phenotypeTable(snap), ['participant_id', ...parentQuestionsForm.questions.map((q) => snake(q.id)), 'status', 'form_version', 'completed_at']),
-    json('bids/phenotype/parent_perceptions.json', phenotypeDictionary()),
-    text('bids/sourcedata/README.md', SOURCEDATA_README, 'text/markdown; charset=utf-8'),
-    jsonl('bids/sourcedata/raw/surveys.jsonl', surveys),
-    jsonl('bids/sourcedata/raw/donations.jsonl', donations),
-    text('identifying/README.md', IDENTIFYING_README, 'text/markdown; charset=utf-8'),
-    tsv('identifying/participants_key.tsv', participantsKey(snap)),
-    tsv('identifying/submissions.tsv', submissionsTable(snap)),
-    tsv('identifying/enquiries.tsv', enquiriesTable(enquiries)),
-    jsonl('identifying/raw/participants.jsonl', participants),
-    jsonl('identifying/raw/consents.jsonl', consents),
-    jsonl('identifying/raw/assents.jsonl', assents),
-    jsonl('identifying/raw/submissions.jsonl', submissions),
-    jsonl('identifying/raw/enquiries.jsonl', enquiries),
+    text(`${SCHOOLS}/README.md`, SCHOOLS_README, 'text/markdown; charset=utf-8'),
+    json(`${B}/dataset_description.json`, datasetDescription(exportedAt)),
+    text(`${B}/README`, BIDS_README),
+    text(`${B}/CHANGES`, `1.0.0 ${exportedAt.slice(0, 10)}\n  - Regenerated automatically every hour; see ../../manifest.json.\n`),
+    tsv(`${B}/participants.tsv`, participantsTable(snap), ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'assent_status', 'questions_status', 'sessions_n', 'screenshots_n', 'platform']),
+    json(`${B}/participants.json`, participantsDictionary()),
+    tsv(`${B}/phenotype/parent_perceptions.tsv`, phenotypeTable(snap), ['participant_id', ...parentQuestionsForm.questions.map((q) => snake(q.id)), 'status', 'form_version', 'completed_at']),
+    json(`${B}/phenotype/parent_perceptions.json`, phenotypeDictionary()),
+    text(`${B}/sourcedata/README.md`, SOURCEDATA_README, 'text/markdown; charset=utf-8'),
+    jsonl(`${B}/sourcedata/raw/surveys.jsonl`, surveys),
+    jsonl(`${B}/sourcedata/raw/donations.jsonl`, donations),
+    text(`${I}/README.md`, IDENTIFYING_README, 'text/markdown; charset=utf-8'),
+    tsv(`${I}/participants_key.tsv`, participantsKey(snap)),
+    tsv(`${I}/submissions.tsv`, submissionsTable(snap)),
+    tsv(`${I}/enquiries.tsv`, enquiriesTable(enquiries)),
+    jsonl(`${I}/raw/participants.jsonl`, participants),
+    jsonl(`${I}/raw/consents.jsonl`, consents),
+    jsonl(`${I}/raw/assents.jsonl`, assents),
+    jsonl(`${I}/raw/submissions.jsonl`, submissions),
+    jsonl(`${I}/raw/enquiries.jsonl`, enquiries),
   ];
   for (const kind of ['consent', 'assent'] as const) {
     const { records, statements } = agreementTables(kind, kind === 'consent' ? consents : assents, labels);
-    files.push(tsv(`identifying/${kind}s.tsv`, records), tsv(`identifying/${kind}_statements.tsv`, statements));
+    files.push(tsv(`${I}/${kind}s.tsv`, records), tsv(`${I}/${kind}_statements.tsv`, statements));
   }
   const bySubject = new Map<string, Session[]>();
   for (const s of sessions) {
@@ -611,9 +634,9 @@ export async function runExport(): Promise<Manifest> {
   }
   const behColumns = Object.keys(behDictionary()).filter((k) => !['TaskName', 'TaskDescription'].includes(k));
   for (const [label, mine] of bySubject) {
-    files.push(tsv(`bids/${label}/${label}_sessions.tsv`, sessionsTable(mine), ['session_id', 'acq_time', 'platform', 'screenshots_n', 'young_person_agreed_in_app', 'assent_status_at_send', 'needs_review']));
+    files.push(tsv(`${B}/${label}/${label}_sessions.tsv`, sessionsTable(mine), ['session_id', 'acq_time', 'platform', 'screenshots_n', 'young_person_agreed_in_app', 'assent_status_at_send', 'needs_review']));
     for (const s of mine) {
-      const base = `bids/${label}/${s.session}/beh/${label}_${s.session}_task-${TASK}_beh`;
+      const base = `${B}/${label}/${s.session}/beh/${label}_${s.session}_task-${TASK}_beh`;
       files.push(tsv(`${base}.tsv`, behTable(s), behColumns), json(`${base}.json`, behDictionary()));
     }
   }
@@ -622,11 +645,11 @@ export async function runExport(): Promise<Manifest> {
 
   // Binary files: copied once, deleted when their record goes.
   const copies = new Map<string, string>(lab.copies);
-  for (const s of sessions) s.images.forEach((img, i) => typeof img.path === 'string' && copies.set(img.path, `bids/${screenshotFile(s, i + 1, img.path)}`));
+  for (const s of sessions) s.images.forEach((img, i) => typeof img.path === 'string' && copies.set(img.path, `${B}/${screenshotFile(s, i + 1, img.path)}`));
   for (const kind of ['consent', 'assent'] as const) {
     for (const d of kind === 'consent' ? consents : assents) {
       const path = d.data.signature?.image?.path;
-      if (typeof path === 'string') copies.set(path, `identifying/${signatureFile(labels.get(String(d.data.participantId)), String(d.data.participantId), kind, d.data.version)}`);
+      if (typeof path === 'string') copies.set(path, `${I}/${signatureFile(labels.get(String(d.data.participantId)), String(d.data.participantId), kind, d.data.version)}`);
     }
   }
 
@@ -669,7 +692,7 @@ export async function runExport(): Promise<Manifest> {
       surveys: surveys.length,
       sessions: sessions.length,
       screenshots,
-      signatures: Array.from(copies.values()).filter((t) => t.startsWith('identifying/signatures/') && !t.startsWith('identifying/signatures/lab/')).length,
+      signatures: Array.from(copies.values()).filter((t) => t.startsWith(`${I}/signatures/`)).length,
       ...lab.counts,
       filesCopiedThisRun: copied,
       filesMissing: missing,

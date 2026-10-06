@@ -225,16 +225,16 @@ async function inner() {
     const [exportedFiles] = await exportsBucket.getFiles();
     const exportedNames = exportedFiles.map((f) => f.name);
     const readExport = async (name) => (await exportsBucket.file(name).download())[0].toString('utf8');
-    const participantsTsv = await readExport('bids/participants.tsv');
-    const phenotypeTsv = await readExport('bids/phenotype/parent_perceptions.tsv');
-    const keyTsv = await readExport('identifying/participants_key.tsv');
-    const statementsTsv = await readExport('identifying/consent_statements.tsv');
-    const behTsv = await readExport('bids/sub-00001/ses-01/beh/sub-00001_ses-01_task-screentime_beh.tsv');
-    const description = JSON.parse(await readExport('bids/dataset_description.json'));
+    const participantsTsv = await readExport('schools/bids/participants.tsv');
+    const phenotypeTsv = await readExport('schools/bids/phenotype/parent_perceptions.tsv');
+    const keyTsv = await readExport('schools/identifying/participants_key.tsv');
+    const statementsTsv = await readExport('schools/identifying/consent_statements.tsv');
+    const behTsv = await readExport('schools/bids/sub-00001/ses-01/beh/sub-00001_ses-01_task-screentime_beh.tsv');
+    const description = JSON.parse(await readExport('schools/bids/dataset_description.json'));
     ok('export ran and counted the records', exportRes.status === 200 && manifest.counts?.participants === 1 && manifest.counts?.consents === 2 && manifest.counts?.sessions === 1 && manifest.counts?.screenshots === 2 && manifest.counts?.signatures === 4 && manifest.counts?.enquiries === 1, JSON.stringify(manifest.counts));
     ok('BIDS dataset is de-identified and labelled sub-00001', description.BIDSVersion && participantsTsv.startsWith('participant_id\tage\t') && participantsTsv.includes('sub-00001\t13\tYear 8\tBRD-001') && !participantsTsv.includes('Patel') && phenotypeTsv.includes('sub-00001\tsomewhat') && !phenotypeTsv.includes('Patel') && !behTsv.includes('Patel'));
     ok('identifying folder holds the key and the statements', keyTsv.includes('sub-00001\t') && keyTsv.includes('Kai\tPatel') && statementsTsv.includes('sub-00001\t2\tlink-records\t0.4-draft\tdeclined'));
-    ok('screenshots sit under sourcedata and signatures under identifying, named by label and session', exportedNames.filter((n) => n.startsWith('bids/sourcedata/sub-00001/ses-01/sub-00001_ses-01_task-screentime_run-0')).length === 2 && exportedNames.filter((n) => n.startsWith('identifying/signatures/sub-00001/sub-00001_')).length === 4 && exportedNames.includes('bids/sub-00001/sub-00001_sessions.tsv') && exportedNames.includes('bids/README') && exportedNames.includes('manifest.json'));
+    ok('screenshots sit under sourcedata and signatures under identifying, named by label and session', exportedNames.filter((n) => n.startsWith('schools/bids/sourcedata/sub-00001/ses-01/sub-00001_ses-01_task-screentime_run-0')).length === 2 && exportedNames.filter((n) => n.startsWith('schools/identifying/signatures/sub-00001/sub-00001_')).length === 4 && exportedNames.includes('schools/bids/sub-00001/sub-00001_sessions.tsv') && exportedNames.includes('schools/bids/README') && exportedNames.includes('schools/README.md') && exportedNames.includes('manifest.json') && exportedNames.every((n) => n === 'README.md' || n === 'manifest.json' || n.startsWith('schools/') || n.startsWith('social-media-break/')));
     const rerun = await (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' })).json();
     ok('a second run copies nothing new and keeps the mirror as it is', rerun.counts?.filesCopiedThisRun === 0 && rerun.files?.length === manifest.files?.length);
 
@@ -412,10 +412,10 @@ async function inner() {
     ok('client cannot read lab participants or consents', (await denied(() => getDoc(doc(webDb, 'labParticipants', 'JA101CD')))) && (await denied(() => getDoc(doc(webDb, 'labConsents', labParticipant.consentId)))));
 
     const labManifest = await (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' })).json();
-    const labParticipantsTsv = await readExport('lab/participants.tsv');
-    const labConsentsTsv = await readExport('identifying/lab_consents.tsv');
-    const labBeh = await readExport('lab/sub-JA101CD/ses-01/beh/sub-JA101CD_ses-01_task-donation_beh.tsv');
-    ok('export holds the lab dataset labelled by code, with names only in identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 1 && labManifest.counts?.labScreenshots === 1 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-JA101CD\t') && labParticipantsTsv.includes('\tiphone\t') && !labParticipantsTsv.includes('Jane') && !labParticipantsTsv.includes('AB1') && labConsentsTsv.includes('Jane Doe') && labConsentsTsv.includes('AB1 2CD') && labBeh.includes('archive\tsourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip') && labManifest.files?.includes('lab/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip') && labManifest.files?.includes('lab/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-02_screenshot.png') && labManifest.files?.some((n) => n.startsWith('identifying/signatures/lab/sub-JA101CD/')), JSON.stringify(labManifest.counts));
+    const labParticipantsTsv = await readExport('social-media-break/bids/participants.tsv');
+    const labConsentsTsv = await readExport('social-media-break/identifying/consents.tsv');
+    const labBeh = await readExport('social-media-break/bids/sub-JA101CD/ses-01/beh/sub-JA101CD_ses-01_task-donation_beh.tsv');
+    ok('the lab study has its own folder: donations in social-media-break/bids, names only in social-media-break/identifying', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 1 && labManifest.counts?.labScreenshots === 1 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-JA101CD\t') && labParticipantsTsv.includes('\tiphone\t') && !labParticipantsTsv.includes('Jane') && !labParticipantsTsv.includes('AB1') && labConsentsTsv.includes('Jane Doe') && labConsentsTsv.includes('AB1 2CD') && labBeh.includes('archive\tsourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip') && labManifest.files?.includes('social-media-break/bids/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip') && labManifest.files?.includes('social-media-break/bids/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-02_screenshot.png') && labManifest.files?.some((n) => n.startsWith('social-media-break/identifying/signatures/sub-JA101CD/')) && !labManifest.files?.some((n) => n.startsWith('schools/') && n.includes('JA101CD')), JSON.stringify(labManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {
       await uploadBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`), buffer, { contentType: 'image/png' });

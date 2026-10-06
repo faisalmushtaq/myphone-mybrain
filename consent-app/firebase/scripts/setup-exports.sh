@@ -41,7 +41,7 @@ ok "key saved to $KEY (in this Cloud Shell only)"
 
 say "3. First export"
 if gcloud scheduler jobs run "firebase-schedule-exportData-europe-west2" --location=europe-west2 --project="$PROJECT" --quiet >/dev/null 2>&1; then
-  ok "export started; it takes a minute. The bucket then holds README.md, manifest.json, identifying/ and research/"
+  ok "export started; it takes a minute. The bucket then holds README.md, manifest.json, schools/ and social-media-break/, each with bids/ and identifying/"
 else
   echo "  (the export schedule is not deployed yet; the first export runs after the next backend deploy, then nightly at 02:30)"
 fi
