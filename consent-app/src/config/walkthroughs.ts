@@ -44,7 +44,7 @@ export const walkthroughs: Record<PlatformId, Walkthrough> = {
       {
         title: 'Tap “See All App & Website Activity”',
         detail: 'It is just under the bar chart at the top.',
-        note: 'On older iPhones this may say “See All Activity”. If it says “Turn On App & Website Activity”, your phone has not been keeping a summary — choose “Skip this for now”.',
+        note: 'On older iPhones this may say “See All Activity”. If it says “Turn On App & Website Activity”, your phone has not been keeping a summary, so there is nothing to share yet: skip this part.',
         illustration: 'see-all-activity',
       },
       { title: 'Choose “Week”', detail: 'Tap “Week” at the top so the summary shows the last 7 days.', illustration: 'week-view' },

@@ -73,7 +73,8 @@ if (menuToggle && mobileNav) {
   const problems = (form, p) => {
     const list = [];
     const focus = [];
-    const need = (ok, name, message) => { if (!ok) { list.push(message); focus.push(name); } };
+    const byField = [];
+    const need = (ok, name, message) => { if (!ok) { list.push(message); focus.push(name); byField.push([name, message]); } };
     if (p.kind === 'school') {
       need(p.school.length >= 3, 'school', 'Give the school’s name.');
       need(p.role, 'role', 'Give your role at the school.');
@@ -85,15 +86,59 @@ if (menuToggle && mobileNav) {
       need(p.yearGroups.length >= 2, 'year_groups', 'Choose at least two year groups: the study needs two or more from each school.');
       need(p.canOfferSlots, 'slots', 'Confirm that your school can offer two-hour session slots for groups of up to 30 pupils.');
     }
-    return { list, first: focus[0] ? form.querySelector(`[name="${focus[0]}"]`) : null };
+    return { list, byField, first: focus[0] ? form.querySelector(`[name="${focus[0]}"]`) : null };
+  };
+
+  /* Each problem is also shown next to its own field, so it is on screen where the person is looking. */
+  const clearFieldErrors = (form) => {
+    form.querySelectorAll('.field-error').forEach((el) => el.remove());
+    form.querySelectorAll('[aria-invalid="true"]').forEach((el) => { el.removeAttribute('aria-invalid'); el.removeAttribute('aria-describedby'); });
+  };
+  const showFieldErrors = (form, byField) => {
+    byField.forEach(([name, message], i) => {
+      const fields = [...form.querySelectorAll(`[name="${name}"]`)];
+      if (!fields.length) return;
+      const holder = fields[0].closest('fieldset') || fields[0].closest('label') || fields[0];
+      const note = document.createElement('span');
+      note.className = 'field-error';
+      note.id = `${form.id || 'form'}-error-${i}`;
+      note.textContent = message;
+      holder.insertAdjacentElement(holder.tagName === 'INPUT' || holder.tagName === 'TEXTAREA' || holder.tagName === 'SELECT' ? 'afterend' : 'beforeend', note);
+      fields.forEach((f) => { f.setAttribute('aria-invalid', 'true'); f.setAttribute('aria-describedby', note.id); });
+    });
+  };
+
+  const messageText = (p) => p.kind === 'school'
+    ? [`School: ${p.school}`, `Local authority: ${p.area || 'not given'}`, `Approximate pupils: ${p.pupils || 'not given'}`, `Year groups: ${p.yearGroups.join(', ')}`, `Two-hour slots for groups of up to 30: ${p.canOfferSlots ? 'yes' : 'no'}`, '', `Contact: ${p.name}, ${p.role}`, `Email: ${p.email}`, `Phone: ${p.phone || 'not given'}`, '', p.message || ''].join('\n')
+    : [`From: ${p.name}`, `Email: ${p.email}`, `Topic: ${p.topic}`, '', p.message].join('\n');
+
+  /* When the send fails: say so plainly, beside the button, and offer to copy the message or open an email draft. Nothing opens by itself. */
+  const showFailure = (form, p) => {
+    form.querySelector('.form-failure')?.remove();
+    const recipient = form.dataset.recipient || 'brainpop@leeds.ac.uk';
+    const box = document.createElement('div');
+    box.className = 'form-failure';
+    box.setAttribute('role', 'alert');
+    box.innerHTML = `<p><strong>Sorry, your message has not been sent.</strong> Please email it to <a href="mailto:${recipient}">${recipient}</a>. You can copy what you wrote, or open it in your email app.</p><div class="form-failure__actions"><button type="button" class="btn btn-secondary" data-copy>Copy my message</button><button type="button" class="btn btn-outline" data-mail>Open in my email app</button></div><p class="form-failure__status" aria-live="polite"></p>`;
+    const anchor = form.querySelector('.form-submit') || form.querySelector('.contact-form-actions') || form.lastElementChild;
+    anchor.insertAdjacentElement('afterend', box);
+    const status = box.querySelector('.form-failure__status');
+    box.querySelector('[data-copy]').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(messageText(p));
+        status.textContent = `Copied. Paste it into an email to ${recipient}.`;
+      } catch {
+        status.textContent = 'Your browser did not allow copying. Select the text in the form and copy it yourself.';
+      }
+    });
+    box.querySelector('[data-mail]').addEventListener('click', () => mailtoFallback(form, p));
+    box.scrollIntoView({ block: 'center' });
   };
 
   const mailtoFallback = (form, p) => {
     const recipient = form.dataset.recipient || 'brainpop@leeds.ac.uk';
     const subject = p.kind === 'school' ? `School enquiry: ${p.school}` : `Website question: ${p.topic}`;
-    const body = p.kind === 'school'
-      ? [`School: ${p.school}`, `Local authority: ${p.area || 'not given'}`, `Approximate pupils: ${p.pupils || 'not given'}`, `Year groups: ${p.yearGroups.join(', ')}`, `Two-hour slots for groups of up to 30: ${p.canOfferSlots ? 'yes' : 'no'}`, '', `Contact: ${p.name}, ${p.role}`, `Email: ${p.email}`, `Phone: ${p.phone || 'not given'}`, '', p.message || ''].join('\n')
-      : [`From: ${p.name}`, `Email: ${p.email}`, `Topic: ${p.topic}`, '', p.message].join('\n');
+    const body = messageText(p);
     window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
@@ -105,10 +150,14 @@ if (menuToggle && mobileNav) {
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const payload = collect(form);
-      const { list, first } = problems(form, payload);
+      const { list, byField, first } = problems(form, payload);
+      clearFieldErrors(form);
+      form.querySelector('.form-failure')?.remove();
       if (list.length) {
-        show(list.join(' '));
+        show(list.length === 1 ? list[0] : `Please check ${list.length} things: ${list.join(' ')}`);
+        showFieldErrors(form, byField);
         first?.focus();
+        first?.scrollIntoView({ block: 'center' });
         return;
       }
       const endpoint = form.dataset.endpoint;
@@ -128,12 +177,11 @@ if (menuToggle && mobileNav) {
         form.replaceWith(done);
         done.querySelector('h3').setAttribute('tabindex', '-1');
         done.querySelector('h3').focus();
-      } catch (error) {
-        // Never lose a message: open an email draft with everything filled in.
+      } catch {
+        // Never lose a message: everything stays in the form, and the person can copy it or open an email draft.
         button.disabled = false;
         button.innerHTML = label;
-        show(`${error.message} We have opened an email to ${form.dataset.recipient || 'brainpop@leeds.ac.uk'} with your message filled in; please press send there.`);
-        mailtoFallback(form, payload);
+        showFailure(form, payload);
       }
     });
   });

@@ -3,13 +3,13 @@ hero:
   headline_main: "Have you been invited"
   headline_accent: "to take part?"
   cta_primary:
-    label: "I have been invited"
+    label: "I'm a young person"
     href: "/take-part/consent/?who=young"
   cta_secondary:
-    label: "My child has been invited"
+    label: "I'm a parent or carer"
     href: "/take-part/consent/?who=parent"
   cta_tertiary:
-    label: "For schools"
+    label: "I work in a school"
     href: "/schools/"
 
 stats:
@@ -33,9 +33,9 @@ about:
 
     The project looks at young people's digital lives, wellbeing, learning and brain development. Young people can choose whether to take part in the MyPhone part, the MyBrain part, or both.
 
-    **MyPhone** may include a secure donation of a summary of social media use. This can show when a young person uses a platform, how they interact with it and the types of content they see.
+    **MyPhone** asks, as an option, for screenshots of the phone's screen-time page: which apps were used and for how long. They do not show messages, photos, or what was posted or watched, and families can hide any part of a screenshot before it is sent.
 
-    **MyBrain** is an EEG session at school. A young person wears an EEG cap, sits quietly for a short time and completes simple computer tasks. EEG is safe and painless. The research team brings the equipment and supports pupils throughout.
+    **MyBrain** is part of a two-hour workshop at school. A young person wears a lightweight EEG headset, sits quietly for a short time and completes a simple computer task. EEG is safe and painless. The research team brings the equipment and supports pupils throughout.
 
     With the right consent and approvals, we may link research data to education and health records through **Connected West Yorkshire**. We use this to look at longer-term patterns in learning, wellbeing and health. We share findings about groups of people. We do not give schools or families individual profiles.
 
@@ -64,7 +64,7 @@ steps:
 
   - number: "03"
     title: "Run the session"
-    body: "The session may include MyPhone and MyBrain. MyPhone can include an optional donation of a social media summary. MyBrain uses an EEG cap and short computer tasks. Young people choose which parts they are happy to do."
+    body: "Each visit is a two-hour workshop. In MyBrain, pupils learn how the brain works and can wear a lightweight EEG headset during a short rest and a simple computer task. In MyPhone, if they and their family agree, they share screenshots of their phone's screen-time page. Young people choose which parts they are happy to do."
 
   - number: "04"
     title: "Learn from the research"

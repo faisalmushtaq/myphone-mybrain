@@ -15,7 +15,7 @@ const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce
  * the set of problems changes so keyboard and screen-reader users know why
  * "Continue" did not work.
  */
-export function ErrorSummary({ errors, title = 'There is a problem', focusKey = 0 }: Props) {
+export function ErrorSummary({ errors, title = 'Please check these', focusKey = 0 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const count = errors.length;
   useEffect(() => {

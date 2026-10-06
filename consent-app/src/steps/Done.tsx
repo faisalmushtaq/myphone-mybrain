@@ -54,11 +54,14 @@ export function Done() {
     }
   };
 
+  // The young person chose to decide later: nothing about their phone was sent, and nothing says they have signed up.
+  const later = state.assent.status === 'deferred' && state.assent.deferredBy === 'young';
+  const youngHolding = state.route === 'young';
   const steps: string[] = [];
   if (!declined) {
-    steps.push('Download a copy of what you agreed to and keep it somewhere safe. Nothing is emailed to you.');
-    if (state.assent.status === 'deferred') steps.push(state.assent.deferredBy === 'young' ? `${childName} wanted to decide later. The team will ask again, for example at school.` : `The team will ask ${childName} for their own agreement separately, for example at school.`);
-    if (state.assent.status === 'completed' && sentImages === 0) steps.push('No screenshots were added this time. The team can send a link to add them later — it takes about a minute and it really helps.');
+    steps.push(youngHolding ? 'Give your parent or carer a copy of what you both agreed to: tap “Download a copy” and send it to them, or take a screenshot of this page. We do not email it.' : 'Keep a copy of what you agreed to: tap “Download a copy”, or take a screenshot of this page. We do not email it to you.');
+    if (state.assent.status === 'deferred') steps.push(later ? `${childName} wanted to decide later. Nothing about ${childName}’s phone has been sent. The researchers will ask again, for example at school.` : `The team will ask ${childName} for their own agreement separately, for example at school.`);
+    if (state.assent.status === 'completed' && sentImages === 0) steps.push(`No screenshots were added. To add them later, email ${study.contact.email} quoting your reference, and the team will send you a link.`);
     steps.push('The team will be in touch about the next parts of the study, such as the surveys and the school session.');
   }
 
@@ -68,9 +71,9 @@ export function Done() {
         <span className="mpmb-done__tick" aria-hidden="true">
           <Icon name="check" size={34} />
         </span>
-        <p className="mpmb-kicker">{declined ? 'Recorded' : 'All done'}</p>
+        <p className="mpmb-kicker">{declined ? 'Recorded' : later ? 'Saved' : 'All done'}</p>
         <h1 className="mpmb-h1" tabIndex={-1} ref={headingRef}>
-          {declined ? 'Thank you for letting us know.' : thankYou.heading}
+          {declined ? 'Thank you for letting us know.' : later ? 'Thanks. You can decide later.' : thankYou.heading}
         </h1>
         {submission.referenceCode && (
           <p className="mpmb-done__ref">
@@ -84,6 +87,16 @@ export function Done() {
         <p className="mpmb-lead">{childName} will not be included in the study. If anyone changes their mind, contact the team using the details below.</p>
       ) : (
         <>
+          {youngHolding && (
+            <div className="mpmb-card mpmb-card--mist">
+              <h2 className="mpmb-h3">For you, {state.identity.firstName.trim() || 'the young person'}</h2>
+              <ul className="mpmb-list">
+                <li>The researchers will explain everything again at school, on the day.</li>
+                <li>You can still change your mind, about any part. Just tell the researcher or your teacher. You don’t have to say why.</li>
+                <li>Your parent or carer can email the team at {study.contact.email}, the MyPhone/MyBrain inbox.</li>
+              </ul>
+            </div>
+          )}
           <div className="mpmb-done__why">
             <h2 className="mpmb-h3">
               Why this matters {thankYou.draft && <Draft />}
@@ -132,11 +145,11 @@ export function Done() {
 
       <div className="mpmb-done__actions">
         {!declined && (
-          <Button variant="secondary" onClick={download} loading={copy.kind === 'working'}>
+          <Button variant="primary" onClick={download} loading={copy.kind === 'working'}>
             Download a copy (PDF)
           </Button>
         )}
-        <Button variant="primary" onClick={finish}>
+        <Button variant="secondary" onClick={finish}>
           Finish and clear this device
         </Button>
       </div>

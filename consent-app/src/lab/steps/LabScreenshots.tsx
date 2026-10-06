@@ -68,7 +68,7 @@ export function LabScreenshots() {
       title={after ? 'Send your screen-time screenshots from after your break.' : 'Send your screen-time screenshots.'}
       intro={
         <p>
-          {after ? 'Take them now, at the end of your break, the same way as last time. ' : ''}This part takes a few minutes and goes to the team straight away. Take screenshots of your phone’s Screen Time (iPhone) or Digital Wellbeing (Android) summary, add them here and send them. Several are better than one: the weekly chart, the daily view and the full list of apps with their times.
+          {after ? 'Take them on the last day of your break, before you unlock your apps, the same way as last time. ' : ''}This part takes a few minutes and goes to the team straight away. Take screenshots of your phone’s Screen Time (iPhone) or Digital Wellbeing (Android) summary, add them here and send them. Several are better than one: the weekly chart, the daily view and the full list of apps with their times.
         </p>
       }
       errors={errors}
@@ -114,7 +114,7 @@ export function LabScreenshots() {
         <h2 className="mpmb-h2" id="shots-heading" tabIndex={-1}>
           2. Add them here
         </h2>
-        <p className="mpmb-hint">Camera metadata is removed before anything leaves this device.</p>
+        <p className="mpmb-hint">Your screenshots show the apps on your phone and how long you used each one, and they are sent as they are. If you would rather not show an app, crop it out first (in Photos or Gallery, tap Edit). Camera and location details are removed before anything leaves this device.</p>
         <ShotPicker busy={busy} onAdded={() => setErrors([])} />
       </section>
 

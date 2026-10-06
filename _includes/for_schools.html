@@ -43,9 +43,54 @@
       <p class="gatsby-compass">{{ site.data.audience.for_schools.gatsby_benchmarks.compass_note }}</p>
     </div>
 
-    <div class="info-panel info-panel-alt reveal">
+    <div class="school-sections">
+      <div class="info-panel reveal" id="session">
+        <h3>What happens in a workshop</h3>
+        <ol class="school-steps">
+          {% for step in site.data.audience.for_schools.session_steps %}
+          <li>{{ step }}</li>
+          {% endfor %}
+        </ol>
+        <p class="school-landing__note">{{ site.data.audience.for_schools.session_note }} <a href="{{ '/participation/' | relative_url }}">More about a session</a>.</p>
+      </div>
+
+      <div class="info-panel info-panel-alt reveal" id="safeguarding">
+        <h3>Safeguarding and approvals</h3>
+        <ul class="info-checklist">
+          {% for item in site.data.audience.for_schools.safeguarding %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="info-panel reveal" id="getting-ready">
+        <h3>Getting ready for a visit</h3>
+        <ul class="info-checklist">
+          {% for item in site.data.audience.for_schools.getting_ready %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="info-panel info-panel-alt reveal" id="what-you-get">
+        <h3>What your school gets</h3>
+        <ul class="info-checklist">
+          {% for item in site.data.audience.for_schools.school_gets %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="info-panel reveal" id="parent-link">
+        <h3>Your school’s link for parents</h3>
+        <p>{{ site.data.audience.for_schools.school_link }}</p>
+        {% if site.data.schools.size > 0 %}<p class="school-landing__note">For example, <a href="{{ '/' | relative_url }}{{ site.data.schools[0].slug }}/">myphonemybrain.com/{{ site.data.schools[0].slug }}</a>.</p>{% endif %}
+      </div>
+    </div>
+
+    <div class="info-panel info-panel-alt reveal school-ask">
       <h3>What we ask of a school</h3>
-      <div class="prose">
+      <div class="prose school-ask__list">
         {{ site.data.audience.for_schools.what_schools_need | markdownify }}
       </div>
       <a href="#signup" class="btn btn-primary" style="margin-top:1.5rem;">Join the study with your school &nbsp;&rarr;</a>

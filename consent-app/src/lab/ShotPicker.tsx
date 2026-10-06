@@ -66,7 +66,7 @@ export function ShotPicker({ busy, onAdded }: { busy: boolean; onAdded?: () => v
 
   return (
     <>
-      <ImageCapture onFiles={(files) => void addFiles(files)} disabled={busy} count={state.screenshots.length} />
+      <ImageCapture onFiles={(files) => void addFiles(files)} disabled={busy} count={state.screenshots.length} max={labStudy.maxScreenshots} />
       {problems.length > 0 && (
         <Callout tone="important" role="alert">
           <ul>

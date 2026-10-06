@@ -2,7 +2,7 @@
   role: "Principal Investigator"
   bio: |
     Faisal leads MyPhone/MyBrain. His research focuses on scalable, open approaches to brain-data science, linking large-scale experimental studies with population health data.
-  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/faisal_mushtaq.jpg"
+  image: "faisal_mushtaq.jpg"
   links:
     - label: "University profile"
       url: "https://medicinehealth.leeds.ac.uk/psychology/staff/632/professor-faisal-mushtaq"
@@ -13,7 +13,7 @@
   role: "Project Manager"
   bio: |
     Sarmad manages project operations, timelines and partnerships, bringing extensive experience in coordinating complex multi-site research programmes.
-  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/sarmad_ali.png"
+  image: "sarmad_ali.png"
   links:
     - label: "Contact"
       url: "mailto:myphone-mybrain@leeds.ac.uk"
@@ -22,14 +22,14 @@
   role: "Researcher"
   bio: |
     Olivia contributes to research on cognitive development and EEG methods across diverse populations, supporting the school-based data collection programme.
-  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/olivia_jones.jpg"
+  image: "olivia_jones.jpg"
   links: []
 
 - name: "Dr Jasper van den Bosch"
   role: "Postdoctoral Researcher"
   bio: |
     Jasper specialises in EEG signal processing and reproducibility, building the open-science data infrastructure that underpins the project's large-scale analyses.
-  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/jasper_van_den_bosch.jpg"
+  image: "jasper_van_den_bosch.jpg"
   links:
     - label: "Google Scholar"
       url: "https://scholar.google.com/citations?user=XQ3-JHgAAAAJ"
@@ -38,7 +38,7 @@
   role: "Postdoctoral Researcher"
   bio: |
     Dominik develops robust, scalable methods for multi-site neuroimaging studies, contributing to the computational and data-science foundations of the project.
-  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/dominik_welke.jpg"
+  image: "dominik_welke.jpg"
   links:
     - label: "Google Scholar"
       url: "https://scholar.google.com/citations?user=B5xCyM0AAAAJ"
@@ -47,14 +47,14 @@
   role: "Research Software Engineer"
   bio: |
     Layla develops and maintains the open-source software tools for EEG data processing and analysis that support reproducible, large-scale research across the project.
-  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/layla_kouara.jpg"
+  image: "layla_kouara.jpg"
   links: []
 
 - name: "Kate Hiley"
   role: "PhD Researcher"
   bio: |
     Kate uses school-based and community EEG to improve the accessibility and inclusivity of neuroscience research with young people.
-  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/kate_hiley.jpg"
+  image: "kate_hiley.jpg"
   links:
     - label: "ORCiD"
       url: "https://orcid.org/0009-0000-1824-3850"
@@ -63,7 +63,7 @@
   role: "PhD Researcher"
   bio: |
     Miftah studies adolescent mental health using EEG, focusing on neural markers of mental health symptoms and the relationship between brain activity and social media use.
-  image: "https://faisalmushtaq.github.io/brainpop-lab-website/assets/images/people/miftah_faizah.jpg"
+  image: "miftah_faizah.jpg"
   links:
     - label: "Webpage"
       url: "https://miftahfai.github.io/"

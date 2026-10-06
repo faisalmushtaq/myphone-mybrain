@@ -1,11 +1,11 @@
 ---
 layout: default
 title: "Optional data donation | MyPhone/MyBrain"
-description: "Future optional phone screen-capture data-donation step for MyPhone/MyBrain."
+description: "What MyPhone/MyBrain asks from a young person's phone: optional screenshots of the screen-time page."
 permalink: /data-donation/
-title_main: "Optional phone"
-title_accent: "data donation."
-page_intro: "This future step will sit after MySelf. It is optional and will be explained clearly before it becomes available."
+title_main: "Sharing"
+title_accent: "screen time."
+page_intro: "What we ask from a young person's phone, and what we never see."
 ---
 
 {% include page_hero.html %}

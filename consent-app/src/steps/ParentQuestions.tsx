@@ -90,25 +90,17 @@ export function ParentQuestions() {
 
   if (!asking) {
     return (
-      <StepShell kicker="Quick questions" title={title} intro={<p>{survey.status === 'skipped' && !answered ? 'You skipped these questions. That is fine — they are optional.' : `You answered ${answered} of ${total}. Thank you.`}</p>} onContinue={() => dispatch({ type: 'next' })}>
-        {answered > 0 && (
-          <dl className="mpmb-summary__list">
-            {questions.map((qq) => (
-              <div className="mpmb-summary__row" key={qq.id}>
-                <dt>{qq.label}</dt>
-                <dd>{(qq.type === 'choice' ? qq.options.find((o) => o.value === survey.responses[qq.id]?.value)?.label : survey.responses[qq.id]?.value) ?? <span className="mpmb-summary__empty">Skipped</span>}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
+      <StepShell kicker="Quick questions" title={title} intro={<p>{survey.status === 'skipped' && !answered ? 'You skipped these questions. That is fine: they are optional.' : `You answered ${answered} of ${total}. Thank you. Your answers are not shown again on this phone.`}</p>} onContinue={() => dispatch({ type: 'next' })}>
         <Button
           variant="link"
           onClick={() => {
+            // Starting again from blank, so earlier answers are never put back on screen.
+            for (const qq of questions) if (survey.responses[qq.id]) dispatch({ type: 'skip-question', questionId: qq.id });
             setReviewing(true);
             moveTo(0);
           }}
         >
-          {answered ? 'Change my answers' : 'Answer the questions'}
+          {answered ? 'Answer them again' : 'Answer the questions'}
         </Button>
       </StepShell>
     );
@@ -118,7 +110,7 @@ export function ParentQuestions() {
     <StepShell
       kicker="Quick questions"
       title={title}
-      intro={<p>Optional, and about a minute. Tap an answer to move to the next question. Your answers are research information — kept with {childName}’s code, not your name — and are not part of your permission.</p>}
+      intro={<p>Optional, and about a minute. These questions are for you, not {childName}: if {childName} is next to you, you can skip them. Tap an answer to move to the next question. Your answers are kept with {childName}’s code, not your name, and are not part of your permission.</p>}
       hideContinue
       secondaryAction={
         <Button variant="link" onClick={skipAll}>

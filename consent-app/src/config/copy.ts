@@ -152,15 +152,23 @@ export const whyPhoneUse = {
   draft: true,
 };
 
-/** Short recap shown to the young person just before their own agreement, whichever route was taken. */
+/**
+ * Short recap shown to the young person just before their own agreement,
+ * whichever route was taken. The point about records says what the parent
+ * actually chose, when they have answered.
+ */
 export const youngRecap = {
   heading: 'Before you decide',
   points: [
-    'Taking part means short surveys, and for some people a session at school where you wear a cap that records brain activity while you do simple computer tasks. You choose which parts to do.',
-    'Your answers get a code number instead of your name, and we only report results for groups of young people. If we were ever seriously worried about your safety we might need to tell someone who can help, and we would talk to you first if we could.',
-    'If your parent or guardian agreed to it, information that the NHS or your school already holds about you may be added to the study, using the code instead of your name.',
-    'You can ask a parent, a teacher or the research team anything before you sign.',
+    'Taking part means answering some short surveys. At school, you might also wear a soft cap that measures brain activity while you do simple computer tasks. It doesn’t hurt. You choose which parts to do.',
+    'We take your name off your answers and use a code number instead. We only share results about big groups of young people, never about you. If we were worried that you were not safe, we might tell someone who can help, and we would talk to you first if we could.',
   ],
+  records: {
+    agreed: 'Your parent or carer said yes to us adding information that the NHS and your school already have about you, like health records and school attendance and results. We use your code number, not your name. If you don’t want this, tell us and we will stop.',
+    declined: 'Your parent or carer said no to adding your health or school records, so we won’t add them.',
+    unknown: 'If your parent or carer agrees, information that the NHS or your school already has about you may be added to the study, using your code number, not your name.',
+  },
+  ask: 'You can ask a parent, a teacher or the research team anything before you sign.',
   draft: true,
 };
 

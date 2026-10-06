@@ -48,9 +48,38 @@ for_schools:
     compass_note: "Schools can record participation through their usual Compass or Compass+ process."
 
   what_schools_need: |
-    - Two-hour session slots for groups of up to 30 pupils.
-    - Two or more year groups taking part.
-    - A named contact who can help with timetabling, a suitable space and safeguarding arrangements, and who can share the approved information with families.
+    - **Up to three school years.** We visit again each year, and each year your school decides whether to carry on.
+    - **Two-hour workshops** for groups of up to 30 pupils, during the school day, from two or more year groups. We can run up to three a day.
+    - **A classroom**, and a private room nearby when a pupil needs one.
+    - **A named contact** who plans the visits with us, shares our information with families and links with your safeguarding lead.
+
+  session_steps:
+    - "Pupils learn how the brain works and how scientists study brain activity."
+    - "A live demonstration of EEG (electroencephalography)."
+    - "Pupils who agree wear a lightweight headset that records the brain's natural electrical activity: a short recording while they sit quietly, then a simple computer task."
+    - "Brief questionnaires about their background, wellbeing and behaviour."
+    - "If they and their family agree, screenshots of their phone's screen-time page: which apps they used and for how long."
+  session_note: "Our team brings all the equipment and staff. Every part is a choice: pupils can say no to any part, or stop at any time."
+
+  safeguarding:
+    - "Everyone from our team who works in your school holds an enhanced DBS certificate. We send you the certificates before our first visit."
+    - "At least two researchers are present at all times, including while setting up and packing away. No researcher is ever alone with a pupil."
+    - "We follow your school's child protection, health and safety policies and codes of practice, and ask for copies before we visit."
+    - "No research takes place in your school before the study has ethics approval from the University of Leeds School of Psychology Research Ethics Committee. We can send you the approval letter."
+
+  getting_ready:
+    - "Before testing begins, we ask staff whether any pupils have disabilities or medical conditions we should know about."
+    - "Pupils with a known history of epilepsy or seizures do not take part in the EEG recording, but can join the rest of the workshop."
+    - "Pupils should come with clean, dry hair, without gel, oil or spray; long hair can be tied back. Hair never needs to be cut or shaved."
+    - "Where needed, the headset can be fitted in a private room, and female researchers are available on request, for comfort or religious reasons."
+
+  school_gets:
+    - "A two-hour neuroscience workshop for each group, run by our team with our equipment."
+    - "Links with science, computing and PSHE, and evidence towards Gatsby Benchmarks 4, 5 and 7."
+    - "Group findings for your school's pupils at the end of each school year, never about individual pupils."
+    - "A follow-up session to share what we found with your school community."
+
+  school_link: "When your visit is agreed, your school gets its own page for parents and carers, at an address such as myphonemybrain.com/your-school. It explains the study and opens the online form with your school already filled in. Share it through your usual channels, such as a letter, email or the school app, rather than public social media."
 
 for_parents:
   heading: "Information for parents and carers"
@@ -71,7 +100,7 @@ for_parents:
     - "We do not publish raw social media data openly."
     - "We do not give pupil data to commercial companies."
     - "You can contact the research team at any time."
-  consent_note: "We will share study information, consent forms and privacy information with schools when they are ready. We will provide accessible versions, and multilingual or easy-read versions where possible."
+  consent_note: "If your child's school sent you a link, use it: it explains the study and opens the online form with the school already filled in. Prefer paper, or the information in another language or an easier-to-read version? Contact the team and we will send you what works for you."
 
 for_young_people:
   heading: "Information for young people"
@@ -83,8 +112,8 @@ for_young_people:
   myphone_heading: "MyPhone"
   myphone_items:
     - "You will learn about the information digital platforms collect about your activity."
-    - "You may be able to see a summary of your data from platforms such as TikTok or YouTube."
-    - "You choose whether to donate any data for research."
+    - "You can choose to send screenshots of your phone's Screen Time page. They show which apps you use and for how long."
+    - "They don't show your messages, photos or what you watch, and you can cover up anything first. You can say no."
     - "You may complete short surveys about technology, digital habits and wellbeing."
     - "You never have to share anything that makes you uncomfortable."
   mybrain_heading: "MyBrain"

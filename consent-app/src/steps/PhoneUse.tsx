@@ -66,7 +66,7 @@ export function PhoneUse() {
         dispatch({ type: 'next' });
         return;
       }
-      setError('Add at least one screenshot. If you really can’t right now, choose “Skip this for now”.');
+      setError(young ? 'Add a screenshot, or choose “I don’t want to share this”.' : 'Add at least one screenshot, or choose “Skip the screenshots”.');
       return;
     }
     if (doubtful.some((i) => !acknowledged.includes(i.id)) && !confirmDoubtful) {
@@ -122,18 +122,29 @@ export function PhoneUse() {
         </>
       }
       intro={
-        <p>
-          Screenshots of the phone’s screen-time page showing <strong>which apps were used and for how long</strong> — the list of apps, not just the total, because how a phone is used matters as much as how much. Not messages, photos or posts. <strong>This is the most important part of the study</strong>: it is the one thing nobody else can tell us. You can hide any part of an image before it goes.
-        </p>
+        young ? (
+          <p>
+            Next, you can send us screenshots of your phone’s screen-time page. They show <strong>which apps you used and for how long</strong>. They don’t show your messages, photos or what you watched, and we never show them to your school. You can cover up anything first. This part is your choice too.
+          </p>
+        ) : (
+          <p>
+            Screenshots of the phone’s screen-time page showing <strong>which apps were used and for how long</strong>: the list of apps, not just the total, because how a phone is used matters as much as how much. Not messages, photos or posts. It is the one thing nobody else can tell us. You can hide any part of an image before it goes.
+          </p>
+        )
       }
       errors={error ? [{ field: 'mpmb-capture-choose', message: error }] : []}
       onContinue={() => void send()}
       continueLabel={sendLabel}
       continueLoading={sending}
       secondaryAction={
-        !appeal ? (
+        // Sharing is the young person's own choice: when they hold the phone, saying no is one press, with no appeal.
+        young ? (
+          <Button variant="ghost" onClick={skip}>
+            I don’t want to share this
+          </Button>
+        ) : !appeal ? (
           <Button variant="link" onClick={() => setAppeal(true)}>
-            Skip this for now
+            Skip the screenshots
           </Button>
         ) : undefined
       }
@@ -209,14 +220,14 @@ export function PhoneUse() {
               {walkthrough.websitesNote && <p>{walkthrough.websitesNote}</p>}
               <p>Check the top of each screenshot for notifications or message previews. You can hide any part of an image after adding it.</p>
             </Callout>
-            <p className="mpmb-hint">Screenshots are saved in Photos (iPhone) or Gallery (Android). Come back to this page and add them below; your progress is saved while this tab is open.</p>
+            <p className="mpmb-hint">Screenshots go to Photos (iPhone) or Gallery (Android) on the phone you took them on. If that is not this phone, send them to this phone first, or use “Take a photo of the screen” below. Then come back to this page and add them; your progress is saved while this tab is open.</p>
           </div>
         </details>
       )}
 
       <div id="mpmb-capture-choose" tabIndex={-1}>
         <h2 className="mpmb-h3 mpmb-section-title">Add the screenshots</h2>
-        <ImageCapture onFiles={(files) => void uploader.addFiles(files)} count={images.length} disabled={sending} />
+        <ImageCapture onFiles={(files) => void uploader.addFiles(files)} count={images.length} disabled={sending} cameraHint={young ? 'If your screen time is on a different phone.' : `If the screen time is on ${state.identity.firstName.trim() || 'the young person'}’s phone and this form is on yours.`} />
       </div>
 
       {uploader.rejected.length > 0 && (
@@ -275,10 +286,10 @@ export function PhoneUse() {
         </Callout>
       )}
 
-      {appeal && (
+      {appeal && !young && (
         <Callout tone="important" role="alert" title="Before you skip">
           <p>
-            The screenshots are the part of MyPhone/MyBrain that no one else can provide — real screen time and real app use from real young people, not guesses. Taking part is already recorded, so there is no pressure, but it takes about a minute and it makes a real difference to the study.
+            That’s fine: taking part is already recorded. If you can, though, the screenshots take about a minute, and they are the part of MyPhone/MyBrain no one else can provide: real screen time and real app use, not guesses.
           </p>
           <div className="mpmb-callout__actions">
             <Button
@@ -292,7 +303,7 @@ export function PhoneUse() {
               OK, I’ll add them now
             </Button>
             <Button variant="link" onClick={skip}>
-              I really can’t right now — skip
+              Skip the screenshots
             </Button>
           </div>
         </Callout>

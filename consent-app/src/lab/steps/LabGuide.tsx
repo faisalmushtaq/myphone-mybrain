@@ -66,21 +66,29 @@ export function LabGuide() {
       title={after ? 'Request a new data download.' : 'Request your data download.'}
       intro={
         after ? (
-          <p>Ask each app you use for a fresh copy of your data, even if you still have the old file: the new one covers your break. It can take from a few minutes to a few days to arrive. Start now, then come back to this page with the files; you will choose exactly what to share before anything is sent.</p>
+          <p>Once your apps are unlocked, ask each app you use for a fresh copy of your data, even if you still have the old file: the new one covers your break. It can take from a few minutes to a few days to arrive. Start now, then come back to this page with the files; you will choose exactly what to share before anything is sent.</p>
         ) : (
-          <p>Ask each app you use, TikTok, YouTube or Instagram, for a copy of your data, starting with the one you use most. It can take from a few minutes to a few days to arrive. Start now, then come back to this page with the files; you will choose exactly what to share before anything is sent.</p>
+          <p>Ask each of TikTok, YouTube and Instagram that you use for a copy of your data, starting with the one you use most. Each can take from a few minutes to a few days to arrive. Start now, then come back to this page with the files; you will choose exactly what to share before anything is sent.</p>
         )
       }
       onContinue={next}
       continueLabel={ready ? 'I have my file' : 'I have my file: enter my details'}
       width="wide"
       secondaryAction={
-        <Button variant="ghost" onClick={() => setLater(true)}>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            setLater(true);
+            // The offer appears near the top of a long page: take the person to it.
+            window.setTimeout(() => jumpTo('lab-later'), 60);
+          }}
+        >
           I’ll come back later
         </Button>
       }
     >
       {later && (
+        <div id="lab-later" tabIndex={-1}>
         <Callout tone="info" role="status">
           {ready ? (
             <>
@@ -88,7 +96,7 @@ export function LabGuide() {
                 <strong>Come back when your download has arrived.</strong> Your progress is saved under your participant ID <strong className="mpmb-mono">{state.code}</strong>. If you would like, we can email you a note of where you are, with a link that opens this page ready for you on any device; if we have not received your file two days later, we will send one reminder.
               </p>
               {reminder.kind === 'sent' ? (
-                <p>Sent. Check your inbox (and spam folder) for an email from MyPhone/MyBrain. Your address is kept only for that email and the one reminder.</p>
+                <p>Sent. Check your inbox (and spam folder) for an email from MyPhone/MyBrain. We use your address only for that email and the one reminder; it is stored with your consent record, never with your research data.</p>
               ) : (
                 <div className="mpmb-inline">
                   <TextField
@@ -108,7 +116,7 @@ export function LabGuide() {
                       }
                     }}
                     error={reminder.kind === 'not-sent' ? reminder.message : undefined}
-                    hint="Used only for this note and one reminder, then kept with your consent record."
+                    hint="We use it only for this note and one reminder. It is stored with your consent record, never with your research data."
                   />
                   <Button variant="secondary" loading={reminder.kind === 'sending'} onClick={() => void sendReminder()}>
                     Email me my progress
@@ -120,6 +128,7 @@ export function LabGuide() {
             <p>Come back to this page when your file has arrived and enter your details. If you want an email reminder, enter your details and give your consent first.</p>
           )}
         </Callout>
+        </div>
       )}
       <section aria-labelledby="guide-apps">
         <h2 className="mpmb-h2" id="guide-apps" tabIndex={-1}>

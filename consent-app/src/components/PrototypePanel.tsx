@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { backendName } from '../api';
 import { buildJourney, stepDefs } from '../model/journey';
 import type { StepId } from '../model/types';
 import { useStore } from '../state/context';
@@ -12,6 +13,8 @@ export function PrototypePanel() {
   const { state, dispatch } = useStore();
   const [open, setOpen] = useState(false);
   const journey = buildJourney(state);
+  // On the live site the form sends to the real backend, where the failure switches have no effect.
+  const live = backendName() === 'firebase';
 
   return (
     <div className={`mpmb-proto${open ? ' is-open' : ''}`}>
@@ -20,15 +23,21 @@ export function PrototypePanel() {
       </button>
       {open && (
         <div className="mpmb-proto__panel" id="mpmb-proto-panel">
-          <p className="mpmb-proto__note">Nothing is sent anywhere in this prototype. Use these switches to see the error states.</p>
-          <label className="mpmb-proto__row">
-            <input type="checkbox" checked={state.prototype.failUploads} onChange={(e) => dispatch({ type: 'prototype', patch: { failUploads: e.target.checked } })} />
-            Make image uploads fail
-          </label>
-          <label className="mpmb-proto__row">
-            <input type="checkbox" checked={state.prototype.failSubmit} onChange={(e) => dispatch({ type: 'prototype', patch: { failSubmit: e.target.checked } })} />
-            Make the final send fail
-          </label>
+          {live ? (
+            <p className="mpmb-proto__note">Review controls. This form is connected to the study’s real system: whatever is sent from it is stored.</p>
+          ) : (
+            <>
+              <p className="mpmb-proto__note">Nothing is sent anywhere in this preview. Use these switches to see the error states.</p>
+              <label className="mpmb-proto__row">
+                <input type="checkbox" checked={state.prototype.failUploads} onChange={(e) => dispatch({ type: 'prototype', patch: { failUploads: e.target.checked } })} />
+                Make image uploads fail
+              </label>
+              <label className="mpmb-proto__row">
+                <input type="checkbox" checked={state.prototype.failSubmit} onChange={(e) => dispatch({ type: 'prototype', patch: { failSubmit: e.target.checked } })} />
+                Make the final send fail
+              </label>
+            </>
+          )}
           <label className="mpmb-proto__row">
             <input type="checkbox" checked={state.prototype.showDraftMarkers} onChange={(e) => dispatch({ type: 'prototype', patch: { showDraftMarkers: e.target.checked } })} />
             Show “draft wording” markers

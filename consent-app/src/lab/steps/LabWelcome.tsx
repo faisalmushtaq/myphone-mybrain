@@ -21,7 +21,7 @@ export function LabWelcome() {
       title="Take part in the social media break study."
       intro={
         <p>
-          For adults aged {labStudy.minAge} to {labStudy.maxAge} who have been invited by the research team. Giving consent takes about five minutes. You then send screenshots of your screen-time summary straight away, request your data from TikTok, YouTube or Instagram, and come back to choose what to share from it before your first lab visit.
+          For adults aged {labStudy.minAge} to {labStudy.maxAge} who have been invited by the research team. Giving consent takes about five minutes. You then send screenshots of your screen-time summary straight away, request your data from each of TikTok, YouTube and Instagram that you use, and come back to choose what to share from it before your first lab visit.
         </p>
       }
       hideContinue
@@ -38,7 +38,7 @@ export function LabWelcome() {
         </Callout>
       )}
       <ol className="mpmb-next-steps" role="list">
-        {['Enter your name, date of birth and postcode. They make your participant ID, which labels your data instead of your name.', 'Read the information and give your consent.', 'Take screenshots of your screen-time summary and send them; it takes a few minutes.', 'Request your data from the app you use most, TikTok, YouTube or Instagram. It can take a few days to arrive; we can email you a reminder.', 'Come back with the file, remove anything you don’t want to share on your own device, and send the rest.'].map((text, i) => (
+        {['Enter your name, date of birth and postcode. They make your participant ID, which labels your data instead of your name.', 'Read the information and give your consent.', 'Take screenshots of your screen-time summary and send them; it takes a few minutes.', 'Request your data from each of TikTok, YouTube and Instagram that you use, starting with the one you use most. Each can take a few days to arrive; we can email you a link to come back with.', 'Come back with the file, remove anything you don’t want to share on your own device, and send the rest.'].map((text, i) => (
           <li key={text}>
             <span aria-hidden="true">{i + 1}</span>
             <p>{text}</p>

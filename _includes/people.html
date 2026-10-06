@@ -1,13 +1,17 @@
 <section id="team" class="section section-light">
   <div class="container">
+    {% comment %} The school-visit team is shown once it has real names: entries still called "Research Assistant 01" and so on are placeholders. {% endcomment %}
+    {% assign named_visitors = 0 %}
+    {% for person in site.data.data_collection_team %}{% unless person.name contains "Research Assistant" %}{% assign named_visitors = named_visitors | plus: 1 %}{% endunless %}{% endfor %}
+    {% if named_visitors > 0 %}
     <div class="team-subsection team-subsection--data reveal">
-      <h3 class="co-i-heading">The people you may meet at school.</h3>
-      <p>Some of these faces may already be familiar. Others soon will be if you are expecting, or planning, a visit from our team. They help make each MyPhone/MyBrain session clear, calm and welcoming.</p>
+      <h3 class="co-i-heading">Who visits your school.</h3>
+      <p>These are the people from our team who run MyPhone/MyBrain sessions in schools. Everyone who works in schools holds an enhanced DBS certificate, and we send each school the certificates before our first visit.</p>
     </div>
 
     <div class="people-grid people-grid--data">
       {% assign sorted_data_collection_team = site.data.data_collection_team | sort: "name" %}
-      {% for person in sorted_data_collection_team %}
+      {% for person in sorted_data_collection_team %}{% unless person.name contains "Research Assistant" %}
       <article class="person-card reveal">
         <div class="person-image">
           <div class="person-image-placeholder" aria-hidden="true">{{ person.name | slice: 0 }}</div>
@@ -18,11 +22,12 @@
           <p class="bio">{{ person.bio }}</p>
         </div>
       </article>
-      {% endfor %}
+      {% endunless %}{% endfor %}
     </div>
+    {% endif %}
 
     <div class="team-subsection reveal">
-      <h3 class="co-i-heading">The wider MyPhone/MyBrain team.</h3>
+      <h3 class="co-i-heading">The MyPhone/MyBrain team.</h3>
     </div>
 
     <div class="people-grid">
@@ -56,9 +61,11 @@
         {% for ci in sorted_co_investigators %}
         <article class="person-card reveal">
           <div class="person-image">
-            {% assign ci_img = ci.image %}
-            {% if ci_img %}
-              <img src="{{ site.baseurl }}/assets/images/people/{{ ci_img }}" alt="{{ ci.name }}" loading="lazy">
+            {% comment %} Only photos that exist in the site; anyone else gets their initial. {% endcomment %}
+            {% assign ci_path = '/assets/images/people/' | append: ci.image %}
+            {% assign ci_file = site.static_files | where: "path", ci_path | first %}
+            {% if ci.image and ci_file %}
+              <img src="{{ site.baseurl }}/assets/images/people/{{ ci.image }}" alt="{{ ci.name }}" loading="lazy">
             {% else %}
               <div class="person-image-placeholder">{{ ci.name | slice: 0 }}</div>
             {% endif %}

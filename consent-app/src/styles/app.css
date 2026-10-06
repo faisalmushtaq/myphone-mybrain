@@ -688,6 +688,14 @@
   background: var(--mpb-teal);
   color: #fff;
 }
+/* The label reset above outranks the box's own rules: without these an unticked box shows its tick. */
+.mpmb-app .mpmb-check__box {
+  display: grid;
+  color: transparent;
+}
+.mpmb-app .mpmb-check.is-checked .mpmb-check__box {
+  color: #fff;
+}
 .mpmb-check__input:focus-visible + .mpmb-check__box {
   outline: 3px solid #fff;
   outline-offset: 2px;
@@ -2275,6 +2283,17 @@
   color: var(--mpb-ink);
   line-height: 1.4;
 }
+/* The site's legend rules shrink these; the statement someone says Yes or No to must be easy to read. */
+.mpmb-app .mpmb-permission__legend .mpmb-permission__label {
+  font-size: 0.85rem;
+  margin-left: 0;
+}
+.mpmb-app .mpmb-permission__legend .mpmb-permission__text {
+  font-size: 1.05rem;
+  font-weight: 400;
+  margin-left: 0;
+  letter-spacing: 0;
+}
 .mpmb-permission__choice {
   grid-column: 2;
   grid-row: 1 / span 2;
@@ -3067,4 +3086,51 @@
   gap: 0.1rem;
   font-size: 0.8rem;
   color: var(--mpb-muted);
+}
+
+/* ── "My parent or carer isn't here": a link for the parent (components/ParentLink.tsx) ── */
+.mpmb-app .mpmb-parentlink {
+  margin-top: 1.25rem;
+  padding: 1.1rem 1.2rem;
+  border-left: 5px solid var(--mpb-yellow);
+  background: #fff;
+  color: var(--mpb-ink);
+  text-align: left;
+}
+.mpmb-app .mpmb-parentlink--dark {
+  background: rgba(255, 255, 255, 0.96);
+}
+.mpmb-app .mpmb-parentlink p {
+  margin: 0 0 0.6rem;
+}
+.mpmb-app .mpmb-parentlink__title {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.mpmb-app .mpmb-parentlink__list {
+  margin: 0 0 1rem;
+  padding-left: 1.2rem;
+  list-style: disc;
+}
+.mpmb-app .mpmb-parentlink__list li + li {
+  margin-top: 0.35rem;
+}
+.mpmb-app .mpmb-parentlink__status:empty {
+  display: none;
+}
+.mpmb-app .mpmb-parentlink__status {
+  margin-top: 0.75rem;
+  word-break: break-all;
+}
+.mpmb-app .mpmb-parentlink__note {
+  margin-top: 0.9rem;
+  color: var(--mpb-muted, #4a6a6e);
+  font-size: 0.95rem;
+}
+/* The young person's start screen lists its four points one under another. */
+.mpmb-app .mpmb-reassure--stack {
+  grid-template-columns: 1fr;
+  margin: 1.25rem 0 1.5rem;
+  padding: 0;
+  border: 0;
 }

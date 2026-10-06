@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { GuardianFields } from '../components/GuardianFields';
 import { StepShell } from '../components/StepShell';
+import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { DateField, SelectField, TextField } from '../components/ui/Field';
 import { dateOfBirthRange } from '../lib/dates';
@@ -27,7 +28,9 @@ export function ChildDetails() {
   const childName = identity.firstName.trim() || 'your child';
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
 
-  const validate = (nextIdentity = identity, nextGuardian = guardian) => [...validateChildDetails(nextIdentity), ...(withGuardian ? validateGuardian(nextGuardian) : [])];
+  const validate = (nextIdentity = identity, nextGuardian = guardian) => [...validateChildDetails(nextIdentity, young), ...(withGuardian ? validateGuardian(nextGuardian) : [])];
+  // A parent who pressed the young person's button and gave their own (adult) date of birth.
+  const adultOnYoungRoute = young && errors.some((e) => e.field === 'child-dob' && e.message.startsWith('This date of birth is for an adult'));
 
   const updateIdentity = (patch: Partial<typeof identity>) => {
     dispatch({ type: 'update-identity', patch });
@@ -101,6 +104,26 @@ export function ChildDetails() {
           </h2>
           <GuardianFields guardian={guardian} update={updateGuardian} errors={errs} childName={childName} />
         </>
+      )}
+
+      {adultOnYoungRoute && (
+        <Callout tone="important" role="alert">
+          <p>This part is for the young person’s own details. If you are their parent or carer, use the parent form: your child’s school is kept.</p>
+          <div className="mpmb-callout__actions">
+            <Button
+              variant="primary"
+              onClick={() => {
+                // Start the parent form with the school already chosen; the adult date of birth is not the child's.
+                dispatch({ type: 'update-identity', patch: { firstName: '', lastName: '', dateOfBirth: { day: '', month: '', year: '' } } });
+                dispatch({ type: 'set-route', route: 'parent' });
+                setErrors([]);
+                setAttempted(false);
+              }}
+            >
+              I’m the parent or carer: use the parent form
+            </Button>
+          </div>
+        </Callout>
       )}
 
       {young && (

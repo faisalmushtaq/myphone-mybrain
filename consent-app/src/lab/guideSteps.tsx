@@ -41,7 +41,7 @@ export const tiktokSteps: GuideStep[] = [
   { title: 'Download your data', text: 'Tap Download your data.', image: tiktok3, alt: 'Account settings with Download your data highlighted' },
   { title: 'Choose JSON', text: 'Under File format, choose JSON (not TXT). That is the format this page can read.', image: tiktok4, alt: 'File format options with JSON highlighted' },
   { title: 'Choose what to include and request', text: 'Under Select data to download, tap Select all, or tick only what you are happy to share; you may leave Direct Messages unticked. Then tap Request data.', image: tiktok5, alt: 'Data selection and Request data button' },
-  { title: 'Download', text: 'Open the Download data tab. When the file is ready, tap Download. The link works for four days.', image: tiktok6, alt: 'Download data tab with the file ready' },
+  { title: 'Download', text: 'Open the Download data tab. When the file is ready, tap Download (the link works for four days). On an iPhone it is saved in the Files app, under Downloads; on Android, in Downloads. Don’t open or unzip it: come back to this page and choose it.', image: tiktok6, alt: 'Download data tab with the file ready' },
 ];
 export const androidSteps: GuideStep[] = [
   { title: 'Digital Wellbeing', text: 'Open Settings, then Digital Wellbeing & parental controls. Screenshot the chart, then scroll to the app list at the bottom and screenshot that. Your screen may look a little different on Samsung, Xiaomi, Pixel and others.', image: androidShot, alt: 'Illustration of the Android Digital Wellbeing screen' },
@@ -50,14 +50,14 @@ export const instagramSteps: GuideStep[] = [
   { title: 'Accounts Centre', text: 'Open Instagram, tap the menu at the top right of your profile to open Settings and activity, then tap Accounts Centre at the top.', image: instagram1, alt: 'Instagram Settings and activity with Accounts Centre at the top' },
   { title: 'Your information and permissions', text: 'In Accounts Centre, tap Your information and permissions.', image: instagram2, alt: 'Accounts Centre with Your information and permissions' },
   { title: 'Export your information', text: 'Tap Export your information.', image: instagram3, alt: 'Export your information option' },
-  { title: 'Create export', text: 'Tap Create export, select your Instagram profile, then set Format to JSON and Date range to All time, and confirm. Instagram emails you when the file is ready.', image: instagram4, alt: 'Export your information page with Create export' },
+  { title: 'Create export', text: 'Tap Create export, choose Export to device and select your Instagram profile. To keep the file small, choose Customise information and leave out your photos, videos and messages: the study only reads what you liked, viewed, watched and searched. Set Format to JSON and Date range to All time, and confirm. Instagram tells you when the file is ready; save the ZIP and don’t unzip it.', image: instagram4, alt: 'Export your information page with Create export' },
 ];
 export const phones: { id: LabPhone; name: string }[] = [
   { id: 'iphone', name: 'iPhone' },
   { id: 'android', name: 'Android' },
 ];
 export const youtubeSteps: GuideStep[] = [
-  { title: 'Select YouTube only', text: 'Go to takeout.google.com in a web browser. Click Deselect all, then scroll down and tick only YouTube and YouTube Music. Click Multiple formats and change history from HTML to JSON, click OK, then Next step.', image: youtube1, alt: 'Google Takeout with YouTube selected' },
+  { title: 'Select YouTube only', text: 'Go to takeout.google.com in a web browser. Click Deselect all, then scroll down and tick only YouTube and YouTube Music. Click All YouTube data included, choose Deselect all, tick only history and subscriptions, and click OK: leaving out your videos keeps the file small. Click Multiple formats and change history from HTML to JSON, click OK, then Next step.', image: youtube1, alt: 'Google Takeout with YouTube selected' },
   { title: 'Create the export', text: 'Set Transfer to “Send download link via email”, Frequency “Export once”, File type .zip. Click Create export.', image: youtube2, alt: 'Takeout export options' },
   { title: 'Open the email', text: 'Wait for Google’s email “Your Google data is ready to download”, then click Manage Google Takeout request.', image: youtube3, alt: 'Email from Google Takeout' },
   { title: 'Download', text: 'On the export page, click Download and save the ZIP file.', image: youtube4, alt: 'Takeout download page' },

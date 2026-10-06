@@ -17,7 +17,7 @@ import { sendTeamMail } from './mail.js';
  */
 export const ALLOWED_ORIGINS = ['https://myphonemybrain.com', 'https://www.myphonemybrain.com', 'http://localhost:4000', 'http://127.0.0.1:4000'];
 export const YEAR_GROUPS = ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12/13'];
-export const TOPICS = ['The study', 'Taking part', 'Taking part as a school', 'Something else'];
+export const TOPICS = ['The study', 'Taking part', 'Taking part as a school', 'Changing my mind', 'Something else'];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PHONE = /^\+?[\d\s()-]{7,20}$/;
 const limits = { name: 100, email: 254, phone: 30, school: 150, role: 100, area: 60, pupils: 20, message: 3000 };

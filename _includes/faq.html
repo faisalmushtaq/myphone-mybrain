@@ -4,20 +4,30 @@
       <h2>Frequently asked questions.</h2>
       <p class="section-subtitle">Start with the information that is most relevant to you, or browse the full list below.</p>
       <div class="faq-audience-links">
-        <a href="{{ '/take-part/' | relative_url }}"><strong>I have been invited</strong><span>Participant information</span></a>
+        <a href="#young-people"><strong>I’m a young person</strong><span>Questions from young people</span></a>
         <a href="{{ '/families/' | relative_url }}"><strong>Parent or carer</strong><span>Consent, choice and privacy</span></a>
-        <a href="{{ '/schools/' | relative_url }}"><strong>Teacher or school leader</strong><span>Practical school information</span></a>
+        <a href="{{ '/schools/' | relative_url }}"><strong>Teacher or school leader</strong><span>Sessions, safeguarding and approvals</span></a>
       </div>
     </div>
     <div class="faq-list">
-      {% for item in site.data.faqs %}
+      <h3 class="faq-group-title" id="young-people">Questions from young people</h3>
+      {% for item in site.data.faqs %}{% if item.group == "young" %}
       <details class="faq-item reveal">
         <summary>{{ item.question }}</summary>
         <div class="prose">
           {{ item.answer | markdownify }}
         </div>
       </details>
-      {% endfor %}
+      {% endif %}{% endfor %}
+      <h3 class="faq-group-title" id="all-questions">About the study</h3>
+      {% for item in site.data.faqs %}{% unless item.group == "young" %}
+      <details class="faq-item reveal">
+        <summary>{{ item.question }}</summary>
+        <div class="prose">
+          {{ item.answer | markdownify }}
+        </div>
+      </details>
+      {% endunless %}{% endfor %}
     </div>
   </div>
 </section>

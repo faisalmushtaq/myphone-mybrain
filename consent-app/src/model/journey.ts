@@ -44,6 +44,8 @@ export function actorFor(stepId: StepId, state: AppState): Actor {
 export function phoneUseApplies(state: AppState): boolean {
   if (state.consent.responses['phone-use']?.response === 'declined') return false;
   if (state.assent.status === 'declined') return false;
+  // A young person who chose to decide later has not agreed to share anything yet.
+  if (state.assent.status === 'deferred' && state.assent.deferredBy === 'young') return false;
   // The young person's agreement may be collected separately (for example on paper at school), so by default nothing waits for it.
   if (study.screenshotsWaitForAssent && state.assent.status !== 'completed') return false;
   return true;

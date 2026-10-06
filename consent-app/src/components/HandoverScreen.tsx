@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { study } from '../config/study';
 import { stepDefs } from '../model/journey';
 import { useStore } from '../state/context';
+import { ParentLinkPanel } from './ParentLink';
 import { Button } from './ui/Button';
 import { Icon } from './ui/Icon';
 
@@ -13,6 +14,7 @@ import { Icon } from './ui/Icon';
 export function HandoverScreen() {
   const { state, dispatch } = useStore();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const [noParent, setNoParent] = useState(false);
   const handover = state.handover;
 
   useEffect(() => {
@@ -52,11 +54,12 @@ export function HandoverScreen() {
             </p>
           )}
           <p>You will be asked to tick each permission separately and to sign with your finger.</p>
-          {state.route === 'young' && (
+          {state.route === 'young' && !noParent && (
             <p className="mpmb-handover__note">
-              <strong>Not with them right now?</strong> Close this page and come back when you are together — getting back to this point takes about two minutes.
+              <strong>For {childName}:</strong> not with your parent or carer now? Please don’t fill in their part for them: tap “My parent or carer isn’t here”.
             </p>
           )}
+          {state.route === 'young' && noParent && <ParentLinkPanel tone="dark" />}
         </div>
       ) : (
         <div className="mpmb-handover__body">
@@ -83,6 +86,11 @@ export function HandoverScreen() {
         <Button variant="primary" arrow onClick={() => dispatch({ type: 'confirm-handover' })}>
           {toParent ? 'I’m the parent or guardian — continue' : `I’m ${childName} — continue`}
         </Button>
+        {toParent && state.route === 'young' && !noParent && (
+          <Button variant="ghost" onClick={() => setNoParent(true)}>
+            My parent or carer isn’t here
+          </Button>
+        )}
         {parentRouteChoice && (
           <>
             <Button

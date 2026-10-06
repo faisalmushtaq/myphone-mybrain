@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { ParentLinkPanel } from '../components/ParentLink';
 import { Button } from '../components/ui/Button';
 import { Disclosure } from '../components/ui/Disclosure';
 import { Draft } from '../components/ui/Draft';
@@ -12,6 +13,9 @@ import { useStore } from '../state/context';
 export function Welcome() {
   const { state, dispatch } = useStore();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  // A young person arriving from "I'm a young person" sees what this is before typing any personal details.
+  const [youngIntro, setYoungIntro] = useState(false);
+  const [noParent, setNoParent] = useState(false);
 
   const choose = (route: 'parent' | 'young') => {
     dispatch({ type: 'set-route', route });
@@ -25,7 +29,12 @@ export function Welcome() {
     if (school && !state.identity.schoolId) dispatch({ type: 'update-identity', patch: { schoolId: school.id } });
     // The website's buttons link here with ?who=young or ?who=parent, so the choice is already made.
     const who = new URLSearchParams(window.location.search).get('who');
-    if ((who === 'young' || who === 'parent') && state.route === null) {
+    if (who === 'young' && state.route === null) {
+      setYoungIntro(true);
+      window.setTimeout(() => headingRef.current?.focus({ preventScroll: true }), 0);
+      return;
+    }
+    if (who === 'parent' && state.route === null) {
       choose(who);
       return;
     }
@@ -34,6 +43,50 @@ export function Welcome() {
   }, []);
 
   const resume = state.route !== null && state.stepId === 'welcome' && (state.identity.firstName || state.consent.completedAt);
+
+  if (youngIntro) {
+    return (
+      <div className="mpmb-welcome">
+        <p className="mpmb-kicker">Take part online</p>
+        <h1 className="mpmb-h1 mpmb-welcome__title" tabIndex={-1} ref={headingRef}>
+          Before you start.
+        </h1>
+        <p className="mpmb-lead">MyPhone/MyBrain is a study run by the University of Leeds with schools in Bradford and Leeds. It is about how young people use their phones, and how that connects with how you feel, learn and grow.</p>
+        <ul className="mpmb-reassure mpmb-reassure--stack" aria-label="Good to know">
+          <li>
+            <Icon name="check" size={20} />
+            <span>It’s your choice. You can say no to any part, or stop at any time. Nobody will mind.</span>
+          </li>
+          <li>
+            <Icon name="parent" size={20} />
+            <span>You need your parent or carer with you. They say yes first, then you decide for yourself.</span>
+          </li>
+          <li>
+            <Icon name="phone" size={20} />
+            <span>It takes about 10 minutes, together.</span>
+          </li>
+          <li>
+            <Icon name="shield" size={20} />
+            <span>We ask for your name, birthday and school, and keep them locked away, apart from your answers.</span>
+          </li>
+        </ul>
+        <div className="mpmb-actions">
+          <Button variant="primary" arrow onClick={() => choose('young')}>
+            My parent or carer is with me: start
+          </Button>
+          {!noParent && (
+            <Button variant="ghost" onClick={() => setNoParent(true)}>
+              They’re not here
+            </Button>
+          )}
+        </div>
+        {noParent && <ParentLinkPanel />}
+        <p className="mpmb-hint">
+          Want to know more first? Read the <a href="/young-people/">information for young people</a>, or ask your teacher.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mpmb-welcome">

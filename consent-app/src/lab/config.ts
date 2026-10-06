@@ -20,8 +20,10 @@ export interface LabStatement {
   text: string;
   /** Short label used in summaries and the PDF copy. */
   label: string;
-  /** Shown under the statement when the approved wording is being updated. */
+  /** Shown under the statement, for the participant. */
   note?: string;
+  /** An internal remark about the wording's approval: shown only in preview (prototype) builds. */
+  draft?: string;
 }
 
 export const labConsentForm: { id: string; version: string; title: string; statements: LabStatement[] } = {
@@ -44,7 +46,7 @@ export const labConsentForm: { id: string; version: string; title: string; state
       kind: 'required',
       label: 'What I send is kept unless I withdraw',
       text: 'I understand that everything I send, including screen-time screenshots, cleaned data files and questionnaire answers, is kept and may be used in the research even if I do not finish the study. Stopping, or not coming back, does not remove it. To have it removed, I must contact the research team and ask to withdraw, within one month of my final session.',
-      note: 'Draft wording, to be confirmed with the ethics committee. It matches the information sheet: removal of identifiable data can be requested within one month of the final session.',
+      draft: 'Draft wording, to be confirmed with the ethics committee. It matches the information sheet: removal of identifiable data can be requested within one month of the final session.',
     },
     {
       id: 'donation-required',
@@ -61,7 +63,8 @@ export const labConsentForm: { id: string; version: string; title: string; state
       kind: 'optional',
       label: 'Linking with records already held',
       text: 'My study information may be linked, through Connected West Yorkshire, with records already held about me: NHS health records, education records, and other routinely collected records.',
-      note: 'Optional: you can take part without this. Linking means adding information from records that already exist, so the study can look at longer-term patterns in health, learning and wellbeing. It happens only with the approvals in place (the study’s ethics approval, NHS Research Ethics Committee approval for NHS records, permission from each record holder, and Connected West Yorkshire’s own data access process). Linked information is labelled with your participant ID, not your name. Draft wording, to be confirmed with the governance team, matching the approval held for the schools study.',
+      note: 'Optional: you can take part without this. Linking means adding information from records that already exist, so the study can look at longer-term patterns in health, learning and wellbeing. It happens only with the approvals in place (the study’s ethics approval, NHS Research Ethics Committee approval for NHS records, permission from each record holder, and Connected West Yorkshire’s own data access process). Linked information is labelled with your participant ID, not your name.',
+      draft: 'Draft wording, to be confirmed with the governance team, matching the approval held for the schools study.',
     },
     { id: 'take-part', version: '1.0', kind: 'required', label: 'Agree to take part', text: 'I voluntarily agree to take part in the MyPhone/MyBrain intervention study.' },
   ],

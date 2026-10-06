@@ -59,7 +59,8 @@ export function initialState(): AppState {
     survey: { formId: parentQuestionsForm.id, formVersion: parentQuestionsForm.version, status: 'not-started', responses: {}, startedAt: null, completedAt: null },
     submission: { referenceCode: null, participantId: null, consentStage: 'idle', consentError: null, consentSentAt: null, consentVersion: 0, sentSnapshot: null, donationStage: 'idle', donationError: null, donationsSent: 0, declinedSentAt: null },
     session: null,
-    prototype: { failUploads: false, failSubmit: false, showDraftMarkers: true },
+    // Draft-wording markers are part of the preview only, never of a production build.
+    prototype: { failUploads: false, failSubmit: false, showDraftMarkers: __PROTOTYPE__ },
     restored: false,
   };
 }

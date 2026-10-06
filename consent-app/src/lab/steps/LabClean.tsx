@@ -86,8 +86,9 @@ export function LabClean() {
     setWorking((w) => (w && w.on === on ? { ...w, result } : w));
   };
 
-  const add = async () => {
-    if (!working) return;
+  /** Prepares the open file with the choices made; true when it was added. */
+  const add = async (): Promise<boolean> => {
+    if (!working) return false;
     setBusy(true);
     try {
       const Zip = await loadZip();
@@ -97,8 +98,10 @@ export function LabClean() {
       dispatch({ type: 'add-archive', archive: { id, name: cleanedArchiveName(working.platforms), size: blob.size, platforms: working.platforms, categories: Array.from(working.on), kept: working.result.report.kept, status: 'ready', progress: 0, uploadId: null, error: null } });
       announce('Added to your donation. Nothing is sent until the next step.');
       setWorking(null);
+      return true;
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'The cleaned file could not be built.');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -136,18 +139,21 @@ export function LabClean() {
   const removedList = working ? Array.from(new Set(working.platforms.flatMap((p) => alwaysRemoved[p]))) : [];
 
   return (
-    <LabShell kicker="Choose what to share" title="Choose what to share from your data." intro={<p>Pick a ZIP you downloaded from TikTok, Google Takeout (YouTube) or Instagram. This page reads it on your own device, keeps only dates, links and search words, and shows you what would be shared. Untick anything you would rather keep private. Do this for each app you use, one file at a time.</p>} errors={errors}
-      onContinue={() => {
+    <LabShell kicker="Choose what to share" title="Choose what to share from your data." intro={<p>Pick the ZIP you downloaded from TikTok, Google Takeout (YouTube) or Instagram. This page reads it on your own device and keeps only when you watched, liked or searched, the links (for YouTube also the video titles and channels), your search words and simple totals. It shows you what would be shared, and you untick anything you would rather keep private. Do this for each app you use, one file at a time.</p>} errors={errors}
+      onContinue={async () => {
+        // A file read and still open goes in with the choices shown, so pressing Next never loses it.
+        const addedNow = working ? await add() : false;
+        if (working && !addedNow) return;
         // The study asks for at least one cleaned file; after two nudges the person may go on without.
-        if (!state.archives.length && !phaseHave(state).archives && nudges < 2) {
+        if (!addedNow && !state.archives.length && !phaseHave(state).archives && nudges < 2) {
           setNudges(nudges + 1);
-          setErrors([{ field: 'lab-zip', message: nudges === 0 ? 'Prepare at least one TikTok, YouTube or Instagram file before going on; more than one if you have them. The study needs it alongside your screenshots.' : 'The study really does need your TikTok, YouTube or Instagram data. If you cannot provide it right now, press Continue once more to go on and add the file later.' }]);
+          setErrors([{ field: 'lab-zip', message: nudges === 0 ? 'Prepare at least one TikTok, YouTube or Instagram file before going on; more than one if you have them. The study needs it alongside your screenshots.' : 'The study really does need your TikTok, YouTube or Instagram data. If you cannot provide it right now, press “Next: check and send” once more to go on and add the file later.' }]);
           return;
         }
         setErrors([]);
         dispatch({ type: 'next' });
       }}
-      continueLabel="Next: send my data"
+      continueLabel="Next: check and send"
       width="wide"
     >
       <section aria-labelledby="apps-heading">
@@ -200,7 +206,7 @@ export function LabClean() {
           <h2 className="mpmb-h3" id="found-heading">
             Found: {working.platforms.map((p) => platformNames[p]).join(' and ')} data in {working.file.name}
           </h2>
-          <p className="mpmb-hint">Ticked items will be shared. Untick anything you would rather not share; it is your choice and nothing is sent yet.</p>
+          <p className="mpmb-hint">Ticked items will be shared. Untick anything you would rather not share; it is your choice and nothing is sent yet. Then press “Keep these choices”, and add the next app’s file or go on to check and send.</p>
           <div className="mpmb-fields">
             {categories
               .filter((c) => working.platforms.includes(c.platform))
@@ -233,7 +239,7 @@ export function LabClean() {
           )}
           <div className="mpmb-actions">
             <Button variant="primary" onClick={() => void add()} loading={busy}>
-              Add this to my donation
+              Keep these choices
             </Button>
             <Button variant="ghost" onClick={() => void saveCopy()}>
               Save a copy of the cleaned file

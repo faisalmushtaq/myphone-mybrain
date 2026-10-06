@@ -467,3 +467,50 @@ fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin
 /* ── Page not found ────────────────────────────────────────────────── */
 .not-found-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem 2rem; margin: 1rem 0 0; padding: 0; list-style: none; }
 @media (max-width: 680px) { .not-found-links { grid-template-columns: 1fr; } }
+
+/* ── Break study page: shortcut for people already taking part, data panel ── */
+.participant-shortcut { margin: 0 0 2rem; padding: .85rem 1rem; border-left: 4px solid var(--mpb-yellow); background: #fff; color: #234c51; font-weight: 600; }
+.participant-shortcut a { font-weight: 700; }
+.break-data-panel { margin-top: 2.5rem; }
+.break-data-panel h3 { margin-top: 0; }
+
+/* ── Persona review: schools page sections, young people's next steps, parents' buttons, FAQ groups ── */
+.school-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 2.5rem; }
+.school-sections .info-panel { margin: 0; }
+.school-sections h3, .school-ask h3 { margin-top: 0; }
+.school-sections #session { grid-column: 1 / -1; }
+.school-ask { margin-top: 1rem; }
+.school-ask__list ul { list-style: disc; padding-left: 1.3rem; }
+.school-ask__list li + li { margin-top: .5rem; }
+.enquiry-follow-up ol { list-style: decimal; padding-left: 1.3rem; }
+.yp-next { margin-top: 2.5rem; padding: clamp(1.5rem, 4vw, 2.5rem); border: 1px solid rgba(255,255,255,.35); background: rgba(0, 48, 53, .28); }
+.yp-next h3 { margin: 0 0 1.25rem; color: #fff; }
+.yp-next__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.yp-next__card { padding: 1.25rem; background: #fff; color: var(--mpb-ink); display: flex; flex-direction: column; gap: .75rem; align-items: flex-start; }
+.yp-next__card h4 { margin: 0; color: var(--mpb-teal); font-size: 1.25rem; }
+.yp-next__card p { margin: 0; color: #234c51 !important; }
+.yp-next__help { margin: 1.25rem 0 0; color: rgba(255,255,255,.9); }
+.yp-next__help a { color: var(--mpb-yellow); font-weight: 700; }
+.parents-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
+.parents-actions__note { margin: 1rem 0 0; color: #45666b; }
+.faq-group-title { margin: 0 0 .75rem; color: var(--mpb-teal); font-size: 1.4rem; scroll-margin-top: 110px; }
+.faq-item + .faq-group-title { margin-top: 2.25rem; }
+.privacy-facts { margin-top: 2rem; }
+.privacy-facts h3 { margin-top: 0; }
+.hero-read-first { margin: 1.1rem 0 0; color: rgba(255,255,255,.88); font-size: 1rem; }
+.hero-read-first a { color: var(--mpb-yellow); font-weight: 700; }
+@media (max-width: 900px) {
+  .school-sections { grid-template-columns: 1fr; }
+  .yp-next__grid { grid-template-columns: 1fr; }
+}
+
+/* ── Enquiry forms: a problem beside its field, and a clear box when sending fails ── */
+.field-error { display: block; margin-top: .35rem; color: #9b1239; font-weight: 700; font-size: .95rem; text-transform: none; letter-spacing: 0; }
+[aria-invalid="true"] { border-color: #bb1e50 !important; outline-color: #bb1e50; }
+.form-failure { margin-top: 1rem; padding: 1rem 1.1rem; border-left: 5px solid var(--mpb-pink); background: #fff3f6; color: #4a0f22; }
+.form-failure p { margin: 0 0 .75rem; }
+.form-failure__actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.form-failure__status:empty { display: none; }
+.form-failure__status { margin: .75rem 0 0 !important; font-weight: 700; }
+.enquiry-follow-up p + h3 { margin-top: 1.25rem; }
+.school-landing__note a, .parents-actions__note a, .participant-shortcut a { text-decoration: underline; text-underline-offset: .18em; }

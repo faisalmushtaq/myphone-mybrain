@@ -30,7 +30,11 @@
       <div class="prose">
         {{ site.data.audience.for_parents.consent_note | markdownify }}
       </div>
-      <a href="{{ '/contact/?topic=Participant%20information' | relative_url }}" class="btn btn-secondary" style="margin-top:1.5rem;">Contact the team with questions &nbsp;&rarr;</a>
+      <div class="parents-actions">
+        <a href="{{ '/take-part/consent/?who=parent' | relative_url }}" class="btn btn-primary">Give permission online &nbsp;&rarr;</a>
+        <a href="{{ '/contact/?topic=Taking%20part' | relative_url }}" class="btn btn-secondary">Ask the team a question &nbsp;&rarr;</a>
+      </div>
+      <p class="parents-actions__note">Online, with your child, in about 10 minutes: you give permission, then your child decides for themselves. <a href="{{ '/faq/' | relative_url }}">Questions and answers</a> · <a href="{{ '/participation/' | relative_url }}">What happens at school</a> · <a href="{{ '/privacy/' | relative_url }}">Data and privacy</a></p>
     </div>
   </div>
 </section>

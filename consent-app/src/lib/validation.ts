@@ -28,21 +28,22 @@ function blank(value: string): boolean {
   return value.trim().length === 0;
 }
 
-export function validateChildDetails(identity: ParticipantIdentity): FieldError[] {
+/** Messages speak to the young person when they are the one filling in their details (`young`). */
+export function validateChildDetails(identity: ParticipantIdentity, young = false): FieldError[] {
   const errors: FieldError[] = [];
 
   if (childFields.firstName.enabled && childFields.firstName.required && blank(identity.firstName)) {
-    errors.push({ field: 'child-first-name', message: 'Enter the young person’s first name.' });
+    errors.push({ field: 'child-first-name', message: young ? 'Type your first name.' : 'Enter the young person’s first name.' });
   }
   if (childFields.lastName.enabled && childFields.lastName.required && blank(identity.lastName)) {
-    errors.push({ field: 'child-last-name', message: 'Enter the young person’s last name.' });
+    errors.push({ field: 'child-last-name', message: young ? 'Type your last name.' : 'Enter the young person’s last name.' });
   }
 
   if (childFields.dateOfBirth.enabled) {
     const { day, month, year } = identity.dateOfBirth;
     const allBlank = blank(day) && blank(month) && blank(year);
     if (allBlank) {
-      if (childFields.dateOfBirth.required) errors.push({ field: 'child-dob', message: 'Enter the date of birth.' });
+      if (childFields.dateOfBirth.required) errors.push({ field: 'child-dob', message: young ? 'Choose your birthday.' : 'Enter the date of birth.' });
     } else if (toInt(day) === null || toInt(month) === null || toInt(year) === null || year.trim().length !== 4) {
       errors.push({ field: 'child-dob', message: 'Choose the full date of birth: day, month and year.' });
     } else {
@@ -56,7 +57,9 @@ export function validateChildDetails(identity: ParticipantIdentity): FieldError[
         if (age > study.maxAge) {
           errors.push({
             field: 'child-dob',
-            message: `This form is for young people aged ${study.minAge} to ${study.maxAge}. Someone aged 18 or over gives their own consent — please contact the team and we will send the right form.`,
+            message: young
+              ? `This date of birth is for an adult. Are you a parent or carer? Use the parent form instead (the button below). If you are a young person aged 18 or over, please contact the team and we will send the right form.`
+              : `This form is for young people aged ${study.minAge} to ${study.maxAge}. Someone aged 18 or over gives their own consent — please contact the team and we will send the right form.`,
           });
         } else if (age < study.minAge) {
           errors.push({
@@ -70,7 +73,7 @@ export function validateChildDetails(identity: ParticipantIdentity): FieldError[
 
   if (childFields.school.enabled && childFields.school.required) {
     if (blank(identity.schoolId)) {
-      errors.push({ field: 'child-school', message: 'Choose the school. If it is not in the list, choose “My school is not in the list”.' });
+      errors.push({ field: 'child-school', message: young ? 'Choose your school. If it isn’t there, choose “My school is not in the list”.' : 'Choose the school. If it is not in the list, choose “My school is not in the list”.' });
     } else if (identity.schoolId === OTHER_SCHOOL_ID && identity.schoolOther.trim().length < limits.schoolMin) {
       errors.push({ field: 'child-school-other', message: blank(identity.schoolOther) ? 'Type the name of the school.' : `The school name needs at least ${limits.schoolMin} letters.` });
     }

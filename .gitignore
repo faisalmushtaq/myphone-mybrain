@@ -5,3 +5,6 @@ _site/
 vendor/
 Gemfile.lock
 assets/consent-app/
+
+# Local agent worktrees, never part of the site
+.claude/worktrees/

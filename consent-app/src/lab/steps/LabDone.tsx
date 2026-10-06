@@ -73,7 +73,7 @@ export function LabDone() {
   const when = flow === 'checkin' ? state.checkIn.sentAt : submission.lastDonationAt;
   const steps =
     flow === 'checkin'
-      ? ['Carry on with your break. Check in again in about a week, on this same page.', 'If anything goes wrong with Brick or the break, contact the team; it is useful to know.', 'When the 30 days are up, send your screenshots and app data again on the after-break page.']
+      ? ['Carry on with your break. Check in again in about a week, on this same page.', 'If anything goes wrong with Brick or the break, contact the team; it is useful to know.', 'On the last day of your break, before you unlock your apps, take your screen-time screenshots on the after-break page; once your apps are unlocked, request your new data downloads.']
       : flow === 'after'
         ? ['Bring your phone to your second lab visit. The team will be able to see that your files have arrived.', 'If a data download arrives later, come back to this page, enter your details and add it.']
         : [
@@ -99,7 +99,11 @@ export function LabDone() {
       </div>
       <div className="mpmb-step__body">
         {flow === 'checkin' ? (
-          <MyStoryCard code={state.code} />
+          labMyStory.url ? (
+            <MyStoryCard code={state.code} />
+          ) : (
+            <p className="mpmb-hint">Coming soon: {labMyStory.name}, a short typed conversation where you can tell us about your week without social media in your own words.</p>
+          )
         ) : (
           <>
             <div className="mpmb-done__why">
@@ -142,6 +146,9 @@ export function LabDone() {
             </p>
           )}
         </section>
+        {flow === 'checkin' && (
+          <p className="mpmb-hint">The team does not read check-ins straight away. If you are finding things hard and need support now, call Samaritans free, any time, on <a href="tel:116123">116 123</a>, or speak to your GP.</p>
+        )}
         <div className="mpmb-card mpmb-card--mist">
           <h2 className="mpmb-h3">Changing your mind</h2>
           <p>
@@ -159,7 +166,7 @@ export function LabDone() {
               Start another check-in
             </Button>
           ) : toDo.length ? (
-            <Button variant="secondary" onClick={() => dispatch({ type: 'go-to', stepId: 'guide' })}>
+            <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'guide' })}>
               Get my {namesOf(toDo)} data
             </Button>
           ) : (
@@ -167,13 +174,16 @@ export function LabDone() {
               Add more files
             </Button>
           )}
-          <Button variant="primary" onClick={finish}>
-            Finish and clear this device
-          </Button>
         </div>
         {copy.kind === 'done' && <p className="mpmb-hint">Saved as {copy.fileName}. It includes your name and signature, so keep it somewhere safe.</p>}
         {copy.kind === 'failed' && <p className="mpmb-hint">The copy could not be made on this device. Contact the team quoting your participant ID and they will send one.</p>}
-        <p className="mpmb-hint">“Finish and clear this device” removes your participant ID and progress from this browser; everything sent is already with the team. Leave it if you will use this device for the check-ins or after your break.</p>
+        <p className="mpmb-hint">
+          Using a shared or borrowed device?{' '}
+          <Button variant="link" onClick={finish}>
+            Clear my details from this device
+          </Button>{' '}
+          Everything you sent is already with the team. On your own phone, leave it: the check-ins and the after-break page will recognise you.
+        </p>
       </div>
     </div>
   );

@@ -151,7 +151,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
           'parent-questions',
           'research',
           <p className="mpmb-summary__note">
-            {survey.status === 'not-started' ? 'Not answered yet.' : survey.status === 'skipped' && !answered ? 'Skipped — these questions are optional.' : `${answered} of ${parentQuestionsForm.questions.length} answered.`} The answers are kept with {childName}’s code and are only shown to the parent or guardian.
+            {survey.status === 'not-started' ? 'Not answered yet.' : survey.status === 'skipped' && !answered ? 'Skipped — these questions are optional.' : `${answered} of ${parentQuestionsForm.questions.length} answered.`} The answers are kept with {childName}’s code and are not shown again on this phone.
           </p>,
         )}
 

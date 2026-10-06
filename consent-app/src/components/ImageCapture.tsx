@@ -6,6 +6,10 @@ interface Props {
   onFiles: (files: FileList) => void;
   disabled?: boolean;
   count: number;
+  /** Most images allowed; the family study's limit unless given. */
+  max?: number;
+  /** Under "Take a photo of the screen": when someone would use it. */
+  cameraHint?: string;
 }
 
 /**
@@ -13,11 +17,11 @@ interface Props {
  * or choose an existing screenshot. Both use native file inputs so they work
  * with keyboards, screen readers and every mobile browser.
  */
-export function ImageCapture({ onFiles, disabled, count }: Props) {
+export function ImageCapture({ onFiles, disabled, count, max = study.upload.maxImages, cameraHint = 'If the screen-time summary is on a different phone.' }: Props) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const accept = study.upload.acceptedTypes.join(',');
-  const full = count >= study.upload.maxImages;
+  const full = count >= max;
 
   const handle = (input: HTMLInputElement | null) => {
     if (input?.files?.length) onFiles(input.files);
@@ -36,11 +40,11 @@ export function ImageCapture({ onFiles, disabled, count }: Props) {
       <button type="button" className="mpmb-capture__btn" disabled={disabled || full} onClick={() => cameraRef.current?.click()}>
         <Icon name="camera" size={28} />
         <span className="mpmb-capture__title">Take a photo of the screen</span>
-        <span className="mpmb-capture__hint">If the screen-time summary is on a different phone.</span>
+        <span className="mpmb-capture__hint">{cameraHint}</span>
       </button>
       {full && (
         <p className="mpmb-hint" role="status">
-          You have added the maximum of {study.upload.maxImages} images.
+          You have added the maximum of {max} images.
         </p>
       )}
     </div>

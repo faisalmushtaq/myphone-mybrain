@@ -117,7 +117,7 @@ async function inner() {
     await page.getByLabel('Your first name').fill('Kai');
     await page.getByLabel('Your last name').fill('Patel');
     await page.getByLabel('Your date of birth', { exact: true }).fill('2013-03-14');
-    await page.getByLabel('Your school', { exact: true }).selectOption('BRD-001');
+    await page.getByLabel('Your school', { exact: true }).selectOption('DUA');
     await page.getByLabel('Your year group').selectOption('Year 8');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('button', { name: /I’m the parent or guardian/ }).click();
@@ -232,7 +232,7 @@ async function inner() {
     const behTsv = await readExport('schools/donations/sub-00001/ses-01/beh/sub-00001_ses-01_task-screentime_beh.tsv');
     const description = JSON.parse(await readExport('schools/donations/dataset_description.json'));
     ok('export ran and counted the records', exportRes.status === 200 && manifest.counts?.participants === 1 && manifest.counts?.consents === 2 && manifest.counts?.sessions === 1 && manifest.counts?.screenshots === 2 && manifest.counts?.signatures === 4 && manifest.counts?.enquiries === 1, JSON.stringify(manifest.counts));
-    ok('BIDS dataset is de-identified and labelled sub-00001', description.BIDSVersion && participantsTsv.startsWith('participant_id\tage\t') && participantsTsv.includes('sub-00001\t13\tYear 8\tBRD-001') && !participantsTsv.includes('Patel') && phenotypeTsv.includes('sub-00001\tsomewhat') && !phenotypeTsv.includes('Patel') && !behTsv.includes('Patel'));
+    ok('BIDS dataset is de-identified and labelled sub-00001', description.BIDSVersion && participantsTsv.startsWith('participant_id\tage\t') && participantsTsv.includes('sub-00001\t13\tYear 8\tDUA') && !participantsTsv.includes('Patel') && phenotypeTsv.includes('sub-00001\tsomewhat') && !phenotypeTsv.includes('Patel') && !behTsv.includes('Patel'));
     ok('identifying folder holds the key and the statements', keyTsv.includes('sub-00001\t') && keyTsv.includes('Kai\tPatel') && statementsTsv.includes('sub-00001\t2\tlink-records\t0.4-draft\tdeclined'));
     ok('screenshots sit under sourcedata and signatures under identifying, named by label and session', exportedNames.filter((n) => n.startsWith('schools/donations/sourcedata/sub-00001/ses-01/sub-00001_ses-01_task-screentime_run-0')).length === 2 && exportedNames.filter((n) => n.startsWith('schools/identifying/signatures/sub-00001/sub-00001_')).length === 4 && exportedNames.includes('schools/donations/sub-00001/sub-00001_sessions.tsv') && exportedNames.includes('schools/donations/README') && exportedNames.includes('schools/README.md') && exportedNames.includes('manifest.json') && exportedNames.every((n) => n === 'README.md' || n === 'manifest.json' || n.startsWith('schools/') || n.startsWith('social-media-break/')));
     const rerun = await (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' })).json();
@@ -286,7 +286,7 @@ async function inner() {
     await page.getByLabel('First name', { exact: true }).fill('Amira');
     await page.getByLabel('Last name', { exact: true }).fill('Khan');
     await page.getByLabel('Date of birth', { exact: true }).fill('2012-09-02');
-    await page.getByLabel('School', { exact: true }).selectOption('BRD-001');
+    await page.getByLabel('School', { exact: true }).selectOption('DUA');
     await page.getByLabel('Your full name', { exact: true }).fill('Sara Khan');
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     await page.getByLabel(/parental responsibility for/).check();
@@ -404,9 +404,9 @@ async function inner() {
     await snap('clean');
     const previewText = await page.locator('.mpmb-card').innerText();
     ok('the cleaning preview shows links and dates only', previewText.includes('tiktokv.com/share/video/1/') && !previewText.includes('something private') && !previewText.includes('private words'));
-    await page.getByRole('button', { name: 'Add this to my donation' }).click();
+    await page.getByRole('button', { name: 'Keep these choices' }).click();
     await page.locator('.mpmb-apps__row.is-ready[data-platform="tiktok"]').waitFor();
-    await page.getByRole('button', { name: /Next: send my data/ }).click();
+    await page.getByRole('button', { name: /Next: check and send/ }).click();
     await page.getByRole('heading', { name: /Check and send/ }).waitFor();
     ok('the send step asks nothing about before or after', (await page.getByRole('radio', { name: 'Before my break' }).count()) === 0);
     await snap('send');
@@ -501,7 +501,7 @@ async function inner() {
     await snap('checkin');
     await page.getByRole('button', { name: 'Send my check-in' }).click();
     await page.getByRole('heading', { name: /Your check-in has been sent/ }).waitFor({ timeout: 90000 });
-    ok('after the check-in, MyStory is offered (not open yet, and it says so)', (await page.getByText('Tell MyStory how it is going.').count()) === 1 && (await page.getByText(/MyStory is not open yet/).count()) === 1);
+    ok('after the check-in, MyStory is mentioned as coming soon, and support is signposted', (await page.getByText(/Coming soon: MyStory/).count()) === 1 && (await page.getByText(/Samaritans/).count()) === 1);
     await snap('checkin-done');
     const labP3 = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data();
     const checkIn = labP3?.checkInIds?.length ? (await db.collection('labCheckIns').doc(labP3.checkInIds[0]).get()).data() : null;
@@ -536,9 +536,9 @@ async function inner() {
     await page.locator('#lab-zip').setInputFiles({ name: 'TikTok_Data.zip', mimeType: 'application/zip', buffer: tiktokZip });
     await page.getByRole('heading', { name: /Found: TikTok data/ }).waitFor({ timeout: 30000 });
     await page.locator('#cat-tt_search').uncheck();
-    await page.getByRole('button', { name: 'Add this to my donation' }).click();
+    await page.getByRole('button', { name: 'Keep these choices' }).click();
     await page.locator('.mpmb-apps__row.is-ready[data-platform="tiktok"]').waitFor();
-    await page.getByRole('button', { name: /Next: send my data/ }).click();
+    await page.getByRole('button', { name: /Next: check and send/ }).click();
     await page.getByRole('heading', { name: /Check and send/ }).waitFor();
     await page.getByRole('button', { name: 'Send my data' }).click();
     await page.getByRole('heading', { name: /after-break data is in/ }).waitFor({ timeout: 90000 });

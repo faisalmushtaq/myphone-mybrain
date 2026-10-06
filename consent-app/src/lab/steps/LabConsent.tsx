@@ -9,10 +9,13 @@ import { announce } from '../../lib/announce';
 import { formatIsoDate, todayIso } from '../../lib/dates';
 import { limits } from '../../lib/validation';
 import { describeError, labClientInfo, labSession } from '../api';
-import { idDetails, labConsentForm } from '../config';
+import { idDetails, labConsentForm, type LabStatement } from '../config';
 import { LabShell } from '../LabShell';
 import { useLab } from '../store';
 import { validateLabConsent, type FieldError } from '../validation';
+
+/** A statement's note for the participant, and in preview builds the remark about its wording's approval. */
+const hintOf = (s: LabStatement): string | undefined => [s.note, __PROTOTYPE__ ? s.draft : undefined].filter(Boolean).join(' ') || undefined;
 
 /** The approved consent form: every statement ticked, a name, a signature and the date. Sent as soon as it is signed. */
 export function LabConsent() {
@@ -60,9 +63,9 @@ export function LabConsent() {
         <div className="mpmb-fields">
           {labConsentForm.statements.map((s) =>
             s.kind === 'optional' ? (
-              <ChoiceField key={s.id} id={`lab-stmt-${s.id}`} name={`lab-stmt-${s.id}`} legend={s.text} hint={s.note} value={consent.responses[s.id] ? (consent.responses[s.id].response === 'agreed' ? 'agreed' : 'declined') : null} onChange={(v) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, agreed: v === 'agreed' })} options={[{ value: 'agreed', label: 'Yes' }, { value: 'declined', label: 'No' }]} error={errs[`lab-stmt-${s.id}-agreed`]} />
+              <ChoiceField key={s.id} id={`lab-stmt-${s.id}`} name={`lab-stmt-${s.id}`} legend={s.text} hint={hintOf(s)} value={consent.responses[s.id] ? (consent.responses[s.id].response === 'agreed' ? 'agreed' : 'declined') : null} onChange={(v) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, agreed: v === 'agreed' })} options={[{ value: 'agreed', label: 'Yes' }, { value: 'declined', label: 'No' }]} error={errs[`lab-stmt-${s.id}-agreed`]} />
             ) : (
-              <CheckboxField key={s.id} id={`lab-stmt-${s.id}`} checked={consent.responses[s.id]?.response === 'agreed'} onChange={(checked) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, agreed: checked })} label={s.text} hint={s.note} error={errs[`lab-stmt-${s.id}`]} emphasis />
+              <CheckboxField key={s.id} id={`lab-stmt-${s.id}`} checked={consent.responses[s.id]?.response === 'agreed'} onChange={(checked) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, agreed: checked })} label={s.text} hint={hintOf(s)} error={errs[`lab-stmt-${s.id}`]} emphasis />
             ),
           )}
         </div>

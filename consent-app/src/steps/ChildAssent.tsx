@@ -68,7 +68,7 @@ export function ChildAssent() {
     >
       <div className="mpmb-recap">
         <ul className="mpmb-recap__list" role="list">
-          {youngRecap.points.map((p) => (
+          {[...youngRecap.points, youngRecap.records[(state.consent.responses['link-records']?.response as 'agreed' | 'declined' | undefined) ?? 'unknown'], youngRecap.ask].map((p) => (
             <li key={p}>{p}</li>
           ))}
         </ul>

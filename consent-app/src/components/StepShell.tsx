@@ -38,7 +38,11 @@ export function StepShell({ kicker, title, intro, children, errors = [], onConti
     document.title = `${n > 0 ? `Step ${n} of ${steps.length}: ` : ''}${stepDefs[state.stepId].title} – MyPhone/MyBrain`;
     const el = headingRef.current;
     if (!el) return;
-    const top = el.getBoundingClientRect().top + window.scrollY - 120;
+    // Show the progress band (step number and whose turn it is) just below the site's sticky header, not under it.
+    const band = document.querySelector<HTMLElement>('.mpmb-band');
+    const siteHeader = document.querySelector<HTMLElement>('.site-header');
+    const anchor = band ?? el;
+    const top = anchor.getBoundingClientRect().top + window.scrollY - (siteHeader?.getBoundingClientRect().height ?? 0) - (band ? 0 : 24);
     window.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
     el.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
