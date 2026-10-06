@@ -1,4 +1,4 @@
-import type { LabConsentRecord, LabPhase, LabPhone, LabPlatform } from '../api/types';
+import type { LabConsentRecord, LabLookupResult, LabPhase, LabPhone, LabPlatform } from '../api/types';
 import type { SendStage, SessionInfo, SignatureRecord, StatementRecord } from '../model/types';
 import type { CategoryId } from './cleaner';
 import type { CodeParts } from './config';
@@ -10,16 +10,37 @@ import type { CodeParts } from './config';
  * arrive), so progress lives in localStorage keyed by the participant code.
  */
 
-export type LabStepId = 'welcome' | 'participant-id' | 'information' | 'consent' | 'guide' | 'screenshots' | 'clean' | 'send' | 'done';
+export type LabStepId = 'welcome' | 'participant-id' | 'information' | 'consent' | 'reminder' | 'checkin' | 'guide' | 'screenshots' | 'clean' | 'send' | 'done';
 
-/** The screenshots go first, sent straight away; the app data download takes days, so its guide comes next and the person returns to clean and send the file. */
-export const labStepOrder: LabStepId[] = ['welcome', 'participant-id', 'information', 'consent', 'screenshots', 'guide', 'clean', 'send', 'done'];
+/**
+ * Which of the study's three pages this is (see labPages in config.ts). Each
+ * page is its own short flow, keeps its own progress on the device, and
+ * files what it sends under its own phase.
+ */
+export type LabFlow = 'baseline' | 'checkin' | 'after';
+
+/**
+ * The steps of each page. Before the break: the screenshots go first, sent
+ * straight away; the app data download takes days, so its guide comes next
+ * and the person returns to clean and send the file. During the break: the
+ * code, then the check-in. After the break: the code, a reminder of what
+ * they agreed to (no new consent), then the same screenshots and app data.
+ */
+export const labFlowSteps: Record<LabFlow, LabStepId[]> = {
+  baseline: ['welcome', 'participant-id', 'information', 'consent', 'screenshots', 'guide', 'clean', 'send', 'done'],
+  checkin: ['participant-id', 'checkin', 'done'],
+  after: ['participant-id', 'reminder', 'screenshots', 'guide', 'clean', 'send', 'done'],
+};
+
+export const labFlowPhase: Record<LabFlow, LabPhase> = { baseline: 'pre', checkin: 'mid', after: 'post' };
 
 export const labStepTitles: Record<LabStepId, string> = {
   welcome: 'Social media break study',
   'participant-id': 'Your participant code',
   information: 'About the study',
   consent: 'Your consent',
+  reminder: 'Before you start',
+  checkin: 'Your check-in',
   guide: 'Get your app data',
   screenshots: 'Your screenshots',
   clean: 'Choose what to share',
@@ -72,18 +93,34 @@ export interface LabSubmission {
   screenshotsSent: number;
 }
 
+/** One check-in being filled in, and once sent, its receipt. */
+export interface LabCheckInState {
+  answers: Record<string, string>;
+  checkInId: string | null;
+  sentAt: string | null;
+  /** How many check-ins this code has sent, from the server. */
+  count: number;
+}
+
 export interface LabState {
+  /** The page this state belongs to; fixed when the page loads. */
+  flow: LabFlow;
   stepId: LabStepId;
   codeParts: CodeParts;
   code: string;
   codeConfirmed: boolean;
+  /** The code everything below belongs to (consent, files, progress), once confirmed. Confirming a different code starts afresh. */
+  confirmedCode: string | null;
   /** Whether the person typed a code they already had, rather than building it. */
   returning: boolean;
   consent: LabConsentRecord;
-  /** iPhone or Android, chosen in the guide so the right steps show and the screenshots are labelled. */
+  /** iPhone or Android, chosen on the screenshots step so the right steps show and the screenshots are labelled. */
   phone: LabPhone | null;
-  /** Whether the files being sent are from before or after the break. */
-  phase: LabPhase | null;
+  /** The phase every send from this page is filed under: set by the page, never asked. */
+  phase: LabPhase;
+  /** What the server holds for this code, from the last lookup: lets any device carry on where the person left off. */
+  progress: LabLookupResult | null;
+  checkIn: LabCheckInState;
   /** The app the person uses most, chosen in the guide so only its steps show. */
   app: LabPlatform | null;
   submission: LabSubmission;

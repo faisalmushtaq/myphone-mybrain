@@ -89,9 +89,11 @@ export const labStudy = {
   maxAge: generated.labStudy.maxAge,
   /** Largest cleaned archive accepted, in bytes (the storage rules allow a little more). */
   maxArchiveBytes: generated.labStudy.maxArchiveBytes,
-  /** Screenshots accepted per participant in total. */
+  /** Screenshots accepted per participant before the break, and again after it. */
   maxScreenshots: generated.labStudy.maxScreenshots,
-  /** Cleaned archives accepted per participant in total. */
+  /** Screenshots accepted per participant across all the mid-break check-ins. */
+  maxCheckInScreenshots: generated.labStudy.maxCheckInScreenshots,
+  /** Cleaned archives accepted per participant before the break, and again after it. */
   maxArchives: 10,
   maxSignatureBytes: study.maxSignatureBytes,
   name: generated.labStudy.name,
@@ -99,8 +101,24 @@ export const labStudy = {
   contactEmail: generated.labStudy.contactEmail,
 };
 
+/** The mid-break check-in's questions (labCheckInForm in src/lab/config.ts): what the server accepts and the export describes. */
+export type ServedCheckInQuestion = { id: string; version: string; type: 'choice'; required: boolean; label: string; text: string; options: { value: string; label: string }[] } | { id: string; version: string; type: 'text'; required: boolean; label: string; text: string; maxLength: number };
+
+export const labCheckInForm = {
+  id: generated.labCheckInForm.id as string,
+  version: generated.labCheckInForm.version as string,
+  questions: generated.labCheckInForm.questions.map((q): ServedCheckInQuestion =>
+    q.type === 'choice'
+      ? { id: q.id, version: q.version, type: 'choice', required: q.required, label: q.label, text: q.text, options: q.options.map((o) => ({ value: o.value as string, label: o.label as string })) }
+      : { id: q.id, version: q.version, type: 'text', required: q.required, label: q.label, text: q.text, maxLength: q.maxLength },
+  ),
+};
+
 /** The participant code the lab questionnaire builds, for example JA101CD; see src/lab/config.ts. */
 export const PARTICIPANT_CODE = new RegExp(generated.labStudy.participantCodePattern);
+
+/** A full UK postcode, with one space before the inward code; see src/lab/config.ts. */
+export const UK_POSTCODE = new RegExp(generated.labStudy.ukPostcodePattern);
 
 /** What the in-browser cleaner produces: the only file names a donated archive may contain, and the category ids it reports. */
 export const cleaner = {

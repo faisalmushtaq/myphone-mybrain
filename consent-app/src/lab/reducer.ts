@@ -1,8 +1,8 @@
-import type { LabConsentRecord, LabPhase, LabPhone, LabPlatform } from '../api/types';
+import type { LabConsentRecord, LabLookupResult, LabPhone, LabPlatform } from '../api/types';
 import { todayIso } from '../lib/dates';
 import type { SessionInfo, SignatureRecord } from '../model/types';
 import { labConsentForm, labInformationVersion, type CodeParts } from './config';
-import { labStepOrder, type LabArchive, type LabScreenshot, type LabState, type LabStepId, type LabSubmission } from './model';
+import { labFlowPhase, labFlowSteps, type LabArchive, type LabFlow, type LabScreenshot, type LabState, type LabStepId, type LabSubmission } from './model';
 
 export type LabAction =
   | { type: 'go-to'; stepId: LabStepId }
@@ -10,16 +10,19 @@ export type LabAction =
   | { type: 'back' }
   | { type: 'code-parts'; parts: Partial<CodeParts> }
   | { type: 'code'; code: string; returning: boolean }
-  | { type: 'code-confirmed'; confirmed: boolean }
+  | { type: 'confirm-code'; code: string; returning: boolean; lookup: LabLookupResult }
   | { type: 'consent-response'; statementId: string; version: string; agreed: boolean }
   | { type: 'consent-typed-name'; name: string }
   | { type: 'consent-signature'; signature: SignatureRecord | null }
   | { type: 'consent-date'; date: string }
   | { type: 'consent-complete' }
-  | { type: 'consent-on-file'; consentedAt: string | null }
   | { type: 'phone'; phone: LabPhone | null }
-  | { type: 'phase'; phase: LabPhase | null }
   | { type: 'app'; app: LabPlatform | null }
+  | { type: 'progress'; progress: LabLookupResult }
+  | { type: 'use-code'; code: string }
+  | { type: 'checkin-answer'; questionId: string; value: string }
+  | { type: 'checkin-sent'; checkInId: string; receivedAt: string; count: number }
+  | { type: 'checkin-new' }
   | { type: 'submission'; patch: Partial<LabSubmission> }
   | { type: 'add-archive'; archive: LabArchive }
   | { type: 'update-archive'; id: string; patch: Partial<LabArchive> }
@@ -36,16 +39,21 @@ export function initialConsent(): LabConsentRecord {
   return { formId: labConsentForm.id, formVersion: labConsentForm.version, informationVersion: labInformationVersion.version, responses: {}, typedName: '', signature: null, confirmedDate: todayIso(), completedAt: null };
 }
 
-export function initialLabState(): LabState {
+export function initialLabState(flow: LabFlow = 'baseline'): LabState {
   return {
-    stepId: 'welcome',
+    flow,
+    stepId: labFlowSteps[flow][0],
     codeParts: { mother: '', house: '', month: '', postcode: '' },
     code: '',
     codeConfirmed: false,
-    returning: false,
+    confirmedCode: null,
+    // On the check-in and after-break pages people already have a code, so they type it (or rebuild it if they must).
+    returning: flow !== 'baseline',
     consent: initialConsent(),
     phone: null,
-    phase: null,
+    phase: labFlowPhase[flow],
+    progress: null,
+    checkIn: { answers: {}, checkInId: null, sentAt: null, count: 0 },
     app: null,
     submission: { consentId: null, consentVersion: 0, consentSentAt: null, consentStage: 'idle', consentError: null, consentOnFile: false, donationStage: 'idle', donationError: null, donationIds: [], lastDonationAt: null, archivesSent: 0, screenshotsSent: 0 },
     archives: [],
@@ -55,9 +63,29 @@ export function initialLabState(): LabState {
   };
 }
 
-/** The steps this person still needs, in order: the information and consent are skipped when consent is already on file. */
+/** The steps this person still needs on this page, in order: the information and consent are skipped when consent is already on file. */
 export function labJourney(state: LabState): LabStepId[] {
-  return labStepOrder.filter((id) => !((id === 'information' || id === 'consent') && state.submission.consentOnFile));
+  return labFlowSteps[state.flow].filter((id) => !((id === 'information' || id === 'consent') && state.submission.consentOnFile));
+}
+
+/** Files the study holds for this page's phase: the server's count when there is one (kept up to date after each send), else what this device sent. */
+export function phaseHave(state: LabState): { screenshots: number; archives: number } {
+  const server = state.progress?.phases?.[state.phase];
+  if (server) return server;
+  return { screenshots: state.screenshots.filter((s) => s.status === 'sent').length, archives: state.archives.filter((a) => a.status === 'sent').length };
+}
+
+/** Where someone carries on in this page's files: screenshots first, then the app data, then the summary. */
+export function nextFilesStep(state: LabState): LabStepId {
+  const have = phaseHave(state);
+  return !have.screenshots ? 'screenshots' : !have.archives ? 'guide' : 'done';
+}
+
+/** Where someone goes once their code is confirmed and consent is on file. */
+export function resumeStep(state: LabState): LabStepId {
+  if (state.flow === 'checkin') return 'checkin';
+  if (state.flow === 'after') return 'reminder';
+  return nextFilesStep(state);
 }
 
 export function labReducer(state: LabState, action: LabAction): LabState {
@@ -78,8 +106,20 @@ export function labReducer(state: LabState, action: LabAction): LabState {
       return { ...state, codeParts: { ...state.codeParts, ...action.parts }, codeConfirmed: false };
     case 'code':
       return { ...state, code: action.code, returning: action.returning, codeConfirmed: false };
-    case 'code-confirmed':
-      return { ...state, codeConfirmed: action.confirmed };
+    case 'confirm-code': {
+      // A different person on this device: their consent, files and progress are not this one's.
+      const base = state.confirmedCode && state.confirmedCode !== action.code ? { ...initialLabState(state.flow), session: state.session, codeParts: state.codeParts, stepId: state.stepId } : state;
+      const onFile = action.lookup.exists;
+      return {
+        ...base,
+        code: action.code,
+        returning: action.returning,
+        codeConfirmed: true,
+        confirmedCode: action.code,
+        progress: onFile ? action.lookup : null,
+        submission: onFile ? { ...base.submission, consentOnFile: true, consentStage: 'sent', consentSentAt: base.submission.consentSentAt ?? action.lookup.consentedAt } : base.submission,
+      };
+    }
     case 'consent-response': {
       const responses = { ...state.consent.responses };
       responses[action.statementId] = { statementId: action.statementId, version: action.version, response: action.agreed ? 'agreed' : 'declined', respondedAt: new Date().toISOString(), via: 'individual' };
@@ -95,12 +135,20 @@ export function labReducer(state: LabState, action: LabAction): LabState {
       return { ...state, consent: { ...state.consent, confirmedDate: action.date } };
     case 'consent-complete':
       return { ...state, consent: { ...state.consent, completedAt: new Date().toISOString() } };
-    case 'consent-on-file':
-      return { ...state, submission: { ...state.submission, consentOnFile: true, consentStage: 'sent', consentSentAt: action.consentedAt } };
     case 'phone':
       return { ...state, phone: action.phone };
-    case 'phase':
-      return { ...state, phase: action.phase };
+    case 'progress':
+      return { ...state, progress: action.progress };
+    case 'use-code':
+      // A link that names a code (from a progress email): the same person carries on; anyone else confirms the code first.
+      if (state.confirmedCode === action.code && state.codeConfirmed) return state;
+      return { ...state, code: action.code, returning: true, codeConfirmed: false, stepId: 'participant-id' };
+    case 'checkin-answer':
+      return { ...state, checkIn: { ...state.checkIn, answers: { ...state.checkIn.answers, [action.questionId]: action.value } } };
+    case 'checkin-sent':
+      return { ...state, checkIn: { ...state.checkIn, checkInId: action.checkInId, sentAt: action.receivedAt, count: action.count } };
+    case 'checkin-new':
+      return { ...state, checkIn: { answers: {}, checkInId: null, sentAt: null, count: state.checkIn.count }, screenshots: [], stepId: 'checkin' };
     case 'app':
       return { ...state, app: action.app };
     case 'submission':
@@ -119,12 +167,25 @@ export function labReducer(state: LabState, action: LabAction): LabState {
       return { ...state, screenshots: state.screenshots.filter((s) => s.id !== action.id) };
     case 'files-sent': {
       const sent = new Set(action.ids);
+      const newly = (f: { uploadId: string | null; status: string }) => Boolean(f.uploadId && sent.has(f.uploadId) && f.status !== 'sent');
+      const added = { archives: state.archives.filter(newly).length, screenshots: state.screenshots.filter(newly).length };
       const archives = state.archives.map((a) => (a.uploadId && sent.has(a.uploadId) ? { ...a, status: 'sent' as const } : a));
       const screenshots = state.screenshots.map((s) => (s.uploadId && sent.has(s.uploadId) ? { ...s, status: 'sent' as const } : s));
+      // Keep the server's counts current, so the next step knows what is in without asking again.
+      const p = state.progress;
+      const progress = p
+        ? {
+            ...p,
+            archives: p.archives + added.archives,
+            screenshots: p.screenshots + added.screenshots,
+            phases: { ...p.phases, [state.phase]: { archives: (p.phases?.[state.phase]?.archives ?? 0) + added.archives, screenshots: (p.phases?.[state.phase]?.screenshots ?? 0) + added.screenshots } },
+          }
+        : null;
       return {
         ...state,
         archives,
         screenshots,
+        progress,
         submission: {
           ...state.submission,
           donationStage: 'sent',
@@ -141,7 +202,7 @@ export function labReducer(state: LabState, action: LabAction): LabState {
     case 'restored':
       return { ...action.state, restored: true };
     case 'reset':
-      return initialLabState();
+      return initialLabState(state.flow);
     default:
       return state;
   }

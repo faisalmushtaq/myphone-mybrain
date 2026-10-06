@@ -59,6 +59,8 @@
   letter-spacing: 0;
   display: inline;
   gap: 0;
+  /* The site styles every label as a vertical stack; options laid out with flex here run left to right. */
+  flex-direction: row;
 }
 .mpmb-app ul,
 .mpmb-app ol {
@@ -742,7 +744,8 @@
   width: 1px;
   height: 1px;
 }
-.mpmb-choice__dot {
+/* Prefixed so the label reset above (which makes spans inside labels inline) cannot hide the dot. */
+.mpmb-app .mpmb-choice__dot {
   width: 22px;
   height: 22px;
   border-radius: 50%;
@@ -2660,6 +2663,53 @@
   border-left: 4px solid var(--mpb-yellow-dark);
   font-size: 0.95rem;
   color: var(--mpb-ink);
+}
+
+/* Lab steps: one steady gap between the parts of a step. Stronger than the app's paragraph reset, which otherwise leaves notes flush under lists and boxes. */
+.mpmb-app .mpmb-lab .mpmb-step__body > * + * {
+  margin-top: 1.4rem;
+}
+.mpmb-app .mpmb-lab .mpmb-step__body > .mpmb-actions,
+.mpmb-app .mpmb-lab .mpmb-step__body > .mpmb-sign {
+  margin-top: 2rem;
+}
+.mpmb-app .mpmb-mystory .mpmb-kicker {
+  font-size: 0.72rem;
+  margin: 0 0 0.6rem;
+}
+
+/* Lab steps: a section's heading sits clear of what follows it, and numbered sections are set apart by a rule. */
+.mpmb-app .mpmb-lab .mpmb-step__body > section > .mpmb-h2:first-child,
+.mpmb-app .mpmb-lab .mpmb-step__body > section > .mpmb-h3:first-child {
+  margin-bottom: 0.85rem;
+}
+.mpmb-app .mpmb-lab .mpmb-step__body > section + section:not(.mpmb-sign) {
+  margin-top: 2.25rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--mpb-line);
+}
+.mpmb-app .mpmb-lab .mpmb-step__body > section > * + * {
+  margin-top: 1rem;
+}
+/* The check-in's questions: one clear gap between each. */
+.mpmb-app .mpmb-lab .mpmb-step__body > .mpmb-checkin > * + * {
+  margin-top: 1.75rem;
+}
+/* Answer scales read top to bottom, one option per line. */
+.mpmb-app .mpmb-checkin .mpmb-choice__options {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 28rem;
+}
+.mpmb-app .mpmb-optional {
+  font-family: var(--f-sans);
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-mystory .mpmb-btn {
+  margin-top: 0.75rem;
+  text-decoration: none;
 }
 
 /* Guide: numbered steps, each with its own screenshot. */

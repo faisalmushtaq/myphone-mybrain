@@ -11,9 +11,10 @@ type Item = { kind: 'archive'; item: LabArchive } | { kind: 'screenshot'; item: 
 
 /**
  * Uploads whatever is waiting of the given kinds and records the send against
- * the participant code, filed under the chosen phase. Used twice: the
- * screenshots go first, on their own, and the cleaned file follows when the
- * download has arrived.
+ * the participant code, filed under the page's phase (before, during or after
+ * the break). Used for the screenshots, which go first on their own, for the
+ * cleaned file when the download has arrived, and for a check-in's
+ * screenshots, which carry the check-in's id.
  */
 export function useLabSender() {
   const { state, dispatch } = useLab();
@@ -42,8 +43,7 @@ export function useLabSender() {
   };
 
   /** Sends what is pending of these kinds. Resolves ok when at least one file was accepted; otherwise carries a message for the person. */
-  const send = async (kinds: Kind[]): Promise<{ ok: boolean; message?: string }> => {
-    if (!state.phase) return { ok: false, message: 'Tell us whether these files are from before or after your social media break.' };
+  const send = async (kinds: Kind[], options: { checkInId?: string | null } = {}): Promise<{ ok: boolean; message?: string }> => {
     const pendingShots = kinds.includes('screenshot') ? state.screenshots.filter((s) => s.status !== 'sent') : [];
     const pendingArchives = kinds.includes('archive') ? state.archives.filter((a) => a.status !== 'sent') : [];
     if (!pendingShots.length && !pendingArchives.length) return { ok: false, message: 'Nothing new to send. Add a file to send more.' };
@@ -67,6 +67,7 @@ export function useLabSender() {
         ),
         phase: state.phase,
         phone: state.phone,
+        ...(options.checkInId ? { checkInId: options.checkInId } : {}),
         client: labClientInfo(),
       });
       for (const r of result.rejected) {

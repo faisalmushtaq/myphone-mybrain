@@ -9,6 +9,7 @@ import { clientId } from '../../lib/ids';
 import { alwaysRemoved, buildCleanedZip, categories, cleanArchive, cleanedArchiveName, detectPlatforms, formatBytes, platformNames, type CategoryId, type CleanResult, type Platform } from '../cleaner';
 import { labFileStore } from '../fileStore';
 import { LabShell } from '../LabShell';
+import { phaseHave } from '../reducer';
 import { useLab } from '../store';
 import { checkArchiveFile } from '../validation';
 
@@ -121,7 +122,7 @@ export function LabClean() {
 
   if (!ready) {
     return (
-      <LabShell kicker="Choose what to share" title="Enter your participant code first." intro={<p>We need your code and your consent before any data can be sent. It takes a minute.</p>} hideContinue>
+      <LabShell kicker="Choose what to share" title="Enter your participant code first." intro={<p>We need your code and your consent before any data can be sent. It takes a minute.</p>} hideContinue hideBack>
         <div className="mpmb-actions">
           <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'participant-id' })}>
             Enter my code
@@ -137,7 +138,7 @@ export function LabClean() {
     <LabShell kicker="Choose what to share" title="Choose what to share from your data." intro={<p>Pick the ZIP you downloaded from TikTok, Google Takeout (YouTube) or Instagram. This page reads it on your own device, keeps only dates, links and search words, and shows you what would be shared. Untick anything you would rather keep private. At least one of the two is needed; do both if you have them.</p>} errors={errors}
       onContinue={() => {
         // The study asks for at least one cleaned file; after two nudges the person may go on without.
-        if (!state.archives.length && nudges < 2) {
+        if (!state.archives.length && !phaseHave(state).archives && nudges < 2) {
           setNudges(nudges + 1);
           setErrors([{ field: 'lab-zip', message: nudges === 0 ? 'Prepare at least one TikTok, YouTube or Instagram file before going on; more than one if you have them. The study needs it alongside your screenshots.' : 'The study really does need your TikTok, YouTube or Instagram data. If you cannot provide it right now, press Continue once more to go on and add the file later.' }]);
           return;

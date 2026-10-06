@@ -47,7 +47,7 @@ with a role claim.
 | `firebase/firebase.json`, `firestore.indexes.json` | Project layout and emulator ports; the composite indexes the follow-up queries need (deployed with the rules) |
 | `firebase/firestore.rules`, `firebase/storage.rules` | Security rules (see below) |
 | `firebase/functions/src/index.ts` | `submitConsent` and `submitDonation` callables, `purgeQuarantine` schedule |
-| `firebase/functions/src/lab.ts` | The social media break study: `submitLabConsent`, `lookupLabParticipant`, `submitLabDonation` and `requestLabReminder` callables, the hourly `labFollowUps` schedule, and the check that a donated archive is the cleaner's |
+| `firebase/functions/src/lab.ts` | The social media break study: `submitLabConsent`, `lookupLabParticipant`, `submitLabDonation`, `submitLabCheckIn` and `requestLabReminder` callables, the hourly `labFollowUps` schedule, and the check that a donated archive is the cleaner's |
 | `firebase/functions/src/validate.ts` | Server-side validation of the family payloads (mirrors `src/lib/validation.ts`); its helpers are shared with `lab.ts` |
 | `firebase/functions/src/images.ts`, `signatures.ts` | The image pipeline (prove it is an image, re-encode without metadata, quality checks) and signature storage, shared by both studies |
 | `firebase/functions/src/quality.ts` | Image quality and safety checks: flatness, Cloud Vision SafeSearch and text detection, the verdict rules |
@@ -76,10 +76,11 @@ The social media break study (adults; `src/lab/` in the app, `lab.ts` in the fun
 
 | Collection | Holds | Who may read |
 |---|---|---|
-| `labParticipants/{code}` | one row per code: the current `consentId` and `consentVersion`, `consentedAt`, `archiveCount`, `screenshotCount`, `donationIds[]`, the session uids seen. **No names.** | `researcher`, `coordinator` |
+| `labParticipants/{code}` | one row per code: the current `consentId` and `consentVersion`, `consentedAt`, `archiveCount`, `screenshotCount`, the same counts by phase in `phaseCounts.{pre,mid,post}`, `donationIds[]`, `checkInIds[]` and `checkInCount`, the session uids seen. **No names.** | `researcher`, `coordinator` |
 | `labConsents/{id}` | the consent record: form and information versions, the eight required statements (including that what is sent is kept unless the person formally withdraws) and the optional record-linkage answer, typed name, signature (method and a reference to the PNG), confirmed date, completion time, client info, `version` and `supersedes`, and `codeParts`: the four answers the code was built from (mother's first name, house number, birth month, postcode), which the team also uses as research variables. Never edited. | `coordinator`, `auditor` |
-| `labDonations/{id}` | one document per send: the phone type chosen in the guide, the phase (before or after the break), and for each file its kind (`archive` or `screenshot`), Storage path, size, SHA-256; for archives the platforms, categories and row counts from the cleaner's manifest and the file names inside; for screenshots the dimensions and the same `quality` result as the family app's images. **No names.** | `researcher`, `coordinator` |
-| `labReminders/{code}` | when a participant presses "I'll come back later" and asks for an email: the address, when the progress email went and whether it was sent, when the one follow-up is due and whether it went, and `completedAt` once files arrive (which cancels the follow-up). Identifying. | `coordinator` |
+| `labDonations/{id}` | one document per send: the phone type chosen on the screenshots step, the phase of the page it came from (`pre` the first page, `mid` a check-in, with its `checkInId`, `post` the after-break page), and for each file its kind (`archive` or `screenshot`), Storage path, size, SHA-256; for archives the platforms, categories and row counts from the cleaner's manifest and the file names inside; for screenshots the dimensions and the same `quality` result as the family app's images. **No names.** | `researcher`, `coordinator` |
+| `labCheckIns/{id}` | one document per mid-break check-in: the code, which check-in it was for them (`number`), the form version and the answers by question id. **No names.** | `researcher`, `coordinator` |
+| `labReminders/{code}` | when a participant presses "I'll come back later" and asks for an email: the address, which page it is about (`phase`: `pre` or `post`), when the progress email went and whether it was sent, when the one follow-up is due and whether it went, and `completedAt` once files for that page arrive (which cancels the follow-up). Identifying. | `coordinator` |
 
 Storage:
 
@@ -98,7 +99,7 @@ role can be given access to `donations/` without ever seeing a name.
 
 ## What the functions check before writing anything
 
-The lab study's functions check, in the same spirit: the code has the questionnaire's shape; the consent form and information versions are the current ones, the eight required statements are agreed and the optional record-linkage question is answered; a signature is present; a donation needs consent on file for that code (not necessarily from the same session, because people come back from another device); at most 10 archives and 12 screenshots per code in total; and every archive is opened on the server and must contain only the file names the in-browser cleaner writes (`manifest.json`, `tiktok_cleaned.json`, the three `youtube/` files and the four `instagram/` files), each JSON file must parse, the manifest must be the cleaner's, and the unpacked size is capped, so a participant's raw TikTok download, a photo or anything else is refused with a plain reason and never stored. `lookupLabParticipant` says only whether a code has consent on file and how many files it has, and is limited to 30 calls an hour per session. `requestLabReminder` (5 an hour per session) emails the participant where they are and a link back, from the same SMTP account as the team's enquiry emails, and books one follow-up; `labFollowUps` runs hourly and sends it two days later unless a send has arrived since, after which nothing more is sent.
+The lab study's functions check, in the same spirit: the code has the questionnaire's shape; the four code answers rebuild the code and the postcode has the shape of a full UK postcode; the consent form and information versions are the current ones, the eight required statements are agreed and the optional record-linkage question is answered; a signature is present; a donation needs consent on file for that code (not necessarily from the same session, because people come back from another device); the phase is `pre`, `mid` or `post`, a check-in sends screenshots only, and a `checkInId` must be that code's; at most 10 archives and 12 screenshots per code before the break and again after it, and 30 screenshots across the check-ins; and every archive is opened on the server and must contain only the file names the in-browser cleaner writes (`manifest.json`, `tiktok_cleaned.json`, the three `youtube/` files and the four `instagram/` files), each JSON file must parse, the manifest must be the cleaner's, and the unpacked size is capped, so a participant's raw TikTok download, a photo or anything else is refused with a plain reason and never stored. `lookupLabParticipant` says only whether a code has consent on file, how many files it has for each phase and how many check-ins, and is limited to 30 calls an hour per session. `submitLabCheckIn` (10 an hour per session) needs consent on file and the current check-in questions answered: every required one with one of its options, the free text within its limit, nothing else. `requestLabReminder` (5 an hour per session) emails the participant where they stand for that page and a link that opens it with their code filled in, from the same SMTP account as the team's enquiry emails, and books one follow-up; `labFollowUps` runs hourly and sends it two days later unless a send has arrived since, after which nothing more is sent.
 
 **`submitConsent`** re-validates the whole payload (`validate.ts`): field
 lengths and formats, the allowed relationships, the 11–17 age range, at least
@@ -299,9 +300,14 @@ social-media-break/                       the adult laboratory study
   donations/                              the donated data, BIDS layout, no names
     dataset_description.json, README, CHANGES
     participants.tsv + .json              one row per code with consent: consent versions,
-                                          phases, sends, archives, screenshots, platforms, phone
-    sub-JA101CD/sub-JA101CD_sessions.tsv  one session per phase: ses-pre (before the break),
-                                          ses-post (after), however many sends it took
+                                          phases, sends, check-ins, archives, screenshots,
+                                          platforms, phone
+    phenotype/checkin.tsv + .json         the mid-break check-ins: one row each, one column
+                                          per question, with the questions and answer labels
+    sub-JA101CD/sub-JA101CD_sessions.tsv  one session per phase: ses-pre (the first page,
+                                          before the break), ses-mid (screenshots sent with
+                                          the check-ins), ses-post (the after-break page),
+                                          however many sends it took
     sub-JA101CD/ses-pre/beh/
       sub-JA101CD_ses-pre_task-donation_beh.tsv + .json   index of the files: what the cleaner's
                                           manifest says is inside an archive, or the screenshot checks
@@ -322,9 +328,11 @@ Family participants are labelled `sub-00001`, `sub-00002`… in order of
 consent (the number is stored on the participant record the first time it is
 exported); lab participants are labelled by their participant code
 (`sub-JA101CD`), which the laboratory data also uses, so the two datasets join
-on it. The lab study's sessions are the study's phases, `ses-pre` and
-`ses-post`, chosen by the participant at the send step, so a late-arriving
-export sent days after the first still lands in the same session. Declined families appear in `schools/identifying/` only, without a label. Tables are
+on it. The lab study's sessions are the study's phases, `ses-pre`, `ses-mid`
+and `ses-post`, set by the page each send came from (nobody is asked), so a
+late-arriving export sent days after the first still lands in the same
+session; a check-in screenshot's `check_in_id` points at its row in
+`phenotype/checkin.tsv`. Declined families appear in `schools/identifying/` only, without a label. Tables are
 BIDS-style TSV (tab-separated, `n/a` for missing, UTF-8), rewritten each run;
 images and signatures are copied once; anything deleted from the study (a
 withdrawal) disappears from the bucket too. The screenshots have no BIDS

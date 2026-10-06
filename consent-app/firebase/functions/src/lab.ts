@@ -4,7 +4,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import JSZip from 'jszip';
-import { cleaner, labConsentForm, labInformationVersion, labStudy, PARTICIPANT_CODE } from './forms.js';
+import { cleaner, labCheckInForm, labConsentForm, labInformationVersion, labStudy, PARTICIPANT_CODE, UK_POSTCODE } from './forms.js';
 import { checkImage, cleanImage, RejectedUpload, sha256 } from './images.js';
 import type { Quality } from './quality.js';
 import { sendMail } from './mail.js';
@@ -18,9 +18,13 @@ import { blank, isObj, ISO_DATE, limits, str, UUID, validateClient, validateResp
  * TikTok and YouTube exports and screen-time screenshots when they arrive,
  * possibly from another device.
  *
- *   labParticipants/{code}   one row per code: current consent, counts, sessions seen
+ *   labParticipants/{code}   one row per code: current consent, counts (in total and by
+ *                            phase), check-ins, sessions seen
  *   labConsents/             the consent records (name and signature: identifying)
- *   labDonations/            one record per send, listing the stored files
+ *   labDonations/            one record per send, listing the stored files, filed under the
+ *                            phase of the page it came from: pre (the first page, before the
+ *                            break), mid (a check-in during it), post (the after-break page)
+ *   labCheckIns/             one record per mid-break check-in: the answers, by code
  *   labReminders/{code}      a participant's email, when they asked to be sent their
  *                            progress and one follow-up (identifying)
  *   Storage lab/{code}/      the files themselves; labquarantine/{uid}/ uploads
@@ -32,16 +36,24 @@ const REGION = 'europe-west2';
 const callOptions = { region: REGION, memory: '1GiB' as const, timeoutSeconds: 300, enforceAppCheck: process.env.MPMB_ENFORCE_APP_CHECK === 'true' };
 const LOOKUPS_PER_HOUR = 30;
 const REMINDERS_PER_HOUR = 5;
+const CHECKINS_PER_HOUR = 10;
 /** How long after a progress email the one follow-up goes, unless files have arrived. */
 const FOLLOW_UP_AFTER_MS = 48 * 3600_000;
-const SITE_URL = 'https://myphonemybrain.com/break/take-part/';
+const SITE = 'https://myphonemybrain.com';
+/** The page each phase's files are sent from. */
+const PAGE: Record<string, string> = { pre: `${SITE}/break/take-part/`, mid: `${SITE}/break/check-in/`, post: `${SITE}/break/after/` };
+/** A link that opens the right page ready for this code, on any device. */
+const pageFor = (phase: string, code: string) => `${PAGE[phase] ?? PAGE.pre}?code=${encodeURIComponent(code)}`;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /** Bytes an archive may expand to, in total. The cleaned files are small; anything near this was not made by the cleaner. */
 const MAX_UNPACKED = 400 * 1024 * 1024;
 const PLATFORMS = ['tiktok', 'youtube', 'instagram'];
 const PHONES = ['iphone', 'android'];
-/** Where in the study a send belongs: before or after the social media break. */
-const PHASES = ['pre', 'post'];
+/** Where in the study a send belongs, set by the page it came from: before the break, a check-in during it, after it. */
+const PHASES = ['pre', 'mid', 'post'] as const;
+type Phase = (typeof PHASES)[number];
+/** Firestore document ids, as given to the client for a check-in. */
+const DOC_ID = /^[A-Za-z0-9]{1,40}$/;
 const NOT_OURS = 'This file is not a cleaned export made on the “Choose what to share” step. Please prepare it there again and add the result.';
 
 export interface LabConsentPayload {
@@ -82,9 +94,19 @@ export interface LabUpload {
 export interface LabDonationPayload {
   participantCode: string;
   uploads: LabUpload[];
-  /** Before or after the break, as the participant said at the send step. */
+  /** The phase of the page the files were sent from. */
   phase: string;
   phone?: string | null;
+  /** For screenshots sent with a mid-break check-in: that check-in. */
+  checkInId?: string | null;
+  client: ClientInfo;
+}
+
+export interface LabCheckInPayload {
+  participantCode: string;
+  formId: string;
+  formVersion: string;
+  answers: Record<string, string>;
   client: ClientInfo;
 }
 
@@ -106,10 +128,16 @@ export function buildParticipantCode(parts: CodeParts): string {
   return `${mother}${house}${mm}${postcode}`;
 }
 
-/** The answers as kept: trimmed, the postcode upper-cased, the month two digits. */
+/** A postcode upper-cased with one space before the inward code ("ls29jt" → "LS2 9JT"). */
+export function formatPostcode(input: string): string {
+  const compact = input.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return compact.length > 3 ? `${compact.slice(0, -3)} ${compact.slice(-3)}` : compact;
+}
+
+/** The answers as kept: trimmed, the postcode in its standard form, the month two digits. */
 export function normaliseCodeParts(parts: CodeParts): CodeParts {
   const month = parts.month.replace(/\D/g, '');
-  return { mother: parts.mother.trim(), house: parts.house.trim(), month: month.length === 1 ? `0${month}` : month.slice(-2), postcode: parts.postcode.trim().toUpperCase().replace(/\s+/g, ' ') };
+  return { mother: parts.mother.trim(), house: parts.house.trim(), month: month.length === 1 ? `0${month}` : month.slice(-2), postcode: formatPostcode(parts.postcode) };
 }
 
 export function validateLabConsentPayload(input: unknown): string[] {
@@ -121,7 +149,10 @@ export function validateLabConsentPayload(input: unknown): string[] {
   if (p.codeParts !== null && p.codeParts !== undefined) {
     const cp = p.codeParts;
     if (!isObj(cp) || !str(cp.mother, 40) || !str(cp.house, 10) || !str(cp.month, 2) || !str(cp.postcode, 10)) problems.push('The code answers are malformed.');
-    else if (code && buildParticipantCode(cp as unknown as CodeParts) !== code) problems.push('The participant code does not match the answers it was built from.');
+    else {
+      if (!UK_POSTCODE.test(formatPostcode(cp.postcode as string))) problems.push('The postcode is not a full UK postcode.');
+      if (code && buildParticipantCode(cp as unknown as CodeParts) !== code) problems.push('The participant code does not match the answers it was built from.');
+    }
   }
   const c = p.consent;
   if (!isObj(c)) problems.push('The consent record is missing.');
@@ -154,7 +185,9 @@ export function validateLabDonationPayload(input: unknown): string[] {
     if (p.uploads.length === 0) problems.push('No files were sent.');
     if (p.uploads.length > labStudy.maxArchives + labStudy.maxScreenshots) problems.push('Too many files in one send.');
     if (p.phone !== null && p.phone !== undefined && !PHONES.includes(String(p.phone))) problems.push('Unknown phone type.');
-    if (!PHASES.includes(String(p.phase))) problems.push('Say whether this is before or after the break.');
+    if (!PHASES.includes(String(p.phase) as Phase)) problems.push('The phase of the study is missing or unknown.');
+    else if (p.phase === 'mid' && p.uploads.some((u) => isObj(u) && u.kind === 'archive')) problems.push('Only screenshots can be sent with a check-in.');
+    if (p.checkInId !== null && p.checkInId !== undefined && (typeof p.checkInId !== 'string' || !DOC_ID.test(p.checkInId))) problems.push('The check-in reference is malformed.');
     const seen = new Set<string>();
     for (const u of p.uploads) {
       if (!isObj(u) || typeof u.uploadId !== 'string' || !UUID.test(u.uploadId) || (u.kind !== 'archive' && u.kind !== 'screenshot') || !str(u.name, 200) || !str(u.contentType, 100) || typeof u.size !== 'number' || u.size < 1) {
@@ -168,6 +201,33 @@ export function validateLabDonationPayload(input: unknown): string[] {
       if (u.platforms !== undefined && (!Array.isArray(u.platforms) || u.platforms.some((x) => !PLATFORMS.includes(String(x))))) problems.push('An upload names an unknown platform.');
       if (u.categories !== undefined && (!Array.isArray(u.categories) || u.categories.some((x) => !cleaner.categoryIds.includes(String(x))))) problems.push('An upload names an unknown category.');
       if (u.kept !== undefined && (!isObj(u.kept) || Object.values(u.kept).some((v) => typeof v !== 'number'))) problems.push('An upload’s counts are malformed.');
+    }
+  }
+  validateClient(p.client, problems);
+  return problems;
+}
+
+/** A check-in carries the current form's answers: every required question answered with one of its options, free text within its limit, nothing else. */
+export function validateLabCheckInPayload(input: unknown): string[] {
+  const problems: string[] = [];
+  if (!isObj(input)) return ['The check-in is not an object.'];
+  const p = input as Partial<LabCheckInPayload>;
+  if (!normaliseCode(p.participantCode)) problems.push('The participant code is malformed.');
+  if (p.formId !== labCheckInForm.id || p.formVersion !== labCheckInForm.version) problems.push(`The check-in must be ${labCheckInForm.id} ${labCheckInForm.version}.`);
+  if (!isObj(p.answers)) problems.push('The answers are malformed.');
+  else {
+    const answers = p.answers as Record<string, unknown>;
+    const known = new Set(labCheckInForm.questions.map((q) => q.id));
+    for (const id of Object.keys(answers)) if (!known.has(id)) problems.push(`Unknown question "${id}".`);
+    for (const q of labCheckInForm.questions) {
+      const a = answers[q.id];
+      if (a === undefined || a === null || a === '') {
+        if (q.required) problems.push(`Question "${q.id}" was not answered.`);
+        continue;
+      }
+      if (typeof a !== 'string') problems.push(`The answer to "${q.id}" is malformed.`);
+      else if (q.type === 'choice' && !q.options.some((o) => o.value === a)) problems.push(`The answer to "${q.id}" is not one of its options.`);
+      else if (q.type === 'text' && a.length > q.maxLength) problems.push(`The answer to "${q.id}" is longer than ${q.maxLength} characters.`);
     }
   }
   validateClient(p.client, problems);
@@ -376,7 +436,7 @@ export const submitLabConsent = onCall(callOptions, async (request) => {
       consentedAt: previous?.consentedAt ?? receivedAt,
       lastConsentAt: receivedAt,
       sessionUids: FieldValue.arrayUnion(uid),
-      ...(previous ? { updatedAt: FieldValue.serverTimestamp() } : { archiveCount: 0, screenshotCount: 0, donationIds: [], createdAt: FieldValue.serverTimestamp() }),
+      ...(previous ? { updatedAt: FieldValue.serverTimestamp() } : { archiveCount: 0, screenshotCount: 0, phaseCounts: emptyPhases(), donationIds: [], checkInCount: 0, checkInIds: [], createdAt: FieldValue.serverTimestamp() }),
     },
     { merge: true },
   );
@@ -394,9 +454,32 @@ export const lookupLabParticipant = onCall(callOptions, async (request) => {
   const db = getFirestore();
   await rateLimitLookups(db, uid);
   const participant = (await db.collection('labParticipants').doc(code).get()).data();
-  if (!participant?.consentId) return { exists: false, consentedAt: null, archives: 0, screenshots: 0 };
-  return { exists: true, consentedAt: toIso(participant.consentedAt), archives: Number(participant.archiveCount ?? 0), screenshots: Number(participant.screenshotCount ?? 0) };
+  if (!participant?.consentId) return { exists: false, consentedAt: null, archives: 0, screenshots: 0, phases: emptyPhases(), checkIns: 0, lastCheckInAt: null };
+  return {
+    exists: true,
+    consentedAt: toIso(participant.consentedAt),
+    archives: Number(participant.archiveCount ?? 0),
+    screenshots: Number(participant.screenshotCount ?? 0),
+    phases: phaseCountsOf(participant),
+    checkIns: Number(participant.checkInCount ?? 0),
+    lastCheckInAt: toIso(participant.lastCheckInAt),
+  };
 });
+
+type PhaseCounts = Record<Phase, { archives: number; screenshots: number }>;
+const emptyPhases = (): PhaseCounts => ({ pre: { archives: 0, screenshots: 0 }, mid: { archives: 0, screenshots: 0 }, post: { archives: 0, screenshots: 0 } });
+
+/** Files received by phase. Rows from before phases were counted hold only totals, all of which came from the first page. */
+export function phaseCountsOf(participant: DocumentData): PhaseCounts {
+  const out = emptyPhases();
+  const stored = isObj(participant.phaseCounts) ? (participant.phaseCounts as Record<string, DocumentData>) : null;
+  if (!stored) {
+    out.pre = { archives: Number(participant.archiveCount ?? 0), screenshots: Number(participant.screenshotCount ?? 0) };
+    return out;
+  }
+  for (const phase of PHASES) out[phase] = { archives: Number(stored[phase]?.archives ?? 0), screenshots: Number(stored[phase]?.screenshots ?? 0) };
+  return out;
+}
 
 interface StoredLabFile {
   uploadId: string;
@@ -466,10 +549,17 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
   const participantRef = db.collection('labParticipants').doc(code);
   const participant = (await participantRef.get()).data();
   if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant code. Please give your consent first.');
+  const phase = payload.phase as Phase;
   const archives = payload.uploads.filter((u) => u.kind === 'archive').length;
   const screenshots = payload.uploads.length - archives;
-  if (Number(participant.archiveCount ?? 0) + archives > labStudy.maxArchives) throw new HttpsError('invalid-argument', `At most ${labStudy.maxArchives} cleaned files can be sent in total. Contact the team if you need to send more.`);
-  if (Number(participant.screenshotCount ?? 0) + screenshots > labStudy.maxScreenshots) throw new HttpsError('invalid-argument', `At most ${labStudy.maxScreenshots} screenshots can be sent in total.`);
+  const already = phaseCountsOf(participant)[phase];
+  const maxShots = phase === 'mid' ? labStudy.maxCheckInScreenshots : labStudy.maxScreenshots;
+  if (already.archives + archives > labStudy.maxArchives) throw new HttpsError('invalid-argument', `At most ${labStudy.maxArchives} cleaned files can be sent ${phase === 'post' ? 'after the break' : 'before the break'}. Contact the team if you need to send more.`);
+  if (already.screenshots + screenshots > maxShots) throw new HttpsError('invalid-argument', `At most ${maxShots} screenshots can be sent ${phase === 'mid' ? 'with the check-ins' : phase === 'post' ? 'after the break' : 'before the break'}. Contact the team if you need to send more.`);
+  if (payload.checkInId) {
+    const checkIn = (await db.collection('labCheckIns').doc(payload.checkInId).get()).data();
+    if (!checkIn || checkIn.participantCode !== code) throw new HttpsError('invalid-argument', 'That check-in does not belong to this participant code.');
+  }
   // The study's minimum (a screenshot plus a cleaned archive) is asked for twice in the app, then may be skipped; the send records what came.
 
   const stored: StoredLabFile[] = [];
@@ -498,6 +588,7 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
       needsReview: stored.some((f) => f.quality?.verdict === 'review'),
       phase: payload.phase,
       phone: payload.phone ?? null,
+      checkInId: payload.checkInId ?? null,
       sessionUid: uid,
       client: payload.client,
       receivedAt,
@@ -509,6 +600,14 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
         donationIds: FieldValue.arrayUnion(donationId),
         archiveCount: FieldValue.increment(stored.filter((f) => f.kind === 'archive').length),
         screenshotCount: FieldValue.increment(stored.filter((f) => f.kind === 'screenshot').length),
+        // Rows from before phases were counted start from their totals, all from the first page.
+        phaseCounts: participant.phaseCounts
+          ? { [phase]: { archives: FieldValue.increment(stored.filter((f) => f.kind === 'archive').length), screenshots: FieldValue.increment(stored.filter((f) => f.kind === 'screenshot').length) } }
+          : (() => {
+              const next = phaseCountsOf(participant);
+              next[phase] = { archives: next[phase].archives + stored.filter((f) => f.kind === 'archive').length, screenshots: next[phase].screenshots + stored.filter((f) => f.kind === 'screenshot').length };
+              return next;
+            })(),
         lastDonationAt: receivedAt,
         lastPhase: payload.phase,
         ...(payload.phone ? { phone: payload.phone } : {}),
@@ -518,10 +617,52 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
       { merge: true },
     );
     await batch.commit();
-    await settleReminder(db, code, receivedAt);
+    await settleReminder(db, code, receivedAt, phase);
   }
   logger.info('Lab files recorded', { participantCode: code, donationId, accepted: stored.length, rejected: rejected.length });
   return { donationId, receivedAt: receivedAt.toISOString(), accepted: stored.map((f) => f.uploadId), rejected };
+});
+
+/**
+ * A mid-break check-in: the answers to the current check-in questions,
+ * filed under a code with consent on file. Any screenshots follow through
+ * submitLabDonation (phase mid) carrying the check-in's id.
+ */
+export const submitLabCheckIn = onCall(callOptions, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Please try again.');
+  const problems = validateLabCheckInPayload(request.data);
+  if (problems.length) {
+    logger.warn('Rejected lab check-in', { uid, problems });
+    throw new HttpsError('invalid-argument', problems[0], { problems });
+  }
+  const payload = request.data as LabCheckInPayload;
+  const code = normaliseCode(payload.participantCode)!;
+  const db = getFirestore();
+  await rateLimitLookups(db, uid, 'lab-checkin', CHECKINS_PER_HOUR);
+  const participantRef = db.collection('labParticipants').doc(code);
+  const participant = (await participantRef.get()).data();
+  if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant code. Please check the code.');
+  const receivedAt = new Date();
+  const ref = db.collection('labCheckIns').doc();
+  const count = Number(participant.checkInCount ?? 0) + 1;
+  const batch = db.batch();
+  batch.set(ref, {
+    studyId: labStudy.studyId,
+    participantCode: code,
+    number: count,
+    formId: payload.formId,
+    formVersion: payload.formVersion,
+    answers: Object.fromEntries(Object.entries(payload.answers).filter(([, v]) => v !== '' && v !== null && v !== undefined).map(([k, v]) => [k, String(v).trim()])),
+    sessionUid: uid,
+    client: payload.client,
+    receivedAt,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  batch.set(participantRef, { checkInIds: FieldValue.arrayUnion(ref.id), checkInCount: FieldValue.increment(1), lastCheckInAt: receivedAt, sessionUids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  await batch.commit();
+  logger.info('Lab check-in recorded', { participantCode: code, checkInId: ref.id, number: count });
+  return { checkInId: ref.id, receivedAt: receivedAt.toISOString(), count };
 });
 
 export type { DocumentData };
@@ -531,12 +672,14 @@ export type { DocumentData };
 export interface LabProgress {
   participantCode: string;
   consentedAt: string | null;
+  /** The page the email is about: before the break (pre) or after it (post). */
+  phase: 'pre' | 'post';
   screenshots: number;
   archives: number;
   platforms: string[];
 }
 
-/** What a participant still owes, in plain words; empty when the minimum is in. */
+/** What a participant still owes for this page, in plain words; empty when the minimum is in. */
 export function outstanding(p: LabProgress): string[] {
   const out: string[] = [];
   if (!p.consentedAt) out.push('your consent');
@@ -547,15 +690,17 @@ export function outstanding(p: LabProgress): string[] {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+const whenOf = (p: LabProgress) => (p.phase === 'post' ? 'after your break' : 'before your break');
 
 /** The email sent when someone presses "I'll come back later": where they are and how to carry on. */
 export function labStatusEmail(p: LabProgress): { subject: string; text: string } {
   const owed = outstanding(p);
+  const link = pageFor(p.phase, p.participantCode);
   const received = [p.screenshots ? plural(p.screenshots, 'screen-time screenshot', 'screen-time screenshots') : '', p.archives ? `${plural(p.archives, 'cleaned file', 'cleaned files')}${p.platforms.length ? ` (${p.platforms.join(', ')})` : ''}` : ''].filter(Boolean);
   const text = [
     `Hello,`,
     ``,
-    `Thank you for taking part in the ${labStudy.name}. Here is where your data donation stands.`,
+    `Thank you for taking part in the ${labStudy.name}. Here is where your data donation ${whenOf(p)} stands.`,
     ``,
     `Participant code: ${p.participantCode}`,
     `Consent: ${p.consentedAt ? `recorded on ${p.consentedAt.slice(0, 10)}` : 'not yet given'}`,
@@ -564,13 +709,14 @@ export function labStatusEmail(p: LabProgress): { subject: string; text: string 
     ``,
     owed.length
       ? [
-          `When your data download arrives, come back to the page below, enter your participant code if asked, and carry on from where you left off. The guide there shows every step.`,
-          `${SITE_URL}`,
+          `When your data download arrives, open the link below on the device that has the file. It opens the right page with your participant code filled in, so you carry on from where you left off; the guide there shows every step.`,
+          link,
           ``,
           `If we have not received your files in two days, we will send one reminder.`,
         ].join('\n')
-      : `If more data arrives later, you can add it at ${SITE_URL}`,
+      : `If more data arrives later, you can add it here: ${link}`,
     ``,
+    `What you have sent is kept and used in the research unless you contact us to withdraw.`,
     `Questions? Reply to this email or write to ${labStudy.contactName} at ${labStudy.contactEmail}.`,
     ``,
     `The MyPhone/MyBrain team, University of Leeds`,
@@ -584,10 +730,10 @@ export function labFollowUpEmail(p: LabProgress): { subject: string; text: strin
   const text = [
     `Hello,`,
     ``,
-    `A quick reminder from the ${labStudy.name}: we have not yet received ${list(owed)} for participant code ${p.participantCode}.`,
+    `A quick reminder from the ${labStudy.name}: we have not yet received ${list(owed)} from ${whenOf(p)} for participant code ${p.participantCode}.`,
     ``,
-    `If your data download has arrived, go to the page below, enter your participant code if asked, and follow the steps. If it has not arrived yet, or anything is unclear, reply to this email and we will help.`,
-    `${SITE_URL}`,
+    `If your data download has arrived, open the link below on the device that has the file and follow the steps; your participant code is filled in for you. If it has not arrived yet, or anything is unclear, reply to this email and we will help.`,
+    pageFor(p.phase, p.participantCode),
     ``,
     `This is the only reminder we will send.`,
     ``,
@@ -603,16 +749,28 @@ export function validateLabReminderPayload(input: unknown): string[] {
   if (!isObj(input)) return ['The request is not an object.'];
   if (!normaliseCode(input.participantCode)) problems.push('The participant code is malformed.');
   if (!str(input.email, 254) || !EMAIL.test(String(input.email).trim())) problems.push('Enter an email address in the format name@example.com.');
+  if (input.phase !== undefined && input.phase !== 'pre' && input.phase !== 'post') problems.push('Reminders are for the files before or after the break.');
   return problems;
 }
 
-async function progressOf(db: Firestore, code: string): Promise<LabProgress | null> {
+/** Where a code stands for one page: consent, and the files of that phase. */
+async function progressOf(db: Firestore, code: string, phase: 'pre' | 'post'): Promise<LabProgress | null> {
   const participant = (await db.collection('labParticipants').doc(code).get()).data();
   if (!participant?.consentId) return null;
   const donations = await db.collection('labDonations').where('participantCode', '==', code).get();
   const platforms = new Set<string>();
-  for (const d of donations.docs) for (const f of (d.data().files ?? []) as DocumentData[]) for (const p of (f.platforms ?? []) as string[]) platforms.add(p);
-  return { participantCode: code, consentedAt: toIso(participant.consentedAt), screenshots: Number(participant.screenshotCount ?? 0), archives: Number(participant.archiveCount ?? 0), platforms: Array.from(platforms).sort() };
+  let screenshots = 0;
+  let archives = 0;
+  for (const d of donations.docs) {
+    // Sends from before phases were recorded all came from the first page.
+    if ((d.data().phase ?? 'pre') !== phase) continue;
+    for (const f of (d.data().files ?? []) as DocumentData[]) {
+      if (f.kind === 'archive') archives += 1;
+      else screenshots += 1;
+      for (const pl of (f.platforms ?? []) as string[]) platforms.add(pl);
+    }
+  }
+  return { participantCode: code, consentedAt: toIso(participant.consentedAt), phase, screenshots, archives, platforms: Array.from(platforms).sort() };
 }
 
 /**
@@ -625,11 +783,12 @@ export const requestLabReminder = onCall(callOptions, async (request) => {
   if (!uid) throw new HttpsError('unauthenticated', 'Please try again.');
   const problems = validateLabReminderPayload(request.data);
   if (problems.length) throw new HttpsError('invalid-argument', problems[0], { problems });
-  const { participantCode, email } = request.data as { participantCode: string; email: string };
+  const { participantCode, email, phase: asked } = request.data as { participantCode: string; email: string; phase?: 'pre' | 'post' };
+  const phase = asked ?? 'pre';
   const code = normaliseCode(participantCode)!;
   const db = getFirestore();
   await rateLimitLookups(db, uid, 'lab-reminder', REMINDERS_PER_HOUR);
-  const progress = await progressOf(db, code);
+  const progress = await progressOf(db, code, phase);
   if (!progress) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant code. Please give your consent first.');
   const now = new Date();
   const outcome = await sendMail({ to: email.trim(), replyTo: labStudy.contactEmail, ...labStatusEmail(progress) });
@@ -637,16 +796,17 @@ export const requestLabReminder = onCall(callOptions, async (request) => {
   await db
     .collection('labReminders')
     .doc(code)
-    .set({ participantCode: code, email: email.trim(), requestedAt: now, statusOutcome: outcome, followUpDueAt, followUpSentAt: null, followUpOutcome: null, completedAt: null, sessionUid: uid, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  logger.info('Lab progress email', { participantCode: code, outcome });
+    .set({ participantCode: code, email: email.trim(), phase, requestedAt: now, statusOutcome: outcome, followUpDueAt, followUpSentAt: null, followUpOutcome: null, completedAt: null, sessionUid: uid, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  logger.info('Lab progress email', { participantCode: code, phase, outcome });
   return { outcome, followUpAt: followUpDueAt.toISOString() };
 });
 
-/** Marks a participant's reminder as done, so no follow-up goes once files have arrived. */
-export async function settleReminder(db: Firestore, code: string, receivedAt: Date): Promise<void> {
+/** Marks a participant's reminder as done once files for its page arrive, so no follow-up goes. */
+export async function settleReminder(db: Firestore, code: string, receivedAt: Date, phase: string): Promise<void> {
   const ref = db.collection('labReminders').doc(code);
   const snap = await ref.get();
-  if (snap.exists && !snap.data()?.completedAt) await ref.set({ completedAt: receivedAt, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  const r = snap.data();
+  if (snap.exists && !r?.completedAt && (r?.phase ?? 'pre') === phase) await ref.set({ completedAt: receivedAt, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
 }
 
 /** Every hour: send the follow-up to anyone whose two days are up and whose files have not arrived. */
@@ -662,10 +822,11 @@ export async function runFollowUps(now = new Date()): Promise<{ sent: number; se
   for (const doc of due.docs) {
     const r = doc.data();
     const code = String(r.participantCode);
-    const progress = await progressOf(db, code);
+    const progress = await progressOf(db, code, r.phase === 'post' ? 'post' : 'pre');
     const requestedAt = r.requestedAt instanceof Timestamp ? r.requestedAt.toDate() : new Date(String(r.requestedAt));
-    const since = await db.collection('labDonations').where('participantCode', '==', code).where('receivedAt', '>', requestedAt).limit(1).get();
-    if (!progress || !since.empty || !outstanding(progress).length) {
+    const since = await db.collection('labDonations').where('participantCode', '==', code).where('receivedAt', '>', requestedAt).get();
+    const arrived = since.docs.some((d) => (d.data().phase ?? 'pre') === (r.phase === 'post' ? 'post' : 'pre'));
+    if (!progress || arrived || !outstanding(progress).length) {
       await doc.ref.set({ completedAt: now, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       settled += 1;
       continue;

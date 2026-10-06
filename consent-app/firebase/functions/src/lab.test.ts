@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import JSZip from 'jszip';
-import { cleaner, labConsentForm, labInformationVersion } from './forms.js';
+import { cleaner, labCheckInForm, labConsentForm, labInformationVersion } from './forms.js';
 import { RejectedUpload } from './images.js';
-import { buildParticipantCode, inspectCleanedArchive, labFollowUpEmail, labStatusEmail, normaliseCode, normaliseCodeParts, outstanding, validateLabConsentPayload, validateLabDonationPayload, validateLabReminderPayload } from './lab.js';
+import { buildParticipantCode, inspectCleanedArchive, labFollowUpEmail, labStatusEmail, normaliseCode, normaliseCodeParts, outstanding, phaseCountsOf, validateLabCheckInPayload, validateLabConsentPayload, validateLabDonationPayload, validateLabReminderPayload, type LabProgress } from './lab.js';
 
 const now = new Date().toISOString();
 const client = { userAgent: 'test', submittedAt: now, timezoneOffset: 0 };
@@ -69,20 +69,35 @@ test('a complete lab consent is accepted; missing statements, old versions, bad 
   const mismatch = consent();
   mismatch.codeParts = { mother: 'Sam', house: '9', month: '01', postcode: 'AB1 2CD' };
   assert.ok(validateLabConsentPayload(mismatch).some((p) => p.includes('does not match the answers')));
+  for (const postcode of ['LS2 9JT', 'ls29jt', 'M1 1AE', 'B33 8TH', 'CR2 6XH', 'DN55 1PT', 'W1A 0AX', 'EC1A 1BB', 'GIR 0AA', 'ab1 2cd']) {
+    const good = consent();
+    good.codeParts = { mother: 'Jane', house: '123', month: '01', postcode };
+    good.participantCode = buildParticipantCode(good.codeParts as never);
+    assert.deepEqual(validateLabConsentPayload(good), [], `${postcode} is a UK postcode`);
+  }
+  for (const postcode of ['LS2', 'LS2 9J', '12345', 'LS2 JT9', 'L 9JT', 'XX XX', 'SW1A1AAA']) {
+    const bad = consent();
+    bad.codeParts = { mother: 'Jane', house: '123', month: '01', postcode };
+    assert.ok(validateLabConsentPayload(bad).includes('The postcode is not a full UK postcode.'), `${postcode} is refused`);
+  }
 });
 
 test('the code is rebuilt from the answers exactly as the questionnaire does, and the answers are kept tidied', () => {
   assert.equal(buildParticipantCode({ mother: 'jane', house: '123a', month: '1', postcode: 'ab1 2cd' }), 'JA101CD');
   assert.equal(buildParticipantCode({ mother: 'Zoë', house: '7', month: '12', postcode: 'LS2 9JT' }), 'ZO712JT');
   assert.deepEqual(normaliseCodeParts({ mother: ' Jane ', house: '123', month: '1', postcode: 'ab1  2cd' }), { mother: 'Jane', house: '123', month: '01', postcode: 'AB1 2CD' });
+  assert.equal(normaliseCodeParts({ mother: 'Jane', house: '1', month: '01', postcode: 'ls29jt' }).postcode, 'LS2 9JT', 'the space goes before the inward code');
 });
 
 test('donation payloads: kinds, sizes, duplicates and categories are checked', () => {
   const upload = { uploadId: '123e4567-e89b-12d3-a456-426614174000', kind: 'archive', name: 'tiktok_cleaned_donation.zip', contentType: 'application/zip', size: 1234, platforms: ['tiktok'], categories: ['tt_watch'], kept: { tt_watch: 2 } };
   const shot = { uploadId: '223e4567-e89b-12d3-a456-426614174000', kind: 'screenshot', name: 'IMG_1.png', contentType: 'image/png', size: 5000 };
   assert.deepEqual(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [upload, shot], phase: 'pre', client }), []);
-  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], client }).includes('Say whether this is before or after the break.'));
-  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], phase: 'during', client }).includes('Say whether this is before or after the break.'));
+  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], client }).includes('The phase of the study is missing or unknown.'));
+  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], phase: 'during', client }).includes('The phase of the study is missing or unknown.'));
+  assert.deepEqual(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], phase: 'mid', checkInId: 'abcDEF123', client }), [], 'a check-in screenshot, linked to its check-in');
+  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [upload], phase: 'mid', client }).includes('Only screenshots can be sent with a check-in.'));
+  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], phase: 'mid', checkInId: '../x', client }).includes('The check-in reference is malformed.'));
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [], client }).includes('No files were sent.'));
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [upload, upload], client }).includes('A file was listed twice.'));
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [{ ...upload, categories: ['dms'] }], client }).includes('An upload names an unknown category.'));
@@ -145,19 +160,43 @@ test('archives that are not the cleaner’s are refused with a reason', async ()
   await rejects(await noManifest.generateAsync({ type: 'nodebuffer' }), /not a cleaned export/);
 });
 
+test('files are counted by phase; rows from before phases were counted are read as the first page’s', () => {
+  assert.deepEqual(phaseCountsOf({ archiveCount: 1, screenshotCount: 3 }), { pre: { archives: 1, screenshots: 3 }, mid: { archives: 0, screenshots: 0 }, post: { archives: 0, screenshots: 0 } });
+  assert.deepEqual(phaseCountsOf({ archiveCount: 2, screenshotCount: 5, phaseCounts: { pre: { archives: 1, screenshots: 2 }, mid: { screenshots: 1 }, post: { archives: 1, screenshots: 2 } } }), { pre: { archives: 1, screenshots: 2 }, mid: { archives: 0, screenshots: 1 }, post: { archives: 1, screenshots: 2 } });
+});
+
+test('a check-in carries the current questions: required ones answered with their options, text within its limit', () => {
+  const answers = Object.fromEntries(labCheckInForm.questions.filter((q) => q.type === 'choice').map((q) => [q.id, q.type === 'choice' ? q.options[0].value : '']));
+  const good = { participantCode: 'ja101cd', formId: labCheckInForm.id, formVersion: labCheckInForm.version, answers, client };
+  assert.deepEqual(validateLabCheckInPayload(good), []);
+  assert.deepEqual(validateLabCheckInPayload({ ...good, answers: { ...answers, notes: 'Brick stopped working on day 3.' } }), [], 'the optional note');
+  const missing = { ...answers };
+  delete missing.mood;
+  assert.ok(validateLabCheckInPayload({ ...good, answers: missing }).includes('Question "mood" was not answered.'));
+  assert.ok(validateLabCheckInPayload({ ...good, answers: { ...answers, week: '9' } }).includes('The answer to "week" is not one of its options.'));
+  assert.ok(validateLabCheckInPayload({ ...good, answers: { ...answers, notes: 'x'.repeat(1001) } }).some((p) => p.includes('longer than')));
+  assert.ok(validateLabCheckInPayload({ ...good, answers: { ...answers, extra: 'y' } }).includes('Unknown question "extra".'));
+  assert.ok(validateLabCheckInPayload({ ...good, formVersion: '0.0' }).some((p) => p.includes('The check-in must be')));
+  assert.ok(validateLabCheckInPayload({ ...good, participantCode: 'nope' }).includes('The participant code is malformed.'));
+});
+
 test('the progress email says what is in and what is still to come; the follow-up names only what is missing', () => {
-  const nothing = { participantCode: 'JA101CD', consentedAt: '2026-10-05T09:00:00.000Z', screenshots: 0, archives: 0, platforms: [] };
+  const nothing: LabProgress = { participantCode: 'JA101CD', consentedAt: '2026-10-05T09:00:00.000Z', phase: 'pre', screenshots: 0, archives: 0, platforms: [] };
   assert.deepEqual(outstanding(nothing), ['screenshots of your phone’s screen-time summary', 'your cleaned TikTok, YouTube or Instagram file']);
   const status = labStatusEmail(nothing);
   assert.equal(status.subject, 'MyPhone/MyBrain: your data donation so far (JA101CD)');
-  assert.ok(status.text.includes('Consent: recorded on 2026-10-05') && status.text.includes('Received so far: nothing yet') && status.text.includes('Still to come: screenshots of your phone’s screen-time summary and your cleaned TikTok, YouTube or Instagram file.') && status.text.includes('https://myphonemybrain.com/break/take-part/') && status.text.includes('one reminder'));
+  assert.ok(status.text.includes('Consent: recorded on 2026-10-05') && status.text.includes('Received so far: nothing yet') && status.text.includes('Still to come: screenshots of your phone’s screen-time summary and your cleaned TikTok, YouTube or Instagram file.') && status.text.includes('https://myphonemybrain.com/break/take-part/?code=JA101CD') && status.text.includes('one reminder') && status.text.includes('before your break') && status.text.includes('unless you contact us to withdraw'));
+  const afterBreak = labStatusEmail({ ...nothing, phase: 'post' });
+  assert.ok(afterBreak.text.includes('https://myphonemybrain.com/break/after/?code=JA101CD') && afterBreak.text.includes('after your break'), 'after the break, the link opens the after-break page');
   const partial = { ...nothing, screenshots: 2, archives: 1, platforms: ['tiktok'] };
   assert.deepEqual(outstanding(partial), []);
   assert.ok(labStatusEmail(partial).text.includes('Received so far: 2 screen-time screenshots and 1 cleaned file (tiktok)') && labStatusEmail(partial).text.includes('Everything the study needs is in'));
   const followUp = labFollowUpEmail({ ...nothing, screenshots: 1 });
-  assert.ok(followUp.text.includes('we have not yet received your cleaned TikTok, YouTube or Instagram file for participant code JA101CD') && followUp.text.includes('only reminder'));
+  assert.ok(followUp.text.includes('we have not yet received your cleaned TikTok, YouTube or Instagram file from before your break for participant code JA101CD') && followUp.text.includes('only reminder') && followUp.text.includes('/break/take-part/?code=JA101CD'));
   assert.ok(!followUp.text.includes('screenshots of your phone'));
   assert.deepEqual(validateLabReminderPayload({ participantCode: 'ja101cd', email: 'jane@example.com' }), []);
   assert.ok(validateLabReminderPayload({ participantCode: 'JA101CD', email: 'not-an-email' }).some((p) => p.includes('email address')));
   assert.ok(validateLabReminderPayload({ participantCode: 'nope', email: 'jane@example.com' }).includes('The participant code is malformed.'));
+  assert.deepEqual(validateLabReminderPayload({ participantCode: 'JA101CD', email: 'jane@example.com', phase: 'post' }), []);
+  assert.ok(validateLabReminderPayload({ participantCode: 'JA101CD', email: 'jane@example.com', phase: 'mid' }).some((p) => p.includes('before or after the break')));
 });

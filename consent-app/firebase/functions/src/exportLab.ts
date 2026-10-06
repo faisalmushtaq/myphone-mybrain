@@ -1,7 +1,7 @@
 import type { DocumentData } from 'firebase-admin/firestore';
 import JSZip from 'jszip';
 import { jsonFile, jsonlFile, textFile, toTsv, tsvFile, type Doc, type OutFile, type Row } from './export.js';
-import { cleaner, labConsentForm, labStudy } from './forms.js';
+import { cleaner, labCheckInForm, labConsentForm, labStudy } from './forms.js';
 
 /**
  * The social media break study's part of the hourly export: its own folder,
@@ -16,8 +16,10 @@ import { cleaner, labConsentForm, labStudy } from './forms.js';
  *   social-media-break/donations/participants.tsv              one row per consenting code
  *   social-media-break/donations/sub-<CODE>/sub-<CODE>_sessions.tsv
  *                                               one session per phase of the study
- *                                               (ses-pre before the break, ses-post after),
+ *                                               (ses-pre before the break, ses-mid the
+ *                                               check-ins during it, ses-post after),
  *                                               however many sends it took
+ *   social-media-break/donations/phenotype/checkin.tsv   the check-in answers, one row each
  *   social-media-break/donations/sub-<CODE>/ses-<phase>/beh/*_task-donation_beh.tsv
  *                                               the files of that phase, with what the
  *                                               cleaner's manifest says is inside, or
@@ -35,22 +37,23 @@ const B = `${LAB_ROOT}/donations`;
 const I = `${LAB_ROOT}/identifying`;
 const two = (n: number) => String(n).padStart(2, '0');
 
-/** Where in the study the participant said a send belongs. */
-export type LabPhase = 'pre' | 'post';
-export const LAB_PHASES: LabPhase[] = ['pre', 'post'];
+/** Where in the study a send belongs, from the page it came from: before the break, a check-in during it, after it. */
+export type LabPhase = 'pre' | 'mid' | 'post';
+export const LAB_PHASES: LabPhase[] = ['pre', 'mid', 'post'];
 
 export interface LabSnapshot {
   participants: Doc[];
   consents: Doc[];
   donations: Doc[];
   reminders: Doc[];
+  checkIns: Doc[];
 }
 
 /** Everything a participant sent in one phase of the study: one BIDS session, however many sends it took. */
 export interface LabSession {
   code: string;
   label: string;
-  /** ses-pre, ses-post, or ses-unspecified for sends recorded without a phase. */
+  /** ses-pre, ses-mid, ses-post, or ses-unspecified for sends recorded without a phase. */
   session: string;
   phase: string;
   /** The sends, in time order. */
@@ -62,10 +65,10 @@ export interface LabSession {
 /** sub-JA101CD: the participant code is the BIDS label. */
 export const labLabel = (code: string) => `sub-${code}`;
 
-/** ses-pre or ses-post; anything else was recorded without a phase. */
+/** ses-pre, ses-mid or ses-post; anything else was recorded without a phase. */
 export const labSessionLabel = (phase: unknown) => `ses-${LAB_PHASES.includes(phase as LabPhase) ? String(phase) : 'unspecified'}`;
 
-/** Sends are grouped by participant and phase, so a participant has at most one pre and one post session. */
+/** Sends are grouped by participant and phase, so a participant has at most one pre, one mid and one post session. */
 export function labSessionsOf(snap: LabSnapshot): LabSession[] {
   const sorted = [...snap.donations].sort((a, b) => String(a.data.receivedAt ?? '').localeCompare(String(b.data.receivedAt ?? '')));
   const byKey = new Map<string, LabSession>();
@@ -119,6 +122,7 @@ export function labParticipantsTable(snap: LabSnapshot): Row[] {
         consent_n: d.consentVersion,
         phases: mine.map((s) => s.phase),
         sends_n: sends.length,
+        checkins_n: snap.checkIns.filter((c) => c.data.participantCode === id).length,
         archives_n: files.filter((f) => f.kind === 'archive').length,
         screenshots_n: files.filter((f) => f.kind === 'screenshot').length,
         platforms: Array.from(new Set(files.flatMap((f) => (Array.isArray(f.platforms) ? (f.platforms as string[]) : [])))).sort(),
@@ -152,6 +156,7 @@ export function labBehTable(s: LabSession): Row[] {
     tables: f.kind === 'archive' ? archiveTablesFor(f).map((t) => t.task) : null,
     received_at: donation.data.receivedAt,
     send_id: donation.id,
+    check_in_id: donation.data.checkInId ?? null,
     bytes: f.bytes,
     sha256: f.sha256,
     platforms: f.platforms,
@@ -362,6 +367,41 @@ export function labConsentTables(docs: Doc[]): { records: Row[]; statements: Row
   return { records, statements };
 }
 
+/** The mid-break check-ins: one row per check-in, in time order, with one column per question. */
+export function labCheckInTable(checkIns: Doc[]): Row[] {
+  return [...checkIns]
+    .sort((a, b) => String(a.data.participantCode).localeCompare(String(b.data.participantCode)) || String(a.data.receivedAt ?? '').localeCompare(String(b.data.receivedAt ?? '')))
+    .map(({ id, data: d }) => ({
+      participant_id: labLabel(String(d.participantCode)),
+      session_id: 'ses-mid',
+      check_in_id: id,
+      check_in_n: d.number,
+      submitted_at: d.receivedAt,
+      form_version: d.formVersion,
+      ...Object.fromEntries(labCheckInForm.questions.map((q) => [q.id.replace(/-/g, '_'), (d.answers as Record<string, unknown> | undefined)?.[q.id] ?? null])),
+    }));
+}
+
+export function labCheckInColumns(): string[] {
+  return ['participant_id', 'session_id', 'check_in_id', 'check_in_n', 'submitted_at', 'form_version', ...labCheckInForm.questions.map((q) => q.id.replace(/-/g, '_'))];
+}
+
+export function labCheckInDictionary(): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    MeasurementToolMetadata: { Description: `The website’s mid-break check-in (${labCheckInForm.id} ${labCheckInForm.version}): a few questions answered during the social media break, as often as the participant checks in.` },
+    participant_id: { Description: 'sub- followed by the participant code' },
+    session_id: { Description: 'Always ses-mid: the check-ins happen during the break; screenshots sent with them are in that session, linked by check_in_id' },
+    check_in_id: { Description: 'Identifier of the check-in; the check_in_id column of ses-mid’s donation index points here' },
+    check_in_n: { Description: 'Which check-in this was for the participant: 1 for the first' },
+    submitted_at: { Description: 'When the check-in was received (ISO 8601, UTC)' },
+    form_version: { Description: 'Version of the check-in questions answered' },
+  };
+  for (const q of labCheckInForm.questions) {
+    out[q.id.replace(/-/g, '_')] = q.type === 'choice' ? { LongName: q.label, Description: q.text, Levels: Object.fromEntries(q.options.map((o) => [o.value, o.label])) } : { LongName: q.label, Description: `${q.text} Free text, at most ${q.maxLength} characters; n/a when left blank.` };
+  }
+  return out;
+}
+
 export function labDatasetDescription(exportedAt: string): Record<string, unknown> {
   return {
     Name: 'MyPhone/MyBrain social media break study: donated social media and screen-time data',
@@ -382,8 +422,9 @@ export function labParticipantsDictionary(): Record<string, unknown> {
     consent_version: { Description: 'Version of the consent form wording agreed to' },
     information_version: { Description: 'Version of the participant information sheet shown' },
     consent_n: { Description: 'Number of consent records for this code (a second consent from another device is appended, never overwritten)' },
-    phases: { Description: 'Phases of the study with data: one session each', Levels: { pre: 'Before the social media break (ses-pre)', post: 'After the break (ses-post)', unspecified: 'Sent without saying which (ses-unspecified)' } },
+    phases: { Description: 'Phases of the study with data: one session each', Levels: { pre: 'Before the social media break, from the first page (ses-pre)', mid: 'Screenshots sent with the mid-break check-ins (ses-mid)', post: 'After the break, from the after-break page (ses-post)', unspecified: 'Sent before phases were recorded (ses-unspecified)' } },
     sends_n: { Description: 'Occasions on which files were sent, across all phases' },
+    checkins_n: { Description: 'Mid-break check-ins sent; the answers are in phenotype/checkin.tsv' },
     archives_n: { Description: 'Cleaned TikTok or YouTube archives accepted in total' },
     screenshots_n: { Description: 'Screen-time screenshots accepted in total' },
     platforms: { Description: 'Platforms found in the cleaned archives', Levels: { tiktok: 'TikTok', youtube: 'YouTube', instagram: 'Instagram' } },
@@ -396,19 +437,21 @@ export function labParticipantsDictionary(): Record<string, unknown> {
 export function labBehDictionary(): Record<string, unknown> {
   const out: Record<string, unknown> = {
     TaskName: TASK,
-    TaskDescription: 'The participant downloaded their own TikTok and YouTube data, removed everything but dates, links and search words on their own device (keeping only the categories they ticked), and sent the cleaned archive together with screenshots of their phone’s screen-time summary, saying whether this was before or after their social media break. The files are under sourcedata/; this table lists them with what each archive’s manifest says is inside and the automatic checks run on each screenshot.',
+    TaskDescription: 'The participant downloaded their own TikTok, YouTube or Instagram data, removed everything but dates, links and search words on their own device (keeping only the categories they ticked), and sent the cleaned archive together with screenshots of their phone’s screen-time summary: before their social media break from the first page (ses-pre), with the weekly check-ins during it (screenshots only, ses-mid), and after it from the after-break page (ses-post). The files are under sourcedata/; this table lists them with what each archive’s manifest says is inside and the automatic checks run on each screenshot.',
     run: { Description: 'Order of the file within this session (all sends of this phase, in time order)' },
     kind: { Description: 'What the file is', Levels: { archive: 'A cleaned ZIP archive made by the website’s cleaner', screenshot: 'A screen-time screenshot, re-encoded without device metadata' } },
     filename: { Description: 'Path of the file, relative to the dataset root' },
     tables: { Description: 'For an archive, the task labels of the behavioural tables it was unpacked into, beside this file (sub-<CODE>_ses-<phase>_task-<label>_run-<nn>_beh.tsv)' },
     received_at: { Description: 'When the send that carried this file was received (ISO 8601, UTC)' },
     send_id: { Description: 'Identifier of the send; files with the same id arrived together' },
+    check_in_id: { Description: 'For screenshots sent with a mid-break check-in (ses-mid), the check-in they belong to; see phenotype/checkin.tsv' },
     bytes: { Description: 'File size as stored', Units: 'bytes' },
     sha256: { Description: 'SHA-256 of the stored file' },
     platforms: { Description: 'Platforms the archive holds (archives only)', Levels: { tiktok: 'TikTok', youtube: 'YouTube', instagram: 'Instagram' } },
     categories: { Description: 'Categories the participant chose to keep (archives only); see the kept_* columns' },
   };
-  for (const id of cleaner.categoryIds) out[`kept_${id}`] = { Description: `Rows kept in “${cleaner.titleOf[id]}” (${cleaner.platformOf[id] === 'tiktok' ? 'TikTok' : 'YouTube'}); n/a when the category was not kept or this is a screenshot` };
+  const platformName: Record<string, string> = { tiktok: 'TikTok', youtube: 'YouTube', instagram: 'Instagram' };
+  for (const id of cleaner.categoryIds) out[`kept_${id}`] = { Description: `Rows kept in “${cleaner.titleOf[id]}” (${platformName[cleaner.platformOf[id]] ?? cleaner.platformOf[id]}); n/a when the category was not kept or this is a screenshot` };
   Object.assign(out, {
     cleaner: { Description: 'The cleaner that made the archive, from its manifest' },
     cleaned_at: { Description: 'When the archive was cleaned on the participant’s device (ISO 8601)' },
@@ -429,20 +472,28 @@ export function labBehDictionary(): Record<string, unknown> {
 const LAB_README = `MyPhone/MyBrain social media break study: donated data
 
 Adults taking part in the laboratory study (two EEG visits around a break
-from social media) download their own TikTok and YouTube data, keep only the
-categories they choose, reduced on their own device to dates, links and
-search words, and send the cleaned archive together with screenshots of their
-phone's screen-time summary, saying whether this is before or after their
-break. This dataset is regenerated automatically every hour from the study's
-database and mirrors the current records. Do not edit files here.
+from social media) download their own TikTok, YouTube or Instagram data, keep
+only the categories they choose, reduced on their own device to dates, links
+and search words, and send the cleaned archive together with screenshots of
+their phone's screen-time summary: before the break from the first page, and
+again after it from the after-break page. During the break they check in on
+a third page with a few questions and, if they can, a screenshot. This
+dataset is regenerated automatically every hour from the study's database
+and mirrors the current records. Do not edit files here.
 
 participants.tsv          one row per participant with consent on file:
                           consent dates and versions, phases with data, sends,
-                          archives and screenshots, platforms found, phone
+                          check-ins, archives and screenshots, platforms, phone
+phenotype/checkin.tsv     the mid-break check-ins: one row per check-in, one
+                          column per question, with checkin.json describing
+                          each question and its answers
 sub-<CODE>/               one session per phase of the study: ses-pre holds
-                          everything sent before the break, ses-post everything
-                          sent after it (ses-unspecified if a send did not say),
-                          however many sends it took. Its beh/ folder holds
+                          everything sent before the break, ses-mid the
+                          screenshots sent with the check-ins (check_in_id links
+                          each to phenotype/checkin.tsv), ses-post everything
+                          sent after it (ses-unspecified for sends recorded
+                          before phases were), however many sends it took.
+                          Its beh/ folder holds
                           *_task-donation_beh.tsv, the index of files sent (with
                           what each archive's manifest says is inside, or the
                           screenshot's automatic checks), and, unpacked from each
@@ -496,10 +547,11 @@ media). This folder gathers the study's datasets, all labelled by the
 participant code the laboratory questionnaire builds (sub-JA101CD), so they
 join without a name.
 
-donations/     written by the website every hour: the TikTok and YouTube
-               data participants cleaned on their own device and donated,
-               with their screen-time screenshots, before and after the
-               break; BIDS layout, no names; for researchers
+donations/     written by the website every hour: the TikTok, YouTube and
+               Instagram data participants cleaned on their own device and
+               donated, with their screen-time screenshots, before and after
+               the break, and the mid-break check-ins; BIDS layout, no
+               names; for researchers
 identifying/   written by the website every hour: consent records with typed
                names, the answers the code was built from (including
                postcode), and signatures; for study coordinators only
@@ -537,11 +589,14 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     jsonFile(`${B}/dataset_description.json`, labDatasetDescription(exportedAt)),
     textFile(`${B}/README`, LAB_README),
     textFile(`${B}/CHANGES`, `1.0.0 ${exportedAt.slice(0, 10)}\n  - Regenerated automatically every hour; see ../../manifest.json.\n`),
-    tsvFile(`${B}/participants.tsv`, labParticipantsTable(snap), ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'phases', 'sends_n', 'archives_n', 'screenshots_n', 'platforms', 'phone', 'first_send_at', 'last_send_at']),
+    tsvFile(`${B}/participants.tsv`, labParticipantsTable(snap), ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'phases', 'sends_n', 'checkins_n', 'archives_n', 'screenshots_n', 'platforms', 'phone', 'first_send_at', 'last_send_at']),
     jsonFile(`${B}/participants.json`, labParticipantsDictionary()),
+    tsvFile(`${B}/phenotype/checkin.tsv`, labCheckInTable(snap.checkIns), labCheckInColumns()),
+    jsonFile(`${B}/phenotype/checkin.json`, labCheckInDictionary()),
     textFile(`${B}/sourcedata/README.md`, LAB_SOURCEDATA_README, 'text/markdown; charset=utf-8'),
     jsonlFile(`${B}/sourcedata/raw/labParticipants.jsonl`, snap.participants),
     jsonlFile(`${B}/sourcedata/raw/labDonations.jsonl`, snap.donations),
+    jsonlFile(`${B}/sourcedata/raw/labCheckIns.jsonl`, snap.checkIns),
     textFile(`${I}/README.md`, LAB_IDENTIFYING_README, 'text/markdown; charset=utf-8'),
     jsonlFile(`${I}/raw/consents.jsonl`, snap.consents),
   ];
@@ -593,6 +648,7 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     labArchives: all.filter((f) => f.kind === 'archive').length,
     labScreenshots: all.filter((f) => f.kind === 'screenshot').length,
     labSignatures: snap.consents.filter((c) => typeof c.data.signature?.image?.path === 'string').length,
+    labCheckIns: snap.checkIns.length,
   };
   return { files, copies, derived, counts };
 }

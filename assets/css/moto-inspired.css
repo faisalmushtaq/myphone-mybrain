@@ -117,6 +117,14 @@ p { max-width: 70ch; }
 .participant-next-step { margin-top: 1rem; padding: clamp(1.5rem, 4vw, 2.5rem); border-left: 7px solid var(--mpb-yellow); background: var(--mpb-mist); }
 .participant-next-step p:not(.section-kicker) { max-width: 62ch; color: #365d62; }
 .participant-next-step .btn { margin: 1rem 1rem 0 0; }
+/* One steady rhythm between the blocks of a participant page: boxes, notes and headings never touch, and stacked boxes keep one gap. */
+.participant-info-section .narrow-content > * + :not(.section-subheading) { margin-top: clamp(2.25rem, 5vw, 3rem); }
+.participant-info-section .narrow-content > .participant-info-grid + .participant-info-grid,
+.participant-info-section .narrow-content > .participant-later-heading + .participant-info-grid { margin-top: 1rem; }
+.participant-info-section .prose h3 { margin-bottom: .6rem; }
+.participant-later-heading { color: var(--mpb-teal); font-size: clamp(1.7rem, 3vw, 2.35rem); }
+.participant-next-step h3 { margin-bottom: .75rem; }
+.participant-next-step .text-link, .participant-info-grid .text-link { display: inline-block; margin-top: 1.1rem; }
 .pathway-grid { margin-top: 2.25rem; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .pathway-card { min-height: 245px; padding: 1.5rem; border: 1px solid var(--mpb-line); border-top: 6px solid var(--mpb-yellow); background: #fff; box-shadow: var(--shadow-sm); }
 .pathway-card--mist { background: var(--mpb-mist); }

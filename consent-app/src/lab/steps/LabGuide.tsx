@@ -24,6 +24,7 @@ export function LabGuide() {
   const ready = state.codeConfirmed && state.submission.consentStage === 'sent';
   const app = state.app;
   const chosen = apps.find((a) => a.id === app);
+  const after = state.flow === 'after';
 
   const chooseApp = (a: LabPlatform) => {
     dispatch({ type: 'app', app: a });
@@ -40,7 +41,7 @@ export function LabGuide() {
     setReminder({ kind: 'sending' });
     try {
       const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
-      const result = await getApi().requestLabReminder(session, { participantCode: state.code, email: email.trim() });
+      const result = await getApi().requestLabReminder(session, { participantCode: state.code, email: email.trim(), phase: state.phase });
       if (result.outcome === 'sent') {
         setReminder({ kind: 'sent', followUpAt: result.followUpAt });
         announce('Email sent.');
@@ -61,8 +62,14 @@ export function LabGuide() {
   return (
     <LabShell
       kicker="Get your app data"
-      title="Request your data download."
-      intro={<p>Ask the app you use most, TikTok, YouTube or Instagram, for a copy of your data. It can take from a few minutes to a few days to arrive. Start it now, then come back to this page with the file; you will choose exactly what to share before anything is sent.</p>}
+      title={after ? 'Request a new data download.' : 'Request your data download.'}
+      intro={
+        after ? (
+          <p>Ask the same app as last time for a fresh copy of your data, even if you still have the old file: the new one covers your break. It can take from a few minutes to a few days to arrive. Start it now, then come back to this page with the file; you will choose exactly what to share before anything is sent.</p>
+        ) : (
+          <p>Ask the app you use most, TikTok, YouTube or Instagram, for a copy of your data. It can take from a few minutes to a few days to arrive. Start it now, then come back to this page with the file; you will choose exactly what to share before anything is sent.</p>
+        )
+      }
       onContinue={next}
       continueLabel={ready ? 'I have my file' : 'I have my file: enter my code'}
       width="wide"
@@ -77,7 +84,7 @@ export function LabGuide() {
           {ready ? (
             <>
               <p>
-                <strong>Come back when your download has arrived.</strong> Your progress is saved on this device under your participant code <strong className="mpmb-mono">{state.code}</strong>. If you would like, we can email you a note of where you are and a link back; if we have not received your file two days later, we will send one reminder.
+                <strong>Come back when your download has arrived.</strong> Your progress is saved under your participant code <strong className="mpmb-mono">{state.code}</strong>. If you would like, we can email you a note of where you are, with a link that opens this page ready for you on any device; if we have not received your file two days later, we will send one reminder.
               </p>
               {reminder.kind === 'sent' ? (
                 <p>Sent. Check your inbox (and spam folder) for an email from MyPhone/MyBrain. Your address is kept only for that email and the one reminder.</p>

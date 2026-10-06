@@ -1,7 +1,8 @@
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
-import { labStudy } from '../config';
+import { labPages, labStudy } from '../config';
 import { LabShell } from '../LabShell';
+import { resumeStep } from '../reducer';
 import { useLab } from '../store';
 
 export function LabWelcome() {
@@ -12,7 +13,7 @@ export function LabWelcome() {
     dispatch({ type: 'code', code: returning ? state.code : '', returning });
     dispatch({ type: 'go-to', stepId: 'participant-id' });
   };
-  const resume = () => dispatch({ type: 'go-to', stepId: consented ? (state.submission.screenshotsSent ? 'guide' : 'screenshots') : 'participant-id' });
+  const resume = () => dispatch({ type: 'go-to', stepId: consented ? resumeStep(state) : 'participant-id' });
 
   return (
     <LabShell
@@ -55,6 +56,9 @@ export function LabWelcome() {
           Just show me how to download my data
         </Button>
       </div>
+      <p className="mpmb-hint">
+        Already taking part? During your break, do your <a href={labPages.checkin.path}>mid-break check-in</a>. When the break ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+      </p>
       <p className="mpmb-hint">
         Questions about the study: {labStudy.contact.name}, <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>. Nothing about your social media is read until you choose to send it.
       </p>

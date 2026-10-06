@@ -58,9 +58,23 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
 
     <div class="participant-next-step">
       <h3>Ready to take part?</h3>
-      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube or Instagram data. The download can take a few days to arrive, so start before your first lab visit; we can email you a reminder, and you come back to this page to send the file when it is ready.</p>
+      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube or Instagram data. The download can take a few days to arrive, so start before your first lab visit; we can email you a reminder, and you come back to send the file when it is ready, on any device, with your participant code.</p>
       <a class="btn btn-primary" href="{{ '/break/take-part/' | relative_url }}">Take part &nbsp;→</a>
       <a class="text-link" href="{{ '/break/take-part/?step=guide' | relative_url }}">Just show me how to download my data &nbsp;→</a>
+    </div>
+
+    <h3 class="participant-later-heading">Already taking part?</h3>
+    <div class="participant-info-grid">
+      <div class="info-panel">
+        <h3>During your break</h3>
+        <p>Once a week, a quick check-in: a few questions about how it is going, a screenshot of your screen time if you can, and the chance to tell MyStory about it in your own words. All you need is your participant code.</p>
+        <a class="text-link" href="{{ '/break/check-in/' | relative_url }}">Mid-break check-in &nbsp;→</a>
+      </div>
+      <div class="info-panel info-panel-alt">
+        <h3>After your break</h3>
+        <p>Send your screen-time screenshots and your app data once more, so the study can compare before and after. It is shorter than the first time: nothing to sign again, just your participant code.</p>
+        <a class="text-link" href="{{ '/break/after/' | relative_url }}">After your break &nbsp;→</a>
+      </div>
     </div>
 
     <div class="prose">

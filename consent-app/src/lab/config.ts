@@ -186,9 +186,142 @@ export const labStudy = {
   },
   /** The apps whose exports the cleaner understands; participants donate from whichever they use most. */
   platforms: ['tiktok', 'youtube', 'instagram'] as const,
-  /** Largest cleaned archive and screenshot the site will take. */
+  /** Largest cleaned archive the site will take. */
   maxArchiveBytes: 60 * 1024 * 1024,
+  /** Screenshots accepted before the break, and again after it. */
   maxScreenshots: 12,
+  /** Screenshots accepted across all the check-ins during the break. */
+  maxCheckInScreenshots: 30,
+};
+
+/**
+ * The three pages of the study, each its own short flow on the website, all
+ * keyed by the participant code:
+ *   baseline  /break/take-part/  consent, then screenshots and app data before the break
+ *   checkin   /break/check-in/   during the break: a few questions, optional screenshots, MyStory
+ *   after     /break/after/      after the break: a reminder (no new consent), screenshots and app data
+ * Each send is filed under the phase of the page it came from (pre, mid,
+ * post), so nobody is asked whether their files are from before or after.
+ */
+export const labPages = {
+  baseline: { path: '/break/take-part/', phase: 'pre', label: 'Before your break' },
+  checkin: { path: '/break/check-in/', phase: 'mid', label: 'Mid-break check-in' },
+  after: { path: '/break/after/', phase: 'post', label: 'After your break' },
+} as const;
+
+export type LabCheckInQuestion =
+  | { id: string; version: string; type: 'choice'; label: string; text: string; hint?: string; required: boolean; options: { value: string; label: string }[] }
+  | { id: string; version: string; type: 'text'; label: string; text: string; hint?: string; required: boolean; maxLength: number };
+
+/**
+ * The mid-break check-in: a few quick questions, asked each time someone
+ * checks in (the information sheet promises brief weekly check-ins). Draft
+ * wording, to be replaced by the team's agreed items; ids and versions are
+ * what the server accepts and the export's data dictionary describes.
+ */
+export const labCheckInForm: { id: string; version: string; title: string; questions: LabCheckInQuestion[] } = {
+  id: 'mpmb-lab-checkin',
+  version: '0.1-draft',
+  title: 'Mid-break check-in',
+  questions: [
+    {
+      id: 'week',
+      version: '0.1-draft',
+      type: 'choice',
+      label: 'Week of the break',
+      text: 'Which week of your social media break are you in?',
+      required: true,
+      options: [
+        { value: '1', label: 'Week 1 (days 1 to 7)' },
+        { value: '2', label: 'Week 2 (days 8 to 14)' },
+        { value: '3', label: 'Week 3 (days 15 to 21)' },
+        { value: '4', label: 'Week 4 (days 22 to 30)' },
+      ],
+    },
+    {
+      id: 'apps-used',
+      version: '0.1-draft',
+      type: 'choice',
+      label: 'Use of the restricted apps',
+      text: 'In the past week, how often have you used any of the apps you agreed to take a break from, on any device?',
+      hint: 'There is no wrong answer; an honest one helps the study most.',
+      required: true,
+      options: [
+        { value: 'never', label: 'Not at all' },
+        { value: 'once-or-twice', label: 'Once or twice' },
+        { value: 'few-times', label: 'A few times' },
+        { value: 'most-days', label: 'Most days' },
+        { value: 'every-day', label: 'Every day' },
+      ],
+    },
+    {
+      id: 'mood',
+      version: '0.1-draft',
+      type: 'choice',
+      label: 'Mood this week',
+      text: 'Overall, how have you been feeling in the past week?',
+      required: true,
+      options: [
+        { value: '1', label: 'Very low' },
+        { value: '2', label: 'Low' },
+        { value: '3', label: 'Okay' },
+        { value: '4', label: 'Good' },
+        { value: '5', label: 'Very good' },
+      ],
+    },
+    {
+      id: 'difficulty',
+      version: '0.1-draft',
+      type: 'choice',
+      label: 'How hard the break has been',
+      text: 'How hard has the break been in the past week?',
+      required: true,
+      options: [
+        { value: '1', label: 'Very easy' },
+        { value: '2', label: 'Easy' },
+        { value: '3', label: 'Neither easy nor hard' },
+        { value: '4', label: 'Hard' },
+        { value: '5', label: 'Very hard' },
+      ],
+    },
+    {
+      id: 'missed',
+      version: '0.1-draft',
+      type: 'choice',
+      label: 'Missing social media',
+      text: 'How much have you missed social media in the past week?',
+      required: true,
+      options: [
+        { value: '1', label: 'Not at all' },
+        { value: '2', label: 'A little' },
+        { value: '3', label: 'Quite a lot' },
+        { value: '4', label: 'A great deal' },
+      ],
+    },
+    {
+      id: 'notes',
+      version: '0.1-draft',
+      type: 'text',
+      label: 'Anything else',
+      text: 'Anything else you would like to tell us about this week? (optional)',
+      hint: 'For example, problems with Brick, or something that made the break easier or harder.',
+      required: false,
+      maxLength: 1000,
+    },
+  ],
+};
+
+/**
+ * MyStory, the study's conversation tool: after a check-in, participants can
+ * talk it through in their own words. Not live yet, so url is null and the
+ * check-in page says it is coming. When it is, set url; the page then opens
+ * it in a new tab with the participant code added as the codeParam query
+ * parameter, so the conversation is filed under the same code, never a name.
+ */
+export const labMyStory: { name: string; url: string | null; codeParam: string } = {
+  name: 'MyStory',
+  url: null,
+  codeParam: 'code',
 };
 
 /**
@@ -217,6 +350,27 @@ export function buildParticipantCode(parts: CodeParts): string {
   const postcode = letters(parts.postcode).slice(-2);
   const mm = month.length === 1 ? `0${month}` : month.slice(-2);
   return `${mother}${house}${mm}${postcode}`;
+}
+
+/**
+ * The shape of a full UK postcode, in its standard form with one space:
+ * outward code (one or two letters, a digit, then optionally a letter or
+ * digit) and inward code (a digit and two letters), plus the special GIR 0AA.
+ * Only the shape is checked, so no real postcode is refused. The inward code
+ * always ends in two letters, so a valid postcode always gives the
+ * participant code its last two letters.
+ */
+export const UK_POSTCODE = /^(GIR 0AA|[A-Z]{1,2}\d[A-Z\d]? \d[A-Z]{2})$/;
+
+/** Upper-cased with one space before the inward code ("ls29jt" → "LS2 9JT"); returned unchanged when it is not a UK postcode. */
+export function formatPostcode(input: string): string {
+  const compact = input.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const spaced = compact.length > 3 ? `${compact.slice(0, -3)} ${compact.slice(-3)}` : compact;
+  return UK_POSTCODE.test(spaced) ? spaced : input.trim().toUpperCase();
+}
+
+export function isUkPostcode(input: string): boolean {
+  return UK_POSTCODE.test(formatPostcode(input));
 }
 
 export function normaliseParticipantCode(code: string): string {

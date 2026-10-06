@@ -1,33 +1,32 @@
 import { useState } from 'react';
-import type { LabPhase } from '../../api/types';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
-import { ChoiceField } from '../../components/ui/Field';
 import { formatBytes } from '../../lib/image';
 import { platformNames } from '../cleaner';
 import { LabShell } from '../LabShell';
 import type { LabArchive, LabScreenshot } from '../model';
+import { phaseHave } from '../reducer';
 import { useLab } from '../store';
 import { useLabSender } from '../useLabSender';
 import type { FieldError } from '../validation';
 
-/** Everything prepared is uploaded and recorded against the participant code in one go, filed under before or after the break. */
+/** Everything prepared is uploaded and recorded against the participant code in one go, filed under the page's phase (before or after the break). */
 export function LabSend() {
   const { state, dispatch } = useLab();
   const { send: sendFiles, busy } = useLabSender();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [nudges, setNudges] = useState(0);
-  const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
   const pendingArchives = state.archives.filter((a) => a.status !== 'sent');
   const pendingShots = state.screenshots.filter((s) => s.status !== 'sent');
   const ready = state.codeConfirmed && state.submission.consentStage === 'sent';
+  const received = phaseHave(state);
 
   const send = async () => {
     setErrors([]);
     const found: FieldError[] = [];
-    if (!state.phase) found.push({ field: 'lab-phase-pre', message: 'Tell us whether these files are from before or after your social media break.' });
-    const shotsTotal = state.screenshots.filter((s) => s.status === 'sent').length + pendingShots.length;
-    const archivesTotal = state.archives.filter((a) => a.status === 'sent').length + pendingArchives.length;
+    const have = received;
+    const shotsTotal = Math.max(have.screenshots, state.screenshots.filter((s) => s.status === 'sent').length) + pendingShots.length;
+    const archivesTotal = Math.max(have.archives, state.archives.filter((a) => a.status === 'sent').length) + pendingArchives.length;
     // The study's minimum is a screenshot plus a cleaned file; it is asked for twice, then the send may go ahead with what there is.
     const missingMinimum = !shotsTotal || !archivesTotal;
     if (missingMinimum && nudges < 2) {
@@ -49,7 +48,7 @@ export function LabSend() {
 
   if (!ready) {
     return (
-      <LabShell kicker="Send your data" title="Enter your participant code first." intro={<p>We need your code and your consent before any data can be sent. It takes a minute.</p>} hideContinue>
+      <LabShell kicker="Send your data" title="Enter your participant code first." intro={<p>We need your code and your consent before any data can be sent. It takes a minute.</p>} hideContinue hideBack>
         <div className="mpmb-actions">
           <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'participant-id' })}>
             Enter my code
@@ -66,8 +65,6 @@ export function LabSend() {
           <p>{state.submission.donationError}</p>
         </Callout>
       )}
-      <ChoiceField id="lab-phase" name="lab-phase" legend="Are these files from before or after your social media break?" hint="The study compares the two, so each send is filed under one or the other. You can come back and send more at either point." value={state.phase} onChange={(v) => dispatch({ type: 'phase', phase: v as LabPhase })} options={[{ value: 'pre', label: 'Before my break' }, { value: 'post', label: 'After my break' }]} error={errs['lab-phase-pre']} />
-
       <section aria-labelledby="send-shots-heading" id="lab-files" tabIndex={-1}>
         <h2 className="mpmb-h3" id="send-shots-heading">
           Screen-time screenshots
@@ -84,7 +81,7 @@ export function LabSend() {
             ))}
           </ul>
         ) : (
-          <p className="mpmb-hint">None added yet.</p>
+          <p className="mpmb-hint">{received.screenshots ? `${received.screenshots} already received.` : 'None added yet.'}</p>
         )}
         <Button variant="link" onClick={() => dispatch({ type: 'go-to', stepId: 'screenshots' })}>
           {state.screenshots.length ? 'Add or remove screenshots' : 'Add screenshots'}
@@ -107,7 +104,7 @@ export function LabSend() {
             ))}
           </ul>
         ) : (
-          <p className="mpmb-hint">None prepared yet.</p>
+          <p className="mpmb-hint">{received.archives ? `${received.archives} already received.` : 'None prepared yet.'}</p>
         )}
         <Button variant="link" onClick={() => dispatch({ type: 'go-to', stepId: 'clean' })}>
           {state.archives.length ? 'Prepare another file' : 'Prepare a file'}

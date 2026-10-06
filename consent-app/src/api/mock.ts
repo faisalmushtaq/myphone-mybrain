@@ -1,7 +1,7 @@
 import { study } from '../config/study';
 import { referenceCode } from '../lib/ids';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabReminderResult, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabReminderResult, type UploadMeta, type UploadSlot } from './types';
 
 export interface MockFlags {
   failUploads: boolean;
@@ -29,11 +29,22 @@ interface MockSubmission {
  */
 export class MockConsentApi implements ConsentApi {
   private uploads = new Map<string, { sessionId: string; size: number; type: string }>();
-  private lab = new Map<string, { sessionId: string; consents: LabConsentPayload[]; donations: LabDonationPayload[] }>();
+  private lab = new Map<string, { sessionId: string; consents: LabConsentPayload[]; donations: LabDonationPayload[]; checkIns: (LabCheckInPayload & { receivedAt: string })[] }>();
   private submissions = new Map<string, MockSubmission>();
   private static STORE_KEY = 'mpmb-mock-server:v2';
+  /** The lab study's records, in localStorage so the study's three pages see the same participants, as they would the real server. */
+  private static LAB_KEY = 'mpmb-mock-lab:v1';
 
   constructor(private flags: MockFlags) {
+    try {
+      const lab = window.localStorage.getItem(MockConsentApi.LAB_KEY);
+      if (lab) {
+        const entries = JSON.parse(lab) as [string, Partial<{ sessionId: string; consents: LabConsentPayload[]; donations: LabDonationPayload[]; checkIns: (LabCheckInPayload & { receivedAt: string })[] }>][];
+        this.lab = new Map(entries.map(([code, e]) => [code, { sessionId: e.sessionId ?? '', consents: e.consents ?? [], donations: e.donations ?? [], checkIns: e.checkIns ?? [] }]));
+      }
+    } catch {
+      /* start empty */
+    }
     try {
       const raw = window.sessionStorage.getItem(MockConsentApi.STORE_KEY);
       if (raw) {
@@ -50,6 +61,24 @@ export class MockConsentApi implements ConsentApi {
     try {
       const submissions = Array.from(this.submissions.entries()).map(([code, s]) => [code, { sessionId: s.sessionId, participantId: s.participantId, version: s.version }]);
       window.sessionStorage.setItem(MockConsentApi.STORE_KEY, JSON.stringify({ uploads: Array.from(this.uploads.entries()), submissions }));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** Keeps what the lab pages need to recognise a code: when consent was given, what was sent in which phase, the check-ins. No names, signatures or file contents. */
+  private persistLab(): void {
+    try {
+      const slim = Array.from(this.lab.entries()).map(([code, p]) => [
+        code,
+        {
+          sessionId: p.sessionId,
+          consents: p.consents.map((c) => ({ consent: { completedAt: c.consent.completedAt } })),
+          donations: p.donations.map((d) => ({ phase: d.phase, uploads: d.uploads.map((u) => ({ uploadId: u.uploadId, kind: u.kind })) })),
+          checkIns: p.checkIns.map((c) => ({ receivedAt: c.receivedAt, answers: c.answers })),
+        },
+      ]);
+      window.localStorage.setItem(MockConsentApi.LAB_KEY, JSON.stringify(slim));
     } catch {
       /* ignore */
     }
@@ -152,9 +181,10 @@ export class MockConsentApi implements ConsentApi {
     if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');
     this.checkSession(session);
     if (!payload.consent.signature) throw new ApiError('validation', 'The consent record has no signature.');
-    const existing = this.lab.get(payload.participantCode) ?? { sessionId: session.sessionId, consents: [], donations: [] };
+    const existing = this.lab.get(payload.participantCode) ?? { sessionId: session.sessionId, consents: [], donations: [], checkIns: [] };
     existing.consents.push(payload);
     this.lab.set(payload.participantCode, existing);
+    this.persistLab();
     return { participantCode: payload.participantCode, consentId: `labc_${existing.consents.length}_${payload.participantCode}`, receivedAt: new Date().toISOString(), version: existing.consents.length };
   }
 
@@ -163,7 +193,19 @@ export class MockConsentApi implements ConsentApi {
     this.checkSession(session);
     const found = this.lab.get(participantCode);
     const uploads = found?.donations.flatMap((d) => d.uploads) ?? [];
-    return { exists: Boolean(found?.consents.length), consentedAt: found?.consents.at(-1)?.consent.completedAt ?? null, archives: uploads.filter((u) => u.kind === 'archive').length, screenshots: uploads.filter((u) => u.kind === 'screenshot').length };
+    const counts = (phase: LabPhase) => {
+      const mine = found?.donations.filter((d) => d.phase === phase).flatMap((d) => d.uploads) ?? [];
+      return { archives: mine.filter((u) => u.kind === 'archive').length, screenshots: mine.filter((u) => u.kind === 'screenshot').length };
+    };
+    return {
+      exists: Boolean(found?.consents.length),
+      consentedAt: found?.consents.at(-1)?.consent.completedAt ?? null,
+      archives: uploads.filter((u) => u.kind === 'archive').length,
+      screenshots: uploads.filter((u) => u.kind === 'screenshot').length,
+      phases: { pre: counts('pre'), mid: counts('mid'), post: counts('post') },
+      checkIns: found?.checkIns.length ?? 0,
+      lastCheckInAt: found?.checkIns.at(-1)?.receivedAt ?? null,
+    };
   }
 
   async requestLabUploadSlot(sessionId: string, meta: { contentType: string; size: number }): Promise<UploadSlot> {
@@ -193,10 +235,23 @@ export class MockConsentApi implements ConsentApi {
       else rejected.push({ uploadId: u.uploadId, reason: 'This file was not uploaded correctly. Please add it again.' });
     }
     participant.donations.push({ ...payload, uploads: payload.uploads.filter((u) => accepted.includes(u.uploadId)) });
+    this.persistLab();
     return { donationId: accepted.length ? `labd_${participant.donations.length}_${payload.participantCode}` : null, receivedAt: new Date().toISOString(), accepted, rejected };
   }
 
-  async requestLabReminder(session: SessionInfo, payload: { participantCode: string; email: string }): Promise<LabReminderResult> {
+  async submitLabCheckIn(session: SessionInfo, payload: LabCheckInPayload): Promise<LabCheckInResult> {
+    await sleep(jitter(300, 700));
+    if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');
+    this.checkSession(session);
+    const participant = this.lab.get(payload.participantCode);
+    if (!participant?.consents.length) throw new ApiError('validation', 'We have no consent on file for this participant code.');
+    const receivedAt = new Date().toISOString();
+    participant.checkIns.push({ ...payload, receivedAt });
+    this.persistLab();
+    return { checkInId: `labk_${participant.checkIns.length}_${payload.participantCode}`, receivedAt, count: participant.checkIns.length };
+  }
+
+  async requestLabReminder(session: SessionInfo, payload: { participantCode: string; email: string; phase: LabPhase }): Promise<LabReminderResult> {
     await sleep(jitter(300, 700));
     this.checkSession(session);
     if (!this.lab.has(payload.participantCode)) throw new ApiError('validation', 'We have no consent on file for this participant code. Please give your consent first.');
@@ -205,7 +260,7 @@ export class MockConsentApi implements ConsentApi {
   }
 
   inspectLab() {
-    return Array.from(this.lab.entries()).map(([code, p]) => ({ code, consents: p.consents, donations: p.donations }));
+    return Array.from(this.lab.entries()).map(([code, p]) => ({ code, consents: p.consents, donations: p.donations, checkIns: p.checkIns }));
   }
 
   inspect() {

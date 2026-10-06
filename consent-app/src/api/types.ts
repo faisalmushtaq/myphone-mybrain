@@ -124,8 +124,8 @@ export interface LabConsentPayload {
 }
 
 export type LabPhone = 'iphone' | 'android';
-/** Where in the study a send belongs: before or after the social media break. */
-export type LabPhase = 'pre' | 'post';
+/** Where in the study a send belongs, set by the page it came from: before the break (pre), a check-in during it (mid), or after it (post). */
+export type LabPhase = 'pre' | 'mid' | 'post';
 
 export interface LabConsentResult {
   participantCode: string;
@@ -134,12 +134,22 @@ export interface LabConsentResult {
   version: number;
 }
 
-/** What the server will say about a participant code, so someone can carry on from another device. */
+/** Files received for one phase of the study. */
+export interface LabPhaseCounts {
+  archives: number;
+  screenshots: number;
+}
+
+/** What the server will say about a participant code, so someone can carry on where they left off, on any device. */
 export interface LabLookupResult {
   exists: boolean;
   consentedAt: string | null;
   archives: number;
   screenshots: number;
+  /** The same counts by phase, so each page knows what is still to do. */
+  phases: Record<LabPhase, LabPhaseCounts>;
+  checkIns: number;
+  lastCheckInAt: string | null;
 }
 
 export interface LabUploadMeta {
@@ -156,8 +166,10 @@ export interface LabUploadMeta {
 export interface LabDonationPayload {
   participantCode: string;
   uploads: ({ uploadId: string } & LabUploadMeta)[];
-  /** Before or after the break, as the participant said at the send step. */
+  /** The phase of the page the files were sent from. */
   phase: LabPhase;
+  /** For screenshots sent with a check-in: the check-in they belong to. */
+  checkInId?: string | null;
   /** The phone the screenshots come from, as chosen in the guide; null if not chosen. */
   phone: LabPhone | null;
   client: ClientInfo;
@@ -168,6 +180,22 @@ export interface LabDonationResult {
   receivedAt: string;
   accepted: string[];
   rejected: { uploadId: string; reason: string }[];
+}
+
+/** The answers to one mid-break check-in (labCheckInForm in src/lab/config.ts). */
+export interface LabCheckInPayload {
+  participantCode: string;
+  formId: string;
+  formVersion: string;
+  answers: Record<string, string>;
+  client: ClientInfo;
+}
+
+export interface LabCheckInResult {
+  checkInId: string;
+  receivedAt: string;
+  /** How many check-ins this code has sent, this one included. */
+  count: number;
 }
 
 /** "I'll come back later": a progress email now, one follow-up in two days unless files arrive. */
@@ -190,5 +218,6 @@ export interface ConsentApi {
   requestLabUploadSlot(sessionId: string, meta: { contentType: string; size: number }): Promise<UploadSlot>;
   deleteLabUpload(sessionId: string, uploadId: string): Promise<void>;
   submitLabDonation(session: SessionInfo, payload: LabDonationPayload): Promise<LabDonationResult>;
-  requestLabReminder(session: SessionInfo, payload: { participantCode: string; email: string }): Promise<LabReminderResult>;
+  requestLabReminder(session: SessionInfo, payload: { participantCode: string; email: string; phase: LabPhase }): Promise<LabReminderResult>;
+  submitLabCheckIn(session: SessionInfo, payload: LabCheckInPayload): Promise<LabCheckInResult>;
 }

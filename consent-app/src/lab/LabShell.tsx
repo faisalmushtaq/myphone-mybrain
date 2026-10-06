@@ -52,7 +52,7 @@ export function LabShell({ kicker, title, intro, children, errors = [], onContin
         </h1>
         {intro && <div className="mpmb-lead">{intro}</div>}
       </header>
-      {children}
+      <div className="mpmb-step__body">{children}</div>
       {(!hideContinue || !hideBack || secondaryAction) && (
         <div className="mpmb-actions">
           {!hideContinue && (

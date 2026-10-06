@@ -33,17 +33,41 @@ A second, separate flow for adults in the laboratory study shares the UI
 components, the API client and the stylesheet but has its own state, steps
 and backend functions (`src/lab/`, `firebase/functions/src/lab.ts`). There is
 no handover and no reference code: the participant is known by the code the
-lab questionnaire builds from four answers (`src/lab/config.ts`), which is
-also what the EEG data is labelled with, so the two meet without a name. The
-steps are welcome → participant code → information (the approved sheet,
-section by section) → consent (eight required statements, name, signature,
-sent at once) → screenshots (the phone's own steps, then the screenshots are
-sent straight away, so the first donation is done in minutes) → guide (request
-TikTok, YouTube or Instagram data, which takes days; linkable with
-`?step=guide`; "I'll come back later" can email the person their progress and
-book one follow-up) → clean → send → done.
-Because an export can take days to arrive, progress is kept in
-`localStorage` for 60 days and a known code is recognised from any device.
+lab questionnaire builds from four answers (`src/lab/config.ts`; the postcode
+must be a full UK postcode), which is also what the EEG data is labelled
+with, so the two meet without a name.
+
+The study has three pages, each its own short flow in the same bundle,
+chosen by the mount's `data-flow` (or `?flow=` on the plain test page), and
+every send is filed under the phase of the page it came from, so nobody is
+asked whether their files are from before or after the break:
+
+* **`/break/take-part/`** (`baseline`, phase `pre`): welcome → participant
+  code → information (the approved sheet, section by section) → consent
+  (eight required statements, an optional record-linkage choice, name,
+  signature, sent at once) → screenshots (the phone's own steps, then the
+  screenshots are sent straight away, so the first donation is done in
+  minutes) → guide (request TikTok, YouTube or Instagram data, which takes
+  days; linkable with `?step=guide`; "I'll come back later" can email the
+  person their progress and book one follow-up) → clean → send → done.
+* **`/break/check-in/`** (`checkin`, phase `mid`), during the break: the
+  code → a few questions (`labCheckInForm`) with an optional screenshot of
+  the week's screen time → thanks, with MyStory offered (`labMyStory`; not
+  live yet, so the card says so). Repeatable each week.
+* **`/break/after/`** (`after`, phase `post`), when the break ends: the code
+  → a reminder of what was agreed and how to withdraw (consent is not taken
+  again) → screenshots → guide → clean → send → done.
+
+People carry on where they left off. Each page keeps its progress in
+`localStorage` for 60 days (`mpmb-lab:v1`, `mpmb-lab-checkin:v1`,
+`mpmb-lab-after:v1`), and the confirmed code is remembered separately
+(`mpmb-lab-code:v1`) so the later pages fill it in. On any other device the
+person types the code (or rebuilds it from the four answers), and
+`lookupLabParticipant` returns what has arrived for each phase, so the page
+opens at the next thing still to do. Progress emails link to
+`…?code=JA101CD`, which fills the code in and removes it from the address
+bar. Progress saved on a device belongs to the code it was confirmed for:
+confirming a different code there starts afresh.
 
 Cleaning happens entirely on the device (`src/lab/cleaner.ts`, ported from
 the lab team's single-file tool and unit-tested with Vitest): the ZIP is read

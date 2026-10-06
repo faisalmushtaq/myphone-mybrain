@@ -14,7 +14,7 @@ import { parseDate, validateConsentPayload, validateDonationPayload, type Consen
 
 export { enquiry } from './enquiry.js';
 export { exportData, exportNow } from './export.js';
-export { labFollowUps, lookupLabParticipant, requestLabReminder, submitLabConsent, submitLabDonation } from './lab.js';
+export { labFollowUps, lookupLabParticipant, requestLabReminder, submitLabCheckIn, submitLabConsent, submitLabDonation } from './lab.js';
 
 initializeApp();
 

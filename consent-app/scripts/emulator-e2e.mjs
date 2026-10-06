@@ -335,7 +335,13 @@ async function inner() {
     await page.getByLabel('Your mother’s first name').fill('Jane');
     await page.getByLabel('Your house number').fill('123');
     await page.getByLabel('The month you were born').selectOption('01');
-    await page.getByLabel('Your postcode').fill('AB1 2CD');
+    await page.getByLabel('Your postcode').fill('ab1');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText('Enter a full UK postcode, such as LS2 9JT.').first().waitFor();
+    ok('half a postcode is refused, and its letters do not go into the code', (await page.locator('.mpmb-code-line').innerText()).includes('JA101__'));
+    await page.getByLabel('Your postcode').fill('ab12cd');
+    await page.getByLabel('Your postcode').blur();
+    ok('the postcode is tidied into its standard form', (await page.getByLabel('Your postcode').inputValue()) === 'AB1 2CD');
     ok('participant code built as the questionnaire builds it', (await page.locator('.mpmb-code-line').innerText()).includes('JA101CD'));
     await snap('code');
     await page.getByRole('button', { name: 'Continue' }).click();
@@ -360,7 +366,7 @@ async function inner() {
     ok('going on without a screenshot is held back with a reason', (await page.getByRole('heading', { name: 'Send your screen-time screenshots.', level: 1 }).count()) === 1);
     await page.locator('input[type=file]').first().setInputFiles([{ name: 'screen-time.png', mimeType: 'image/png', buffer: await png('Last 7 days') }]);
     await page.waitForFunction(() => document.querySelectorAll('.mpmb-shots li').length === 1);
-    await page.getByRole('radio', { name: 'Before my break' }).check();
+    ok('nobody is asked whether it is before or after the break: the page decides', (await page.getByText(/before or after your/i).count()) === 0);
     await snap('screenshots');
     await page.getByRole('button', { name: 'Send my screenshot', exact: true }).click();
     await page.getByRole('heading', { name: 'Request your data download.', level: 1 }).waitFor({ timeout: 90000 });
@@ -400,7 +406,7 @@ async function inner() {
     await page.getByRole('heading', { name: 'Ready to send' }).waitFor();
     await page.getByRole('button', { name: /Next: send my data/ }).click();
     await page.getByRole('heading', { name: /Check and send/ }).waitFor();
-    ok('the phase chosen with the screenshots carries over to the file', await page.getByRole('radio', { name: 'Before my break' }).isChecked());
+    ok('the send step asks nothing about before or after', (await page.getByRole('radio', { name: 'Before my break' }).count()) === 0);
     await snap('send');
     await page.getByRole('button', { name: 'Send my data' }).click();
     await page.getByRole('heading', { name: /Thank you. Your data has been sent/ }).waitFor({ timeout: 90000 });
@@ -429,8 +435,88 @@ async function inner() {
     const [labQuarantine] = await bucket.getFiles({ prefix: 'labquarantine/' });
     ok('lab quarantine emptied after submit', labQuarantine.length === 0, `${labQuarantine.length} left`);
 
+    // Another device, with nothing saved: the emailed link names the code, and the server says what has arrived.
+    const other = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const elsewhere = await other.newPage();
+    elsewhere.on('pageerror', (e) => errors.push(e.message));
+    await elsewhere.goto(`http://127.0.0.1:${PORT}/lab.html?code=JA101CD`);
+    await elsewhere.getByLabel('Your participant code').waitFor();
+    ok('a link with the code opens the code step with it filled in, and the code leaves the address bar', (await elsewhere.getByLabel('Your participant code').inputValue()) === 'JA101CD' && !elsewhere.url().includes('code='));
+    await elsewhere.getByRole('button', { name: 'Continue' }).click();
+    await elsewhere.getByRole('heading', { name: /Welcome back, JA101CD/ }).waitFor({ timeout: 30000 });
+    const welcomeText = await elsewhere.locator('.mpmb-step').innerText();
+    ok('on another device the person carries on where they left off: the server says what has arrived', welcomeText.includes('1 screen-time screenshot and 1 cleaned app-data file') && welcomeText.includes('Everything the study needs from before your break is in'), welcomeText.slice(0, 300));
+    await elsewhere.screenshot({ path: path.join(root, 'dist-emulator', 'lab-welcome-back.png'), fullPage: true });
+    await other.close();
+
+    // During the break: the check-in page recognises the code saved on this device; nothing to sign.
+    await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=checkin`);
+    await page.getByRole('heading', { name: 'Your mid-break check-in.', level: 1 }).waitFor();
+    ok('the check-in page fills in the code remembered on this device', (await page.getByLabel('Your participant code').inputValue()) === 'JA101CD');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: 'How is your break going?', level: 1 }).waitFor({ timeout: 30000 });
+    await page.getByRole('button', { name: 'Send my check-in' }).click();
+    await page.getByText(/Please answer: Which week/).first().waitFor();
+    for (const [q, v] of [['week', '2'], ['apps-used', 'once-or-twice'], ['mood', '4'], ['difficulty', '3'], ['missed', '2']]) await page.locator(`#lab-q-${q}-${v}`).check();
+    await page.locator('#lab-q-notes').fill('Brick held up fine.');
+    await page.locator('input[type=file]').first().setInputFiles([{ name: 'week2.png', mimeType: 'image/png', buffer: await png('This week') }]);
+    await page.waitForFunction(() => document.querySelectorAll('.mpmb-shots li').length === 1);
+    await snap('checkin');
+    await page.getByRole('button', { name: 'Send my check-in' }).click();
+    await page.getByRole('heading', { name: /Your check-in has been sent/ }).waitFor({ timeout: 90000 });
+    ok('after the check-in, MyStory is offered (not open yet, and it says so)', (await page.getByText('Tell MyStory how it is going.').count()) === 1 && (await page.getByText(/MyStory is not open yet/).count()) === 1);
+    await snap('checkin-done');
+    const labP3 = (await db.collection('labParticipants').doc('JA101CD').get()).data();
+    const checkIn = labP3?.checkInIds?.length ? (await db.collection('labCheckIns').doc(labP3.checkInIds[0]).get()).data() : null;
+    ok('the check-in is filed under the code with its answers', checkIn?.participantCode === 'JA101CD' && checkIn?.number === 1 && checkIn?.answers?.week === '2' && checkIn?.answers?.['apps-used'] === 'once-or-twice' && checkIn?.answers?.notes === 'Brick held up fine.' && checkIn?.formVersion === '0.1-draft' && labP3?.checkInCount === 1, JSON.stringify(checkIn?.answers));
+    const midDonation = (await db.collection('labDonations').where('participantCode', '==', 'JA101CD').where('phase', '==', 'mid').get()).docs[0]?.data();
+    ok('its screenshot goes with it, in the mid-break phase, linked to the check-in', midDonation?.checkInId === labP3?.checkInIds?.[0] && midDonation?.files?.length === 1 && midDonation?.files?.[0]?.kind === 'screenshot' && labP3?.phaseCounts?.mid?.screenshots === 1 && labP3?.phaseCounts?.pre?.screenshots === 1 && labP3?.phaseCounts?.pre?.archives === 1, JSON.stringify(labP3?.phaseCounts));
+
+    // After the break: the code again, a reminder instead of a new consent, then the same two donations, filed as post.
+    await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=after`);
+    await page.getByRole('heading', { name: 'Welcome back after your break.', level: 1 }).waitFor();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: 'Before you start: a reminder.', level: 1 }).waitFor({ timeout: 30000 });
+    const reminderText = await page.locator('.mpmb-step').innerText();
+    ok('after the break there is nothing to sign: a reminder of the consent, of what is kept, and of withdrawing', (await page.locator('#lab-signature').count()) === 0 && reminderText.includes('nothing to sign again') && reminderText.includes('ask to withdraw') && reminderText.includes('1 screen-time screenshot and 1 cleaned app-data file'));
+    await snap('after-reminder');
+    await page.getByRole('button', { name: /Continue: my screenshots/ }).click();
+    await page.getByRole('heading', { name: 'Send your screen-time screenshots from after your break.', level: 1 }).waitFor();
+    await page.getByRole('radio', { name: 'Android' }).check();
+    await page.locator('input[type=file]').first().setInputFiles([{ name: 'after.png', mimeType: 'image/png', buffer: await png('After the break') }]);
+    await page.waitForFunction(() => document.querySelectorAll('.mpmb-shots li').length === 1);
+    await page.getByRole('button', { name: 'Send my screenshot', exact: true }).click();
+    await page.getByRole('heading', { name: 'Request a new data download.', level: 1 }).waitFor({ timeout: 90000 });
+    await page.getByRole('button', { name: /come back later/ }).click();
+    await page.getByLabel('Your email address').fill('jane@example.com');
+    await page.getByRole('button', { name: 'Email me my progress' }).click();
+    await page.getByText(/could not send the email just now|Sent\. Check your inbox/).waitFor({ timeout: 30000 });
+    const postReminder = (await db.collection('labReminders').doc('JA101CD').get()).data();
+    ok('the after-break reminder is about the after-break files and waits for them', postReminder?.phase === 'post' && postReminder?.completedAt === null);
+    await page.getByRole('button', { name: /^I have my file/ }).click();
+    await page.getByRole('heading', { name: /Choose what to share from your data/ }).waitFor();
+    await page.locator('#lab-zip').setInputFiles({ name: 'TikTok_Data.zip', mimeType: 'application/zip', buffer: tiktokZip });
+    await page.getByRole('heading', { name: /Found: TikTok data/ }).waitFor({ timeout: 30000 });
+    await page.locator('#cat-tt_search').uncheck();
+    await page.getByRole('button', { name: 'Add this to my donation' }).click();
+    await page.getByRole('heading', { name: 'Ready to send' }).waitFor();
+    await page.getByRole('button', { name: /Next: send my data/ }).click();
+    await page.getByRole('heading', { name: /Check and send/ }).waitFor();
+    await page.getByRole('button', { name: 'Send my data' }).click();
+    await page.getByRole('heading', { name: /after-break data is in/ }).waitFor({ timeout: 90000 });
+    await snap('after-done');
+    const labP4 = (await db.collection('labParticipants').doc('JA101CD').get()).data();
+    ok('after the break the files are filed as post, and the participant row counts each phase', labP4?.phaseCounts?.post?.screenshots === 1 && labP4?.phaseCounts?.post?.archives === 1 && labP4?.phaseCounts?.pre?.screenshots === 1 && labP4?.phaseCounts?.pre?.archives === 1 && labP4?.donationIds?.length === 5 && labP4?.phone === 'android', JSON.stringify(labP4?.phaseCounts));
+    ok('the after-break send settles that reminder', Boolean((await db.collection('labReminders').doc('JA101CD').get()).data()?.completedAt));
+    // A code without consent cannot use the later pages.
+    await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=after&code=ZZ912AB`);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText(/We have no consent on file for/).waitFor({ timeout: 30000 });
+    ok('a code without consent is sent to the first page', (await page.getByRole('link', { name: 'start on the first page' }).count()) === 1);
+    ok('no browser errors on the check-in and after-break pages', errors.length === 0, errors.join(' | '));
+
     const lookup = await httpsCallable(fns, 'lookupLabParticipant')({ participantCode: 'ja101cd' });
-    ok('another session can see that the code has consent and what was sent', lookup.data?.exists === true && lookup.data?.archives === 1 && lookup.data?.screenshots === 1 && typeof lookup.data?.consentedAt === 'string');
+    ok('another session can see that the code has consent and what was sent, phase by phase', lookup.data?.exists === true && lookup.data?.archives === 2 && lookup.data?.screenshots === 3 && typeof lookup.data?.consentedAt === 'string' && lookup.data?.phases?.pre?.archives === 1 && lookup.data?.phases?.pre?.screenshots === 1 && lookup.data?.phases?.mid?.screenshots === 1 && lookup.data?.phases?.post?.archives === 1 && lookup.data?.phases?.post?.screenshots === 1 && lookup.data?.checkIns === 1, JSON.stringify(lookup.data));
     const unknown = await httpsCallable(fns, 'lookupLabParticipant')({ participantCode: 'ZZ912AB' });
     ok('an unknown code is reported as not on file', unknown.data?.exists === false);
     ok('files for a code without consent are refused', await stranger(() => httpsCallable(fns, 'submitLabDonation')({ participantCode: 'ZZ912AB', uploads: [{ uploadId: '423e4567-e89b-12d3-a456-426614174000', kind: 'screenshot', name: 'x.png', contentType: 'image/png', size: 10 }], phase: 'pre', client })));
@@ -444,7 +530,9 @@ async function inner() {
     const remindersTsv = await readExport('social-media-break/identifying/reminders.tsv');
     const labBeh = await readExport('social-media-break/donations/sub-JA101CD/ses-pre/beh/sub-JA101CD_ses-pre_task-donation_beh.tsv');
     const watchTsv = await readExport('social-media-break/donations/sub-JA101CD/ses-pre/beh/sub-JA101CD_ses-pre_task-tiktokwatch_run-02_beh.tsv');
-    ok('the lab study has its own folder: a pre session with unpacked tables under donations/, names only under identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 1 && labManifest.counts?.labScreenshots === 1 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-JA101CD\t') && labParticipantsTsv.includes('\tiphone\t') && !labParticipantsTsv.includes('Jane') && !labParticipantsTsv.includes('AB1') && labConsentsTsv.includes('Jane Doe') && labConsentsTsv.includes('AB1 2CD') && remindersTsv.includes('JA101CD\tsub-JA101CD\tjane@example.com') && !labParticipantsTsv.includes('jane@') && labBeh.includes('archive\tsourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_archive.zip') && watchTsv === 'time\tlink\n2026-09-01 20:11:03\thttps://www.tiktokv.com/share/video/1/\n2026-09-01 20:12:40\thttps://www.tiktokv.com/share/video/2/\n' && !labManifest.files?.some((n) => n.includes('tiktoksearch')) && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-01_screenshot.png') && labManifest.files?.some((n) => n.startsWith('social-media-break/identifying/signatures/sub-JA101CD/')) && !labManifest.files?.some((n) => n.startsWith('schools/') && n.includes('JA101CD')), JSON.stringify(labManifest.counts));
+    const checkinTsv = await readExport('social-media-break/donations/phenotype/checkin.tsv');
+    ok('the check-ins are exported, one row each, with their mid-break screenshot in ses-mid and the after-break files in ses-post', checkinTsv.startsWith('participant_id\tsession_id\tcheck_in_id\tcheck_in_n\tsubmitted_at\tform_version\tweek\tapps_used\tmood\tdifficulty\tmissed\tnotes\n') && checkinTsv.includes('sub-JA101CD\tses-mid\t') && checkinTsv.includes('\t2\tonce-or-twice\t4\t3\t2\tBrick held up fine.') && labManifest.counts?.labCheckIns === 1 && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-mid/sub-JA101CD_ses-mid_run-01_screenshot.png') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-post/sub-JA101CD_ses-post_run-01_screenshot.png') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-post/sub-JA101CD_ses-post_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sub-JA101CD/ses-post/beh/sub-JA101CD_ses-post_task-tiktokwatch_run-02_beh.tsv'), JSON.stringify(labManifest.counts));
+    ok('the lab study has its own folder: a pre session with unpacked tables under donations/, names only under identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 2 && labManifest.counts?.labScreenshots === 3 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-JA101CD\t') && labParticipantsTsv.includes('\tandroid\t') && labParticipantsTsv.includes('pre; mid; post') && !labParticipantsTsv.includes('Jane') && !labParticipantsTsv.includes('AB1') && labConsentsTsv.includes('Jane Doe') && labConsentsTsv.includes('AB1 2CD') && remindersTsv.includes('JA101CD\tsub-JA101CD\tjane@example.com') && !labParticipantsTsv.includes('jane@') && labBeh.includes('archive\tsourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_archive.zip') && watchTsv === 'time\tlink\n2026-09-01 20:11:03\thttps://www.tiktokv.com/share/video/1/\n2026-09-01 20:12:40\thttps://www.tiktokv.com/share/video/2/\n' && !labManifest.files?.some((n) => n.includes('tiktoksearch')) && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-01_screenshot.png') && labManifest.files?.some((n) => n.startsWith('social-media-break/identifying/signatures/sub-JA101CD/')) && !labManifest.files?.some((n) => n.startsWith('schools/') && n.includes('JA101CD')), JSON.stringify(labManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {
       await uploadBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`), buffer, { contentType: 'image/png' });
