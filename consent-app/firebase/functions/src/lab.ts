@@ -29,7 +29,7 @@ const callOptions = { region: REGION, memory: '1GiB' as const, timeoutSeconds: 3
 const LOOKUPS_PER_HOUR = 30;
 /** Bytes an archive may expand to, in total. The cleaned files are small; anything near this was not made by the cleaner. */
 const MAX_UNPACKED = 400 * 1024 * 1024;
-const PLATFORMS = ['tiktok', 'youtube'];
+const PLATFORMS = ['tiktok', 'youtube', 'instagram'];
 const PHONES = ['iphone', 'android'];
 /** Where in the study a send belongs: before or after the social media break. */
 const PHASES = ['pre', 'post'];

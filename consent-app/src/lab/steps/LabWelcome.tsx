@@ -12,7 +12,7 @@ export function LabWelcome() {
     dispatch({ type: 'code', code: returning ? state.code : '', returning });
     dispatch({ type: 'go-to', stepId: 'participant-id' });
   };
-  const resume = () => dispatch({ type: 'go-to', stepId: consented ? 'clean' : 'participant-id' });
+  const resume = () => dispatch({ type: 'go-to', stepId: consented ? 'screenshots' : 'participant-id' });
 
   return (
     <LabShell
@@ -20,7 +20,7 @@ export function LabWelcome() {
       title="Take part in the social media break study."
       intro={
         <p>
-          For adults aged {labStudy.minAge} to {labStudy.maxAge} who have been invited by the research team. Giving consent takes about five minutes. This page then shows you how to download your TikTok and YouTube data, lets you choose what to share, and sends it to the team before your first lab visit.
+          For adults aged {labStudy.minAge} to {labStudy.maxAge} who have been invited by the research team. Giving consent takes about five minutes. This page then shows you how to take your screen-time screenshots and download your TikTok, YouTube or Instagram data, lets you choose what to share, and sends it to the team before your first lab visit.
         </p>
       }
       hideContinue
@@ -37,7 +37,7 @@ export function LabWelcome() {
         </Callout>
       )}
       <ol className="mpmb-next-steps" role="list">
-        {['Make your participant code, the same one the questionnaire uses.', 'Read the information and give your consent.', 'Request your data from TikTok and YouTube; it can take a few days to arrive.', 'Come back, remove anything you don’t want to share on your own device, and send the rest.'].map((text, i) => (
+        {['Make your participant code, the same one the questionnaire uses.', 'Read the information and give your consent.', 'Take screenshots of your screen-time summary, and request your data from the app you use most: TikTok, YouTube or Instagram. It can take a few days to arrive.', 'Come back, remove anything you don’t want to share on your own device, and send the screenshots and the cleaned file.'].map((text, i) => (
           <li key={text}>
             <span aria-hidden="true">{i + 1}</span>
             <p>{text}</p>

@@ -353,16 +353,25 @@ async function inner() {
     ok('the guide shows no phone steps until a phone is chosen', (await page.locator('#guide-iphone').count()) === 0 && (await page.locator('#guide-android').count()) === 0);
     await page.getByRole('radio', { name: 'iPhone' }).check();
     await page.locator('#guide-iphone').waitFor();
-    ok('choosing iPhone shows its steps only, with a link on to TikTok', (await page.locator('#guide-android').count()) === 0 && (await page.getByRole('button', { name: /Next: get your TikTok data/ }).count()) === 1);
+    ok('choosing iPhone shows its steps only, with a link on to the app data', (await page.locator('#guide-android').count()) === 0 && (await page.getByRole('button', { name: /Next: download your app data/ }).count()) === 1);
+    ok('no app steps until an app is chosen', (await page.locator('#guide-tiktok').count()) === 0 && (await page.locator('#guide-instagram').count()) === 0);
+    await page.getByRole('radio', { name: 'TikTok' }).check();
+    await page.locator('#guide-tiktok').waitFor();
+    ok('choosing TikTok shows only its steps', (await page.locator('#guide-youtube').count()) === 0 && (await page.locator('#guide-instagram').count()) === 0);
     await snap('guide');
     const labParticipant = (await db.collection('labParticipants').doc('JA101CD').get()).data();
     ok('lab consent recorded against the participant code', Boolean(labParticipant?.consentId) && labParticipant?.consentVersion === 1 && labParticipant?.archiveCount === 0);
     const labConsent = labParticipant?.consentId ? (await db.collection('labConsents').doc(labParticipant.consentId).get()).data() : null;
-    ok('lab consent record complete, every statement agreed, drawn signature under signatures/lab/', labConsent?.typedName === 'Jane Doe' && Object.keys(labConsent?.responses ?? {}).length === 8 && labConsent?.responses?.['link-records']?.response === 'declined' && labConsent?.signature?.image?.path?.startsWith('signatures/lab/JA101CD/') && labConsent?.formVersion === '1.0' && labConsent?.informationVersion === '1.0');
+    ok('lab consent record complete, every statement agreed, drawn signature under signatures/lab/', labConsent?.typedName === 'Jane Doe' && Object.keys(labConsent?.responses ?? {}).length === 8 && labConsent?.responses?.['link-records']?.response === 'declined' && labConsent?.signature?.image?.path?.startsWith('signatures/lab/JA101CD/') && labConsent?.formVersion === '2.0-draft' && labConsent?.informationVersion === '2.0');
     ok('the four code answers are kept with the consent, tidied', labConsent?.codeParts?.mother === 'Jane' && labConsent?.codeParts?.house === '123' && labConsent?.codeParts?.month === '01' && labConsent?.codeParts?.postcode === 'AB1 2CD');
     ok('the code row carries no name', !JSON.stringify(labParticipant).includes('Jane'));
 
     await page.getByRole('button', { name: /^I have my files/ }).click();
+    await page.getByRole('heading', { name: /Add your screen-time screenshots/ }).waitFor();
+    await page.locator('input[type=file]').first().setInputFiles([{ name: 'screen-time.png', mimeType: 'image/png', buffer: await png('Last 7 days') }]);
+    await page.waitForFunction(() => document.querySelectorAll('.mpmb-shots li').length === 1);
+    await snap('screenshots');
+    await page.getByRole('button', { name: /Next: my TikTok, YouTube or Instagram file/ }).click();
     await page.getByRole('heading', { name: /Choose what to share from your data/ }).waitFor();
     await page.locator('#lab-zip').setInputFiles({ name: 'TikTok_Data.zip', mimeType: 'application/zip', buffer: tiktokZip });
     await page.getByRole('heading', { name: /Found: TikTok data/ }).waitFor({ timeout: 30000 });
@@ -373,11 +382,9 @@ async function inner() {
     await page.getByRole('button', { name: 'Add this to my donation' }).click();
     await page.getByRole('heading', { name: 'Ready to send' }).waitFor();
     await page.getByRole('button', { name: /Next: send my data/ }).click();
-    await page.getByRole('heading', { name: /Add your screenshots and send/ }).waitFor();
-    await page.locator('input[type=file]').first().setInputFiles([{ name: 'screen-time.png', mimeType: 'image/png', buffer: await png('Last 7 days') }]);
-    await page.waitForFunction(() => document.querySelectorAll('.mpmb-shots li').length === 1);
+    await page.getByRole('heading', { name: /Check and send/ }).waitFor();
     await page.getByRole('radio', { name: 'Before my break' }).check();
-    await snap('donate');
+    await snap('send');
     await page.getByRole('button', { name: 'Send my data' }).click();
     await page.getByRole('heading', { name: /Thank you. Your data has been sent/ }).waitFor({ timeout: 90000 });
     await snap('done');
@@ -417,8 +424,8 @@ async function inner() {
     const labParticipantsTsv = await readExport('social-media-break/donations/participants.tsv');
     const labConsentsTsv = await readExport('social-media-break/identifying/consents.tsv');
     const labBeh = await readExport('social-media-break/donations/sub-JA101CD/ses-pre/beh/sub-JA101CD_ses-pre_task-donation_beh.tsv');
-    const watchTsv = await readExport('social-media-break/donations/sub-JA101CD/ses-pre/beh/sub-JA101CD_ses-pre_task-tiktokwatch_run-01_beh.tsv');
-    ok('the lab study has its own folder: a pre session with unpacked tables under donations/, names only under identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 1 && labManifest.counts?.labScreenshots === 1 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-JA101CD\t') && labParticipantsTsv.includes('\tiphone\t') && !labParticipantsTsv.includes('Jane') && !labParticipantsTsv.includes('AB1') && labConsentsTsv.includes('Jane Doe') && labConsentsTsv.includes('AB1 2CD') && labBeh.includes('archive\tsourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-01_archive.zip') && watchTsv === 'time\tlink\n2026-09-01 20:11:03\thttps://www.tiktokv.com/share/video/1/\n2026-09-01 20:12:40\thttps://www.tiktokv.com/share/video/2/\n' && !labManifest.files?.some((n) => n.includes('tiktoksearch')) && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-01_archive.zip') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_screenshot.png') && labManifest.files?.some((n) => n.startsWith('social-media-break/identifying/signatures/sub-JA101CD/')) && !labManifest.files?.some((n) => n.startsWith('schools/') && n.includes('JA101CD')), JSON.stringify(labManifest.counts));
+    const watchTsv = await readExport('social-media-break/donations/sub-JA101CD/ses-pre/beh/sub-JA101CD_ses-pre_task-tiktokwatch_run-02_beh.tsv');
+    ok('the lab study has its own folder: a pre session with unpacked tables under donations/, names only under identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 1 && labManifest.counts?.labScreenshots === 1 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-JA101CD\t') && labParticipantsTsv.includes('\tiphone\t') && !labParticipantsTsv.includes('Jane') && !labParticipantsTsv.includes('AB1') && labConsentsTsv.includes('Jane Doe') && labConsentsTsv.includes('AB1 2CD') && labBeh.includes('archive\tsourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_archive.zip') && watchTsv === 'time\tlink\n2026-09-01 20:11:03\thttps://www.tiktokv.com/share/video/1/\n2026-09-01 20:12:40\thttps://www.tiktokv.com/share/video/2/\n' && !labManifest.files?.some((n) => n.includes('tiktoksearch')) && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-01_screenshot.png') && labManifest.files?.some((n) => n.startsWith('social-media-break/identifying/signatures/sub-JA101CD/')) && !labManifest.files?.some((n) => n.startsWith('schools/') && n.includes('JA101CD')), JSON.stringify(labManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {
       await uploadBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`), buffer, { contentType: 'image/png' });

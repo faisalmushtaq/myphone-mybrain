@@ -86,7 +86,7 @@ test('donation payloads: kinds, sizes, duplicates and categories are checked', (
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [], client }).includes('No files were sent.'));
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [upload, upload], client }).includes('A file was listed twice.'));
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [{ ...upload, categories: ['dms'] }], client }).includes('An upload names an unknown category.'));
-  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [{ ...upload, platforms: ['instagram'] }], client }).includes('An upload names an unknown platform.'));
+  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [{ ...upload, platforms: ['snapchat'] }], client }).includes('An upload names an unknown platform.'));
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [{ ...upload, size: 200 * 1024 * 1024 }], client }).some((p) => p.includes('larger than')));
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [{ ...upload, kind: 'video' }], client }).includes('An upload reference is malformed.'));
   assert.ok(validateLabDonationPayload({ participantCode: 'nope', uploads: [upload], client }).includes('The participant code is malformed.'));
@@ -118,7 +118,7 @@ test('a YouTube archive with its folders is fine; unknown manifest fields are dr
   const zip = new JSZip();
   zip.file('youtube/history/watch-history.json', JSON.stringify([{ header: 'YouTube', title: 'Watched x', time: now }]));
   zip.file('youtube/subscriptions/subscriptions.csv', 'Channel Id,Channel Url,Channel Title\nUC1,https://www.youtube.com/channel/UC1,Brain Channel\n');
-  zip.file('manifest.json', JSON.stringify(manifest({ platforms: ['youtube', 'instagram'], categories: ['yt_watch', 'yt_subs', 'dms'], kept: { yt_watch: 1, yt_subs: 1, dms: 9 }, extra: 'ignored' })));
+  zip.file('manifest.json', JSON.stringify(manifest({ platforms: ['youtube', 'snapchat'], categories: ['yt_watch', 'yt_subs', 'dms'], kept: { yt_watch: 1, yt_subs: 1, dms: 9 }, extra: 'ignored' })));
   const facts = await inspectCleanedArchive(await zip.generateAsync({ type: 'nodebuffer' }));
   assert.deepEqual(facts.entries, ['manifest.json', 'youtube/history/watch-history.json', 'youtube/subscriptions/subscriptions.csv']);
   assert.deepEqual(facts.manifest.platforms, ['youtube']);

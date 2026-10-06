@@ -92,7 +92,7 @@ export function LabDone() {
             Download a copy of my consent (PDF)
           </Button>
         )}
-        <Button variant="secondary" onClick={() => dispatch({ type: 'go-to', stepId: 'clean' })}>
+        <Button variant="secondary" onClick={() => dispatch({ type: 'go-to', stepId: 'screenshots' })}>
           Add more files
         </Button>
         <Button variant="primary" onClick={finish}>

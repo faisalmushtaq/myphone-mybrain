@@ -60,7 +60,7 @@ export function LabClean() {
       const Zip = await loadZip();
       const zip = await Zip.loadAsync(await file.arrayBuffer());
       const platforms = await detectPlatforms(zip);
-      if (!platforms.length) throw new Error('No TikTok or YouTube data was recognised in this file. Check you chose the ZIP you downloaded, and that TikTok was requested in JSON format.');
+      if (!platforms.length) throw new Error('No TikTok, YouTube or Instagram data was recognised in this file. Check you chose the ZIP you downloaded, and that it was requested in JSON format.');
       const on = new Set<CategoryId>(categories.filter((c) => platforms.includes(c.platform)).map((c) => c.id));
       const result = await cleanArchive(zip, on);
       setWorking({ file, zip, platforms, on, result });
@@ -134,12 +134,12 @@ export function LabClean() {
   const removedList = working ? Array.from(new Set(working.platforms.flatMap((p) => alwaysRemoved[p]))) : [];
 
   return (
-    <LabShell kicker="Choose what to share" title="Choose what to share from your data." intro={<p>Pick the ZIP you downloaded from TikTok or Google Takeout. This page reads it on your own device, keeps only dates, links and search words, and shows you what would be shared. Untick anything you would rather keep private. At least one of the two is needed; do both if you have them.</p>} errors={errors}
+    <LabShell kicker="Choose what to share" title="Choose what to share from your data." intro={<p>Pick the ZIP you downloaded from TikTok, Google Takeout (YouTube) or Instagram. This page reads it on your own device, keeps only dates, links and search words, and shows you what would be shared. Untick anything you would rather keep private. At least one of the two is needed; do both if you have them.</p>} errors={errors}
       onContinue={() => {
         // The study asks for at least one cleaned file; after two nudges the person may go on without.
         if (!state.archives.length && nudges < 2) {
           setNudges(nudges + 1);
-          setErrors([{ field: 'lab-zip', message: nudges === 0 ? 'Prepare at least one TikTok or YouTube file before going on; both if you can. The study needs it alongside your screenshots.' : 'The study really does need your TikTok or YouTube data. If you cannot provide it right now, press Continue once more to go on with screenshots only and add the file later.' }]);
+          setErrors([{ field: 'lab-zip', message: nudges === 0 ? 'Prepare at least one TikTok, YouTube or Instagram file before going on; more than one if you have them. The study needs it alongside your screenshots.' : 'The study really does need your TikTok, YouTube or Instagram data. If you cannot provide it right now, press Continue once more to go on and add the file later.' }]);
           return;
         }
         setErrors([]);
@@ -175,7 +175,7 @@ export function LabClean() {
         <div className={`mpmb-dropzone${over ? ' is-over' : ''}`} onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
           <label className="mpmb-dropzone__label" htmlFor="lab-zip">
             <span className="mpmb-dropzone__title">{busy ? 'Reading your file…' : 'Choose a ZIP file'}</span>
-            <span className="mpmb-dropzone__sub">TikTok (JSON) or YouTube (Google Takeout). It stays on this device.</span>
+            <span className="mpmb-dropzone__sub">TikTok (JSON), YouTube (Google Takeout) or Instagram (JSON). It stays on this device.</span>
           </label>
           <input ref={inputRef} id="lab-zip" type="file" accept=".zip,application/zip,application/x-zip-compressed" className="mpmb-sr-only" disabled={busy} onChange={(e: ChangeEvent<HTMLInputElement>) => void onFile(e.target.files?.[0])} />
           <Button variant="secondary" onClick={() => inputRef.current?.click()} loading={busy}>

@@ -183,5 +183,14 @@ test('a cleaned archive is unpacked into one BIDS behavioural table per kind of 
   assert.equal(body('youtubewatch'), 'time\ttitle\turl\tchannel\tchannel_url\n2026-10-01T14:01:48.000Z\tWatched How brains work\thttps://y/abc\tBrain Channel\thttps://y/c/1\n');
   assert.equal(body('youtubesubs'), 'channel_id\tchannel_url\tchannel_title\nUC1\thttps://y/c/1\tBrain, Channel\n');
   assert.ok(JSON.parse(out.find((f) => f.path === 'x/tiktokwatch.json')!.body).TaskName === 'tiktokwatch');
-  assert.equal(ARCHIVE_TABLES.length, 8);
+  assert.equal(ARCHIVE_TABLES.length, 12);
+  const ig = new JSZip();
+  ig.file('manifest.json', '{}');
+  ig.file('instagram/reels_watched.json', JSON.stringify([{ time: '2025-10-01T06:26:40.000Z', url: 'https://www.instagram.com/reel/abc/' }]));
+  ig.file('instagram/searches.json', JSON.stringify([{ time: '2025-10-01T07:00:00.000Z', search: 'sleep tips' }]));
+  const igTables = archiveTablesFor({ kind: 'archive', entries: ['manifest.json', 'instagram/reels_watched.json', 'instagram/searches.json'], categories: ['ig_watch', 'ig_search'] });
+  assert.deepEqual(igTables.map((t) => t.task), ['instagramreels', 'instagramsearch']);
+  const igOut = await buildArchiveTables(await ig.generateAsync({ type: 'nodebuffer' }), igTables.map((table) => ({ table, base: `y/${table.task}` })));
+  assert.equal(igOut.find((f) => f.path === 'y/instagramreels.tsv')!.body, 'time\turl\n2025-10-01T06:26:40.000Z\thttps://www.instagram.com/reel/abc/\n');
+  assert.equal(igOut.find((f) => f.path === 'y/instagramsearch.tsv')!.body, 'time\tsearch_term\n2025-10-01T07:00:00.000Z\tsleep tips\n');
 });

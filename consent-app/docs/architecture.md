@@ -37,17 +37,18 @@ lab questionnaire builds from four answers (`src/lab/config.ts`), which is
 also what the EEG data is labelled with, so the two meet without a name. The
 steps are welcome → participant code → information (the approved sheet,
 section by section) → consent (seven required statements, name, signature,
-sent at once) → guide (how to download TikTok and YouTube data and take
-screen-time screenshots; linkable with `?step=guide`) → clean → send → done.
+sent at once) → guide (how to take screen-time screenshots and download
+TikTok, YouTube or Instagram data, with a phone and an app picker; linkable
+with `?step=guide`) → screenshots → clean → send → done.
 Because an export can take days to arrive, progress is kept in
 `localStorage` for 60 days and a known code is recognised from any device.
 
 Cleaning happens entirely on the device (`src/lab/cleaner.ts`, ported from
 the lab team's single-file tool and unit-tested with Vitest): the ZIP is read
-with JSZip, TikTok JSON and Google Takeout JSON or HTML are reduced to dates,
-links and search words, the participant unticks categories, a preview shows
+with JSZip, TikTok JSON, Google Takeout JSON or HTML and Instagram JSON are
+reduced to dates, links and search words, the participant unticks categories, a preview shows
 what would leave, and a new ZIP holding only `manifest.json`,
-`tiktok_cleaned.json` and the three YouTube files is built. The server
+`tiktok_cleaned.json`, the three YouTube files and the four Instagram files is built. The server
 (`submitLabDonation`) opens every archive and refuses anything that is not
 exactly that set of file names with the cleaner's manifest, so a raw
 download can never be stored by mistake.

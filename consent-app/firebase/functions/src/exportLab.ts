@@ -183,6 +183,8 @@ export function labBehTable(s: LabSession): Row[] {
  *   task-youtubewatch   time, title, url, channel, channel_url
  *   task-youtubesearch  time, query, url
  *   task-youtubesubs    channel_id, channel_url, channel_title
+ *   task-instagramreels, -instagramposts, -instagramlikes   time, url
+ *   task-instagramsearch   time, search_term
  * Rows are the participant's own records as the cleaner left them; dates
  * stay as the platform wrote them (TikTok: "YYYY-MM-DD HH:MM:SS" UTC;
  * YouTube: ISO 8601). A derivatives dataset can aggregate them later.
@@ -208,6 +210,10 @@ export const ARCHIVE_TABLES: ArchiveTable[] = [
   { task: 'youtubewatch', entry: 'youtube/history/watch-history.json', columns: ['time', 'title', 'url', 'channel', 'channel_url'], dictionary: dict('Videos watched on YouTube, from the participant’s Google Takeout export.', { time: 'When the video was watched (ISO 8601, as Google wrote it)', title: 'Video title, as recorded by Google (usually prefixed "Watched")', url: 'Link to the video', channel: 'Channel name', channel_url: 'Link to the channel' }) },
   { task: 'youtubesearch', entry: 'youtube/history/search-history.json', columns: ['time', 'query', 'url'], dictionary: dict('Searches made on YouTube.', { time: 'When the search was made (ISO 8601, as Google wrote it)', query: 'The words searched for', url: 'Link to the search results' }) },
   { task: 'youtubesubs', entry: 'youtube/subscriptions/subscriptions.csv', columns: ['channel_id', 'channel_url', 'channel_title'], dictionary: dict('Channels the participant subscribes to on YouTube.', { channel_id: 'YouTube channel id', channel_url: 'Link to the channel', channel_title: 'Channel name' }) },
+  { task: 'instagramreels', entry: 'instagram/reels_watched.json', columns: ['time', 'url'], dictionary: dict('Reels watched on Instagram, from the participant’s own data export, reduced on their device to time and link.', { time: 'When the reel was watched (ISO 8601, UTC)', url: 'Link to the reel' }) },
+  { task: 'instagramposts', entry: 'instagram/posts_viewed.json', columns: ['time', 'url'], dictionary: dict('Posts viewed on Instagram.', { time: 'When the post was viewed (ISO 8601, UTC)', url: 'Link to the post' }) },
+  { task: 'instagramlikes', entry: 'instagram/likes.json', columns: ['time', 'url'], dictionary: dict('Posts liked on Instagram.', { time: 'When the post was liked (ISO 8601, UTC)', url: 'Link to the post' }) },
+  { task: 'instagramsearch', entry: 'instagram/searches.json', columns: ['time', 'search_term'], dictionary: dict('Searches made on Instagram (accounts and words).', { time: 'When the search was made (ISO 8601, UTC)', search_term: 'The account or words searched for' }) },
 ];
 
 /** The tables an archive yields, decided from its record alone (entries and kept categories), so the expected paths are known without opening it. */
@@ -281,6 +287,7 @@ export function archiveTableRows(table: ArchiveTable, texts: Map<string, string>
   }
   if (table.task === 'youtubewatch') return asRows(JSON.parse(text)).map((r) => ({ time: str(r.time), title: str(r.title), url: str(r.titleUrl), channel: str(asRows(r.subtitles)[0]?.name), channel_url: str(asRows(r.subtitles)[0]?.url) }));
   if (table.task === 'youtubesearch') return asRows(JSON.parse(text)).map((r) => ({ time: str(r.time), query: str(r.title).replace(/^Searched for /, ''), url: str(r.titleUrl) }));
+  if (table.task.startsWith('instagram')) return asRows(JSON.parse(text)).map((r) => (table.task === 'instagramsearch' ? { time: str(r.time), search_term: str(r.search) } : { time: str(r.time), url: str(r.url) }));
   if (table.task === 'youtubesubs') {
     const [header, ...rows] = parseCsv(text);
     const col = (name: RegExp) => header?.findIndex((h) => name.test(h)) ?? -1;
@@ -378,7 +385,7 @@ export function labParticipantsDictionary(): Record<string, unknown> {
     sends_n: { Description: 'Occasions on which files were sent, across all phases' },
     archives_n: { Description: 'Cleaned TikTok or YouTube archives accepted in total' },
     screenshots_n: { Description: 'Screen-time screenshots accepted in total' },
-    platforms: { Description: 'Platforms found in the cleaned archives', Levels: { tiktok: 'TikTok', youtube: 'YouTube' } },
+    platforms: { Description: 'Platforms found in the cleaned archives', Levels: { tiktok: 'TikTok', youtube: 'YouTube', instagram: 'Instagram' } },
     phone: { Description: 'Phone the screen-time screenshots come from, as chosen in the guide', Levels: { iphone: 'iPhone', android: 'Android' } },
     first_send_at: { Description: 'When the first send was received (ISO 8601, UTC)' },
     last_send_at: { Description: 'When the latest send was received (ISO 8601, UTC)' },
@@ -397,7 +404,7 @@ export function labBehDictionary(): Record<string, unknown> {
     send_id: { Description: 'Identifier of the send; files with the same id arrived together' },
     bytes: { Description: 'File size as stored', Units: 'bytes' },
     sha256: { Description: 'SHA-256 of the stored file' },
-    platforms: { Description: 'Platforms the archive holds (archives only)', Levels: { tiktok: 'TikTok', youtube: 'YouTube' } },
+    platforms: { Description: 'Platforms the archive holds (archives only)', Levels: { tiktok: 'TikTok', youtube: 'YouTube', instagram: 'Instagram' } },
     categories: { Description: 'Categories the participant chose to keep (archives only); see the kept_* columns' },
   };
   for (const id of cleaner.categoryIds) out[`kept_${id}`] = { Description: `Rows kept in “${cleaner.titleOf[id]}” (${cleaner.platformOf[id] === 'tiktok' ? 'TikTok' : 'YouTube'}); n/a when the category was not kept or this is a screenshot` };
@@ -448,6 +455,8 @@ sub-<CODE>/               one session per phase of the study: ses-pre holds
                             task-youtubewatch   time, title, url, channel
                             task-youtubesearch  time, query, url
                             task-youtubesubs    subscriptions
+                            task-instagramreels, -posts, -likes   time, url
+                            task-instagramsearch   time, search_term
                           The run number ties a table to its archive in the index.
                           The sessions file gives each phase's first and last send.
 sourcedata/               the cleaned archives (.zip) and screenshots as received,
@@ -464,10 +473,12 @@ have consented but not sent anything yet.
 
 Inside a cleaned archive: manifest.json (what was kept and removed),
 tiktok_cleaned.json (TikTok: watch history, searches, likes, reposts, shares,
-app-open times, activity totals, each reduced to dates, links and terms) and
-youtube/history/watch-history.json, youtube/history/search-history.json and
-youtube/subscriptions/subscriptions.csv. The server accepts no other file
-names and never opens the content beyond checking it is well-formed.
+app-open times, activity totals, each reduced to dates, links and terms),
+youtube/history/watch-history.json, youtube/history/search-history.json,
+youtube/subscriptions/subscriptions.csv, and instagram/reels_watched.json,
+posts_viewed.json, likes.json and searches.json (time and link, or the search
+words). The server accepts no other file names and never opens the content
+beyond checking it is well-formed and unpacking it into the tables above.
 
 Timestamps are ISO 8601 in UTC. Missing values are n/a.
 `;

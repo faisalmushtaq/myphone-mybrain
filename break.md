@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Social media break study | MyPhone/MyBrain"
-description: "A University of Leeds study for adults aged 18 to 24: a month-long break from social media, two EEG lab visits, and a donation of your own TikTok and YouTube data, cleaned on your device."
+description: "A University of Leeds study for adults aged 18 to 24: a month-long break from social media, two EEG lab visits, and a donation of your own TikTok, YouTube or Instagram data, cleaned on your device."
 permalink: /break/
 title_main: "Can you take a break from"
 title_accent: "social media?"
@@ -19,10 +19,10 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
       <div class="info-panel">
         <h3>What you will do</h3>
         <ul class="info-checklist">
-          <li>Take a 30-day break from social media, using a small device called Brick that restricts the apps you agree with us in advance. Calls, messages and essential apps keep working.</li>
           <li>Attend two sessions of about two hours in our lab, before and after the break.</li>
-          <li>Complete simple computer-based tasks and short questionnaires.</li>
-          <li>Securely share summary data about your social media use: your own TikTok and YouTube download, reduced on your device to dates, links and search words, plus screenshots of your phone’s screen-time summary.</li>
+          <li>Take a 30-day break from social media, using a small device called Brick that restricts the apps you agree with us in advance. Calls, messages, WhatsApp and essential apps keep working.</li>
+          <li>Share screenshots of your phone’s screen-time summary, and your own data download from the app you use most, TikTok, YouTube or Instagram, reduced on your device to dates, links and search words.</li>
+          <li>Complete simple computer-based tasks and short questionnaires, and brief weekly check-ins during the break.</li>
         </ul>
       </div>
       <div class="info-panel info-panel-alt">
@@ -40,7 +40,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
         <h3>Who can take part</h3>
         <ul class="info-checklist">
           <li>You are aged 18 to 24.</li>
-          <li>You actively use one or more social media platforms, such as TikTok, Instagram, Threads, YouTube, Snapchat, Facebook, Reddit or X.</li>
+          <li>You regularly use social media, and the app you use most is TikTok, YouTube or Instagram, so that you can share your usage data from it.</li>
           <li>You are willing to take a temporary break from social media.</li>
         </ul>
       </div>
@@ -52,13 +52,13 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
 
     <div class="prose">
       <h3>Your data stays yours</h3>
-      <p>You request your own data from TikTok and from Google Takeout for YouTube, and this site reads the download <strong>on your own device</strong>. It keeps only what the study needs, such as when you watched or searched and the link, drops everything else, including messages, contacts and location, and shows you exactly what is left. You untick anything you would rather keep private before a single byte is sent. Everything is labelled with a participant code, never your name.</p>
+      <p>You take screenshots of your screen-time summary and request your own data from TikTok, Google Takeout for YouTube, or Instagram, and this site reads the download <strong>on your own device</strong>. It keeps only what the study needs, such as when you watched or searched and the link, drops everything else, including messages, contacts and location, and shows you exactly what is left. You untick anything you would rather keep private before a single byte is sent. Everything is labelled with a participant code, never your name.</p>
       <p>The full participant information sheet is shown, section by section, before you are asked to consent, and you can download a copy of your signed consent for your own records.</p>
     </div>
 
     <div class="participant-next-step">
       <h3>Ready to take part?</h3>
-      <p>Give your consent, then follow the step-by-step guide to download your TikTok and YouTube data and take your screen-time screenshots. The exports can take a few days to arrive, so start before your first lab visit; you can come back to this page to send them when they are ready.</p>
+      <p>Give your consent, then follow the step-by-step guide to take your screen-time screenshots and download your TikTok, YouTube or Instagram data. The downloads can take a few days to arrive, so start before your first lab visit; you can come back to this page to send everything when it is ready.</p>
       <a class="btn btn-primary" href="{{ '/break/take-part/' | relative_url }}">Take part &nbsp;→</a>
       <a class="text-link" href="{{ '/break/take-part/?step=guide' | relative_url }}">Just show me how to download my data &nbsp;→</a>
     </div>

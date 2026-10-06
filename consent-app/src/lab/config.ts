@@ -4,11 +4,12 @@
  * participant-code scheme. Plain data with no imports, because the server's
  * build reads this file too (firebase/functions/scripts/generate-forms.mjs).
  *
- * Wording is the ethics-approved version 1 ("Approved v1", SoPREC 4202).
- * Two statements and one information section describe donating data
- * "through the Smart Data Donation Service (SDDS)". Donations will go through
- * SDDS once it is ready; until then this website carries out that step. Each
- * such passage carries a `note` saying so.
+ * The information follows the participant information sheet of 21 February
+ * 2026 (SoPREC 4202), with two adaptations: the sheet says files are uploaded
+ * to Qualtrics and names TikTok and YouTube; this website does the upload and
+ * Instagram is also accepted. The consent statements follow the approved form
+ * except the two that described the data donation, redrafted to match the new
+ * sheet (version 2.0-draft until the committee has seen them).
  */
 
 export interface LabStatement {
@@ -25,26 +26,24 @@ export interface LabStatement {
 
 export const labConsentForm: { id: string; version: string; title: string; statements: LabStatement[] } = {
   id: 'mpmb-lab-consent',
-  version: '1.0',
+  version: '2.0-draft',
   title: 'Participant consent form',
   statements: [
     { id: 'read-information', version: '1.0', kind: 'required', label: 'Read the information', text: 'I confirm that I have read and understood the Participant Information Sheet.' },
     {
       id: 'involves',
-      version: '1.0',
+      version: '2.0-draft',
       kind: 'required',
       label: 'What taking part involves',
-      text: 'I understand that participation in this study involves: two laboratory sessions; a smartphone restriction phase lasting between two weeks and one month; completion of questionnaires and computer-based tasks; and donation of summary smartphone usage data through the Smart Data Donation Service (SDDS).',
-      note: 'You do this on this website: you download your own data from TikTok and YouTube, remove anything you do not want to share on your own device, and send the rest here.',
+      text: 'I understand that participation in this study involves: two laboratory sessions; a 30-day social media break using Brick to restrict agreed apps; completion of questionnaires, computer-based tasks and brief weekly check-ins; and sharing my smartphone and social media usage data, which I download, review and clean myself, together with screen-time screenshots.',
     },
     { id: 'voluntary', version: '1.0', kind: 'required', label: 'Voluntary', text: 'I understand that participation is voluntary and that I may withdraw at any time without giving a reason.' },
     {
       id: 'donation-required',
-      version: '1.0',
+      version: '2.0-draft',
       kind: 'required',
-      label: 'Data donation is part of the study',
-      text: 'I understand that if I choose not to donate smartphone usage data through SDDS, I will not be able to participate in this study.',
-      note: 'You do this on this website: you download your own data from TikTok and YouTube, remove anything you do not want to share on your own device, and send the rest here.',
+      label: 'Sharing usage data is part of the study',
+      text: 'I understand that sharing the required usage information is a necessary part of taking part in this study.',
     },
     { id: 'publication', version: '1.0', kind: 'required', label: 'Publication', text: 'I understand that anonymised results from this research may be published in academic journals, conference presentations, reports, or academic theses.' },
     { id: 'data-protection', version: '1.0', kind: 'required', label: 'Data protection', text: 'I understand that my data will be stored securely and handled in accordance with UK data protection legislation.' },
@@ -68,51 +67,54 @@ export interface LabInfoSection {
   note?: string;
 }
 
-export const labInformationVersion = { version: '1.0', label: 'Approved version 1' };
+export const labInformationVersion = { version: '2.0', label: 'Participant information sheet of 21 February 2026' };
 
 export const labInformation: LabInfoSection[] = [
   {
     id: 'purpose',
     title: 'What is the purpose of the study?',
-    summary: 'How a short break from social media relates to brain activity, attention and wellbeing.',
+    summary: 'How short-term changes in smartphone use relate to brain activity, attention and wellbeing.',
     detail: [
       'This study examines how short-term changes in smartphone use relate to brain activity, physiological responses, attention, and wellbeing. During laboratory sessions we will measure brain activity using electroencephalography (EEG), heart activity using electrocardiography (ECG), and eye movements using an eye-tracking system.',
-      'To understand how changes in digital behaviour relate to these processes, the study also requires objective information about smartphone usage through a secure data donation system.',
+      'To understand how changes in digital behaviour relate to these processes, the study also requires objective information about your smartphone and social media use.',
     ],
   },
   {
     id: 'invited',
     title: 'Why have I been invited?',
-    summary: 'You are 18 or older and regularly use a smartphone.',
-    detail: ['You have been invited because you are 18 years or older and regularly use a smartphone. The study aims to better understand how everyday digital behaviour relates to brain activity and attention.'],
+    summary: 'You are 18 to 24 years old and regularly use social media.',
+    detail: ['You have been invited because you are 18 to 24 years old and regularly use social media. The study aims to better understand how everyday digital behaviour relates to brain activity.'],
   },
   {
     id: 'what',
     title: 'What will I be asked to do?',
-    summary: 'Two laboratory visits of about two hours, a temporary restriction period in between, and a data donation.',
+    summary: 'Two lab visits of about two hours, a 30-day social media break in between, your usage data, and brief weekly check-ins.',
     detail: [
-      'If you agree to participate, you will attend two laboratory sessions (before and after the intervention period), complete a temporary smartphone restriction period using a hardware device called Brick, and donate summary smartphone usage data.',
+      'If you agree to participate, you will: attend two laboratory sessions, approximately two hours each; take a 30-day social media break using Brick to restrict agreed apps; follow our guide to download, review and clean your social media usage data, then upload it and your screen-time screenshots on this website; and complete brief weekly check-ins and share screen-time screenshots.',
       'Visit 1, baseline (about 2 hours): an EEG recording (measurement of brain activity); an ECG recording (measurement of heart activity using small sensors on the skin); an eye-tracking system while completing computer tasks; computer-based cognitive tasks; and questionnaires about wellbeing and digital behaviour.',
-      'Visit 2, post-intervention (about 2 hours): the EEG and ECG recordings and eye-tracking are repeated, together with the cognitive tasks and follow-up questionnaires.',
+      'Visit 2, post-intervention (about 2 hours): the EEG and ECG recordings are repeated, with eye-tracking during tasks, the cognitive tasks again, and follow-up questionnaires.',
     ],
   },
   {
     id: 'restriction',
-    title: 'What is the smartphone restriction phase?',
-    summary: 'Between the visits, a device called Brick restricts selected apps for two weeks to a month. Calls and essential apps keep working.',
+    title: 'What is the social media restriction phase?',
+    summary: 'Between the visits, a 30-day break from agreed social media apps using a device called Brick. Calls, messages, WhatsApp and essential apps keep working.',
     detail: [
-      'Between the two laboratory visits you will complete a temporary smartphone restriction period lasting between two weeks and one month.',
-      'During this period, a hardware device (Brick) will restrict access to selected applications (for example, social media apps). Essential phone functions such as calls, messages, and necessary apps will remain accessible. The specific apps to be restricted will be agreed with you in advance. If you decide you no longer wish to continue the restriction period, you may withdraw from the study at any time.',
+      'Between the two laboratory visits, you will be asked to take a 30-day break from social media.',
+      'A physical device called Brick will be used to restrict agreed social media apps on your smartphone. During this period, you will also be asked not to access the restricted platforms through internet browsers, laptops, tablets, other computers, or another person’s device or account. The platforms to be restricted will be agreed with you in advance.',
+      'WhatsApp may still be used for direct messages and calls. Essential phone functions, including calls, text messages, maps, banking, and email, will remain accessible.',
+      'If you decide you no longer wish to continue the restriction period, you may withdraw from the study at any time.',
     ],
   },
   {
     id: 'donation',
-    title: 'Smartphone usage data',
-    summary: 'Summary usage information, such as time spent on apps. No messages, photos, contacts or passwords.',
+    title: 'Smartphone and social media usage data',
+    summary: 'Screenshots of your screen-time summary, and your own TikTok, YouTube or Instagram data, reviewed and cleaned by you before you share it.',
     detail: [
-      'As part of this study, participants donate summary smartphone usage information through the Smart Data Donation Service (SDDS). This system provides aggregated usage statistics, such as time spent on applications. It does not provide access to personal content, including messages, photos, contacts, passwords, or browsing history. Because these usage summaries are necessary for the research, participation in the study includes donating this information through SDDS.',
+      'As part of this study, you will be asked to share information about your smartphone and social media use. We will provide a step-by-step guide explaining how to take screenshots of your phone’s Screen Time (iPhone) or Digital Wellbeing (Android) summary and how to download your TikTok, YouTube and/or Instagram usage data.',
+      'This website includes a data-cleaning tool that you can use to review and remove information from your downloaded data before uploading the cleaned files. The guide explains which usage information is needed for the study and how to prepare your files.',
+      'Sharing the required usage information is a necessary part of taking part in this study. If you have any questions or need help preparing your data, please contact the research team before uploading your files.',
     ],
-    note: 'You do this on this website: you download your own data from TikTok and YouTube, remove anything you do not want to share on your own device, and send the rest here.',
   },
   {
     id: 'measures',
@@ -121,7 +123,7 @@ export const labInformation: LabInfoSection[] = [
     detail: [
       'EEG (electroencephalography) records natural electrical activity from the brain using small sensors placed on the scalp. EEG does not deliver electrical stimulation and is widely used in neuroscience research. You may feel mild pressure from the headset, but the procedure should not be painful.',
       'ECG (electrocardiography) measures the electrical activity of the heart using small sensors placed on the skin. The procedure is safe, painless, and commonly used in research and clinical settings.',
-      'Eye-tracking measures where and how your eyes move while you look at images or complete computer tasks. A small camera positioned near the computer screen records eye movements. The system does not record personal images or identify individuals.',
+      'Eye-tracking measures where and how your eyes move while you look at images or complete computer tasks. You will wear eye-tracking glasses that record your eye movements and where you look while completing computer tasks. The system does not record personal images or identify individuals.',
     ],
   },
   {
@@ -139,20 +141,17 @@ export const labInformation: LabInfoSection[] = [
   {
     id: 'compensation',
     title: 'Compensation',
-    summary: '£25 for each laboratory session, plus £25 for completing all parts of the study: £75 in total.',
-    detail: [
-      'You will receive £25 for each laboratory session you attend, plus £25 for completing all parts of the study, £75 in total. Compensation is provided for each completed session. No additional payment is provided for the social media restriction period. Participation in this phase is voluntary and you may discontinue at any time without penalty.',
-      'If you withdraw before completing the study, you will receive compensation proportional to the sessions completed.',
-    ],
+    summary: '£25 for each completed laboratory visit, plus £25 for completing all parts of the study: up to £75 in total.',
+    detail: ['You will receive £25 for each completed laboratory visit, plus an additional £25 for completing all parts of the study, up to £75 in total. If you withdraw early, you will still receive £25 for each laboratory visit you have completed. There is no separate payment for each day of the social media break.'],
   },
   {
     id: 'confidentiality',
     title: 'Confidentiality and data protection',
-    summary: 'The University of Leeds is the data controller. Research data are labelled with a study code and reported only in group form.',
+    summary: 'The University of Leeds is the data controller. Research data are labelled with a study ID code and reported only in group form.',
     detail: [
       'The University of Leeds acts as the Data Controller for this research. Identifiable information will be stored separately from research data. Data will be labelled using a study ID code rather than your name. Results will be analysed and reported anonymously at the group level. Anonymised findings may be published in academic journals, conference presentations, reports, or academic theses.',
-      'You may request withdrawal of your identifiable research data within one month after your final session. After this period, data may be de-identified and may no longer be retrievable.',
-      'The University Research Participant Privacy Notice is available from the University of Leeds. This study has received ethical approval from the University of Leeds School of Psychology Research Ethics Committee.',
+      'You may request removal of your identifiable research data within one month after your final session. After this period, your data may have been anonymised, making it impossible to identify and remove your individual data.',
+      'The University Research Participant Privacy Notice is available from the University of Leeds. This study has received ethical approval from the University of Leeds School of Psychology Research Ethics Committee (ethics reference SoPREC 4202).',
     ],
   },
 ];
@@ -174,6 +173,8 @@ export const labStudy = {
     leadEmail: 'F.Mushtaq@leeds.ac.uk',
     team: 'School of Psychology, University of Leeds',
   },
+  /** The apps whose exports the cleaner understands; participants donate from whichever they use most. */
+  platforms: ['tiktok', 'youtube', 'instagram'] as const,
   /** Largest cleaned archive and screenshot the site will take. */
   maxArchiveBytes: 60 * 1024 * 1024,
   maxScreenshots: 12,

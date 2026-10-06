@@ -2605,6 +2605,24 @@
 .mpmb-app .mpmb-h1, .mpmb-app .mpmb-h2, .mpmb-app .mpmb-h3, .mpmb-app h1, .mpmb-app h2, .mpmb-app h3 { font-optical-sizing: none; font-variation-settings: "opsz" 14, "SOFT" 0, "WONK" 0; }
 
 /* ── The social media break study (lab) ─────────────────────── */
+.mpmb-app .mpmb-band__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.25rem 1.5rem;
+}
+.mpmb-app .mpmb-band__back {
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.mpmb-app .mpmb-band__back:hover {
+  color: var(--mpb-yellow);
+}
 .mpmb-lab-bar {
   display: flex;
   flex-wrap: wrap;

@@ -4,10 +4,11 @@ import { labStepTitles, type LabStepId } from './model';
 import { LabStoreProvider, useLab } from './store';
 import { LabClean } from './steps/LabClean';
 import { LabConsent } from './steps/LabConsent';
-import { LabDonate } from './steps/LabDonate';
 import { LabDone } from './steps/LabDone';
 import { LabGuide } from './steps/LabGuide';
 import { LabInformation } from './steps/LabInformation';
+import { LabScreenshots } from './steps/LabScreenshots';
+import { LabSend } from './steps/LabSend';
 import { LabWelcome } from './steps/LabWelcome';
 import { ParticipantId } from './steps/ParticipantId';
 
@@ -17,8 +18,9 @@ const steps: Record<LabStepId, ComponentType> = {
   information: LabInformation,
   consent: LabConsent,
   guide: LabGuide,
+  screenshots: LabScreenshots,
   clean: LabClean,
-  donate: LabDonate,
+  send: LabSend,
   done: LabDone,
 };
 
@@ -40,9 +42,14 @@ function Frame() {
     <div className="mpmb-frame mpmb-lab">
       <div className={`mpmb-band${showBar ? '' : ' mpmb-band--slim'}`}>
         <div className="mpmb-band__inner">
-          <p className="mpmb-band__kicker">
-            <span>MyPhone/MyBrain</span> Social media break study
-          </p>
+          <div className="mpmb-band__row">
+            <p className="mpmb-band__kicker">
+              <span>MyPhone/MyBrain</span> Social media break study
+            </p>
+            <a className="mpmb-band__back" href="/break/">
+              ← About the study
+            </a>
+          </div>
           {showBar && (
             <div className="mpmb-lab-bar" aria-label="Progress">
               <span>{index >= 0 ? `Step ${index + 1} of ${journey.length} · ` : ''}{labStepTitles[state.stepId]}</span>

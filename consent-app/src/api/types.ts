@@ -102,7 +102,7 @@ export class ApiError extends Error {
 
 /* ── The social media break study (adults, the laboratory study) ─────────── */
 
-export type LabPlatform = 'tiktok' | 'youtube';
+export type LabPlatform = 'tiktok' | 'youtube' | 'instagram';
 
 export interface LabConsentRecord {
   formId: string;

@@ -100,10 +100,54 @@ describe('YouTube cleaning', () => {
   it('refuses an archive with nothing it recognises, and rebuilds a valid zip from the cleaned files', async () => {
     const other = new JSZip();
     other.file('notes.txt', 'hello');
-    await expect(cleanArchive(other)).rejects.toThrow(/No TikTok or YouTube data/);
+    await expect(cleanArchive(other)).rejects.toThrow(/No TikTok, YouTube or Instagram data/);
     const { files } = await cleanArchive(await youtubeZip());
     const buffer = (await buildCleanedZip(JSZip, files, 'nodebuffer')) as Buffer;
     const reopened = await JSZip.loadAsync(buffer);
     expect(Object.keys(reopened.files).sort()).toEqual(['manifest.json', 'youtube/', 'youtube/history/', 'youtube/history/search-history.json', 'youtube/history/watch-history.json', 'youtube/subscriptions/', 'youtube/subscriptions/subscriptions.csv']);
+  });
+});
+
+describe('Instagram cleaning', () => {
+  const igExport = async (): Promise<JSZip> => {
+    const zip = new JSZip();
+    zip.file('ads_information/ads_and_topics/videos_watched.json', JSON.stringify({ impressions_history_videos_watched: [{ string_map_data: { Author: { value: 'someone' }, Time: { timestamp: 1759300000 } }, timestamp: 1759300000, label_values: [{ label: 'URL', value: 'https://www.instagram.com/reel/abc/' }, { label: 'Author', value: 'someone' }] }] }));
+    zip.file('ads_information/ads_and_topics/posts_viewed.json', JSON.stringify({ impressions_history_posts_seen: [{ string_list_data: [{ href: 'https://www.instagram.com/p/def/', timestamp: 1759310000 }] }] }));
+    zip.file('your_instagram_activity/likes/liked_posts.json', JSON.stringify({ likes_media_likes: [{ title: 'someone', string_list_data: [{ href: 'https://www.instagram.com/p/ghi/', value: '👍', timestamp: 1759320000 }] }] }));
+    zip.file('logged_information/recent_searches/word_or_phrase_searches.json', JSON.stringify({ searches_keyword: [{ string_map_data: { Search: { value: 'sleep tips', timestamp: 1759330000 } }, title: 'sleep tips', string_list_data: [{ value: 'sleep tips', timestamp: 1759330000 }] }] }));
+    zip.file('logged_information/recent_searches/profile_searches.json', JSON.stringify({ searches_user: [{ title: 'a_friend', string_list_data: [{ value: 'a_friend', timestamp: 1759340000 }] }] }));
+    zip.file('your_instagram_activity/messages/inbox/friend/message_1.json', JSON.stringify({ messages: [{ content: 'private words' }] }));
+    zip.file('personal_information/personal_information.json', JSON.stringify({ profile_user: [{ string_map_data: { Email: { value: 'me@example.com' } } }] }));
+    return zip;
+  };
+  it('detects Instagram, keeps time and link only, and drops messages and profile details', async () => {
+    const zip = await igExport();
+    expect(await detectPlatforms(zip)).toEqual(['instagram']);
+    const { files, report, preview } = await cleanArchive(zip);
+    expect(report.platforms).toEqual(['instagram']);
+    expect(report.kept).toMatchObject({ ig_watch: 1, ig_posts: 1, ig_likes: 1, ig_search: 2 });
+    expect(files.map((f) => f.path).sort()).toEqual(['instagram/likes.json', 'instagram/posts_viewed.json', 'instagram/reels_watched.json', 'instagram/searches.json', 'manifest.json']);
+    expect(JSON.parse(files.find((f) => f.path === 'instagram/reels_watched.json')!.text)).toEqual([{ time: '2025-10-01T06:26:40.000Z', url: 'https://www.instagram.com/reel/abc/' }]);
+    const searches = JSON.parse(files.find((f) => f.path === 'instagram/searches.json')!.text);
+    expect(searches.map((s: { search: string }) => s.search)).toEqual(['sleep tips', 'a_friend']);
+    const all = files.map((f) => f.text).join('\n');
+    expect(all).not.toContain('private words');
+    expect(all).not.toContain('me@example.com');
+    expect(all).not.toContain('someone');
+    expect(preview.map((p) => p.kind)).toEqual(['Watched', 'Viewed', 'Liked', 'Searched', 'Searched']);
+    for (const f of files) expect(ALLOWED_CLEANED_FILES).toContain(f.path);
+    expect(cleanedArchiveName(report.platforms)).toBe('instagram_cleaned_donation.zip');
+  });
+  it('refuses an Instagram export requested in HTML and says what to do', async () => {
+    const zip = new JSZip();
+    zip.file('your_instagram_activity/likes/liked_posts.html', '<html></html>');
+    await expect(detectPlatforms(zip)).rejects.toThrow(/JSON/);
+  });
+  it('unticking a category leaves it out', async () => {
+    const zip = await igExport();
+    const on = new Set<CategoryId>(['ig_watch']);
+    const { files, report } = await cleanArchive(zip, on);
+    expect(files.map((f) => f.path).sort()).toEqual(['instagram/reels_watched.json', 'manifest.json']);
+    expect(report.kept).toEqual({ ig_watch: 1 });
   });
 });

@@ -1,7 +1,7 @@
 import type JSZip from 'jszip';
 
 /**
- * In-browser cleaning of a TikTok or YouTube data export before it is
+ * In-browser cleaning of a TikTok, YouTube or Instagram data export before it is
  * donated. Nothing here touches the network: the participant's ZIP is read
  * on their own device, only the categories they tick are kept, and the
  * fields inside each category are reduced to what the study needs (dates,
@@ -13,8 +13,8 @@ import type JSZip from 'jszip';
  * need a DOM), so the rules are unit-tested.
  */
 
-export type Platform = 'tiktok' | 'youtube';
-export type CategoryId = 'tt_watch' | 'tt_search' | 'tt_engage' | 'tt_login' | 'tt_counts' | 'yt_watch' | 'yt_search' | 'yt_subs';
+export type Platform = 'tiktok' | 'youtube' | 'instagram';
+export type CategoryId = 'tt_watch' | 'tt_search' | 'tt_engage' | 'tt_login' | 'tt_counts' | 'yt_watch' | 'yt_search' | 'yt_subs' | 'ig_watch' | 'ig_posts' | 'ig_likes' | 'ig_search';
 
 export interface Category {
   id: CategoryId;
@@ -34,17 +34,22 @@ export const categories: Category[] = [
   { id: 'yt_watch', platform: 'youtube', title: 'Watch history', detail: 'Video title, link, channel and when you watched' },
   { id: 'yt_search', platform: 'youtube', title: 'Search history', detail: 'The words you searched for and when', sensitive: true },
   { id: 'yt_subs', platform: 'youtube', title: 'Subscriptions', detail: 'The channels you follow' },
+  { id: 'ig_watch', platform: 'instagram', title: 'Reels watched', detail: 'Which reels you watched and when (link and time only)' },
+  { id: 'ig_posts', platform: 'instagram', title: 'Posts viewed', detail: 'Which posts you viewed and when (link and time only)' },
+  { id: 'ig_likes', platform: 'instagram', title: 'Posts liked', detail: 'Which posts you liked and when' },
+  { id: 'ig_search', platform: 'instagram', title: 'Search history', detail: 'The accounts or words you searched for and when', sensitive: true },
 ];
 
 export const alwaysRemoved: Record<Platform, string[]> = {
   tiktok: ['Direct messages', 'Location and GPS', 'Device IDs and IP addresses', 'TikTok Shop', 'Wallet', 'Profile, followers and contacts', 'Comment text', 'Uploaded videos'],
   youtube: ['Uploaded videos', 'Comments', 'Video metadata', 'Channel settings', 'Music library', 'Playables', 'Clips', 'Playlists'],
+  instagram: ['Messages', 'Comments', 'Followers and following', 'Contacts', 'Profile details', 'Login, IP and device info', 'Ads data', 'Saved items', 'Your photos and videos'],
 };
 
-export const platformNames: Record<Platform, string> = { tiktok: 'TikTok', youtube: 'YouTube' };
+export const platformNames: Record<Platform, string> = { tiktok: 'TikTok', youtube: 'YouTube', instagram: 'Instagram' };
 
 /** Written into every cleaned archive so the team knows how it was made. */
-export const CLEANER_VERSION = '1.0';
+export const CLEANER_VERSION = '1.1';
 
 export interface CleanReport {
   platforms: Platform[];
@@ -59,7 +64,7 @@ export interface CleanedFile {
 }
 
 export interface PreviewRow {
-  kind: 'Watched' | 'Searched';
+  kind: 'Watched' | 'Searched' | 'Viewed' | 'Liked';
   when: string;
   what: string;
 }
@@ -216,6 +221,45 @@ function readYt(name: string, text: string): YtEntry[] {
 export const cleanYtWatch = (entries: YtEntry[]) => keepFields(entries, ['header', 'title', 'titleUrl', 'subtitles', 'time']);
 export const cleanYtSearch = (entries: YtEntry[]) => keepFields(entries, ['header', 'title', 'titleUrl', 'time']);
 
+/* ── Instagram ──────────────────────────────────────────────────────────── */
+
+/** Instagram's JSON export: each record is either {string_list_data: [{href, value, timestamp}]} or {timestamp, label_values: [{label, value}]}. Only a time and a link (or the search words) survive. */
+export interface IgRow {
+  time: string;
+  url?: string;
+  search?: string;
+}
+
+const igTime = (ts: unknown): string => (typeof ts === 'number' ? new Date(ts * 1000).toISOString() : '');
+function igLabel(entry: Json, name: string): string {
+  const lv = Array.isArray(entry.label_values) ? (entry.label_values as Json[]) : [];
+  const hit = lv.find((x) => x.label === name && x.value);
+  return hit ? String(hit.value) : '';
+}
+/** Instagram wraps its lists in a single-key object; the key varies by file. */
+function igList(d: unknown): Json[] {
+  if (Array.isArray(d)) return d.filter(isObj);
+  if (isObj(d)) for (const k of Object.keys(d)) if (Array.isArray(d[k])) return (d[k] as unknown[]).filter(isObj);
+  return [];
+}
+export function cleanIgLinks(d: unknown): IgRow[] {
+  return igList(d)
+    .map((e) => {
+      const s = Array.isArray(e.string_list_data) ? ((e.string_list_data as unknown[])[0] as Json | undefined) : undefined;
+      if (s) return { time: igTime(s.timestamp), url: String(s.href ?? '') };
+      return { time: igTime(e.timestamp), url: igLabel(e, 'URL') };
+    })
+    .filter((r) => r.time || r.url);
+}
+export function cleanIgSearches(d: unknown): IgRow[] {
+  return igList(d)
+    .map((e) => {
+      const s = Array.isArray(e.string_list_data) ? ((e.string_list_data as unknown[])[0] as Json | undefined) : undefined;
+      return { time: igTime(s ? s.timestamp : e.timestamp), search: String(e.title ?? s?.value ?? '') };
+    })
+    .filter((r) => r.search);
+}
+
 /* ── Archive handling ───────────────────────────────────────────────────── */
 
 export interface ArchiveSources {
@@ -223,6 +267,13 @@ export interface ArchiveSources {
   ytWatch: string | null;
   ytSearch: string | null;
   ytSubs: string | null;
+  igWatch: string | null;
+  igPosts: string | null;
+  igLikes: string | null;
+  /** Instagram keeps account searches and word searches in two files; both are kept. */
+  igSearch: string[];
+  /** An Instagram export requested in HTML rather than JSON: refused with advice. */
+  igHtml: boolean;
   /** JSON files to try when no obvious TikTok file is present. */
   otherJson: string[];
 }
@@ -237,9 +288,16 @@ export function findSources(zip: JSZip): ArchiveSources {
     ytWatch: files.find((n) => /history\/watch-history\.(json|html)$/i.test(norm(n))) ?? null,
     ytSearch: files.find((n) => /history\/search-history\.(json|html)$/i.test(norm(n))) ?? null,
     ytSubs: files.find((n) => /subscriptions\/subscriptions\.csv$/i.test(norm(n))) ?? null,
-    otherJson: files.filter((n) => lower(n).endsWith('.json') && !lower(n).includes('user_data')).slice(0, 5),
+    igWatch: files.find((n) => /ads_and_topics\/videos_watched\.json$/i.test(norm(n))) ?? null,
+    igPosts: files.find((n) => /ads_and_topics\/posts_viewed\.json$/i.test(norm(n))) ?? null,
+    igLikes: files.find((n) => /your_instagram_activity\/likes\/liked_posts\.json$/i.test(norm(n))) ?? null,
+    igSearch: files.filter((n) => /recent_searches\/(profile_searches|word_or_phrase_searches)\.json$/i.test(norm(n))),
+    igHtml: files.some((n) => /your_instagram_activity\/.*\.html$/i.test(norm(n))),
+    otherJson: files.filter((n) => lower(n).endsWith('.json') && !lower(n).includes('user_data') && !/instagram|ads_and_topics|recent_searches/i.test(norm(n))).slice(0, 5),
   };
 }
+
+const hasInstagram = (src: ArchiveSources) => Boolean(src.igWatch || src.igPosts || src.igLikes || src.igSearch.length);
 
 /** Which platforms an archive holds, without cleaning it yet. */
 export async function detectPlatforms(zip: JSZip): Promise<Platform[]> {
@@ -260,6 +318,8 @@ export async function detectPlatforms(zip: JSZip): Promise<Platform[]> {
     }
   }
   if (src.ytWatch || src.ytSearch || src.ytSubs) platforms.push('youtube');
+  if (hasInstagram(src)) platforms.push('instagram');
+  else if (src.igHtml) throw new Error('Your Instagram export is in HTML format, which this page cannot read. Please request your Instagram data again and choose JSON as the format.');
   return platforms;
 }
 
@@ -319,7 +379,31 @@ export async function cleanArchive(zip: JSZip, on: Set<CategoryId> = allCategori
     }
   }
 
-  if (!report.platforms.length) throw new Error('No TikTok or YouTube data was recognised in this file.');
+  if (hasInstagram(src)) {
+    report.platforms.push('instagram');
+    report.removed.push(...alwaysRemoved.instagram);
+    const readJson = async (name: string): Promise<unknown> => JSON.parse(await zip.file(name)!.async('string'));
+    const links: [string | null, CategoryId, string, PreviewRow['kind']][] = [
+      [src.igWatch, 'ig_watch', 'instagram/reels_watched.json', 'Watched'],
+      [src.igPosts, 'ig_posts', 'instagram/posts_viewed.json', 'Viewed'],
+      [src.igLikes, 'ig_likes', 'instagram/likes.json', 'Liked'],
+    ];
+    for (const [name, id, path, kind] of links) {
+      if (!name || !on.has(id)) continue;
+      const rows = cleanIgLinks(await readJson(name));
+      files.push({ path, text: JSON.stringify(rows, null, 1) });
+      report.kept[id] = rows.length;
+      for (const x of rows.slice(0, 3)) preview.push({ kind, when: x.time, what: x.url ?? '' });
+    }
+    if (src.igSearch.length && on.has('ig_search')) {
+      const rows = (await Promise.all(src.igSearch.map(readJson))).flatMap(cleanIgSearches).sort((a, b) => a.time.localeCompare(b.time));
+      files.push({ path: 'instagram/searches.json', text: JSON.stringify(rows, null, 1) });
+      report.kept.ig_search = rows.length;
+      for (const x of rows.slice(0, 3)) preview.push({ kind: 'Searched', when: x.time, what: x.search ?? '' });
+    }
+  } else if (src.igHtml && !report.platforms.length) throw new Error('Your Instagram export is in HTML format, which this page cannot read. Please request your Instagram data again and choose JSON as the format.');
+
+  if (!report.platforms.length) throw new Error('No TikTok, YouTube or Instagram data was recognised in this file.');
   files.push({
     path: 'manifest.json',
     text: JSON.stringify({ cleanedAt: new Date().toISOString(), cleaner: `MyPhone/MyBrain data donation cleaner ${CLEANER_VERSION}`, platforms: report.platforms, categories: Array.from(on).filter((c) => report.platforms.includes(categories.find((x) => x.id === c)!.platform)), kept: report.kept, removed: report.removed }, null, 1),
@@ -328,7 +412,7 @@ export async function cleanArchive(zip: JSZip, on: Set<CategoryId> = allCategori
 }
 
 /** The file names a cleaned archive may contain; the server refuses anything else. */
-export const ALLOWED_CLEANED_FILES = ['manifest.json', 'tiktok_cleaned.json', 'youtube/history/watch-history.json', 'youtube/history/search-history.json', 'youtube/subscriptions/subscriptions.csv'];
+export const ALLOWED_CLEANED_FILES = ['manifest.json', 'tiktok_cleaned.json', 'youtube/history/watch-history.json', 'youtube/history/search-history.json', 'youtube/subscriptions/subscriptions.csv', 'instagram/reels_watched.json', 'instagram/posts_viewed.json', 'instagram/likes.json', 'instagram/searches.json'];
 
 export function cleanedArchiveName(platforms: Platform[]): string {
   return `${platforms.join('_')}_cleaned_donation.zip`;

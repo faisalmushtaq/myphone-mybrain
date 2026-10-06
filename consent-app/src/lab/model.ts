@@ -10,9 +10,10 @@ import type { CodeParts } from './config';
  * arrive), so progress lives in localStorage keyed by the participant code.
  */
 
-export type LabStepId = 'welcome' | 'participant-id' | 'information' | 'consent' | 'guide' | 'clean' | 'donate' | 'done';
+export type LabStepId = 'welcome' | 'participant-id' | 'information' | 'consent' | 'guide' | 'screenshots' | 'clean' | 'send' | 'done';
 
-export const labStepOrder: LabStepId[] = ['welcome', 'participant-id', 'information', 'consent', 'guide', 'clean', 'donate', 'done'];
+/** Screenshots come before the TikTok, YouTube or Instagram file, matching the guide's order. */
+export const labStepOrder: LabStepId[] = ['welcome', 'participant-id', 'information', 'consent', 'guide', 'screenshots', 'clean', 'send', 'done'];
 
 export const labStepTitles: Record<LabStepId, string> = {
   welcome: 'Social media break study',
@@ -20,8 +21,9 @@ export const labStepTitles: Record<LabStepId, string> = {
   information: 'About the study',
   consent: 'Your consent',
   guide: 'Get your data',
+  screenshots: 'Your screenshots',
   clean: 'Choose what to share',
-  donate: 'Send your data',
+  send: 'Send your data',
   done: 'Thank you',
 };
 
@@ -82,6 +84,8 @@ export interface LabState {
   phone: LabPhone | null;
   /** Whether the files being sent are from before or after the break. */
   phase: LabPhase | null;
+  /** The app the person uses most, chosen in the guide so only its steps show. */
+  app: LabPlatform | null;
   submission: LabSubmission;
   archives: LabArchive[];
   screenshots: LabScreenshot[];

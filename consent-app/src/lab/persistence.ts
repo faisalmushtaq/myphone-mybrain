@@ -3,7 +3,7 @@ import { initialLabState } from './reducer';
 
 /**
  * Progress is kept in localStorage, not sessionStorage, because this process
- * spans days: a TikTok or YouTube export can take a while to arrive, and
+ * spans days: a TikTok, YouTube or Instagram export can take a while to arrive, and
  * people come back to send it. Nothing but the person's own code, their
  * consent record and the list of files already sent is kept; file bytes are
  * never stored. Cleared by "Finish and clear this device", or after 60 days.
