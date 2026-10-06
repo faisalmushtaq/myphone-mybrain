@@ -1,53 +1,26 @@
 import { useState } from 'react';
-import { getApi } from '../../api';
-import { ApiError, type LabPhase } from '../../api/types';
+import type { LabPhase } from '../../api/types';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
 import { ChoiceField } from '../../components/ui/Field';
-import { announce } from '../../lib/announce';
 import { formatBytes } from '../../lib/image';
-import { describeError, labClientInfo, labSession } from '../api';
 import { platformNames } from '../cleaner';
-import { labFileStore } from '../fileStore';
 import { LabShell } from '../LabShell';
 import type { LabArchive, LabScreenshot } from '../model';
 import { useLab } from '../store';
+import { useLabSender } from '../useLabSender';
 import type { FieldError } from '../validation';
 
 /** Everything prepared is uploaded and recorded against the participant code in one go, filed under before or after the break. */
 export function LabSend() {
   const { state, dispatch } = useLab();
+  const { send: sendFiles, busy } = useLabSender();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [nudges, setNudges] = useState(0);
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
-  const busy = state.submission.donationStage === 'sending';
   const pendingArchives = state.archives.filter((a) => a.status !== 'sent');
   const pendingShots = state.screenshots.filter((s) => s.status !== 'sent');
   const ready = state.codeConfirmed && state.submission.consentStage === 'sent';
-
-  type Item = { kind: 'archive'; item: LabArchive } | { kind: 'screenshot'; item: LabScreenshot };
-
-  const uploadOne = async (sessionId: string, entry: Item): Promise<string | null> => {
-    const { kind, item } = entry;
-    const blob = labFileStore.get(item.id);
-    const update = (patch: Partial<LabArchive & LabScreenshot>) => (kind === 'archive' ? dispatch({ type: 'update-archive', id: item.id, patch }) : dispatch({ type: 'update-screenshot', id: item.id, patch }));
-    if (item.status === 'uploaded' && item.uploadId) return item.uploadId;
-    if (!blob) {
-      update({ status: 'failed', error: 'This file is no longer available on this device. Please add it again.' });
-      return null;
-    }
-    update({ status: 'uploading', progress: 0, error: null });
-    try {
-      const api = getApi();
-      const slot = await api.requestLabUploadSlot(sessionId, { contentType: blob.type || 'application/zip', size: blob.size });
-      await api.uploadImage(slot, blob, (fraction) => update({ progress: fraction }));
-      update({ status: 'uploaded', progress: 1, uploadId: slot.uploadId });
-      return slot.uploadId;
-    } catch (error) {
-      update({ status: 'failed', progress: 0, error: error instanceof ApiError ? describeError(error, 'this file') : 'The upload did not finish. Please try again.' });
-      return null;
-    }
-  };
 
   const send = async () => {
     setErrors([]);
@@ -67,46 +40,9 @@ export function LabSend() {
       setErrors(found);
       return;
     }
-    dispatch({ type: 'submission', patch: { donationStage: 'sending', donationError: null } });
-    announce('Uploading your files.');
-    try {
-      const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
-      const items: Item[] = [...pendingShots.map((s): Item => ({ kind: 'screenshot', item: s })), ...pendingArchives.map((a): Item => ({ kind: 'archive', item: a }))];
-      const uploaded: { entry: Item; uploadId: string }[] = [];
-      for (const entry of items) {
-        const uploadId = await uploadOne(session.sessionId, entry);
-        if (uploadId) uploaded.push({ entry, uploadId });
-      }
-      if (!uploaded.length) throw new ApiError('network', 'No file could be uploaded.');
-      const result = await getApi().submitLabDonation(session, {
-        participantCode: state.code,
-        uploads: uploaded.map(({ entry, uploadId }) =>
-          entry.kind === 'archive'
-            ? { uploadId, kind: 'archive' as const, name: entry.item.name, contentType: 'application/zip', size: entry.item.size, platforms: entry.item.platforms, categories: entry.item.categories, kept: Object.fromEntries(Object.entries(entry.item.kept).map(([k, v]) => [k, Number(v)])) }
-            : { uploadId, kind: 'screenshot' as const, name: entry.item.name, contentType: entry.item.type, size: entry.item.size },
-        ),
-        phase: state.phase!,
-        phone: state.phone,
-        client: labClientInfo(),
-      });
-      for (const r of result.rejected) {
-        const hit = uploaded.find((u) => u.uploadId === r.uploadId);
-        if (!hit) continue;
-        if (hit.entry.kind === 'archive') dispatch({ type: 'update-archive', id: hit.entry.item.id, patch: { status: 'failed', uploadId: null, error: r.reason } });
-        else dispatch({ type: 'update-screenshot', id: hit.entry.item.id, patch: { status: 'failed', uploadId: null, error: r.reason } });
-      }
-      dispatch({ type: 'files-sent', ids: result.accepted, receivedAt: result.receivedAt, donationId: result.donationId });
-      if (result.accepted.length) {
-        announce(result.rejected.length ? `${result.accepted.length} sent, ${result.rejected.length} not accepted.` : 'Your data has been sent. Thank you.');
-        dispatch({ type: 'go-to', stepId: 'done' });
-      } else {
-        setErrors([{ field: 'lab-files', message: result.rejected[0]?.reason ?? 'Nothing could be accepted. Please check the files and try again.' }]);
-      }
-    } catch (error) {
-      const message = describeError(error, 'your data');
-      dispatch({ type: 'submission', patch: { donationStage: 'failed', donationError: message } });
-      setErrors([{ field: 'lab-files', message }]);
-    }
+    const result = await sendFiles(['archive', 'screenshot']);
+    if (result.ok) dispatch({ type: 'go-to', stepId: 'done' });
+    else setErrors([{ field: 'lab-files', message: result.message ?? 'Please try again.' }]);
   };
 
   const status = (f: LabArchive | LabScreenshot) => (f.status === 'sent' ? 'Sent' : f.status === 'uploading' ? `Uploading… ${Math.round(f.progress * 100)}%` : f.status === 'failed' ? (f.error ?? 'Failed') : 'Ready to send');

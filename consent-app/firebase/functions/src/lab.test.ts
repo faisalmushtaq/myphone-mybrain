@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import JSZip from 'jszip';
 import { cleaner, labConsentForm, labInformationVersion } from './forms.js';
 import { RejectedUpload } from './images.js';
-import { buildParticipantCode, inspectCleanedArchive, normaliseCode, normaliseCodeParts, validateLabConsentPayload, validateLabDonationPayload } from './lab.js';
+import { buildParticipantCode, inspectCleanedArchive, labFollowUpEmail, labStatusEmail, normaliseCode, normaliseCodeParts, outstanding, validateLabConsentPayload, validateLabDonationPayload, validateLabReminderPayload } from './lab.js';
 
 const now = new Date().toISOString();
 const client = { userAgent: 'test', submittedAt: now, timezoneOffset: 0 };
@@ -143,4 +143,21 @@ test('archives that are not the cleaner’s are refused with a reason', async ()
   const noManifest = new JSZip();
   noManifest.file('tiktok_cleaned.json', '{}');
   await rejects(await noManifest.generateAsync({ type: 'nodebuffer' }), /not a cleaned export/);
+});
+
+test('the progress email says what is in and what is still to come; the follow-up names only what is missing', () => {
+  const nothing = { participantCode: 'JA101CD', consentedAt: '2026-10-05T09:00:00.000Z', screenshots: 0, archives: 0, platforms: [] };
+  assert.deepEqual(outstanding(nothing), ['screenshots of your phone’s screen-time summary', 'your cleaned TikTok, YouTube or Instagram file']);
+  const status = labStatusEmail(nothing);
+  assert.equal(status.subject, 'MyPhone/MyBrain: your data donation so far (JA101CD)');
+  assert.ok(status.text.includes('Consent: recorded on 2026-10-05') && status.text.includes('Received so far: nothing yet') && status.text.includes('Still to come: screenshots of your phone’s screen-time summary and your cleaned TikTok, YouTube or Instagram file.') && status.text.includes('https://myphonemybrain.com/break/take-part/') && status.text.includes('one reminder'));
+  const partial = { ...nothing, screenshots: 2, archives: 1, platforms: ['tiktok'] };
+  assert.deepEqual(outstanding(partial), []);
+  assert.ok(labStatusEmail(partial).text.includes('Received so far: 2 screen-time screenshots and 1 cleaned file (tiktok)') && labStatusEmail(partial).text.includes('Everything the study needs is in'));
+  const followUp = labFollowUpEmail({ ...nothing, screenshots: 1 });
+  assert.ok(followUp.text.includes('we have not yet received your cleaned TikTok, YouTube or Instagram file for participant code JA101CD') && followUp.text.includes('only reminder'));
+  assert.ok(!followUp.text.includes('screenshots of your phone'));
+  assert.deepEqual(validateLabReminderPayload({ participantCode: 'ja101cd', email: 'jane@example.com' }), []);
+  assert.ok(validateLabReminderPayload({ participantCode: 'JA101CD', email: 'not-an-email' }).some((p) => p.includes('email address')));
+  assert.ok(validateLabReminderPayload({ participantCode: 'nope', email: 'jane@example.com' }).includes('The participant code is malformed.'));
 });

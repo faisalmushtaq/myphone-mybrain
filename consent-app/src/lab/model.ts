@@ -12,15 +12,15 @@ import type { CodeParts } from './config';
 
 export type LabStepId = 'welcome' | 'participant-id' | 'information' | 'consent' | 'guide' | 'screenshots' | 'clean' | 'send' | 'done';
 
-/** Screenshots come before the TikTok, YouTube or Instagram file, matching the guide's order. */
-export const labStepOrder: LabStepId[] = ['welcome', 'participant-id', 'information', 'consent', 'guide', 'screenshots', 'clean', 'send', 'done'];
+/** The screenshots go first, sent straight away; the app data download takes days, so its guide comes next and the person returns to clean and send the file. */
+export const labStepOrder: LabStepId[] = ['welcome', 'participant-id', 'information', 'consent', 'screenshots', 'guide', 'clean', 'send', 'done'];
 
 export const labStepTitles: Record<LabStepId, string> = {
   welcome: 'Social media break study',
   'participant-id': 'Your participant code',
   information: 'About the study',
   consent: 'Your consent',
-  guide: 'Get your data',
+  guide: 'Get your app data',
   screenshots: 'Your screenshots',
   clean: 'Choose what to share',
   send: 'Send your data',

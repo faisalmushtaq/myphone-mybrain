@@ -4,7 +4,7 @@ import { connectAuthEmulator, getAuth, signInAnonymously, type Auth, type User }
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, deleteObject, getStorage, ref, uploadBytesResumable, type FirebaseStorage } from 'firebase/storage';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabReminderResult, type UploadMeta, type UploadSlot } from './types';
 
 /**
  * Firebase implementation of the API boundary.
@@ -190,6 +190,10 @@ export class FirebaseConsentApi implements ConsentApi {
 
   submitLabDonation(session: SessionInfo, payload: LabDonationPayload): Promise<LabDonationResult> {
     return this.call<LabDonationPayload, LabDonationResult>(session, 'submitLabDonation', payload);
+  }
+
+  requestLabReminder(session: SessionInfo, payload: { participantCode: string; email: string }): Promise<LabReminderResult> {
+    return this.call<{ participantCode: string; email: string }, LabReminderResult>(session, 'requestLabReminder', payload);
   }
 }
 

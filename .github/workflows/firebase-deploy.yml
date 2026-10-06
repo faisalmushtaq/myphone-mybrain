@@ -84,16 +84,16 @@ jobs:
         working-directory: consent-app/firebase
         run: |
           case "${{ inputs.target }}" in
-            "rules only") only="firestore:rules,storage" ;;
+            "rules only") only="firestore,storage" ;;
             "functions only") only="functions" ;;
-            *) only="firestore:rules,storage,functions" ;;
+            *) only="firestore,storage,functions" ;;
           esac
           npx --yes firebase-tools@15 deploy --only "$only" --project "$PROJECT_ID" --non-interactive --force
 
       - name: Keep the callables reachable from the website
         if: ${{ inputs.target != 'rules only' }}
         run: |
-          for fn in submitconsent submitdonation enquiry submitlabconsent lookuplabparticipant submitlabdonation; do
+          for fn in submitconsent submitdonation enquiry submitlabconsent lookuplabparticipant submitlabdonation requestlabreminder; do
             gcloud run services add-iam-policy-binding "$fn" --region="$REGION" --member=allUsers --role=roles/run.invoker --project="$PROJECT_ID" --quiet >/dev/null
           done
 
@@ -111,7 +111,7 @@ jobs:
       - name: Check the functions answer
         if: ${{ inputs.target != 'rules only' }}
         run: |
-          for fn in submitConsent submitDonation enquiry submitLabConsent lookupLabParticipant submitLabDonation; do
+          for fn in submitConsent submitDonation enquiry submitLabConsent lookupLabParticipant submitLabDonation requestLabReminder; do
             code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "https://$REGION-$PROJECT_ID.cloudfunctions.net/$fn" -H 'Content-Type: application/json' -H 'Origin: https://myphonemybrain.com' -d '{}')
             echo "$fn → http $code"
             case "$code" in 400|401) ;; *) echo "unexpected status for $fn"; exit 1 ;; esac

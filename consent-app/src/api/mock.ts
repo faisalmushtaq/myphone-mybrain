@@ -1,7 +1,7 @@
 import { study } from '../config/study';
 import { referenceCode } from '../lib/ids';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabReminderResult, type UploadMeta, type UploadSlot } from './types';
 
 export interface MockFlags {
   failUploads: boolean;
@@ -194,6 +194,14 @@ export class MockConsentApi implements ConsentApi {
     }
     participant.donations.push({ ...payload, uploads: payload.uploads.filter((u) => accepted.includes(u.uploadId)) });
     return { donationId: accepted.length ? `labd_${participant.donations.length}_${payload.participantCode}` : null, receivedAt: new Date().toISOString(), accepted, rejected };
+  }
+
+  async requestLabReminder(session: SessionInfo, payload: { participantCode: string; email: string }): Promise<LabReminderResult> {
+    await sleep(jitter(300, 700));
+    this.checkSession(session);
+    if (!this.lab.has(payload.participantCode)) throw new ApiError('validation', 'We have no consent on file for this participant code. Please give your consent first.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(payload.email)) throw new ApiError('validation', 'Enter an email address in the format name@example.com.');
+    return { outcome: 'sent', followUpAt: new Date(Date.now() + 48 * 3600_000).toISOString() };
   }
 
   inspectLab() {

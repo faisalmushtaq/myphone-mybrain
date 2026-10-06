@@ -43,6 +43,7 @@ export interface LabSnapshot {
   participants: Doc[];
   consents: Doc[];
   donations: Doc[];
+  reminders: Doc[];
 }
 
 /** Everything a participant sent in one phase of the study: one BIDS session, however many sends it took. */
@@ -517,8 +518,10 @@ consents.tsv             every consent record, by participant code, with the typ
                          a second consent for the same code is a new row and
                          supersedes points at the one before
 consent_statements.tsv   one row per statement per consent record
+reminders.tsv            email addresses of participants who asked for a progress
+                         email, when it and the one follow-up were sent
 signatures/              drawn signatures, named by participant code and version
-raw/                     every consent document as JSON Lines
+raw/                     every document as JSON Lines
 
 Files are tab-separated UTF-8 with n/a for missing values; timestamps are
 ISO 8601 in UTC. The donated data, labelled by code only, is in the
@@ -544,6 +547,14 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
   ];
   const { records, statements } = labConsentTables(snap.consents);
   files.push(tsvFile(`${I}/consents.tsv`, records), tsvFile(`${I}/consent_statements.tsv`, statements));
+  files.push(
+    tsvFile(
+      `${I}/reminders.tsv`,
+      snap.reminders.map(({ id, data: d }) => ({ participant_code: id, participant_id: labLabel(id), email: d.email, requested_at: d.requestedAt, status_email: d.statusOutcome, follow_up_due_at: d.followUpDueAt, follow_up_sent_at: d.followUpSentAt, follow_up_email: d.followUpOutcome, completed_at: d.completedAt })),
+      ['participant_code', 'participant_id', 'email', 'requested_at', 'status_email', 'follow_up_due_at', 'follow_up_sent_at', 'follow_up_email', 'completed_at'],
+    ),
+    jsonlFile(`${I}/raw/reminders.jsonl`, snap.reminders),
+  );
 
   const bySubject = new Map<string, LabSession[]>();
   for (const s of sessions) {

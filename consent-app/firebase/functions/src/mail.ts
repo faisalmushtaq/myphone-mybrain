@@ -11,7 +11,8 @@ import nodemailer from 'nodemailer';
  * scripts/set-mail-password.sh; the other settings come from the functions'
  * environment (see .env.example and the deploy workflow). Until the secret
  * exists, messages are still stored, nobody is emailed, and the stored record
- * and the logs say so. Nothing is ever emailed to families.
+ * and the logs say so. Nothing is ever emailed to families; adult participants
+ * in the social media break study can ask for a progress email (lab.ts).
  */
 
 export interface MailSettings {
@@ -30,6 +31,10 @@ export interface TeamMessage {
   subject: string;
   text: string;
   replyTo?: string;
+}
+
+export interface Mail extends TeamMessage {
+  to: string;
 }
 
 /** Reads the SMTP settings from the environment; null when no sending account or recipient is set. */
@@ -78,9 +83,18 @@ async function password(secret: string): Promise<string | null> {
 }
 
 /** Emails the team. Never throws: the caller stores the record whatever happens here. */
-export async function sendTeamMail(message: TeamMessage, settings: MailSettings | null = settingsFromEnv()): Promise<MailOutcome> {
+export function sendTeamMail(message: TeamMessage, settings: MailSettings | null = settingsFromEnv()): Promise<MailOutcome> {
   if (!settings) {
     logger.warn('Mail: MPMB_SMTP_USER or MPMB_MAIL_TO is not set, so nobody is emailed about new enquiries');
+    return Promise.resolve('not-configured');
+  }
+  return sendMail({ ...message, to: settings.to }, settings);
+}
+
+/** Sends one email from the study's account. Never throws. */
+export async function sendMail(message: Mail, settings: MailSettings | null = settingsFromEnv()): Promise<MailOutcome> {
+  if (!settings) {
+    logger.warn('Mail: MPMB_SMTP_USER is not set, so no email can be sent');
     return 'not-configured';
   }
   const pass = await password(settings.secret);
@@ -95,7 +109,7 @@ export async function sendTeamMail(message: TeamMessage, settings: MailSettings 
       greetingTimeout: 10_000,
       socketTimeout: 20_000,
     });
-    await transport.sendMail({ from: settings.from, to: settings.to, replyTo: message.replyTo, subject: message.subject, text: message.text });
+    await transport.sendMail({ from: settings.from, to: message.to, replyTo: message.replyTo, subject: message.subject, text: message.text });
     return 'sent';
   } catch (error) {
     logger.error('Mail: sending failed', { error: String((error as Error).message ?? error) });

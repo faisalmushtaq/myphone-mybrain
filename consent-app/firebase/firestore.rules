@@ -17,6 +17,7 @@ rules_version = '2';
 // labParticipants/  one row per code: current consent, counts
 // labConsents/      consent records (typed name and signature: identifying)
 // labDonations/     research data: the cleaned archives and screenshots received
+// labReminders/     email addresses of participants who asked for a progress email (identifying)
 //
 // enquiries/        messages from the website's contact and school forms
 // ratelimits/       counters for the enquiry function and the lab code lookup
@@ -71,6 +72,10 @@ service cloud.firestore {
     }
     match /labDonations/{donationId} {
       allow read: if hasRole('researcher') || hasRole('coordinator');
+      allow write: if false;
+    }
+    match /labReminders/{participantCode} {
+      allow read: if hasRole('coordinator');
       allow write: if false;
     }
 

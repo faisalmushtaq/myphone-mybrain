@@ -44,10 +44,10 @@ with a role claim.
 |---|---|
 | `src/api/firebase.ts` | `FirebaseConsentApi`: the same `ConsentApi` interface as the mock, implemented with the Firebase web SDK |
 | `src/api/index.ts` | Picks Firebase or the mock from `VITE_MPMB_BACKEND` |
-| `firebase/firebase.json` | Project layout and emulator ports |
+| `firebase/firebase.json`, `firestore.indexes.json` | Project layout and emulator ports; the composite indexes the follow-up queries need (deployed with the rules) |
 | `firebase/firestore.rules`, `firebase/storage.rules` | Security rules (see below) |
 | `firebase/functions/src/index.ts` | `submitConsent` and `submitDonation` callables, `purgeQuarantine` schedule |
-| `firebase/functions/src/lab.ts` | The social media break study: `submitLabConsent`, `lookupLabParticipant` and `submitLabDonation` callables, and the check that a donated archive is the cleaner's |
+| `firebase/functions/src/lab.ts` | The social media break study: `submitLabConsent`, `lookupLabParticipant`, `submitLabDonation` and `requestLabReminder` callables, the hourly `labFollowUps` schedule, and the check that a donated archive is the cleaner's |
 | `firebase/functions/src/validate.ts` | Server-side validation of the family payloads (mirrors `src/lib/validation.ts`); its helpers are shared with `lab.ts` |
 | `firebase/functions/src/images.ts`, `signatures.ts` | The image pipeline (prove it is an image, re-encode without metadata, quality checks) and signature storage, shared by both studies |
 | `firebase/functions/src/quality.ts` | Image quality and safety checks: flatness, Cloud Vision SafeSearch and text detection, the verdict rules |
@@ -77,8 +77,9 @@ The social media break study (adults; `src/lab/` in the app, `lab.ts` in the fun
 | Collection | Holds | Who may read |
 |---|---|---|
 | `labParticipants/{code}` | one row per code: the current `consentId` and `consentVersion`, `consentedAt`, `archiveCount`, `screenshotCount`, `donationIds[]`, the session uids seen. **No names.** | `researcher`, `coordinator` |
-| `labConsents/{id}` | the consent record: form and information versions, all seven statements (every one is required), typed name, signature (method and a reference to the PNG), confirmed date, completion time, client info, `version` and `supersedes`, and `codeParts`: the four answers the code was built from (mother's first name, house number, birth month, postcode), which the team also uses as research variables. Never edited. | `coordinator`, `auditor` |
-| `labDonations/{id}` | one document per send: the phone type chosen in the guide, and for each file its kind (`archive` or `screenshot`), Storage path, size, SHA-256; for archives the platforms, categories and row counts from the cleaner's manifest and the file names inside; for screenshots the dimensions and the same `quality` result as the family app's images. **No names.** | `researcher`, `coordinator` |
+| `labConsents/{id}` | the consent record: form and information versions, the eight required statements (including that what is sent is kept unless the person formally withdraws) and the optional record-linkage answer, typed name, signature (method and a reference to the PNG), confirmed date, completion time, client info, `version` and `supersedes`, and `codeParts`: the four answers the code was built from (mother's first name, house number, birth month, postcode), which the team also uses as research variables. Never edited. | `coordinator`, `auditor` |
+| `labDonations/{id}` | one document per send: the phone type chosen in the guide, the phase (before or after the break), and for each file its kind (`archive` or `screenshot`), Storage path, size, SHA-256; for archives the platforms, categories and row counts from the cleaner's manifest and the file names inside; for screenshots the dimensions and the same `quality` result as the family app's images. **No names.** | `researcher`, `coordinator` |
+| `labReminders/{code}` | when a participant presses "I'll come back later" and asks for an email: the address, when the progress email went and whether it was sent, when the one follow-up is due and whether it went, and `completedAt` once files arrive (which cancels the follow-up). Identifying. | `coordinator` |
 
 Storage:
 
@@ -97,7 +98,7 @@ role can be given access to `donations/` without ever seeing a name.
 
 ## What the functions check before writing anything
 
-The lab study's functions check, in the same spirit: the code has the questionnaire's shape; the consent form and information versions are the current ones and all seven statements are agreed; a signature is present; a donation needs consent on file for that code (not necessarily from the same session, because people come back from another device); at most 10 archives and 12 screenshots per code in total; and every archive is opened on the server and must contain only the file names the in-browser cleaner writes (`manifest.json`, `tiktok_cleaned.json`, the three `youtube/` files and the four `instagram/` files), each JSON file must parse, the manifest must be the cleaner's, and the unpacked size is capped, so a participant's raw TikTok download, a photo or anything else is refused with a plain reason and never stored. `lookupLabParticipant` says only whether a code has consent on file and how many files it has, and is limited to 30 calls an hour per session.
+The lab study's functions check, in the same spirit: the code has the questionnaire's shape; the consent form and information versions are the current ones, the eight required statements are agreed and the optional record-linkage question is answered; a signature is present; a donation needs consent on file for that code (not necessarily from the same session, because people come back from another device); at most 10 archives and 12 screenshots per code in total; and every archive is opened on the server and must contain only the file names the in-browser cleaner writes (`manifest.json`, `tiktok_cleaned.json`, the three `youtube/` files and the four `instagram/` files), each JSON file must parse, the manifest must be the cleaner's, and the unpacked size is capped, so a participant's raw TikTok download, a photo or anything else is refused with a plain reason and never stored. `lookupLabParticipant` says only whether a code has consent on file and how many files it has, and is limited to 30 calls an hour per session. `requestLabReminder` (5 an hour per session) emails the participant where they are and a link back, from the same SMTP account as the team's enquiry emails, and books one follow-up; `labFollowUps` runs hourly and sends it two days later unless a send has arrived since, after which nothing more is sent.
 
 **`submitConsent`** re-validates the whole payload (`validate.ts`): field
 lengths and formats, the allowed relationships, the 11–17 age range, at least
@@ -377,6 +378,12 @@ withdrawal is not final there until it is emptied.
   images or use them to improve its models; confirm this against the Cloud
   Data Processing Addendum in the DPIA. Nothing about the image content is
   logged by the function.
+* **Participants' email addresses (lab study).** Given only when a
+  participant asks for a progress email from the guide. Kept in
+  `labReminders` and `social-media-break/identifying/reminders.tsv`, used for
+  that email and at most one follow-up two days later, never in the research
+  dataset. The emails go from the study's Gmail account with the lab
+  contact as reply-to.
 * **The lab study's code answers.** The participant code is built from
   the mother's first name, the house number, the birth month and the
   postcode, and those four answers are kept as well, because the team uses

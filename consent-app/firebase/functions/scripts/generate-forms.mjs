@@ -63,6 +63,9 @@ const generated = {
     maxArchiveBytes: lab.labStudy.maxArchiveBytes,
     maxScreenshots: lab.labStudy.maxScreenshots,
     participantCodePattern: lab.PARTICIPANT_CODE.source,
+    name: lab.labStudy.name,
+    contactName: lab.labStudy.contact.name,
+    contactEmail: lab.labStudy.contact.email,
   },
   cleaner: {
     version: cleaner.CLEANER_VERSION,

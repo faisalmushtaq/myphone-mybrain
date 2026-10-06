@@ -105,6 +105,7 @@ test('consent records flatten to one row per record and one per statement, with 
 test('the lab dataset is labelled by participant code, has one session per phase, names files by run, and keeps names in identifying/', async () => {
   const { labBehTable, labConsentTables, labExport, labFile, labParticipantsTable, labSessionsOf, labSessionsTable, labSignatureFile } = await import('./exportLab.js');
   const snap = {
+    reminders: [{ id: 'JA101CD', data: { email: 'jane@example.com', requestedAt: '2026-10-05T11:00:00.000Z', statusOutcome: 'sent', followUpDueAt: '2026-10-07T11:00:00.000Z', followUpSentAt: null, completedAt: '2026-10-08T10:00:00.000Z' } }],
     participants: [{ id: 'JA101CD', data: { consentId: 'c1', consentVersion: 1, archiveCount: 1, screenshotCount: 2 } }, { id: 'ZZ912AB', data: { consentId: 'c2', consentVersion: 1 } }],
     consents: [
       { id: 'c1', data: { participantCode: 'JA101CD', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-05', typedName: 'Jane Doe', codeParts: { mother: 'Jane', house: '123', month: '01', postcode: 'AB1 2CD' }, responses: { 'take-part': { version: '1.0', response: 'agreed', respondedAt: '2026-10-05T09:00:00.000Z', via: 'individual' } }, signature: { method: 'drawn', image: { path: 'signatures/lab/JA101CD/c1.png' } } } },
@@ -148,6 +149,8 @@ test('the lab dataset is labelled by participant code, has one session per phase
   const paths = out.files.map((f) => f.path);
   assert.ok(paths.includes('social-media-break/README.md') && paths.includes('social-media-break/donations/participants.tsv') && paths.includes('social-media-break/donations/sub-JA101CD/sub-JA101CD_sessions.tsv') && paths.includes('social-media-break/donations/sub-JA101CD/ses-pre/beh/sub-JA101CD_ses-pre_task-donation_beh.tsv') && paths.includes('social-media-break/donations/sub-JA101CD/ses-post/beh/sub-JA101CD_ses-post_task-donation_beh.tsv') && paths.includes('social-media-break/identifying/consents.tsv') && paths.includes('social-media-break/identifying/README.md'));
   assert.ok(paths.every((p) => p.startsWith('social-media-break/')), 'everything of this study lives in its own folder');
+  const reminders = out.files.find((f) => f.path === 'social-media-break/identifying/reminders.tsv')!.body;
+  assert.ok(reminders.includes('JA101CD\tsub-JA101CD\tjane@example.com\t2026-10-05T11:00:00.000Z\tsent'));
   assert.ok(!paths.some((p) => p.includes('/sub-ZZ912AB/')), 'no subject folder before anything is sent');
   assert.deepEqual(Array.from(out.copies.entries()), [
     ['lab/JA101CD/u1.zip', 'social-media-break/donations/sourcedata/sub-JA101CD/ses-pre/sub-JA101CD_ses-pre_run-01_archive.zip'],

@@ -608,11 +608,11 @@ export async function runExport(): Promise<Manifest> {
   const exportedAt = new Date().toISOString();
 
   const load = async (name: string): Promise<Doc[]> => (await db.collection(name).get()).docs.map((d) => ({ id: d.id, data: plain(d.data()) as DocumentData }));
-  const [participants, consents, assents, submissions, enquiries, surveys, donations, labParticipants, labConsents, labDonations] = await Promise.all(['participants', 'consents', 'assents', 'submissions', 'enquiries', 'surveys', 'donations', 'labParticipants', 'labConsents', 'labDonations'].map(load));
+  const [participants, consents, assents, submissions, enquiries, surveys, donations, labParticipants, labConsents, labDonations, labReminders] = await Promise.all(['participants', 'consents', 'assents', 'submissions', 'enquiries', 'surveys', 'donations', 'labParticipants', 'labConsents', 'labDonations', 'labReminders'].map(load));
   const labels = await assignLabels(db, participants);
   const snap: Snapshot = { participants, consents, assents, submissions, enquiries, surveys, donations, labels };
   const sessions = sessionsOf(snap);
-  const lab = labExport({ participants: labParticipants, consents: labConsents, donations: labDonations }, exportedAt);
+  const lab = labExport({ participants: labParticipants, consents: labConsents, donations: labDonations, reminders: labReminders }, exportedAt);
 
   const tsv = tsvFile;
   const json = jsonFile;

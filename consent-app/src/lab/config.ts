@@ -39,6 +39,14 @@ export const labConsentForm: { id: string; version: string; title: string; state
     },
     { id: 'voluntary', version: '1.0', kind: 'required', label: 'Voluntary', text: 'I understand that participation is voluntary and that I may withdraw at any time without giving a reason.' },
     {
+      id: 'data-kept',
+      version: '0.1-draft',
+      kind: 'required',
+      label: 'What I send is kept unless I withdraw',
+      text: 'I understand that everything I send, including screen-time screenshots, cleaned data files and questionnaire answers, is kept and may be used in the research even if I do not finish the study. Stopping, or not coming back, does not remove it. To have it removed, I must contact the research team and ask to withdraw, within one month of my final session.',
+      note: 'Draft wording, to be confirmed with the ethics committee. It matches the information sheet: removal of identifiable data can be requested within one month of the final session.',
+    },
+    {
       id: 'donation-required',
       version: '2.0-draft',
       kind: 'required',
@@ -135,8 +143,11 @@ export const labInformation: LabInfoSection[] = [
   {
     id: 'voluntary',
     title: 'Do I have to take part?',
-    summary: 'No. You can withdraw at any time without giving a reason.',
-    detail: ['No. Taking part is completely voluntary. You may withdraw from the study at any time without giving a reason and without any negative consequences.'],
+    summary: 'No. You can withdraw at any time without giving a reason. What you have already sent is kept unless you contact us to withdraw it.',
+    detail: [
+      'No. Taking part is completely voluntary. You may withdraw from the study at any time without giving a reason and without any negative consequences.',
+      'Anything you have already sent, such as screen-time screenshots, cleaned data files and questionnaire answers, is kept and may be used in the research even if you do not finish the study. Stopping, or simply not coming back, does not remove it. If you want it removed, contact the research team and ask to withdraw; you can do this up to one month after your final session.',
+    ],
   },
   {
     id: 'compensation',

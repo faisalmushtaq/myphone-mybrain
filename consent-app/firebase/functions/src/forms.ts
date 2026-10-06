@@ -94,6 +94,9 @@ export const labStudy = {
   /** Cleaned archives accepted per participant in total. */
   maxArchives: 10,
   maxSignatureBytes: study.maxSignatureBytes,
+  name: generated.labStudy.name,
+  contactName: generated.labStudy.contactName,
+  contactEmail: generated.labStudy.contactEmail,
 };
 
 /** The participant code the lab questionnaire builds, for example JA101CD; see src/lab/config.ts. */

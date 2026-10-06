@@ -21,7 +21,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
         <ul class="info-checklist">
           <li>Attend two sessions of about two hours in our lab, before and after the break.</li>
           <li>Take a 30-day break from social media, using a small device called Brick that restricts the apps you agree with us in advance. Calls, messages, WhatsApp and essential apps keep working.</li>
-          <li>Share screenshots of your phone’s screen-time summary, and your own data download from the app you use most, TikTok, YouTube or Instagram, reduced on your device to dates, links and search words.</li>
+          <li>Share screenshots of your phone’s screen-time summary straight away, then your own data download from the app you use most, TikTok, YouTube or Instagram, reduced on your device to dates, links and search words.</li>
           <li>Complete simple computer-based tasks and short questionnaires, and brief weekly check-ins during the break.</li>
         </ul>
       </div>
@@ -58,7 +58,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
 
     <div class="participant-next-step">
       <h3>Ready to take part?</h3>
-      <p>Give your consent, then follow the step-by-step guide to take your screen-time screenshots and download your TikTok, YouTube or Instagram data. The downloads can take a few days to arrive, so start before your first lab visit; you can come back to this page to send everything when it is ready.</p>
+      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube or Instagram data. The download can take a few days to arrive, so start before your first lab visit; we can email you a reminder, and you come back to this page to send the file when it is ready.</p>
       <a class="btn btn-primary" href="{{ '/break/take-part/' | relative_url }}">Take part &nbsp;→</a>
       <a class="text-link" href="{{ '/break/take-part/?step=guide' | relative_url }}">Just show me how to download my data &nbsp;→</a>
     </div>

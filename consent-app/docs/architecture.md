@@ -36,10 +36,12 @@ no handover and no reference code: the participant is known by the code the
 lab questionnaire builds from four answers (`src/lab/config.ts`), which is
 also what the EEG data is labelled with, so the two meet without a name. The
 steps are welcome → participant code → information (the approved sheet,
-section by section) → consent (seven required statements, name, signature,
-sent at once) → guide (how to take screen-time screenshots and download
-TikTok, YouTube or Instagram data, with a phone and an app picker; linkable
-with `?step=guide`) → screenshots → clean → send → done.
+section by section) → consent (eight required statements, name, signature,
+sent at once) → screenshots (the phone's own steps, then the screenshots are
+sent straight away, so the first donation is done in minutes) → guide (request
+TikTok, YouTube or Instagram data, which takes days; linkable with
+`?step=guide`; "I'll come back later" can email the person their progress and
+book one follow-up) → clean → send → done.
 Because an export can take days to arrive, progress is kept in
 `localStorage` for 60 days and a known code is recognised from any device.
 

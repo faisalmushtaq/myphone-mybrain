@@ -170,6 +170,12 @@ export interface LabDonationResult {
   rejected: { uploadId: string; reason: string }[];
 }
 
+/** "I'll come back later": a progress email now, one follow-up in two days unless files arrive. */
+export interface LabReminderResult {
+  outcome: 'sent' | 'failed' | 'not-configured';
+  followUpAt: string;
+}
+
 export interface ConsentApi {
   startSession(): Promise<SessionInfo>;
   submitConsent(session: SessionInfo, payload: ConsentPayload): Promise<ConsentResult>;
@@ -184,4 +190,5 @@ export interface ConsentApi {
   requestLabUploadSlot(sessionId: string, meta: { contentType: string; size: number }): Promise<UploadSlot>;
   deleteLabUpload(sessionId: string, uploadId: string): Promise<void>;
   submitLabDonation(session: SessionInfo, payload: LabDonationPayload): Promise<LabDonationResult>;
+  requestLabReminder(session: SessionInfo, payload: { participantCode: string; email: string }): Promise<LabReminderResult>;
 }

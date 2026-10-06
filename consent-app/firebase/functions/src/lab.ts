@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore, Timestamp, type DocumentData, type Firestore } from 'firebase-admin/firestore';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
@@ -6,6 +7,7 @@ import JSZip from 'jszip';
 import { cleaner, labConsentForm, labInformationVersion, labStudy, PARTICIPANT_CODE } from './forms.js';
 import { checkImage, cleanImage, RejectedUpload, sha256 } from './images.js';
 import type { Quality } from './quality.js';
+import { sendMail } from './mail.js';
 import { signatureRecord, storeSignature } from './signatures.js';
 import { blank, isObj, ISO_DATE, limits, str, UUID, validateClient, validateResponses, validateSignature, validTime, type ClientInfo, type SignatureRecord, type StatementRecord } from './validate.js';
 
@@ -19,6 +21,8 @@ import { blank, isObj, ISO_DATE, limits, str, UUID, validateClient, validateResp
  *   labParticipants/{code}   one row per code: current consent, counts, sessions seen
  *   labConsents/             the consent records (name and signature: identifying)
  *   labDonations/            one record per send, listing the stored files
+ *   labReminders/{code}      a participant's email, when they asked to be sent their
+ *                            progress and one follow-up (identifying)
  *   Storage lab/{code}/      the files themselves; labquarantine/{uid}/ uploads
  *                            waiting to be checked; signatures/lab/{code}/
  */
@@ -27,6 +31,11 @@ export const LAB_QUARANTINE = 'labquarantine';
 const REGION = 'europe-west2';
 const callOptions = { region: REGION, memory: '1GiB' as const, timeoutSeconds: 300, enforceAppCheck: process.env.MPMB_ENFORCE_APP_CHECK === 'true' };
 const LOOKUPS_PER_HOUR = 30;
+const REMINDERS_PER_HOUR = 5;
+/** How long after a progress email the one follow-up goes, unless files have arrived. */
+const FOLLOW_UP_AFTER_MS = 48 * 3600_000;
+const SITE_URL = 'https://myphonemybrain.com/break/take-part/';
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /** Bytes an archive may expand to, in total. The cleaned files are small; anything near this was not made by the cleaner. */
 const MAX_UNPACKED = 400 * 1024 * 1024;
 const PLATFORMS = ['tiktok', 'youtube', 'instagram'];
@@ -299,8 +308,8 @@ function safeName(name: string): string {
   return name.replace(/[\\/]/g, '_').replace(/[^\x20-\x7e -￿]/g, '').slice(0, 120) || 'file';
 }
 
-async function rateLimitLookups(db: Firestore, uid: string): Promise<void> {
-  const ref = db.collection('ratelimits').doc(`lab-lookup-${uid}`);
+async function rateLimitLookups(db: Firestore, uid: string, what = 'lab-lookup', limit = LOOKUPS_PER_HOUR): Promise<void> {
+  const ref = db.collection('ratelimits').doc(`${what}-${uid}`);
   const allowed = await db.runTransaction(async (tx) => {
     const current = (await tx.get(ref)).data();
     const now = Date.now();
@@ -308,7 +317,7 @@ async function rateLimitLookups(db: Firestore, uid: string): Promise<void> {
     const windowStart = sameWindow ? (current!.windowStart as number) : now;
     const count = sameWindow ? Number(current?.count ?? 0) + 1 : 1;
     tx.set(ref, { windowStart, count, updatedAt: FieldValue.serverTimestamp() });
-    return count <= LOOKUPS_PER_HOUR;
+    return count <= limit;
   });
   if (!allowed) throw new HttpsError('failed-precondition', 'Too many attempts from this device. Please wait an hour and try again.');
 }
@@ -509,9 +518,162 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
       { merge: true },
     );
     await batch.commit();
+    await settleReminder(db, code, receivedAt);
   }
   logger.info('Lab files recorded', { participantCode: code, donationId, accepted: stored.length, rejected: rejected.length });
   return { donationId, receivedAt: receivedAt.toISOString(), accepted: stored.map((f) => f.uploadId), rejected };
 });
 
 export type { DocumentData };
+
+/* ── Progress emails ───────────────────────────────────────────────────── */
+
+export interface LabProgress {
+  participantCode: string;
+  consentedAt: string | null;
+  screenshots: number;
+  archives: number;
+  platforms: string[];
+}
+
+/** What a participant still owes, in plain words; empty when the minimum is in. */
+export function outstanding(p: LabProgress): string[] {
+  const out: string[] = [];
+  if (!p.consentedAt) out.push('your consent');
+  if (!p.screenshots) out.push('screenshots of your phone’s screen-time summary');
+  if (!p.archives) out.push('your cleaned TikTok, YouTube or Instagram file');
+  return out;
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+
+/** The email sent when someone presses "I'll come back later": where they are and how to carry on. */
+export function labStatusEmail(p: LabProgress): { subject: string; text: string } {
+  const owed = outstanding(p);
+  const received = [p.screenshots ? plural(p.screenshots, 'screen-time screenshot', 'screen-time screenshots') : '', p.archives ? `${plural(p.archives, 'cleaned file', 'cleaned files')}${p.platforms.length ? ` (${p.platforms.join(', ')})` : ''}` : ''].filter(Boolean);
+  const text = [
+    `Hello,`,
+    ``,
+    `Thank you for taking part in the ${labStudy.name}. Here is where your data donation stands.`,
+    ``,
+    `Participant code: ${p.participantCode}`,
+    `Consent: ${p.consentedAt ? `recorded on ${p.consentedAt.slice(0, 10)}` : 'not yet given'}`,
+    `Received so far: ${received.length ? list(received) : 'nothing yet'}`,
+    owed.length ? `Still to come: ${list(owed)}.` : `Everything the study needs is in. Thank you!`,
+    ``,
+    owed.length
+      ? [
+          `When your data download arrives, come back to the page below, enter your participant code if asked, and carry on from where you left off. The guide there shows every step.`,
+          `${SITE_URL}`,
+          ``,
+          `If we have not received your files in two days, we will send one reminder.`,
+        ].join('\n')
+      : `If more data arrives later, you can add it at ${SITE_URL}`,
+    ``,
+    `Questions? Reply to this email or write to ${labStudy.contactName} at ${labStudy.contactEmail}.`,
+    ``,
+    `The MyPhone/MyBrain team, University of Leeds`,
+  ].join('\n');
+  return { subject: `MyPhone/MyBrain: your data donation so far (${p.participantCode})`, text };
+}
+
+/** The one follow-up, two days on, when the files have not arrived. */
+export function labFollowUpEmail(p: LabProgress): { subject: string; text: string } {
+  const owed = outstanding(p);
+  const text = [
+    `Hello,`,
+    ``,
+    `A quick reminder from the ${labStudy.name}: we have not yet received ${list(owed)} for participant code ${p.participantCode}.`,
+    ``,
+    `If your data download has arrived, go to the page below, enter your participant code if asked, and follow the steps. If it has not arrived yet, or anything is unclear, reply to this email and we will help.`,
+    `${SITE_URL}`,
+    ``,
+    `This is the only reminder we will send.`,
+    ``,
+    `Questions? Reply to this email or write to ${labStudy.contactName} at ${labStudy.contactEmail}.`,
+    ``,
+    `The MyPhone/MyBrain team, University of Leeds`,
+  ].join('\n');
+  return { subject: `MyPhone/MyBrain: a reminder about your data (${p.participantCode})`, text };
+}
+
+export function validateLabReminderPayload(input: unknown): string[] {
+  const problems: string[] = [];
+  if (!isObj(input)) return ['The request is not an object.'];
+  if (!normaliseCode(input.participantCode)) problems.push('The participant code is malformed.');
+  if (!str(input.email, 254) || !EMAIL.test(String(input.email).trim())) problems.push('Enter an email address in the format name@example.com.');
+  return problems;
+}
+
+async function progressOf(db: Firestore, code: string): Promise<LabProgress | null> {
+  const participant = (await db.collection('labParticipants').doc(code).get()).data();
+  if (!participant?.consentId) return null;
+  const donations = await db.collection('labDonations').where('participantCode', '==', code).get();
+  const platforms = new Set<string>();
+  for (const d of donations.docs) for (const f of (d.data().files ?? []) as DocumentData[]) for (const p of (f.platforms ?? []) as string[]) platforms.add(p);
+  return { participantCode: code, consentedAt: toIso(participant.consentedAt), screenshots: Number(participant.screenshotCount ?? 0), archives: Number(participant.archiveCount ?? 0), platforms: Array.from(platforms).sort() };
+}
+
+/**
+ * "I'll come back later": emails the participant where they are and a link
+ * back, and books one follow-up for two days later unless files arrive first.
+ * The address is kept only for that, in labReminders (identifying).
+ */
+export const requestLabReminder = onCall(callOptions, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Please try again.');
+  const problems = validateLabReminderPayload(request.data);
+  if (problems.length) throw new HttpsError('invalid-argument', problems[0], { problems });
+  const { participantCode, email } = request.data as { participantCode: string; email: string };
+  const code = normaliseCode(participantCode)!;
+  const db = getFirestore();
+  await rateLimitLookups(db, uid, 'lab-reminder', REMINDERS_PER_HOUR);
+  const progress = await progressOf(db, code);
+  if (!progress) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant code. Please give your consent first.');
+  const now = new Date();
+  const outcome = await sendMail({ to: email.trim(), replyTo: labStudy.contactEmail, ...labStatusEmail(progress) });
+  const followUpDueAt = new Date(now.getTime() + FOLLOW_UP_AFTER_MS);
+  await db
+    .collection('labReminders')
+    .doc(code)
+    .set({ participantCode: code, email: email.trim(), requestedAt: now, statusOutcome: outcome, followUpDueAt, followUpSentAt: null, followUpOutcome: null, completedAt: null, sessionUid: uid, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  logger.info('Lab progress email', { participantCode: code, outcome });
+  return { outcome, followUpAt: followUpDueAt.toISOString() };
+});
+
+/** Marks a participant's reminder as done, so no follow-up goes once files have arrived. */
+export async function settleReminder(db: Firestore, code: string, receivedAt: Date): Promise<void> {
+  const ref = db.collection('labReminders').doc(code);
+  const snap = await ref.get();
+  if (snap.exists && !snap.data()?.completedAt) await ref.set({ completedAt: receivedAt, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+}
+
+/** Every hour: send the follow-up to anyone whose two days are up and whose files have not arrived. */
+export const labFollowUps = onSchedule({ region: REGION, schedule: 'every 60 minutes', timeZone: 'Europe/London' }, async () => {
+  await runFollowUps();
+});
+
+export async function runFollowUps(now = new Date()): Promise<{ sent: number; settled: number }> {
+  const db = getFirestore();
+  const due = await db.collection('labReminders').where('followUpSentAt', '==', null).where('completedAt', '==', null).where('followUpDueAt', '<=', now).get();
+  let sent = 0;
+  let settled = 0;
+  for (const doc of due.docs) {
+    const r = doc.data();
+    const code = String(r.participantCode);
+    const progress = await progressOf(db, code);
+    const requestedAt = r.requestedAt instanceof Timestamp ? r.requestedAt.toDate() : new Date(String(r.requestedAt));
+    const since = await db.collection('labDonations').where('participantCode', '==', code).where('receivedAt', '>', requestedAt).limit(1).get();
+    if (!progress || !since.empty || !outstanding(progress).length) {
+      await doc.ref.set({ completedAt: now, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      settled += 1;
+      continue;
+    }
+    const outcome = await sendMail({ to: String(r.email), replyTo: labStudy.contactEmail, ...labFollowUpEmail(progress) });
+    await doc.ref.set({ followUpSentAt: now, followUpOutcome: outcome, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    sent += 1;
+  }
+  logger.info('Lab follow-ups', { sent, settled });
+  return { sent, settled };
+}

@@ -70,7 +70,7 @@ export function ParticipantId() {
           <p>We already have your consent{when ? `, recorded ${formatTimestamp(when)}` : ''}. You can go straight on to your data.</p>
         </Callout>
         <div className="mpmb-actions">
-          <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'guide' })}>
+          <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'screenshots' })}>
             Continue to my data
           </Button>
           <Button variant="ghost" onClick={() => setOnFile(null)}>
