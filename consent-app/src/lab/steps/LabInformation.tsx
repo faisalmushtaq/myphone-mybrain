@@ -28,7 +28,7 @@ export function LabInformation() {
           ))}
         </ul>
         <p className="mpmb-hint">
-          {labInformationVersion.label}. Ethics reference: {labStudy.ethicsReference}. Questions: {labStudy.contact.name}, <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>, or {labStudy.contact.lead}, <a href={`mailto:${labStudy.contact.leadEmail}`}>{labStudy.contact.leadEmail}</a>.
+          {labInformationVersion.label}. Ethics reference {labStudy.ethicsReference}, approved {labStudy.ethicsApproved}. Questions: {labStudy.contact.name}, <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>, or {labStudy.contact.lead}, <a href={`mailto:${labStudy.contact.leadEmail}`}>{labStudy.contact.leadEmail}</a>.
         </p>
       </section>
     </LabShell>

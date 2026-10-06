@@ -15,6 +15,7 @@ import youtube1 from '../../assets/lab-guide/youtube-1.png';
 import youtube2 from '../../assets/lab-guide/youtube-2.png';
 import youtube3 from '../../assets/lab-guide/youtube-3.png';
 import youtube4 from '../../assets/lab-guide/youtube-4.png';
+import type { LabPhone } from '../../api/types';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
 import { labStudy } from '../config';
@@ -43,6 +44,13 @@ const tiktokSteps: GuideStep[] = [
   { title: 'Choose what to include and request', text: 'Under Select data to download, tap Select all, or tick only what you are happy to share; you may leave Direct Messages unticked. Then tap Request data.', image: tiktok5, alt: 'Data selection and Request data button' },
   { title: 'Download', text: 'Open the Download data tab. When the file is ready, tap Download. The link works for four days.', image: tiktok6, alt: 'Download data tab with the file ready' },
 ];
+const androidSteps: GuideStep[] = [
+  { title: 'Digital Wellbeing', text: 'Open Settings, then Digital Wellbeing & parental controls. Screenshot the chart, then scroll to the app list at the bottom and screenshot that. Your screen may look a little different on Samsung, Xiaomi, Pixel and others.', image: androidShot, alt: 'Illustration of the Android Digital Wellbeing screen' },
+];
+const phones: { id: LabPhone; name: string }[] = [
+  { id: 'iphone', name: 'iPhone' },
+  { id: 'android', name: 'Android' },
+];
 const youtubeSteps: GuideStep[] = [
   { title: 'Select YouTube only', text: 'Go to takeout.google.com in a web browser. Click Deselect all, then scroll down and tick only YouTube and YouTube Music. Click Multiple formats and change history from HTML to JSON, click OK, then Next step.', image: youtube1, alt: 'Google Takeout with YouTube selected' },
   { title: 'Create the export', text: 'Set Transfer to “Send download link via email”, Frequency “Export once”, File type .zip. Click Create export.', image: youtube2, alt: 'Takeout export options' },
@@ -69,11 +77,35 @@ function Steps({ steps }: { steps: GuideStep[] }) {
   );
 }
 
+/** Scrolls to a section and moves focus there, so the next-step links work for keyboard and screen-reader users too. */
+function jumpTo(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  el.focus({ preventScroll: true });
+}
+
+function NextLink({ to, onClick, children }: { to?: string; onClick?: () => void; children: string }) {
+  return (
+    <p className="mpmb-guide-next">
+      <Button variant="link" onClick={() => (onClick ? onClick() : to && jumpTo(to))}>
+        {children} {onClick ? '→' : '↓'}
+      </Button>
+    </p>
+  );
+}
+
 /** How to get the three things the study asks for. Shareable before the lab visit; the files take a while to arrive. */
 export function LabGuide() {
   const { state, dispatch } = useLab();
   const [later, setLater] = useState(false);
   const ready = state.codeConfirmed && state.submission.consentStage === 'sent';
+  const phone = state.phone;
+
+  const choosePhone = (p: LabPhone) => {
+    dispatch({ type: 'phone', phone: p });
+    window.setTimeout(() => jumpTo(`guide-${p}`), 60);
+  };
 
   const next = () => {
     if (ready) dispatch({ type: 'go-to', stepId: 'clean' });
@@ -99,43 +131,55 @@ export function LabGuide() {
       </Callout>
 
       <section aria-labelledby="guide-screentime">
-        <h2 className="mpmb-h2" id="guide-screentime">
+        <h2 className="mpmb-h2" id="guide-screentime" tabIndex={-1}>
           1. Screen-time screenshots
         </h2>
-        <p>
-          Take several screenshots, not just the first screen: scroll down so the chart, the totals and the full app list (including anything under “Show more”) are all captured. iPhone: press Side button and Volume Up together. Android: press Power and Volume Down together.
-        </p>
-        <h3 className="mpmb-h3">On iPhone</h3>
-        <Steps steps={screenTimeIphone} />
-        <h3 className="mpmb-h3">On Android</h3>
-        <ol className="mpmb-guide-steps" role="list">
-          <li>
-            <div className="mpmb-guide-steps__text">
-              <span className="mpmb-guide-steps__n" aria-hidden="true">
-                1
-              </span>
-              <h3 className="mpmb-h3">Digital Wellbeing</h3>
-              <p>Open Settings, then Digital Wellbeing &amp; parental controls. Screenshot the chart, then scroll to the app list at the bottom and screenshot that. Your screen may look a little different on Samsung, Xiaomi, Pixel and others.</p>
-            </div>
-            <img src={androidShot} alt="Illustration of the Android Digital Wellbeing screen" loading="lazy" />
-          </li>
-        </ol>
+        <p>Take several screenshots, not just the first screen: scroll down so the chart, the totals and the full app list (including anything under “Show more”) are all captured.</p>
+        <fieldset className="mpmb-field">
+          <legend className="mpmb-label">Which phone do you have?</legend>
+          <div className="mpmb-chips" role="presentation">
+            {phones.map((p) => (
+              <label key={p.id} className={`mpmb-chip${phone === p.id ? ' is-selected' : ''}`} htmlFor={`lab-phone-${p.id}`}>
+                <input id={`lab-phone-${p.id}`} type="radio" name="lab-phone" value={p.id} className="mpmb-choice__input" checked={phone === p.id} onChange={() => choosePhone(p.id)} />
+                <span className="mpmb-choice__dot" aria-hidden="true" />
+                {p.name}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        {phone === 'iphone' && (
+          <div id="guide-iphone" className="mpmb-guide-phone" tabIndex={-1}>
+            <h3 className="mpmb-h3">On iPhone</h3>
+            <p className="mpmb-hint">To take a screenshot, press the Side button and Volume Up together.</p>
+            <Steps steps={screenTimeIphone} />
+          </div>
+        )}
+        {phone === 'android' && (
+          <div id="guide-android" className="mpmb-guide-phone" tabIndex={-1}>
+            <h3 className="mpmb-h3">On Android</h3>
+            <p className="mpmb-hint">To take a screenshot, press Power and Volume Down together.</p>
+            <Steps steps={androidSteps} />
+          </div>
+        )}
+        {phone && <NextLink to="guide-tiktok">Next: get your TikTok data</NextLink>}
       </section>
 
       <section aria-labelledby="guide-tiktok">
-        <h2 className="mpmb-h2" id="guide-tiktok">
+        <h2 className="mpmb-h2" id="guide-tiktok" tabIndex={-1}>
           2. TikTok
         </h2>
         <p>In the TikTok app on your phone.</p>
         <Steps steps={tiktokSteps} />
+        <NextLink to="guide-youtube">Next: get your YouTube data</NextLink>
       </section>
 
       <section aria-labelledby="guide-youtube">
-        <h2 className="mpmb-h2" id="guide-youtube">
+        <h2 className="mpmb-h2" id="guide-youtube" tabIndex={-1}>
           3. YouTube
         </h2>
         <p>In a web browser, signed in to the Google account you use for YouTube.</p>
         <Steps steps={youtubeSteps} />
+        <NextLink onClick={next}>{ready ? 'Continue: I have my files' : 'Continue: enter my code'}</NextLink>
       </section>
 
       <Callout tone="info">

@@ -349,14 +349,19 @@ async function inner() {
     await snap('consent');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('heading', { name: 'Download your data.', level: 1 }).waitFor({ timeout: 60000 });
+    ok('the guide shows no phone steps until a phone is chosen', (await page.locator('#guide-iphone').count()) === 0 && (await page.locator('#guide-android').count()) === 0);
+    await page.getByRole('radio', { name: 'iPhone' }).check();
+    await page.locator('#guide-iphone').waitFor();
+    ok('choosing iPhone shows its steps only, with a link on to TikTok', (await page.locator('#guide-android').count()) === 0 && (await page.getByRole('button', { name: /Next: get your TikTok data/ }).count()) === 1);
     await snap('guide');
     const labParticipant = (await db.collection('labParticipants').doc('JA101CD').get()).data();
     ok('lab consent recorded against the participant code', Boolean(labParticipant?.consentId) && labParticipant?.consentVersion === 1 && labParticipant?.archiveCount === 0);
     const labConsent = labParticipant?.consentId ? (await db.collection('labConsents').doc(labParticipant.consentId).get()).data() : null;
     ok('lab consent record complete, every statement agreed, drawn signature under signatures/lab/', labConsent?.typedName === 'Jane Doe' && Object.keys(labConsent?.responses ?? {}).length === 7 && labConsent?.signature?.image?.path?.startsWith('signatures/lab/JA101CD/') && labConsent?.formVersion === '1.0' && labConsent?.informationVersion === '1.0');
+    ok('the four code answers are kept with the consent, tidied', labConsent?.codeParts?.mother === 'Jane' && labConsent?.codeParts?.house === '123' && labConsent?.codeParts?.month === '01' && labConsent?.codeParts?.postcode === 'AB1 2CD');
     ok('the code row carries no name', !JSON.stringify(labParticipant).includes('Jane'));
 
-    await page.getByRole('button', { name: /I have my files/ }).click();
+    await page.getByRole('button', { name: /^I have my files/ }).click();
     await page.getByRole('heading', { name: /Choose what to share from your data/ }).waitFor();
     await page.locator('#lab-zip').setInputFiles({ name: 'TikTok_Data.zip', mimeType: 'application/zip', buffer: tiktokZip });
     await page.getByRole('heading', { name: /Found: TikTok data/ }).waitFor({ timeout: 30000 });
@@ -383,6 +388,7 @@ async function inner() {
     const shot = labDonation?.files?.find((f) => f.kind === 'screenshot');
     ok('archive recorded from its manifest: TikTok, searches left out, two watched videos', archive?.platforms?.[0] === 'tiktok' && !archive?.categories?.includes('tt_search') && archive?.categories?.includes('tt_watch') && archive?.kept?.tt_watch === 2 && archive?.entries?.includes('tiktok_cleaned.json') && archive?.path === `lab/JA101CD/${archive?.uploadId}.zip`);
     ok('screenshot cleaned and checked', shot?.width > 0 && ['accepted', 'review'].includes(shot?.quality?.verdict) && shot?.path?.startsWith('lab/JA101CD/'));
+    ok('the phone chosen in the guide is recorded with the send', labDonation?.phone === 'iphone' && labP2?.phone === 'iphone');
     const [labFiles] = await bucket.getFiles({ prefix: 'lab/JA101CD/' });
     ok('lab files stored under the code', labFiles.length === 2 && labFiles.some((f) => f.name.endsWith('.zip')) && labFiles.some((f) => f.name.endsWith('.png')), labFiles.map((f) => f.name).join(', '));
     const storedZip = labFiles.find((f) => f.name.endsWith('.zip'));
@@ -409,7 +415,7 @@ async function inner() {
     const labParticipantsTsv = await readExport('lab/participants.tsv');
     const labConsentsTsv = await readExport('identifying/lab_consents.tsv');
     const labBeh = await readExport('lab/sub-JA101CD/ses-01/beh/sub-JA101CD_ses-01_task-donation_beh.tsv');
-    ok('export holds the lab dataset labelled by code, with names only in identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 1 && labManifest.counts?.labScreenshots === 1 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-JA101CD\t') && !labParticipantsTsv.includes('Jane') && labConsentsTsv.includes('Jane Doe') && labBeh.includes('archive\tsourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip') && labManifest.files?.includes('lab/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip') && labManifest.files?.includes('lab/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-02_screenshot.png') && labManifest.files?.some((n) => n.startsWith('identifying/signatures/lab/sub-JA101CD/')), JSON.stringify(labManifest.counts));
+    ok('export holds the lab dataset labelled by code, with names only in identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 1 && labManifest.counts?.labScreenshots === 1 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-JA101CD\t') && labParticipantsTsv.includes('\tiphone\t') && !labParticipantsTsv.includes('Jane') && !labParticipantsTsv.includes('AB1') && labConsentsTsv.includes('Jane Doe') && labConsentsTsv.includes('AB1 2CD') && labBeh.includes('archive\tsourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip') && labManifest.files?.includes('lab/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip') && labManifest.files?.includes('lab/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-02_screenshot.png') && labManifest.files?.some((n) => n.startsWith('identifying/signatures/lab/sub-JA101CD/')), JSON.stringify(labManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {
       await uploadBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`), buffer, { contentType: 'image/png' });

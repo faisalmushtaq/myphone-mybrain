@@ -1,4 +1,4 @@
-import type { LabConsentRecord, LabPlatform } from '../api/types';
+import type { LabConsentRecord, LabPhone, LabPlatform } from '../api/types';
 import type { SendStage, SessionInfo, SignatureRecord, StatementRecord } from '../model/types';
 import type { CategoryId } from './cleaner';
 import type { CodeParts } from './config';
@@ -78,6 +78,8 @@ export interface LabState {
   /** Whether the person typed a code they already had, rather than building it. */
   returning: boolean;
   consent: LabConsentRecord;
+  /** iPhone or Android, chosen in the guide so the right steps show and the screenshots are labelled. */
+  phone: LabPhone | null;
   submission: LabSubmission;
   archives: LabArchive[];
   screenshots: LabScreenshot[];

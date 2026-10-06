@@ -25,7 +25,7 @@ export async function buildLabConsentCopy(state: LabState): Promise<{ blob: Blob
 
   w.heading('Changing your mind');
   w.paragraph(`You can withdraw from the study at any time, without giving a reason, by emailing ${labStudy.contact.name} at ${labStudy.contact.email}. You may ask for your identifiable data to be withdrawn up to one month after your final session; after that, data may be de-identified and no longer retrievable.`);
-  w.paragraph(`Study lead: ${labStudy.contact.lead}, ${labStudy.contact.leadEmail}. ${labStudy.contact.team}. Ethics reference: ${labStudy.ethicsReference}.`);
+  w.paragraph(`Study lead: ${labStudy.contact.lead}, ${labStudy.contact.leadEmail}. ${labStudy.contact.team}. Ethics reference ${labStudy.ethicsReference}, approved ${labStudy.ethicsApproved}.`);
   w.note(`Produced on ${formatTimestamp(new Date().toISOString())} from the answers on this device.`);
   w.footer(state.code);
   return { blob: doc.output('blob'), fileName: `MyPhone-MyBrain-consent-${state.code}.pdf` };

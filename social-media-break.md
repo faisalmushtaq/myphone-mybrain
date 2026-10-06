@@ -52,7 +52,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
 
     <div class="prose">
       <h3>Your data stays yours</h3>
-      <p>The data donation happens on this website, not through a third-party service. You request your own data from TikTok and from Google Takeout for YouTube, and this site reads the download <strong>on your own device</strong>. It keeps only what the study needs, such as when you watched or searched and the link, drops everything else, including messages, contacts and location, and shows you exactly what is left. You untick anything you would rather keep private before a single byte is sent. Everything is labelled with a participant code, never your name.</p>
+      <p>Donations will eventually go through the Smart Data Donation Service (SDDS). Until it is ready, this website carries out that step. You request your own data from TikTok and from Google Takeout for YouTube, and this site reads the download <strong>on your own device</strong>. It keeps only what the study needs, such as when you watched or searched and the link, drops everything else, including messages, contacts and location, and shows you exactly what is left. You untick anything you would rather keep private before a single byte is sent. Everything is labelled with a participant code, never your name.</p>
       <p>The full participant information sheet is shown, section by section, before you are asked to consent, and you can download a copy of your signed consent for your own records.</p>
     </div>
 
@@ -66,7 +66,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
     <div class="prose">
       <h3>Questions</h3>
       <p>Contact Miftah Faizah, School of Psychology, University of Leeds, at <a href="mailto:M.Faizah@leeds.ac.uk">M.Faizah@leeds.ac.uk</a>, or the study lead, Professor Faisal Mushtaq, at <a href="mailto:F.Mushtaq@leeds.ac.uk">F.Mushtaq@leeds.ac.uk</a>.</p>
-      <p>This study has been approved by the University of Leeds School of Psychology Research Ethics Committee. Ethics reference: to be confirmed. The University of Leeds is the data controller; see the <a href="{{ '/privacy/' | relative_url }}">data and privacy</a> page and the University’s research participant privacy notice.</p>
+      <p>This study has been approved by the University of Leeds School of Psychology Research Ethics Committee, reference SoPREC 4202, on 11 June 2026. The University of Leeds is the data controller; see the <a href="{{ '/privacy/' | relative_url }}">data and privacy</a> page and the University’s research participant privacy notice.</p>
     </div>
   </div>
 </section>

@@ -33,7 +33,7 @@ export function LabConsent() {
     announce('Saving your consent.');
     try {
       const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
-      const result = await getApi().submitLabConsent(session, { participantCode: state.code, consent: { ...consent, completedAt }, client: labClientInfo() });
+      const result = await getApi().submitLabConsent(session, { participantCode: state.code, consent: { ...consent, completedAt }, codeParts: state.returning ? null : state.codeParts, client: labClientInfo() });
       dispatch({ type: 'submission', patch: { consentStage: 'sent', consentError: null, consentId: result.consentId, consentVersion: result.version, consentSentAt: result.receivedAt } });
       announce('Consent saved.');
       dispatch({ type: 'next' });

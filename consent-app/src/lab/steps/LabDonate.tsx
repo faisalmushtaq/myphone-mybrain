@@ -115,6 +115,7 @@ export function LabDonate() {
             ? { uploadId, kind: 'archive' as const, name: entry.item.name, contentType: 'application/zip', size: entry.item.size, platforms: entry.item.platforms, categories: entry.item.categories, kept: Object.fromEntries(Object.entries(entry.item.kept).map(([k, v]) => [k, Number(v)])) }
             : { uploadId, kind: 'screenshot' as const, name: entry.item.name, contentType: entry.item.type, size: entry.item.size },
         ),
+        phone: state.phone,
         client: labClientInfo(),
       });
       for (const r of result.rejected) {

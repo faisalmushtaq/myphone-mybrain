@@ -4,11 +4,11 @@
  * participant-code scheme. Plain data with no imports, because the server's
  * build reads this file too (firebase/functions/scripts/generate-forms.mjs).
  *
- * Wording is the ethics-approved version 1 ("Approved v1"). Two statements
- * and one information section describe donating data "through the Smart
- * Data Donation Service (SDDS)"; the study now collects that data on this
- * website instead, and the team is updating the approved wording. Each is
- * marked with `note` so the interface can say so.
+ * Wording is the ethics-approved version 1 ("Approved v1", SoPREC 4202).
+ * Two statements and one information section describe donating data
+ * "through the Smart Data Donation Service (SDDS)". Donations will go through
+ * SDDS once it is ready; until then this website carries out that step. Each
+ * such passage carries a `note` saying so.
  */
 
 export interface LabStatement {
@@ -32,7 +32,7 @@ export const labConsentForm: { id: string; version: string; title: string; state
       version: '1.0',
       label: 'What taking part involves',
       text: 'I understand that participation in this study involves: two laboratory sessions; a smartphone restriction phase lasting between two weeks and one month; completion of questionnaires and computer-based tasks; and donation of summary smartphone usage data through the Smart Data Donation Service (SDDS).',
-      note: 'The data donation now happens on this website rather than through SDDS; the approved wording is being updated.',
+      note: 'Donations will go through the Smart Data Donation Service (SDDS) once it is ready. Until then this website carries out that step: you download your own data, remove what you do not want to share on your own device, and send the rest here.',
     },
     { id: 'voluntary', version: '1.0', label: 'Voluntary', text: 'I understand that participation is voluntary and that I may withdraw at any time without giving a reason.' },
     {
@@ -40,7 +40,7 @@ export const labConsentForm: { id: string; version: string; title: string; state
       version: '1.0',
       label: 'Data donation is part of the study',
       text: 'I understand that if I choose not to donate smartphone usage data through SDDS, I will not be able to participate in this study.',
-      note: 'The data donation now happens on this website rather than through SDDS; the approved wording is being updated.',
+      note: 'Donations will go through the Smart Data Donation Service (SDDS) once it is ready. Until then this website carries out that step: you download your own data, remove what you do not want to share on your own device, and send the rest here.',
     },
     { id: 'publication', version: '1.0', label: 'Publication', text: 'I understand that anonymised results from this research may be published in academic journals, conference presentations, reports, or academic theses.' },
     { id: 'data-protection', version: '1.0', label: 'Data protection', text: 'I understand that my data will be stored securely and handled in accordance with UK data protection legislation.' },
@@ -100,7 +100,7 @@ export const labInformation: LabInfoSection[] = [
     detail: [
       'As part of this study, participants donate summary smartphone usage information through the Smart Data Donation Service (SDDS). This system provides aggregated usage statistics, such as time spent on applications. It does not provide access to personal content, including messages, photos, contacts, passwords, or browsing history. Because these usage summaries are necessary for the research, participation in the study includes donating this information through SDDS.',
     ],
-    note: 'The donation now happens on this website: you download your own data from TikTok and YouTube, remove anything you do not want to share on your own device, and send the rest here. The approved wording is being updated to describe this.',
+    note: 'SDDS is not ready yet, so for now this website carries out the donation step: you download your own data from TikTok and YouTube, remove anything you do not want to share on your own device, and send the rest here. Donations will go through SDDS once it is available.',
   },
   {
     id: 'measures',
@@ -153,7 +153,9 @@ export const labStudy = {
   formalName: 'MyPhone/MyBrain intervention study',
   minAge: 18,
   maxAge: 24,
-  ethicsReference: 'to be confirmed',
+  ethicsReference: 'SoPREC 4202',
+  /** The committee's approval date, shown with the reference. */
+  ethicsApproved: '11 June 2026',
   contact: {
     name: 'Miftah Faizah',
     email: 'M.Faizah@leeds.ac.uk',
@@ -171,7 +173,9 @@ export const labStudy = {
  * the two match: first two letters of your mother's first name, the first
  * digit of your house number, the month you were born (two digits), and the
  * last two letters of your postcode. For example Jane, 123, January, AB1 2CD
- * gives JA101CD.
+ * gives JA101CD. The four answers themselves are also kept, with the consent
+ * record (identifying data, never in the research dataset): the team uses
+ * them as research variables too.
  */
 export const PARTICIPANT_CODE = /^[A-Z]{2}\d(0[1-9]|1[0-2])[A-Z]{2}$/;
 

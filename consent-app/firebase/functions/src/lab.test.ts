@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import JSZip from 'jszip';
 import { cleaner, labConsentForm, labInformationVersion } from './forms.js';
 import { RejectedUpload } from './images.js';
-import { inspectCleanedArchive, normaliseCode, validateLabConsentPayload, validateLabDonationPayload } from './lab.js';
+import { buildParticipantCode, inspectCleanedArchive, normaliseCode, normaliseCodeParts, validateLabConsentPayload, validateLabDonationPayload } from './lab.js';
 
 const now = new Date().toISOString();
 const client = { userAgent: 'test', submittedAt: now, timezoneOffset: 0 };
@@ -20,6 +20,7 @@ const consent = () => ({
     confirmedDate: now.slice(0, 10),
     completedAt: now as string | null,
   },
+  codeParts: { mother: 'Jane', house: '123', month: '01', postcode: 'ab1 2cd' } as Record<string, string> | null,
   client,
 });
 
@@ -56,6 +57,18 @@ test('a complete lab consent is accepted; missing statements, old versions, bad 
   const unfinished = consent();
   unfinished.consent.completedAt = null;
   assert.ok(validateLabConsentPayload(unfinished).some((p) => p.includes('completion time')));
+  const typedCode = consent();
+  typedCode.codeParts = null;
+  assert.deepEqual(validateLabConsentPayload(typedCode), [], 'a typed code comes without the answers');
+  const mismatch = consent();
+  mismatch.codeParts = { mother: 'Sam', house: '9', month: '01', postcode: 'AB1 2CD' };
+  assert.ok(validateLabConsentPayload(mismatch).some((p) => p.includes('does not match the answers')));
+});
+
+test('the code is rebuilt from the answers exactly as the questionnaire does, and the answers are kept tidied', () => {
+  assert.equal(buildParticipantCode({ mother: 'jane', house: '123a', month: '1', postcode: 'ab1 2cd' }), 'JA101CD');
+  assert.equal(buildParticipantCode({ mother: 'Zoë', house: '7', month: '12', postcode: 'LS2 9JT' }), 'ZO712JT');
+  assert.deepEqual(normaliseCodeParts({ mother: ' Jane ', house: '123', month: '1', postcode: 'ab1  2cd' }), { mother: 'Jane', house: '123', month: '01', postcode: 'AB1 2CD' });
 });
 
 test('donation payloads: kinds, sizes, duplicates and categories are checked', () => {
@@ -69,6 +82,8 @@ test('donation payloads: kinds, sizes, duplicates and categories are checked', (
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [{ ...upload, size: 200 * 1024 * 1024 }], client }).some((p) => p.includes('larger than')));
   assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [{ ...upload, kind: 'video' }], client }).includes('An upload reference is malformed.'));
   assert.ok(validateLabDonationPayload({ participantCode: 'nope', uploads: [upload], client }).includes('The participant code is malformed.'));
+  assert.deepEqual(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], phone: 'android', client }), []);
+  assert.ok(validateLabDonationPayload({ participantCode: 'JA101CD', uploads: [shot], phone: 'blackberry', client }).includes('Unknown phone type.'));
 });
 
 const manifest = (over: Record<string, unknown> = {}) => ({ cleanedAt: now, cleaner: `MyPhone/MyBrain data donation cleaner ${cleaner.version}`, platforms: ['tiktok'], categories: ['tt_watch'], kept: { tt_watch: 1 }, removed: ['Direct messages'], ...over });

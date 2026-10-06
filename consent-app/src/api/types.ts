@@ -118,8 +118,12 @@ export interface LabConsentRecord {
 export interface LabConsentPayload {
   participantCode: string;
   consent: LabConsentRecord;
+  /** The four answers the code was built from (kept as identifying data with the consent); null when an existing code was typed. */
+  codeParts: { mother: string; house: string; month: string; postcode: string } | null;
   client: ClientInfo;
 }
+
+export type LabPhone = 'iphone' | 'android';
 
 export interface LabConsentResult {
   participantCode: string;
@@ -150,6 +154,8 @@ export interface LabUploadMeta {
 export interface LabDonationPayload {
   participantCode: string;
   uploads: ({ uploadId: string } & LabUploadMeta)[];
+  /** The phone the screenshots come from, as chosen in the guide; null if not chosen. */
+  phone: LabPhone | null;
   client: ClientInfo;
 }
 

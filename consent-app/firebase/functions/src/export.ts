@@ -369,7 +369,7 @@ export function datasetDescription(exportedAt: string): Record<string, unknown> 
     DatasetType: 'raw',
     License: 'Restricted. Research data about young people; for the named study team only.',
     Authors: ['The MyPhone/MyBrain team, University of Leeds'],
-    EthicsApprovals: ['PLACEHOLDER: University of Leeds research ethics reference'],
+    EthicsApprovals: ['University of Leeds School of Psychology Research Ethics Committee, SoPREC 4202, approved 11 June 2026'],
     GeneratedBy: [{ Name: 'MyPhone/MyBrain consent app export', Version: `${parentQuestionsForm.id} ${parentQuestionsForm.version}`, Description: 'Regenerated every hour from the study database; see the README', CodeURL: CODE_URL }],
     SourceDatasets: [{ URL: `firestore://${study.studyId}`, Version: exportedAt }],
   };
@@ -484,7 +484,8 @@ submissions.tsv            one row per family: reference code, current record
                            ids, image counts
 enquiries.tsv              messages from the website's contact and school forms
 lab_consents.tsv           the social media break study's consent records (adults,
-                           by participant code), with the typed names
+                           by participant code), with the typed names and the
+                           answers the code was built from (incl. postcode)
 lab_consent_statements.tsv one row per statement per lab consent record
 signatures/                drawn signatures, named by participant label and record;
                            signatures/lab/ for the social media break study

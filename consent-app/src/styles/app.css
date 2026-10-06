@@ -2706,6 +2706,19 @@
   }
 }
 
+.mpmb-app .mpmb-guide-phone {
+  margin-top: 1.5rem;
+}
+.mpmb-app .mpmb-guide-next {
+  margin: 0.25rem 0 1.75rem;
+}
+.mpmb-app .mpmb-guide-next .mpmb-btn {
+  font-size: 1.05rem;
+}
+.mpmb-app .mpmb-lab [tabindex='-1']:focus {
+  outline: none;
+}
+
 /* Clean: the drop zone and what was found. */
 .mpmb-app .mpmb-dropzone {
   display: flex;

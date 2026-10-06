@@ -77,8 +77,8 @@ The social media break study (adults; `src/lab/` in the app, `lab.ts` in the fun
 | Collection | Holds | Who may read |
 |---|---|---|
 | `labParticipants/{code}` | one row per code: the current `consentId` and `consentVersion`, `consentedAt`, `archiveCount`, `screenshotCount`, `donationIds[]`, the session uids seen. **No names.** | `researcher`, `coordinator` |
-| `labConsents/{id}` | the consent record: form and information versions, all seven statements (every one is required), typed name, signature (method and a reference to the PNG), confirmed date, completion time, client info, `version` and `supersedes`. Never edited. | `coordinator`, `auditor` |
-| `labDonations/{id}` | one document per send: for each file its kind (`archive` or `screenshot`), Storage path, size, SHA-256; for archives the platforms, categories and row counts from the cleaner's manifest and the file names inside; for screenshots the dimensions and the same `quality` result as the family app's images. **No names.** | `researcher`, `coordinator` |
+| `labConsents/{id}` | the consent record: form and information versions, all seven statements (every one is required), typed name, signature (method and a reference to the PNG), confirmed date, completion time, client info, `version` and `supersedes`, and `codeParts`: the four answers the code was built from (mother's first name, house number, birth month, postcode), which the team also uses as research variables. Never edited. | `coordinator`, `auditor` |
+| `labDonations/{id}` | one document per send: the phone type chosen in the guide, and for each file its kind (`archive` or `screenshot`), Storage path, size, SHA-256; for archives the platforms, categories and row counts from the cleaner's manifest and the file names inside; for screenshots the dimensions and the same `quality` result as the family app's images. **No names.** | `researcher`, `coordinator` |
 
 Storage:
 
@@ -357,6 +357,14 @@ withdrawal is not final there until it is emptied.
   images or use them to improve its models; confirm this against the Cloud
   Data Processing Addendum in the DPIA. Nothing about the image content is
   logged by the function.
+* **The lab study's code answers.** The participant code is built from
+  the mother's first name, the house number, the birth month and the
+  postcode, and those four answers are kept as well, because the team uses
+  them as research variables. House number plus postcode is a home address,
+  so they live only on the consent record (`labConsents`, coordinators and
+  auditors) and in `identifying/lab_consents.tsv`, never in the `lab/`
+  research dataset, which carries the code alone. The approved information
+  sheet does not yet mention keeping them.
 * **Free text.** The parent's open answer (up to 500 characters) may contain
   names or details about other people despite the request not to include
   them. It sits in `surveys/` with the participant id only; decide who reads

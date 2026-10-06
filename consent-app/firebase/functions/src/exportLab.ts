@@ -91,6 +91,7 @@ export function labParticipantsTable(snap: LabSnapshot): Row[] {
         archives_n: files.filter((f) => f.kind === 'archive').length,
         screenshots_n: files.filter((f) => f.kind === 'screenshot').length,
         platforms: Array.from(new Set(files.flatMap((f) => (Array.isArray(f.platforms) ? (f.platforms as string[]) : [])))).sort(),
+        phone: d.phone ?? mine[mine.length - 1]?.donation.data.phone,
         first_donation_at: mine[0]?.donation.data.receivedAt,
         last_donation_at: mine[mine.length - 1]?.donation.data.receivedAt,
       };
@@ -104,6 +105,7 @@ export function labSessionsTable(sessions: LabSession[]): Row[] {
     acq_time: s.donation.data.receivedAt,
     archives_n: s.files.filter((f) => f.kind === 'archive').length,
     screenshots_n: s.files.filter((f) => f.kind === 'screenshot').length,
+    phone: s.donation.data.phone,
     needs_review: s.donation.data.needsReview,
   }));
 }
@@ -144,6 +146,10 @@ export function labConsentTables(docs: Doc[]): { records: Row[]; statements: Row
     form_version: d.formVersion,
     information_version: d.informationVersion,
     typed_name: d.typedName,
+    mother_first_name: d.codeParts?.mother,
+    house_number: d.codeParts?.house,
+    birth_month: d.codeParts?.month,
+    postcode: d.codeParts?.postcode,
     signature_method: d.signature?.method,
     signature_typed_name: d.signature?.typedName,
     signature_file: d.signature?.image?.path ? labSignatureFile(String(d.participantCode), d.version) : null,
@@ -174,7 +180,7 @@ export function labDatasetDescription(exportedAt: string): Record<string, unknow
     DatasetType: 'raw',
     License: 'Restricted. Research data for the named study team only.',
     Authors: ['The MyPhone/MyBrain team, University of Leeds'],
-    EthicsApprovals: ['PLACEHOLDER: University of Leeds School of Psychology Research Ethics Committee reference'],
+    EthicsApprovals: ['University of Leeds School of Psychology Research Ethics Committee, SoPREC 4202, approved 11 June 2026'],
     GeneratedBy: [{ Name: 'MyPhone/MyBrain data donation export', Version: `${labConsentForm.id} ${labConsentForm.version}; cleaner ${cleaner.version}`, Description: 'Regenerated every hour from the study database; see the README', CodeURL: CODE_URL }],
     SourceDatasets: [{ URL: `firestore://${labStudy.studyId}`, Version: exportedAt }],
   };
@@ -191,6 +197,7 @@ export function labParticipantsDictionary(): Record<string, unknown> {
     archives_n: { Description: 'Cleaned TikTok or YouTube archives accepted in total' },
     screenshots_n: { Description: 'Screen-time screenshots accepted in total' },
     platforms: { Description: 'Platforms found in the cleaned archives', Levels: { tiktok: 'TikTok', youtube: 'YouTube' } },
+    phone: { Description: 'Phone the screen-time screenshots come from, as chosen in the guide', Levels: { iphone: 'iPhone', android: 'Android' } },
     first_donation_at: { Description: 'When the first send was received (ISO 8601, UTC)' },
     last_donation_at: { Description: 'When the latest send was received (ISO 8601, UTC)' },
   };
@@ -251,7 +258,9 @@ Participants are labelled by the code the laboratory questionnaire builds
 (sub-JA101CD), so this data and the laboratory data can be joined without a
 name. Names and signatures from the consent records are kept outside this
 dataset, in identifying/lab_consents.tsv next to it, for study coordinators
-only. Participants listed in participants.tsv without a subject folder have
+only, together with the four answers the code was built from (mother's
+first name, house number, birth month and postcode), which the team also
+uses as research variables. Participants listed in participants.tsv without a subject folder have
 consented but not sent anything yet.
 
 Inside a cleaned archive: manifest.json (what was kept and removed),
@@ -277,7 +286,7 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     jsonFile('lab/dataset_description.json', labDatasetDescription(exportedAt)),
     textFile('lab/README', LAB_README),
     textFile('lab/CHANGES', `1.0.0 ${exportedAt.slice(0, 10)}\n  - Regenerated automatically every hour; see ../manifest.json.\n`),
-    tsvFile('lab/participants.tsv', labParticipantsTable(snap), ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'sessions_n', 'archives_n', 'screenshots_n', 'platforms', 'first_donation_at', 'last_donation_at']),
+    tsvFile('lab/participants.tsv', labParticipantsTable(snap), ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'sessions_n', 'archives_n', 'screenshots_n', 'platforms', 'phone', 'first_donation_at', 'last_donation_at']),
     jsonFile('lab/participants.json', labParticipantsDictionary()),
     textFile('lab/sourcedata/README.md', LAB_SOURCEDATA_README, 'text/markdown; charset=utf-8'),
     jsonlFile('lab/sourcedata/raw/labParticipants.jsonl', snap.participants),
@@ -293,7 +302,7 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     bySubject.get(s.label)!.push(s);
   }
   for (const [label, mine] of bySubject) {
-    files.push(tsvFile(`lab/${label}/${label}_sessions.tsv`, labSessionsTable(mine), ['session_id', 'acq_time', 'archives_n', 'screenshots_n', 'needs_review']));
+    files.push(tsvFile(`lab/${label}/${label}_sessions.tsv`, labSessionsTable(mine), ['session_id', 'acq_time', 'archives_n', 'screenshots_n', 'phone', 'needs_review']));
     for (const s of mine) {
       const base = `lab/${label}/${s.session}/beh/${label}_${s.session}_task-${TASK}_beh`;
       files.push(tsvFile(`${base}.tsv`, labBehTable(s), behColumns), jsonFile(`${base}.json`, labBehDictionary()));

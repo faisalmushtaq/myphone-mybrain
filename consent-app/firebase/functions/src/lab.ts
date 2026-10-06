@@ -30,6 +30,7 @@ const LOOKUPS_PER_HOUR = 30;
 /** Bytes an archive may expand to, in total. The cleaned files are small; anything near this was not made by the cleaner. */
 const MAX_UNPACKED = 400 * 1024 * 1024;
 const PLATFORMS = ['tiktok', 'youtube'];
+const PHONES = ['iphone', 'android'];
 const NOT_OURS = 'This file is not a cleaned export made on the “Choose what to share” step. Please prepare it there again and add the result.';
 
 export interface LabConsentPayload {
@@ -44,7 +45,16 @@ export interface LabConsentPayload {
     confirmedDate: string;
     completedAt: string | null;
   };
+  /** The answers the code was built from; null when an existing code was typed. Identifying: stored with the consent only. */
+  codeParts: CodeParts | null;
   client: ClientInfo;
+}
+
+export interface CodeParts {
+  mother: string;
+  house: string;
+  month: string;
+  postcode: string;
 }
 
 export interface LabUpload {
@@ -61,6 +71,7 @@ export interface LabUpload {
 export interface LabDonationPayload {
   participantCode: string;
   uploads: LabUpload[];
+  phone?: string | null;
   client: ClientInfo;
 }
 
@@ -71,11 +82,34 @@ export function normaliseCode(code: unknown): string | null {
   return PARTICIPANT_CODE.test(c) ? c : null;
 }
 
+/** The questionnaire's rule, as in the app's src/lab/config.ts: mother's first two letters, house number's first digit, birth month, postcode's last two letters. */
+export function buildParticipantCode(parts: CodeParts): string {
+  const letters = (s: string) => s.toUpperCase().replace(/[^A-Z]/g, '');
+  const mother = letters(parts.mother).slice(0, 2);
+  const house = parts.house.replace(/\D/g, '').slice(0, 1);
+  const month = parts.month.replace(/\D/g, '');
+  const postcode = letters(parts.postcode).slice(-2);
+  const mm = month.length === 1 ? `0${month}` : month.slice(-2);
+  return `${mother}${house}${mm}${postcode}`;
+}
+
+/** The answers as kept: trimmed, the postcode upper-cased, the month two digits. */
+export function normaliseCodeParts(parts: CodeParts): CodeParts {
+  const month = parts.month.replace(/\D/g, '');
+  return { mother: parts.mother.trim(), house: parts.house.trim(), month: month.length === 1 ? `0${month}` : month.slice(-2), postcode: parts.postcode.trim().toUpperCase().replace(/\s+/g, ' ') };
+}
+
 export function validateLabConsentPayload(input: unknown): string[] {
   const problems: string[] = [];
   if (!isObj(input)) return ['The submission is not an object.'];
   const p = input as Partial<LabConsentPayload>;
-  if (!normaliseCode(p.participantCode)) problems.push('The participant code is malformed.');
+  const code = normaliseCode(p.participantCode);
+  if (!code) problems.push('The participant code is malformed.');
+  if (p.codeParts !== null && p.codeParts !== undefined) {
+    const cp = p.codeParts;
+    if (!isObj(cp) || !str(cp.mother, 40) || !str(cp.house, 10) || !str(cp.month, 2) || !str(cp.postcode, 10)) problems.push('The code answers are malformed.');
+    else if (code && buildParticipantCode(cp as unknown as CodeParts) !== code) problems.push('The participant code does not match the answers it was built from.');
+  }
   const c = p.consent;
   if (!isObj(c)) problems.push('The consent record is missing.');
   else {
@@ -102,6 +136,7 @@ export function validateLabDonationPayload(input: unknown): string[] {
   else {
     if (p.uploads.length === 0) problems.push('No files were sent.');
     if (p.uploads.length > labStudy.maxArchives + labStudy.maxScreenshots) problems.push('Too many files in one send.');
+    if (p.phone !== null && p.phone !== undefined && !PHONES.includes(String(p.phone))) problems.push('Unknown phone type.');
     const seen = new Set<string>();
     for (const u of p.uploads) {
       if (!isObj(u) || typeof u.uploadId !== 'string' || !UUID.test(u.uploadId) || (u.kind !== 'archive' && u.kind !== 'screenshot') || !str(u.name, 200) || !str(u.contentType, 100) || typeof u.size !== 'number' || u.size < 1) {
@@ -307,6 +342,7 @@ export const submitLabConsent = onCall(callOptions, async (request) => {
     signature: signatureRecord(sig, stored),
     confirmedDate: payload.consent.confirmedDate,
     completedAt: payload.consent.completedAt,
+    codeParts: payload.codeParts ? normaliseCodeParts(payload.codeParts) : null,
     sessionUid: uid,
     client: payload.client,
     receivedAt,
@@ -441,6 +477,7 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
       archives: stored.filter((f) => f.kind === 'archive').length,
       screenshots: stored.filter((f) => f.kind === 'screenshot').length,
       needsReview: stored.some((f) => f.quality?.verdict === 'review'),
+      phone: payload.phone ?? null,
       sessionUid: uid,
       client: payload.client,
       receivedAt,
@@ -453,6 +490,7 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
         archiveCount: FieldValue.increment(stored.filter((f) => f.kind === 'archive').length),
         screenshotCount: FieldValue.increment(stored.filter((f) => f.kind === 'screenshot').length),
         lastDonationAt: receivedAt,
+        ...(payload.phone ? { phone: payload.phone } : {}),
         sessionUids: FieldValue.arrayUnion(uid),
         updatedAt: FieldValue.serverTimestamp(),
       },

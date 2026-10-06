@@ -34,7 +34,7 @@ export function ParticipantId() {
     if (parts.mother.replace(/[^A-Za-z]/g, '').length < 2) found.push({ field: 'lab-mother', message: 'Enter your mother’s first name (at least two letters).' });
     if (!/\d/.test(parts.house)) found.push({ field: 'lab-house', message: 'Enter your house number.' });
     if (!parts.month) found.push({ field: 'lab-month', message: 'Choose the month you were born.' });
-    if (parts.postcode.replace(/[^A-Za-z]/g, '').length < 2) found.push({ field: 'lab-postcode', message: 'Enter your postcode; only its last two letters are used.' });
+    if (parts.postcode.replace(/[^A-Za-z]/g, '').length < 2) found.push({ field: 'lab-postcode', message: 'Enter your postcode.' });
     return found;
   };
 
@@ -85,7 +85,7 @@ export function ParticipantId() {
     <LabShell
       kicker="Your participant code"
       title={state.returning ? 'Enter your participant code.' : 'Make your participant code.'}
-      intro={state.returning ? <p>It is the code the questionnaire gave you, such as JA101CD.</p> : <p>The questionnaire in the lab builds the same code from these four answers, so your data and your questionnaire can be matched without using your name. None of the answers themselves are kept.</p>}
+      intro={state.returning ? <p>It is the code the questionnaire gave you, such as JA101CD.</p> : <p>The questionnaire in the lab builds the same code from these four answers, so your data and your questionnaire can be matched without using your name. Your four answers are kept with your consent record too, for the research.</p>}
       errors={errors}
       onContinue={() => void next()}
       continueLoading={busy}
@@ -99,10 +99,10 @@ export function ParticipantId() {
         </div>
       ) : (
         <div className="mpmb-fields">
-          <TextField id="lab-mother" label="Your mother’s first name" hint="Only the first two letters are used." required autoComplete="off" maxLength={40} width="half" value={parts.mother} onChange={(e) => dispatch({ type: 'code-parts', parts: { mother: e.target.value } })} error={errs['lab-mother']} />
-          <TextField id="lab-house" label="Your house number" hint="Only the first digit is used." required inputMode="numeric" autoComplete="off" maxLength={6} width="short" value={parts.house} onChange={(e) => dispatch({ type: 'code-parts', parts: { house: e.target.value } })} error={errs['lab-house']} />
+          <TextField id="lab-mother" label="Your mother’s first name" hint="The first two letters go into your code." required autoComplete="off" maxLength={40} width="half" value={parts.mother} onChange={(e) => dispatch({ type: 'code-parts', parts: { mother: e.target.value } })} error={errs['lab-mother']} />
+          <TextField id="lab-house" label="Your house number" hint="The first digit goes into your code." required inputMode="numeric" autoComplete="off" maxLength={6} width="short" value={parts.house} onChange={(e) => dispatch({ type: 'code-parts', parts: { house: e.target.value } })} error={errs['lab-house']} />
           <SelectField id="lab-month" label="The month you were born" required options={months.map((m, i) => ({ value: String(i + 1).padStart(2, '0'), label: m }))} value={parts.month} onChange={(e) => dispatch({ type: 'code-parts', parts: { month: e.target.value } })} error={errs['lab-month']} />
-          <TextField id="lab-postcode" label="Your postcode" hint="Only the last two letters are used." required autoComplete="postal-code" autoCapitalize="characters" maxLength={10} width="half" className="mpmb-input--upper" value={parts.postcode} onChange={(e) => dispatch({ type: 'code-parts', parts: { postcode: e.target.value } })} error={errs['lab-postcode']} />
+          <TextField id="lab-postcode" label="Your postcode" hint="The last two letters go into your code." required autoComplete="postal-code" autoCapitalize="characters" maxLength={10} width="half" className="mpmb-input--upper" value={parts.postcode} onChange={(e) => dispatch({ type: 'code-parts', parts: { postcode: e.target.value } })} error={errs['lab-postcode']} />
           <p className="mpmb-code-line" aria-live="polite">
             Your participant code: <strong className="mpmb-mono">{built || '—'}</strong>
           </p>

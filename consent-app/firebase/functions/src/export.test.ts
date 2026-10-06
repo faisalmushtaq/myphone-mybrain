@@ -107,7 +107,7 @@ test('the lab dataset is labelled by participant code, names files by session an
   const snap = {
     participants: [{ id: 'JA101CD', data: { consentId: 'c1', consentVersion: 1, archiveCount: 1, screenshotCount: 1 } }, { id: 'ZZ912AB', data: { consentId: 'c2', consentVersion: 1 } }],
     consents: [
-      { id: 'c1', data: { participantCode: 'JA101CD', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-05', typedName: 'Jane Doe', responses: { 'take-part': { version: '1.0', response: 'agreed', respondedAt: '2026-10-05T09:00:00.000Z', via: 'individual' } }, signature: { method: 'drawn', image: { path: 'signatures/lab/JA101CD/c1.png' } } } },
+      { id: 'c1', data: { participantCode: 'JA101CD', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-05', typedName: 'Jane Doe', codeParts: { mother: 'Jane', house: '123', month: '01', postcode: 'AB1 2CD' }, responses: { 'take-part': { version: '1.0', response: 'agreed', respondedAt: '2026-10-05T09:00:00.000Z', via: 'individual' } }, signature: { method: 'drawn', image: { path: 'signatures/lab/JA101CD/c1.png' } } } },
       { id: 'c2', data: { participantCode: 'ZZ912AB', version: 1, formVersion: '1.0', informationVersion: '1.0', confirmedDate: '2026-10-06', typedName: 'Zed Zee', responses: {}, signature: { method: 'typed', typedName: 'Zed Zee', image: null } } },
     ],
     donations: [
@@ -117,6 +117,7 @@ test('the lab dataset is labelled by participant code, names files by session an
           participantCode: 'JA101CD',
           receivedAt: '2026-10-05T10:00:00.000Z',
           needsReview: true,
+          phone: 'iphone',
           files: [
             { kind: 'archive', path: 'lab/JA101CD/u1.zip', bytes: 10, sha256: 'aa', platforms: ['tiktok'], categories: ['tt_watch'], kept: { tt_watch: 3 }, manifest: { cleaner: 'MyPhone/MyBrain data donation cleaner 1.0', cleanedAt: '2026-10-05T09:50:00.000Z' }, entries: ['manifest.json', 'tiktok_cleaned.json'] },
             { kind: 'screenshot', path: 'lab/JA101CD/u2.jpg', bytes: 20, sha256: 'bb', width: 100, height: 200, quality: { verdict: 'review', reasons: ['Not portrait.'] } },
@@ -126,7 +127,7 @@ test('the lab dataset is labelled by participant code, names files by session an
     ],
   };
   const rows = labParticipantsTable(snap);
-  assert.deepEqual(rows[0], { participant_id: 'sub-JA101CD', consented_on: '2026-10-05', consent_version: '1.0', information_version: '1.0', consent_n: 1, sessions_n: 1, archives_n: 1, screenshots_n: 1, platforms: ['tiktok'], first_donation_at: '2026-10-05T10:00:00.000Z', last_donation_at: '2026-10-05T10:00:00.000Z' });
+  assert.deepEqual(rows[0], { participant_id: 'sub-JA101CD', consented_on: '2026-10-05', consent_version: '1.0', information_version: '1.0', consent_n: 1, sessions_n: 1, archives_n: 1, screenshots_n: 1, platforms: ['tiktok'], phone: 'iphone', first_donation_at: '2026-10-05T10:00:00.000Z', last_donation_at: '2026-10-05T10:00:00.000Z' });
   assert.equal(rows[1].sessions_n, 0, 'consented but nothing sent yet');
   assert.ok(!JSON.stringify(rows).includes('Jane'));
   const [s] = labSessionsOf(snap);
@@ -139,6 +140,8 @@ test('the lab dataset is labelled by participant code, names files by session an
   assert.equal(labSignatureFile('JA101CD', 1), 'signatures/lab/sub-JA101CD/sub-JA101CD_consent-v1_signature.png');
   const { records, statements } = labConsentTables(snap.consents);
   assert.equal(records[0].typed_name, 'Jane Doe');
+  assert.equal(records[0].postcode, 'AB1 2CD');
+  assert.equal(records[0].mother_first_name, 'Jane');
   assert.equal(records[0].signature_file, 'signatures/lab/sub-JA101CD/sub-JA101CD_consent-v1_signature.png');
   assert.equal(records[1].signature_file, null);
   assert.equal(statements[0].statement_id, 'take-part');
@@ -149,5 +152,6 @@ test('the lab dataset is labelled by participant code, names files by session an
   assert.deepEqual(Array.from(out.copies.entries()), [['lab/JA101CD/u1.zip', 'lab/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip'], ['lab/JA101CD/u2.jpg', 'lab/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-02_screenshot.jpg'], ['signatures/lab/JA101CD/c1.png', 'identifying/signatures/lab/sub-JA101CD/sub-JA101CD_consent-v1_signature.png']]);
   assert.deepEqual(out.counts, { labParticipants: 2, labConsents: 2, labDonations: 1, labArchives: 1, labScreenshots: 1, labSignatures: 1 });
   const labTsv = out.files.find((f) => f.path === 'lab/participants.tsv')!.body;
-  assert.ok(!labTsv.includes('Jane') && !labTsv.includes('Zed'));
+  assert.ok(!labTsv.includes('Jane') && !labTsv.includes('Zed') && !labTsv.includes('AB1'), 'names and postcodes stay out of the research dataset');
+  assert.ok(labTsv.includes('\tiphone\t'));
 });
