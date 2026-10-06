@@ -154,6 +154,7 @@ export function LabClean() {
         dispatch({ type: 'next' });
       }}
       continueLabel="Next: check and send"
+      continueLoading={busy}
       width="wide"
     >
       <section aria-labelledby="apps-heading">
