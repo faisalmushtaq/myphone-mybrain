@@ -301,7 +301,11 @@ minutes, in the background:
    every 15 minutes, and runs the first copy. Offline runs are skipped
    quietly; a real failure shows a macOS notification at most every six
    hours; the log is `~/Library/Logs/MyPhoneMyBrain Sync.log`.
-   `bash mac-sync-install.sh --uninstall` removes it all. Rerun
+   `bash mac-sync-install.sh --add <folder> [bids|all]` mirrors into a
+   second place too, by default the de-identified `bids/` dataset only
+   (use `all` only where the DPIA allows identifying data, such as the
+   University's own storage); `--remove <folder>` stops that, `--list`
+   shows the folders and runs a copy, `--uninstall` removes it all. Rerun
    `setup-exports.sh` to rotate the key.
 
 Use a restricted SharePoint or Teams library with sync turned off for
