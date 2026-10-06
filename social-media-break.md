@@ -46,7 +46,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
       </div>
       <div class="info-panel info-panel-alt">
         <h3>What you receive</h3>
-        <p>Up to £70: £20 for each lab visit, plus a £30 bonus for completing every part of the study. If you withdraw part-way, you are paid for the sessions you completed. Taking part is voluntary and you can stop at any time without giving a reason.</p>
+        <p>£75 in total: £25 for each lab visit, plus £25 for completing every part of the study. If you withdraw part-way, you are paid for the sessions you completed. Taking part is voluntary and you can stop at any time without giving a reason.</p>
       </div>
     </div>
 

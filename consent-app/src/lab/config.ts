@@ -127,12 +127,11 @@ export const labInformation: LabInfoSection[] = [
   {
     id: 'compensation',
     title: 'Compensation',
-    summary: '£20 for each laboratory session, plus a £30 bonus for completing all parts of the study.',
+    summary: '£25 for each laboratory session, plus £25 for completing all parts of the study: £75 in total.',
     detail: [
-      'You will receive £20 for each laboratory session you attend, plus a £30 bonus for completing all parts of the study, up to £70 in total. Compensation is provided for each completed session. No additional payment is provided for the social media restriction period. Participation in this phase is voluntary and you may discontinue at any time without penalty.',
+      'You will receive £25 for each laboratory session you attend, plus £25 for completing all parts of the study, £75 in total. Compensation is provided for each completed session. No additional payment is provided for the social media restriction period. Participation in this phase is voluntary and you may discontinue at any time without penalty.',
       'If you withdraw before completing the study, you will receive compensation proportional to the sessions completed.',
     ],
-    note: 'Amounts to be confirmed against the approved information sheet.',
   },
   {
     id: 'confidentiality',
