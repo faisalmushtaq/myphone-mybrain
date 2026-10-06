@@ -4,7 +4,7 @@ import { connectAuthEmulator, getAuth, signInAnonymously, type Auth, type User }
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, deleteObject, getStorage, ref, uploadBytesResumable, type FirebaseStorage } from 'firebase/storage';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type UploadMeta, type UploadSlot } from './types';
 
 /**
  * Firebase implementation of the API boundary.
@@ -37,6 +37,8 @@ export interface FirebaseSettings {
 }
 
 const UPLOAD_ROOT = 'quarantine';
+/** The lab study's uploads: cleaned archives as well as screenshots, under their own rules. */
+const LAB_UPLOAD_ROOT = 'labquarantine';
 
 function mapError(error: unknown): ApiError {
   if (error instanceof ApiError) return error;
@@ -160,6 +162,34 @@ export class FirebaseConsentApi implements ConsentApi {
 
   submitDonation(session: SessionInfo, payload: DonationPayload): Promise<DonationResult> {
     return this.call<DonationPayload, DonationResult>(session, 'submitDonation', payload);
+  }
+
+  submitLabConsent(session: SessionInfo, payload: LabConsentPayload): Promise<LabConsentResult> {
+    return this.call<LabConsentPayload, LabConsentResult>(session, 'submitLabConsent', payload);
+  }
+
+  lookupLabParticipant(session: SessionInfo, participantCode: string): Promise<LabLookupResult> {
+    return this.call<{ participantCode: string }, LabLookupResult>(session, 'lookupLabParticipant', { participantCode });
+  }
+
+  async requestLabUploadSlot(sessionId: string, meta: { contentType: string; size: number }): Promise<UploadSlot> {
+    const user = await this.user();
+    if (user.uid !== sessionId) throw new ApiError('expired', 'Your session has changed. Please try again.');
+    const uploadId = crypto.randomUUID();
+    return { uploadId, url: `${LAB_UPLOAD_ROOT}/${user.uid}/${uploadId}`, method: 'PUT', headers: { 'Content-Type': meta.contentType }, expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString() };
+  }
+
+  async deleteLabUpload(sessionId: string, uploadId: string): Promise<void> {
+    try {
+      await deleteObject(ref(this.storage, `${LAB_UPLOAD_ROOT}/${sessionId}/${uploadId}`));
+    } catch (error) {
+      if (error instanceof FirebaseError && error.code === 'storage/object-not-found') return;
+      throw mapError(error);
+    }
+  }
+
+  submitLabDonation(session: SessionInfo, payload: LabDonationPayload): Promise<LabDonationResult> {
+    return this.call<LabDonationPayload, LabDonationResult>(session, 'submitLabDonation', payload);
   }
 }
 

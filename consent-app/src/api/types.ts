@@ -1,4 +1,4 @@
-import type { AssentRecord, ConsentRecord, GuardianIdentity, ParticipantIdentity, SessionInfo, StatementRecord, SurveyRecord } from '../model/types';
+import type { AssentRecord, ConsentRecord, GuardianIdentity, ParticipantIdentity, SessionInfo, SignatureRecord, StatementRecord, SurveyRecord } from '../model/types';
 import type { PlatformId } from '../config/walkthroughs';
 
 /**
@@ -100,6 +100,66 @@ export class ApiError extends Error {
   }
 }
 
+/* ── The social media break study (adults, the laboratory study) ─────────── */
+
+export type LabPlatform = 'tiktok' | 'youtube';
+
+export interface LabConsentRecord {
+  formId: string;
+  formVersion: string;
+  informationVersion: string;
+  responses: Record<string, StatementRecord>;
+  typedName: string;
+  signature: SignatureRecord | null;
+  confirmedDate: string;
+  completedAt: string | null;
+}
+
+export interface LabConsentPayload {
+  participantCode: string;
+  consent: LabConsentRecord;
+  client: ClientInfo;
+}
+
+export interface LabConsentResult {
+  participantCode: string;
+  consentId: string;
+  receivedAt: string;
+  version: number;
+}
+
+/** What the server will say about a participant code, so someone can carry on from another device. */
+export interface LabLookupResult {
+  exists: boolean;
+  consentedAt: string | null;
+  archives: number;
+  screenshots: number;
+}
+
+export interface LabUploadMeta {
+  kind: 'archive' | 'screenshot';
+  name: string;
+  contentType: string;
+  size: number;
+  /** For archives: what the cleaner found and what the participant chose to keep. */
+  platforms?: LabPlatform[];
+  categories?: string[];
+  kept?: Record<string, number>;
+}
+
+export interface LabDonationPayload {
+  participantCode: string;
+  uploads: ({ uploadId: string } & LabUploadMeta)[];
+  client: ClientInfo;
+}
+
+export interface LabDonationResult {
+  donationId: string | null;
+  receivedAt: string;
+  accepted: string[];
+  rejected: { uploadId: string; reason: string }[];
+}
+
 export interface ConsentApi {
   startSession(): Promise<SessionInfo>;
   submitConsent(session: SessionInfo, payload: ConsentPayload): Promise<ConsentResult>;
@@ -107,4 +167,11 @@ export interface ConsentApi {
   uploadImage(slot: UploadSlot, blob: Blob, onProgress?: (fraction: number) => void): Promise<void>;
   deleteUpload(sessionId: string, uploadId: string): Promise<void>;
   submitDonation(session: SessionInfo, payload: DonationPayload): Promise<DonationResult>;
+  // The social media break study.
+  submitLabConsent(session: SessionInfo, payload: LabConsentPayload): Promise<LabConsentResult>;
+  lookupLabParticipant(session: SessionInfo, participantCode: string): Promise<LabLookupResult>;
+  /** A slot under the lab quarantine path, which also accepts zip archives. */
+  requestLabUploadSlot(sessionId: string, meta: { contentType: string; size: number }): Promise<UploadSlot>;
+  deleteLabUpload(sessionId: string, uploadId: string): Promise<void>;
+  submitLabDonation(session: SessionInfo, payload: LabDonationPayload): Promise<LabDonationResult>;
 }

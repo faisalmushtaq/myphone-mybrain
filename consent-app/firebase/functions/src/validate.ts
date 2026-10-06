@@ -91,16 +91,16 @@ export interface DonationPayload {
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
 const PHONE = /^\+?[\d\s()-]{7,20}$/;
-const UUID = /^[0-9a-f-]{36}$/;
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export const UUID = /^[0-9a-f-]{36}$/;
+export const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const RELATIONSHIPS = ['mother', 'father', 'step-parent', 'grandparent', 'foster-carer', 'legal-guardian', 'other'];
 const PLATFORMS = ['ios', 'android', 'other'];
-const limits = { name: 100, email: 254, phone: 20, postcode: 10, school: 150, relationship: 60 };
+export const limits = { name: 100, email: 254, phone: 20, postcode: 10, school: 150, relationship: 60 };
 
-const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
-const str = (v: unknown, max: number) => typeof v === 'string' && v.length <= max;
-const blank = (v: string) => v.trim().length === 0;
-const validTime = (v: unknown) => typeof v === 'string' && !Number.isNaN(Date.parse(v));
+export const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
+export const str = (v: unknown, max: number) => typeof v === 'string' && v.length <= max;
+export const blank = (v: string) => v.trim().length === 0;
+export const validTime = (v: unknown) => typeof v === 'string' && !Number.isNaN(Date.parse(v));
 
 function ageOn(dob: Date, today = new Date()): number {
   const age = today.getUTCFullYear() - dob.getUTCFullYear();
@@ -119,7 +119,7 @@ export function parseDate(parts: { day: string; month: string; year: string }): 
   return date;
 }
 
-function validateSignature(sig: unknown, who: string, problems: string[]): void {
+export function validateSignature(sig: unknown, who: string, problems: string[]): void {
   if (!isObj(sig)) {
     problems.push(`${who}: signature is missing.`);
     return;
@@ -136,7 +136,7 @@ function validateSignature(sig: unknown, who: string, problems: string[]): void 
   if (!validTime(sig.capturedAt)) problems.push(`${who}: the signature has no valid time.`);
 }
 
-function validateStatement(r: unknown, served: { id: string; version: string }, who: string, problems: string[]): void {
+export function validateStatement(r: unknown, served: { id: string; version: string }, who: string, problems: string[]): void {
   if (!isObj(r) || r.statementId !== served.id) {
     problems.push(`${who}: malformed response for "${served.id}".`);
     return;
@@ -147,7 +147,7 @@ function validateStatement(r: unknown, served: { id: string; version: string }, 
   if (!['individual', 'group', 'signature', 'action'].includes(String(r.via))) problems.push(`${who}: statement "${served.id}" has an unknown response method.`);
 }
 
-function validateResponses(responses: unknown, form: { id: string; statements: { id: string; version: string; kind: string }[] }, problems: string[], who: string): void {
+export function validateResponses(responses: unknown, form: { id: string; statements: { id: string; version: string; kind: string }[] }, problems: string[], who: string): void {
   if (!isObj(responses)) {
     problems.push(`${who}: responses are missing.`);
     return;
@@ -162,7 +162,7 @@ function validateResponses(responses: unknown, form: { id: string; statements: {
   }
 }
 
-function validateClient(cl: unknown, problems: string[]): void {
+export function validateClient(cl: unknown, problems: string[]): void {
   if (!isObj(cl) || !str(cl.userAgent, 400) || !validTime(cl.submittedAt) || typeof cl.timezoneOffset !== 'number') problems.push('Client information is malformed.');
 }
 

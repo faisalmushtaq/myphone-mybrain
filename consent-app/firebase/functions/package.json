@@ -9,13 +9,14 @@
   "scripts": {
     "build": "node scripts/generate-forms.mjs && tsc",
     "serve": "npm run build && firebase emulators:start --only functions",
-    "test": "npm run build && node --test lib/validate.test.js lib/quality.test.js lib/enquiry.test.js lib/mail.test.js lib/export.test.js"
+    "test": "npm run build && node --test lib/validate.test.js lib/quality.test.js lib/enquiry.test.js lib/mail.test.js lib/export.test.js lib/lab.test.js"
   },
   "dependencies": {
     "@google-cloud/secret-manager": "^7.1.1",
     "@google-cloud/vision": "^5.3.7",
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^6.3.0",
+    "jszip": "^3.10.2",
     "nodemailer": "^10.0.13",
     "sharp": "^0.33.5"
   },

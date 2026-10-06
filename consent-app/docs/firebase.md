@@ -47,14 +47,16 @@ with a role claim.
 | `firebase/firebase.json` | Project layout and emulator ports |
 | `firebase/firestore.rules`, `firebase/storage.rules` | Security rules (see below) |
 | `firebase/functions/src/index.ts` | `submitConsent` and `submitDonation` callables, `purgeQuarantine` schedule |
-| `firebase/functions/src/validate.ts` | Server-side validation of both payloads (mirrors `src/lib/validation.ts`) |
+| `firebase/functions/src/lab.ts` | The social media break study: `submitLabConsent`, `lookupLabParticipant` and `submitLabDonation` callables, and the check that a donated archive is the cleaner's |
+| `firebase/functions/src/validate.ts` | Server-side validation of the family payloads (mirrors `src/lib/validation.ts`); its helpers are shared with `lab.ts` |
+| `firebase/functions/src/images.ts`, `signatures.ts` | The image pipeline (prove it is an image, re-encode without metadata, quality checks) and signature storage, shared by both studies |
 | `firebase/functions/src/quality.ts` | Image quality and safety checks: flatness, Cloud Vision SafeSearch and text detection, the verdict rules |
-| `firebase/functions/src/forms.ts` | The statement ids, versions and wording the server accepts, derived at build time from the app's `src/config` by `scripts/generate-forms.mjs`, so they cannot drift |
+| `firebase/functions/src/forms.ts` | The statement ids, versions and wording the server accepts, for both studies, derived at build time from the app's `src/config` and `src/lab` by `scripts/generate-forms.mjs`, so they cannot drift; also the cleaner's file allow-list |
 | `firebase/functions/src/enquiry.ts`, `mail.ts` | The website's contact and school forms: validation, storage in `enquiries/`, and the email to the team sent over SMTP |
-| `firebase/functions/src/export.ts` | The hourly export: a BIDS dataset plus a separate identifying folder in the private exports bucket (see "Getting the data out") |
+| `firebase/functions/src/export.ts`, `exportLab.ts` | The hourly export: two BIDS datasets (`bids/` for the family study, `lab/` for the social media break study) plus a separate identifying folder in the private exports bucket (see "Getting the data out") |
 | `firebase/scripts/setup-exports.sh`, `mac-sync-install.sh` | One-off set-up of the export bucket and read-only key, and the Mac job that mirrors it into OneDrive |
-| `firebase/functions/src/validate.test.ts`, `quality.test.ts` | Unit tests (`npm test` in `firebase/functions`) |
-| `scripts/emulator-e2e.mjs` | Drives the real app against the emulator suite and checks what was stored |
+| `firebase/functions/src/*.test.ts` | Unit tests (`npm test` in `firebase/functions`) |
+| `scripts/emulator-e2e.mjs` | Drives the real app, both studies, against the emulator suite and checks what was stored |
 | `.env.example` | The environment variables the app build reads |
 | `firebase/functions/.env.example` | The environment variables the functions read |
 
@@ -70,6 +72,14 @@ with a role claim.
 | `submissions/{referenceCode}` | one row per family: kind, route, the *current* `consentId` and `assentId`, `version`, `versions[]` (one entry per send with the record ids and time), `donationIds[]`, `imageCount`, session uid, user agent | `coordinator` |
 | `enquiries/{id}` | messages from the website's contact and school forms, with whether the team was emailed (`notified`: sent, failed or not-configured). Families are never emailed; they download their copy of the record instead | `coordinator` |
 
+The social media break study (adults; `src/lab/` in the app, `lab.ts` in the functions) keeps its own collections, keyed by the participant code the lab questionnaire builds (for example `JA101CD`: mother's first two letters, first digit of the house number, two-digit birth month, last two letters of the postcode), so the donated data and the laboratory data meet without a name:
+
+| Collection | Holds | Who may read |
+|---|---|---|
+| `labParticipants/{code}` | one row per code: the current `consentId` and `consentVersion`, `consentedAt`, `archiveCount`, `screenshotCount`, `donationIds[]`, the session uids seen. **No names.** | `researcher`, `coordinator` |
+| `labConsents/{id}` | the consent record: form and information versions, all seven statements (every one is required), typed name, signature (method and a reference to the PNG), confirmed date, completion time, client info, `version` and `supersedes`. Never edited. | `coordinator`, `auditor` |
+| `labDonations/{id}` | one document per send: for each file its kind (`archive` or `screenshot`), Storage path, size, SHA-256; for archives the platforms, categories and row counts from the cleaner's manifest and the file names inside; for screenshots the dimensions and the same `quality` result as the family app's images. **No names.** | `researcher`, `coordinator` |
+
 Storage:
 
 | Path | Holds | Access |
@@ -77,12 +87,17 @@ Storage:
 | `quarantine/{uid}/{uploadId}` | images while the form is open | the session that created them: create and delete only |
 | `donations/{participantId}/{uploadId}.png|jpg` | accepted images, re-encoded with all metadata removed | `researcher`, `coordinator` |
 | `signatures/{participantId}/{recordId}.png` | drawn signatures, one per consent or assent record | `coordinator`, `auditor` |
+| `labquarantine/{uid}/{uploadId}` | the lab study's uploads (images up to 10 MB, ZIP archives up to 64 MB) while the page is open | the session that created them: create and delete only |
+| `lab/{code}/{uploadId}.zip|png|jpg` | accepted cleaned archives (kept exactly as sent) and screenshots (re-encoded without metadata) | `researcher`, `coordinator` |
+| `signatures/lab/{code}/{consentId}.png` | the lab study's drawn signatures | `coordinator`, `auditor` |
 
 Identifying details and research data are in different collections and
 different Storage folders, joined only by `participantId`, so a researcher
 role can be given access to `donations/` without ever seeing a name.
 
 ## What the functions check before writing anything
+
+The lab study's functions check, in the same spirit: the code has the questionnaire's shape; the consent form and information versions are the current ones and all seven statements are agreed; a signature is present; a donation needs consent on file for that code (not necessarily from the same session, because people come back from another device); at most 10 archives and 12 screenshots per code in total; and every archive is opened on the server and must contain only the file names the in-browser cleaner writes (`manifest.json`, `tiktok_cleaned.json`, `youtube/history/watch-history.json`, `youtube/history/search-history.json`, `youtube/subscriptions/subscriptions.csv`), each JSON file must parse, the manifest must be the cleaner's, and the unpacked size is capped, so a participant's raw TikTok download, a photo or anything else is refused with a plain reason and never stored. `lookupLabParticipant` says only whether a code has consent on file and how many files it has, and is limited to 30 calls an hour per session.
 
 **`submitConsent`** re-validates the whole payload (`validate.ts`): field
 lengths and formats, the allowed relationships, the 11–17 age range, at least
@@ -249,7 +264,7 @@ the validation and quality-rule unit tests.
 
 Nobody reads the live database by hand. Every hour the `exportData`
 function (`firebase/functions/src/export.ts`) rewrites a private bucket of
-its own, `<project-id>-exports`, as a mirror of the current records, in two
+its own, `<project-id>-exports`, as a mirror of the current records, in three
 folders:
 
 ```
@@ -266,17 +281,32 @@ bids/                                     the research dataset, BIDS layout, no 
   sourcedata/sub-00001/ses-01/
     sub-00001_ses-01_task-screentime_run-01_screenshot.png   the images themselves
   sourcedata/raw/*.jsonl                  every research document as JSON Lines
+lab/                                      the social media break study, BIDS layout, no names
+  dataset_description.json, README, CHANGES
+  participants.tsv + .json                one row per code with consent: consent versions,
+                                          sends, archives, screenshots, platforms found
+  sub-JA101CD/sub-JA101CD_sessions.tsv    one session per send
+  sub-JA101CD/ses-01/beh/
+    sub-JA101CD_ses-01_task-donation_beh.tsv + .json   the files of that send: what the cleaner's
+                                          manifest says is inside an archive, or the screenshot checks
+  sourcedata/sub-JA101CD/ses-01/
+    sub-JA101CD_ses-01_run-01_archive.zip, ..._run-02_screenshot.png   the files themselves
+  sourcedata/raw/*.jsonl
 identifying/                              coordinators only
   participants_key.tsv                    the key from sub-labels to names, dates of birth,
                                           school, parent or guardian and contact details
   consents.tsv, consent_statements.tsv, assents.tsv, assent_statements.tsv,
   submissions.tsv, enquiries.tsv, raw/*.jsonl
+  lab_consents.tsv, lab_consent_statements.tsv   the lab study's consent records, with the typed names
   signatures/sub-00001/sub-00001_consent-v1_signature.png
+  signatures/lab/sub-JA101CD/sub-JA101CD_consent-v1_signature.png
 ```
 
-Participants are labelled `sub-00001`, `sub-00002`… in order of consent (the
-number is stored on the participant record the first time it is exported).
-Declined families appear in `identifying/` only, without a label. Tables are
+Family participants are labelled `sub-00001`, `sub-00002`… in order of
+consent (the number is stored on the participant record the first time it is
+exported); lab participants are labelled by their participant code
+(`sub-JA101CD`), which the laboratory data also uses, so the two datasets join
+on it. Declined families appear in `identifying/` only, without a label. Tables are
 BIDS-style TSV (tab-separated, `n/a` for missing, UTF-8), rewritten each run;
 images and signatures are copied once; anything deleted from the study (a
 withdrawal) disappears from the bucket too. The screenshots have no BIDS
@@ -302,14 +332,15 @@ minutes, in the background:
    quietly; a real failure shows a macOS notification at most every six
    hours; the log is `~/Library/Logs/MyPhoneMyBrain Sync.log`.
    `bash mac-sync-install.sh --add <folder> [bids|all]` mirrors into a
-   second place too, by default the de-identified `bids/` dataset only
-   (use `all` only where the DPIA allows identifying data, such as the
-   University's own storage); `--remove <folder>` stops that, `--list`
+   second place too, by default the de-identified research datasets only
+   (`bids/` and `lab/`; use `all` only where the DPIA allows identifying
+   data, such as the University's own storage); `--remove <folder>` stops that, `--list`
    shows the folders and runs a copy, `--uninstall` removes it all. Rerun
    `setup-exports.sh` to rotate the key.
 
 Use a restricted SharePoint or Teams library with sync turned off for
-everyone except that Mac, and give researchers access to `bids/` only.
+everyone except that Mac, and give researchers access to `bids/` and `lab/`
+only.
 Note that OneDrive keeps deleted files in its recycle bin for a while, so a
 withdrawal is not final there until it is emptied.
 

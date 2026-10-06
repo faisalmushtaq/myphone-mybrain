@@ -27,6 +27,22 @@ controls panel).
 | What a parent is told when sharing screenshots while the young person's agreement is still to be collected (screen-time page, check page, thank-you page, handover) | `src/steps/PhoneUse.tsx`, `src/components/ConsentSummary.tsx`, `src/steps/Done.tsx`, `src/components/HandoverScreen.tsx` | Wording agreed with ethics, matching how the paper agreement is collected at school |
 | Photo-check wording shown to families (the warning under an image, the confirmation before sending, and the reasons a rejected image is given) | `src/components/UploadList.tsx`, `src/steps/PhoneUse.tsx`, `firebase/functions/src/quality.ts` → `FAMILY_REASONS` | Approved wording; the reasons must never accuse |
 
+## The social media break study (adults)
+
+The lab study's page (`/social-media-break/take-part/`, code in `src/lab/`) carries the **ethics-approved version 1** wording from the Participant Information Sheet and Participant Consent Form, verbatim, so it does not show the "Draft wording" marker. The team is updating that wording; until then the interface says so where the approved text no longer matches the process.
+
+| What | Where in the code | Replace with |
+|---|---|---|
+| Two consent statements and the "Smartphone usage data" information section describe donating data "through the Smart Data Donation Service (SDDS)"; each carries a `note` saying the donation now happens on this website | `src/lab/config.ts` → `labConsentForm` (`involves`, `donation-required`), `labInformation` (`donation`) | The re-approved wording; bump `labConsentForm.version` and `labInformationVersion` so old records are distinguishable, and remove the notes |
+| Compensation: the approved sheet says "[£50 / course credit]", the recruitment email says £20 per visit plus a £30 completion bonus; the page uses the recruitment amounts with a `note` | `src/lab/config.ts` → `labInformation` (`compensation`); `social-media-break.md` | The approved amounts |
+| Ethics reference ("to be confirmed") | `src/lab/config.ts` → `labStudy.ethicsReference`; `social-media-break.md` | The committee's reference, also in the exported `dataset_description.json` (`firebase/functions/src/exportLab.ts`) |
+| Age range 18 to 24 (the approved sheet says 18 or older; the recruitment email says 18 to 24) | `src/lab/config.ts` → `labStudy.minAge`, `maxAge` | The range the committee approved |
+| Contact names and addresses (Miftah Faizah, Professor Faisal Mushtaq) | `src/lab/config.ts` → `labStudy.contact`; `social-media-break.md`, `social-media-break/take-part.md` | As approved |
+| The participant-code scheme (mother's initials, house number digit, birth month, postcode letters) must match the lab questionnaire exactly | `src/lab/config.ts` → `buildParticipantCode`, `PARTICIPANT_CODE`; mirrored to the server at build time | Whatever the questionnaire does; the two must agree or the data cannot be joined |
+| The step-by-step download guide (TikTok, Google Takeout, iPhone and Android screen time) and its screenshots | `src/lab/steps/LabGuide.tsx`, `src/assets/lab-guide/` | Refreshed when the platforms move their menus |
+| The categories offered in the cleaner, their descriptions, and what is always removed | `src/lab/cleaner.ts` → `categories`, `alwaysRemoved` | Whatever the data management plan allows; the server accepts only the file names listed in `ALLOWED_CLEANED_FILES` |
+| The recruitment page | `social-media-break.md` | The approved recruitment leaflet wording |
+
 ## Things that are not wording
 
 * The mock API is the default build; the Firebase client is selected with

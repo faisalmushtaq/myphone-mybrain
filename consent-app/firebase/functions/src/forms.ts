@@ -54,6 +54,7 @@ export const questionWording: Record<string, { text: string; labels?: Record<str
 export const statementWording: Record<string, Record<string, { label: string; text: string }>> = {
   [generated.parentConsentForm.id]: Object.fromEntries(generated.parentConsentForm.statements.map((s) => [s.id, { label: s.label as string, text: s.text as string }])),
   [generated.childAssentForm.id]: Object.fromEntries(generated.childAssentForm.statements.map((s) => [s.id, { label: s.label as string, text: s.text as string }])),
+  [generated.labConsentForm.id]: Object.fromEntries(generated.labConsentForm.statements.map((s) => [s.id, { label: s.label as string, text: s.text as string }])),
 };
 
 export const study = {
@@ -69,3 +70,40 @@ export const study = {
 
 /** Shape of the reference codes issued by submitConsent. */
 export const REFERENCE_CODE = /^MPMB-[A-Z2-9]{4}-[A-Z2-9]{3}$/;
+
+/* ── The social media break study (adults, the laboratory study) ─────────── */
+
+/** The adult participant's own consent form (src/lab/config.ts in the app). Every statement is required. */
+export const labConsentForm = {
+  id: generated.labConsentForm.id,
+  version: generated.labConsentForm.version,
+  title: generated.labConsentForm.title,
+  statements: generated.labConsentForm.statements.map(served),
+};
+
+export const labInformationVersion: string = generated.labInformationVersion;
+
+export const labStudy = {
+  studyId: generated.labStudy.studyId,
+  minAge: generated.labStudy.minAge,
+  maxAge: generated.labStudy.maxAge,
+  /** Largest cleaned archive accepted, in bytes (the storage rules allow a little more). */
+  maxArchiveBytes: generated.labStudy.maxArchiveBytes,
+  /** Screenshots accepted per participant in total. */
+  maxScreenshots: generated.labStudy.maxScreenshots,
+  /** Cleaned archives accepted per participant in total. */
+  maxArchives: 10,
+  maxSignatureBytes: study.maxSignatureBytes,
+};
+
+/** The participant code the lab questionnaire builds, for example JA101CD; see src/lab/config.ts. */
+export const PARTICIPANT_CODE = new RegExp(generated.labStudy.participantCodePattern);
+
+/** What the in-browser cleaner produces: the only file names a donated archive may contain, and the category ids it reports. */
+export const cleaner = {
+  version: generated.cleaner.version,
+  allowedFiles: generated.cleaner.allowedFiles as readonly string[],
+  categoryIds: generated.cleaner.categories.map((c) => c.id as string),
+  platformOf: Object.fromEntries(generated.cleaner.categories.map((c) => [c.id, c.platform as string])) as Record<string, string>,
+  titleOf: Object.fromEntries(generated.cleaner.categories.map((c) => [c.id, c.title as string])) as Record<string, string>,
+};

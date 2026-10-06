@@ -10,9 +10,9 @@
 #   bash mac-sync-install.sh --list                              show the folders and run a copy now
 #   bash mac-sync-install.sh --uninstall
 #
-# Scope: "all" mirrors the whole export (bids/ and identifying/) into
+# Scope: "all" mirrors the whole export (bids/, lab/ and identifying/) into
 # <folder>/MyPhoneMyBrain data; "bids" mirrors only the de-identified research
-# dataset into <folder>/MyPhoneMyBrain data/bids. Use "bids" for anywhere
+# datasets into <folder>/MyPhoneMyBrain data/bids and /lab. Use "bids" for anywhere
 # outside the University's own storage unless the DPIA says otherwise.
 #
 # What it installs, all inside your own account:
@@ -76,15 +76,23 @@ if ! curl -s --max-time 10 -o /dev/null https://storage.googleapis.com/; then
   exit 0
 fi
 status=0
+mirror() {
+  echo "\$(now) sync starting: \$2" >> "\$LOG"
+  if "\$RCLONE" sync "\$1" "\$2" --config "\$CONF" --exclude ".DS_Store" --exclude "Icon?" --fast-list --transfers 8 --checkers 16 --log-file "\$LOG" --log-level NOTICE --stats 0 < /dev/null; then
+    echo "\$(now) sync finished: \$2" >> "\$LOG"
+  else
+    echo "\$(now) sync FAILED: \$2" >> "\$LOG"
+    status=1
+  fi
+}
 while IFS=\$'\\t' read -r dest scope; do
   [ -z "\$dest" ] && continue
-  if [ "\$scope" = "bids" ]; then src="exports:\$BUCKET/bids"; target="\$dest/MyPhoneMyBrain data/bids"; else src="exports:\$BUCKET"; target="\$dest/MyPhoneMyBrain data"; fi
-  echo "\$(now) sync starting: \$target (\$scope)" >> "\$LOG"
-  if "\$RCLONE" sync "\$src" "\$target" --config "\$CONF" --exclude ".DS_Store" --exclude "Icon?" --fast-list --transfers 8 --checkers 16 --log-file "\$LOG" --log-level NOTICE --stats 0 < /dev/null; then
-    echo "\$(now) sync finished: \$target" >> "\$LOG"
+  if [ "\$scope" = "bids" ]; then
+    # Research datasets only: the family study (bids/) and the social media break study (lab/).
+    mirror "exports:\$BUCKET/bids" "\$dest/MyPhoneMyBrain data/bids"
+    mirror "exports:\$BUCKET/lab" "\$dest/MyPhoneMyBrain data/lab"
   else
-    echo "\$(now) sync FAILED: \$target" >> "\$LOG"
-    status=1
+    mirror "exports:\$BUCKET" "\$dest/MyPhoneMyBrain data"
   fi
 done < "\$DESTS"
 if [ \$status -eq 0 ]; then
@@ -135,7 +143,7 @@ list_destinations() {
   echo "Folders being mirrored:"
   while IFS=$'\t' read -r dest scope; do
     [[ -z "$dest" ]] && continue
-    if [[ "$scope" == "bids" ]]; then echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data/bids   (research dataset only)"; else echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data   (everything, including identifying/)"; fi
+    if [[ "$scope" == "bids" ]]; then echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data/{bids,lab}   (research datasets only)"; else echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data   (everything, including identifying/)"; fi
   done < "$DESTS"
 }
 
@@ -174,13 +182,13 @@ case "${1:-}" in
     [[ -n "$folder" ]] || die "Usage: bash mac-sync-install.sh --add <folder> [bids|all]"
     folder="${folder%/}"; folder="${folder/#\~/$HOME}"
     [[ -d "$folder" ]] || die "That folder does not exist: $folder"
-    [[ "$scope" == "bids" || "$scope" == "all" ]] || die "The scope must be 'bids' (research dataset only) or 'all'."
+    [[ "$scope" == "bids" || "$scope" == "all" ]] || die "The scope must be 'bids' (research datasets only) or 'all'."
     migrate
     grep -v -F "$folder"$'	' "$DESTS" > "$DESTS.tmp" 2>/dev/null || true; mv "$DESTS.tmp" "$DESTS"
     printf '%s\t%s\n' "$folder" "$scope" >> "$DESTS"
     mkdir -p "$folder/MyPhoneMyBrain data"
     if [[ "$scope" == "bids" ]]; then
-      printf 'This folder holds the de-identified research dataset (bids/) only, mirrored automatically.\nNames, contact details and consent records are kept in the University OneDrive copy.\nDo not edit or add files here.\n' > "$folder/MyPhoneMyBrain data/README.txt"
+      printf 'This folder holds the de-identified research datasets only, mirrored automatically:\nbids/ (the family study) and lab/ (the social media break study).\nNames, contact details and consent records are kept in the University OneDrive copy.\nDo not edit or add files here.\n' > "$folder/MyPhoneMyBrain data/README.txt"
     fi
     ok "added ${folder/#$HOME/~} ($scope)"
     write_sync_script; list_destinations; run_now; exit $? ;;

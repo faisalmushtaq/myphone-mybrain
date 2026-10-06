@@ -21,7 +21,7 @@ const PORT = 8420;
 if (process.env.MPMB_E2E_INNER !== '1') {
   // Outer phase: build the app for the emulators, then run this script inside `emulators:exec`.
   console.log('Building the app against the emulators…');
-  execSync('npx vite build --mode standalone --outDir dist-emulator', {
+  execSync('npx vite build --mode emulator --outDir dist-emulator', {
     cwd: root,
     stdio: 'inherit',
     env: {
@@ -116,9 +116,7 @@ async function inner() {
     await page.getByRole('button', { name: /I’m the young person/ }).click();
     await page.getByLabel('Your first name').fill('Kai');
     await page.getByLabel('Your last name').fill('Patel');
-    await page.getByLabel('Day', { exact: true }).fill('14');
-    await page.getByLabel('Month', { exact: true }).fill('3');
-    await page.getByLabel('Year', { exact: true }).fill('2013');
+    await page.getByLabel('Your date of birth', { exact: true }).fill('2013-03-14');
     await page.getByLabel('Your school', { exact: true }).selectOption('BRD-001');
     await page.getByLabel('Your year group').selectOption('Year 8');
     await page.getByRole('button', { name: 'Continue' }).click();
@@ -238,7 +236,7 @@ async function inner() {
     ok('identifying folder holds the key and the statements', keyTsv.includes('sub-00001\t') && keyTsv.includes('Kai\tPatel') && statementsTsv.includes('sub-00001\t2\tlink-records\t0.4-draft\tdeclined'));
     ok('screenshots sit under sourcedata and signatures under identifying, named by label and session', exportedNames.filter((n) => n.startsWith('bids/sourcedata/sub-00001/ses-01/sub-00001_ses-01_task-screentime_run-0')).length === 2 && exportedNames.filter((n) => n.startsWith('identifying/signatures/sub-00001/sub-00001_')).length === 4 && exportedNames.includes('bids/sub-00001/sub-00001_sessions.tsv') && exportedNames.includes('bids/README') && exportedNames.includes('manifest.json'));
     const rerun = await (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' })).json();
-    ok('a second run copies nothing new and keeps the mirror as it is', rerun.counts?.imagesCopiedThisRun === 0 && rerun.files?.length === manifest.files?.length);
+    ok('a second run copies nothing new and keeps the mirror as it is', rerun.counts?.filesCopiedThisRun === 0 && rerun.files?.length === manifest.files?.length);
 
     // Security rules: what a client must not be able to do.
     const web = createRequire(path.join(root, 'node_modules/x.js'));
@@ -287,9 +285,7 @@ async function inner() {
     await page.getByRole('button', { name: /I’m a parent or guardian/ }).click();
     await page.getByLabel('First name', { exact: true }).fill('Amira');
     await page.getByLabel('Last name', { exact: true }).fill('Khan');
-    await page.getByLabel('Day', { exact: true }).fill('2');
-    await page.getByLabel('Month', { exact: true }).fill('9');
-    await page.getByLabel('Year', { exact: true }).fill('2012');
+    await page.getByLabel('Date of birth', { exact: true }).fill('2012-09-02');
     await page.getByLabel('School', { exact: true }).selectOption('BRD-001');
     await page.getByLabel('Your full name', { exact: true }).fill('Sara Khan');
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
@@ -315,6 +311,105 @@ async function inner() {
     const donation2 = (await db.collection('donations').doc(sub2.donationIds[0]).get()).data();
     ok('parent shared with the young person absent: agreement deferred, donation records no in-app agreement', assent2?.status === 'deferred' && assent2?.deferredBy === 'parent' && !assent2?.responses?.['phone-use'] && donation2?.agreement === null && donation2?.youngPersonAgreedInApp === false && donation2?.assentStatusAtSend === 'deferred' && donation2?.images.length === 1);
     ok('no questions record when they were skipped without an answer', sub2?.surveyId && (await db.collection('surveys').doc(sub2.surveyId).get()).data()?.status === 'skipped');
+
+    // The social media break study: participant code, consent, a cleaned TikTok export and a screenshot, then the export.
+    const JSZip = admin('jszip');
+    const snap = (name) => page.screenshot({ path: path.join(root, 'dist-emulator', `lab-${name}.png`), fullPage: true });
+    const tiktokExport = {
+      'Your Activity': {
+        'Watch History': { VideoList: [{ Date: '2026-09-01 20:11:03', Link: 'https://www.tiktokv.com/share/video/1/' }, { Date: '2026-09-01 20:12:40', Link: 'https://www.tiktokv.com/share/video/2/' }] },
+        Searches: { SearchList: [{ Date: '2026-09-02 08:00:00', SearchTerm: 'something private' }] },
+        'Login History': { LoginHistoryList: [{ Date: '2026-09-01 20:10:00', IP: '10.0.0.1', DeviceModel: 'iPhone' }] },
+      },
+      'Direct Message': { 'Direct Messages': { ChatHistory: { 'Chat with Sam': [{ Date: '2026-09-01', From: 'Sam', Content: 'private words' }] } } },
+      Profile: { 'Profile Information': { ProfileMap: { emailAddress: 'me@example.com' } } },
+    };
+    const rawZip = new JSZip();
+    rawZip.file('user_data_tiktok.json', JSON.stringify(tiktokExport));
+    const tiktokZip = await rawZip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+
+    await page.goto(`http://127.0.0.1:${PORT}/lab.html`);
+    await page.getByRole('heading', { name: /Take part in the social media break study/ }).waitFor();
+    await snap('welcome');
+    await page.getByRole('button', { name: 'Start', exact: true }).click();
+    await page.getByLabel('Your mother’s first name').fill('Jane');
+    await page.getByLabel('Your house number').fill('123');
+    await page.getByLabel('The month you were born').selectOption('01');
+    await page.getByLabel('Your postcode').fill('AB1 2CD');
+    ok('participant code built as the questionnaire builds it', (await page.locator('.mpmb-code-line').innerText()).includes('JA101CD'));
+    await snap('code');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: /What taking part involves/ }).waitFor({ timeout: 30000 });
+    await snap('information');
+    await page.getByRole('button', { name: 'I have read this' }).click();
+    await page.getByRole('heading', { name: /Your consent to take part/ }).waitFor();
+    for (const id of ['read-information', 'involves', 'voluntary', 'donation-required', 'publication', 'data-protection', 'take-part']) await page.locator(`#lab-stmt-${id}`).check();
+    await page.getByLabel('Your full name', { exact: true }).fill('Jane Doe');
+    await draw(page.locator('#lab-signature'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.7]]);
+    await snap('consent');
+    await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await page.getByRole('heading', { name: 'Download your data.', level: 1 }).waitFor({ timeout: 60000 });
+    await snap('guide');
+    const labParticipant = (await db.collection('labParticipants').doc('JA101CD').get()).data();
+    ok('lab consent recorded against the participant code', Boolean(labParticipant?.consentId) && labParticipant?.consentVersion === 1 && labParticipant?.archiveCount === 0);
+    const labConsent = labParticipant?.consentId ? (await db.collection('labConsents').doc(labParticipant.consentId).get()).data() : null;
+    ok('lab consent record complete, every statement agreed, drawn signature under signatures/lab/', labConsent?.typedName === 'Jane Doe' && Object.keys(labConsent?.responses ?? {}).length === 7 && labConsent?.signature?.image?.path?.startsWith('signatures/lab/JA101CD/') && labConsent?.formVersion === '1.0' && labConsent?.informationVersion === '1.0');
+    ok('the code row carries no name', !JSON.stringify(labParticipant).includes('Jane'));
+
+    await page.getByRole('button', { name: /I have my files/ }).click();
+    await page.getByRole('heading', { name: /Choose what to share from your data/ }).waitFor();
+    await page.locator('#lab-zip').setInputFiles({ name: 'TikTok_Data.zip', mimeType: 'application/zip', buffer: tiktokZip });
+    await page.getByRole('heading', { name: /Found: TikTok data/ }).waitFor({ timeout: 30000 });
+    await page.locator('#cat-tt_search').uncheck();
+    await snap('clean');
+    const previewText = await page.locator('.mpmb-card').innerText();
+    ok('the cleaning preview shows links and dates only', previewText.includes('tiktokv.com/share/video/1/') && !previewText.includes('something private') && !previewText.includes('private words'));
+    await page.getByRole('button', { name: 'Add this to my donation' }).click();
+    await page.getByRole('heading', { name: 'Ready to send' }).waitFor();
+    await page.getByRole('button', { name: /Next: send my data/ }).click();
+    await page.getByRole('heading', { name: /Add your screenshots and send/ }).waitFor();
+    await page.locator('input[type=file]').first().setInputFiles([{ name: 'screen-time.png', mimeType: 'image/png', buffer: await png('Last 7 days') }]);
+    await page.waitForFunction(() => document.querySelectorAll('.mpmb-shots li').length === 1);
+    await snap('donate');
+    await page.getByRole('button', { name: 'Send my data' }).click();
+    await page.getByRole('heading', { name: /Thank you. Your data has been sent/ }).waitFor({ timeout: 90000 });
+    await snap('done');
+    ok('no browser errors in the lab flow', errors.length === 0, errors.join(' | '));
+
+    const labP2 = (await db.collection('labParticipants').doc('JA101CD').get()).data();
+    ok('participant row counts one archive and one screenshot', labP2?.archiveCount === 1 && labP2?.screenshotCount === 1 && labP2?.donationIds?.length === 1);
+    const labDonation = labP2?.donationIds?.length ? (await db.collection('labDonations').doc(labP2.donationIds[0]).get()).data() : null;
+    const archive = labDonation?.files?.find((f) => f.kind === 'archive');
+    const shot = labDonation?.files?.find((f) => f.kind === 'screenshot');
+    ok('archive recorded from its manifest: TikTok, searches left out, two watched videos', archive?.platforms?.[0] === 'tiktok' && !archive?.categories?.includes('tt_search') && archive?.categories?.includes('tt_watch') && archive?.kept?.tt_watch === 2 && archive?.entries?.includes('tiktok_cleaned.json') && archive?.path === `lab/JA101CD/${archive?.uploadId}.zip`);
+    ok('screenshot cleaned and checked', shot?.width > 0 && ['accepted', 'review'].includes(shot?.quality?.verdict) && shot?.path?.startsWith('lab/JA101CD/'));
+    const [labFiles] = await bucket.getFiles({ prefix: 'lab/JA101CD/' });
+    ok('lab files stored under the code', labFiles.length === 2 && labFiles.some((f) => f.name.endsWith('.zip')) && labFiles.some((f) => f.name.endsWith('.png')), labFiles.map((f) => f.name).join(', '));
+    const storedZip = labFiles.find((f) => f.name.endsWith('.zip'));
+    if (storedZip) {
+      const [zipBytes] = await storedZip.download();
+      const stored = await JSZip.loadAsync(zipBytes);
+      const names = Object.keys(stored.files).filter((n) => !stored.files[n].dir).sort();
+      const contents = (await Promise.all(names.map((n) => stored.file(n).async('string')))).join('\n');
+      ok('stored archive holds only the cleaner’s files, without the private content', names.join(',') === 'manifest.json,tiktok_cleaned.json' && !contents.includes('private words') && !contents.includes('me@example.com') && !contents.includes('something private') && !contents.includes('10.0.0.1'), names.join(','));
+    }
+    const [labQuarantine] = await bucket.getFiles({ prefix: 'labquarantine/' });
+    ok('lab quarantine emptied after submit', labQuarantine.length === 0, `${labQuarantine.length} left`);
+
+    const lookup = await httpsCallable(fns, 'lookupLabParticipant')({ participantCode: 'ja101cd' });
+    ok('another session can see that the code has consent and what was sent', lookup.data?.exists === true && lookup.data?.archives === 1 && lookup.data?.screenshots === 1 && typeof lookup.data?.consentedAt === 'string');
+    const unknown = await httpsCallable(fns, 'lookupLabParticipant')({ participantCode: 'ZZ912AB' });
+    ok('an unknown code is reported as not on file', unknown.data?.exists === false);
+    ok('files for a code without consent are refused', await stranger(() => httpsCallable(fns, 'submitLabDonation')({ participantCode: 'ZZ912AB', uploads: [{ uploadId: '423e4567-e89b-12d3-a456-426614174000', kind: 'screenshot', name: 'x.png', contentType: 'image/png', size: 10 }], client })));
+    ok('client cannot upload a text file into the lab quarantine', await denied(() => uploadBytes(ref(webStorage, `labquarantine/${user.uid}/523e4567-e89b-12d3-a456-426614174000`), new Uint8Array([1, 2, 3]), { contentType: 'text/plain' })));
+    ok('client cannot read stored lab files', await denied(() => getBytes(ref(webStorage, labFiles[0].name))));
+    ok('client cannot read lab participants or consents', (await denied(() => getDoc(doc(webDb, 'labParticipants', 'JA101CD')))) && (await denied(() => getDoc(doc(webDb, 'labConsents', labParticipant.consentId)))));
+
+    const labManifest = await (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' })).json();
+    const labParticipantsTsv = await readExport('lab/participants.tsv');
+    const labConsentsTsv = await readExport('identifying/lab_consents.tsv');
+    const labBeh = await readExport('lab/sub-JA101CD/ses-01/beh/sub-JA101CD_ses-01_task-donation_beh.tsv');
+    ok('export holds the lab dataset labelled by code, with names only in identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 1 && labManifest.counts?.labScreenshots === 1 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-JA101CD\t') && !labParticipantsTsv.includes('Jane') && labConsentsTsv.includes('Jane Doe') && labBeh.includes('archive\tsourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip') && labManifest.files?.includes('lab/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-01_archive.zip') && labManifest.files?.includes('lab/sourcedata/sub-JA101CD/ses-01/sub-JA101CD_ses-01_run-02_screenshot.png') && labManifest.files?.some((n) => n.startsWith('identifying/signatures/lab/sub-JA101CD/')), JSON.stringify(labManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {
       await uploadBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`), buffer, { contentType: 'image/png' });

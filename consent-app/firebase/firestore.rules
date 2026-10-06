@@ -1,18 +1,26 @@
 rules_version = '2';
 
 // Browsers never read or write Firestore directly. Every record is written by
-// the submitConsent Cloud Function using the Admin SDK (which bypasses these
-// rules), and the research team reads through admin tooling or a separate
-// signed-in app whose users carry custom claims.
+// a Cloud Function using the Admin SDK (which bypasses these rules), and the
+// research team reads through admin tooling or a separate signed-in app whose
+// users carry custom claims.
 //
-// participants/   identifying details (names, date of birth, contact details)
-// consents/       parent or guardian permission records
-// assents/        young people's agreement records
-// donations/      research data: references to screen-time images
-// surveys/        research data: the parent's quick questions about phone use
-// submissions/    one row per submission (reference code, links to the above)
-// enquiries/      messages from the website's contact and school forms
-// ratelimits/     hashed-address counters for the enquiry function
+// The family study:
+// participants/     identifying details (names, date of birth, contact details)
+// consents/         parent or guardian permission records
+// assents/          young people's agreement records
+// donations/        research data: references to screen-time images
+// surveys/          research data: the parent's quick questions about phone use
+// submissions/      one row per submission (reference code, links to the above)
+//
+// The social media break study (adults, known by participant code):
+// labParticipants/  one row per code: current consent, counts
+// labConsents/      consent records (typed name and signature: identifying)
+// labDonations/     research data: the cleaned archives and screenshots received
+//
+// enquiries/        messages from the website's contact and school forms
+// ratelimits/       counters for the enquiry function and the lab code lookup
+// meta/             counters used by the export to assign participant labels
 service cloud.firestore {
   match /databases/{database}/documents {
     function hasRole(role) {
@@ -52,12 +60,29 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // The lab study: codes and counts for researchers; consent records (with names) for coordinators and auditors.
+    match /labParticipants/{participantCode} {
+      allow read: if hasRole('researcher') || hasRole('coordinator');
+      allow write: if false;
+    }
+    match /labConsents/{consentId} {
+      allow read: if hasRole('coordinator') || hasRole('auditor');
+      allow write: if false;
+    }
+    match /labDonations/{donationId} {
+      allow read: if hasRole('researcher') || hasRole('coordinator');
+      allow write: if false;
+    }
+
     // Website enquiries: coordinators read them; the enquiry function writes them.
     match /enquiries/{enquiryId} {
       allow read: if hasRole('coordinator');
       allow write: if false;
     }
     match /ratelimits/{key} {
+      allow read, write: if false;
+    }
+    match /meta/{key} {
       allow read, write: if false;
     }
 

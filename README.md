@@ -49,7 +49,9 @@ It has two backends: an in-memory **mock** (the default; nothing leaves the page
 * Review findings and what was changed: `consent-app/docs/review.md`
 * Backend set-up and data model: `consent-app/docs/firebase.md`
 
-The deploy workflow builds the app (`npm ci && npm run build` in `consent-app/`, output to `assets/consent-app/`, which is git-ignored) before building Jekyll. For a local preview, run that build first and then `bundle exec jekyll serve`; for a self-contained preview without Jekyll, run `npm run build:standalone` and open `consent-app/dist-standalone/preview.html`.
+The same build also produces the **social media break study** page for adults (`/social-media-break/`, with the consent and data-donation flow at `/social-media-break/take-part/`, code in `consent-app/src/lab/`): participants make the code the lab questionnaire uses, consent with the approved wording, follow a guide to download their TikTok and YouTube data, clean it on their own device (only dates, links and search words survive, and they untick categories), and send the cleaned archive plus screen-time screenshots. The server accepts only the cleaner's own files.
+
+The deploy workflow builds the app (`npm ci && npm run build` in `consent-app/`, output to `assets/consent-app/`, which is git-ignored: `consent-app.js`, `lab-app.js` and a shared `consent-app.css`) before building Jekyll. For a local preview, run that build first and then `bundle exec jekyll serve`; for a self-contained preview without Jekyll, run `npm run build:standalone` and open `consent-app/dist-standalone/preview.html`.
 
 ## Contact and school forms
 

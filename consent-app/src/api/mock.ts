@@ -1,7 +1,7 @@
 import { study } from '../config/study';
 import { referenceCode } from '../lib/ids';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type UploadMeta, type UploadSlot } from './types';
 
 export interface MockFlags {
   failUploads: boolean;
@@ -29,6 +29,7 @@ interface MockSubmission {
  */
 export class MockConsentApi implements ConsentApi {
   private uploads = new Map<string, { sessionId: string; size: number; type: string }>();
+  private lab = new Map<string, { sessionId: string; consents: LabConsentPayload[]; donations: LabDonationPayload[] }>();
   private submissions = new Map<string, MockSubmission>();
   private static STORE_KEY = 'mpmb-mock-server:v2';
 
@@ -146,6 +147,59 @@ export class MockConsentApi implements ConsentApi {
   }
 
   /** For debugging in the browser console during design review. */
+  async submitLabConsent(session: SessionInfo, payload: LabConsentPayload): Promise<LabConsentResult> {
+    await sleep(jitter(400, 900));
+    if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');
+    this.checkSession(session);
+    if (!payload.consent.signature) throw new ApiError('validation', 'The consent record has no signature.');
+    const existing = this.lab.get(payload.participantCode) ?? { sessionId: session.sessionId, consents: [], donations: [] };
+    existing.consents.push(payload);
+    this.lab.set(payload.participantCode, existing);
+    return { participantCode: payload.participantCode, consentId: `labc_${existing.consents.length}_${payload.participantCode}`, receivedAt: new Date().toISOString(), version: existing.consents.length };
+  }
+
+  async lookupLabParticipant(session: SessionInfo, participantCode: string): Promise<LabLookupResult> {
+    await sleep(jitter(200, 500));
+    this.checkSession(session);
+    const found = this.lab.get(participantCode);
+    const uploads = found?.donations.flatMap((d) => d.uploads) ?? [];
+    return { exists: Boolean(found?.consents.length), consentedAt: found?.consents.at(-1)?.consent.completedAt ?? null, archives: uploads.filter((u) => u.kind === 'archive').length, screenshots: uploads.filter((u) => u.kind === 'screenshot').length };
+  }
+
+  async requestLabUploadSlot(sessionId: string, meta: { contentType: string; size: number }): Promise<UploadSlot> {
+    await sleep(jitter(80, 200));
+    if (meta.size > 60 * 1024 * 1024) throw new ApiError('too-large', 'The file is too large.');
+    const uploadId = crypto.randomUUID();
+    this.uploads.set(uploadId, { sessionId, size: meta.size, type: meta.contentType });
+    this.persist();
+    return { uploadId, url: `mock://labquarantine/${uploadId}`, method: 'PUT', headers: { 'Content-Type': meta.contentType }, expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString() };
+  }
+
+  async deleteLabUpload(_sessionId: string, uploadId: string): Promise<void> {
+    this.uploads.delete(uploadId);
+    this.persist();
+  }
+
+  async submitLabDonation(session: SessionInfo, payload: LabDonationPayload): Promise<LabDonationResult> {
+    await sleep(jitter(500, 1000));
+    if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');
+    this.checkSession(session);
+    const participant = this.lab.get(payload.participantCode);
+    if (!participant?.consents.length) throw new ApiError('validation', 'We have no consent for that participant code yet.');
+    const accepted: string[] = [];
+    const rejected: { uploadId: string; reason: string }[] = [];
+    for (const u of payload.uploads) {
+      if (this.uploads.has(u.uploadId)) accepted.push(u.uploadId);
+      else rejected.push({ uploadId: u.uploadId, reason: 'This file was not uploaded correctly. Please add it again.' });
+    }
+    participant.donations.push({ ...payload, uploads: payload.uploads.filter((u) => accepted.includes(u.uploadId)) });
+    return { donationId: accepted.length ? `labd_${participant.donations.length}_${payload.participantCode}` : null, receivedAt: new Date().toISOString(), accepted, rejected };
+  }
+
+  inspectLab() {
+    return Array.from(this.lab.entries()).map(([code, p]) => ({ code, consents: p.consents, donations: p.donations }));
+  }
+
   inspect() {
     return { uploads: Array.from(this.uploads.entries()), submissions: Array.from(this.submissions.entries()) };
   }

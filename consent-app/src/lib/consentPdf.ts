@@ -49,7 +49,7 @@ async function fontBase64(url: string): Promise<string> {
   return btoa(binary);
 }
 
-function loadFonts() {
+export function loadFonts() {
   fonts ??= Promise.all([fontBase64(regularUrl), fontBase64(boldUrl)]).then(([regular, bold]) => ({ regular, bold }));
   return fonts;
 }
@@ -74,7 +74,7 @@ function flatten(dataUrl: string): Promise<{ dataUrl: string; width: number; hei
   });
 }
 
-class Writer {
+export class Writer {
   readonly cursor: Cursor = { y: TOP };
 
   constructor(private readonly doc: jsPDF) {}
@@ -288,6 +288,12 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
 /** Builds the copy and hands it to the browser to save. Resolves with the file name. */
 export async function downloadConsentCopy(state: AppState): Promise<string> {
   const { blob, fileName } = await buildConsentCopy(state);
+  downloadBlob(blob, fileName);
+  return fileName;
+}
+
+/** Hands a file to the browser to save. */
+export function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -298,5 +304,17 @@ export async function downloadConsentCopy(state: AppState): Promise<string> {
   link.remove();
   // Not revoked straight away: some browsers (iOS Safari) read the URL after the click returns.
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  return fileName;
 }
+
+/** A new A4 document with the study's typeface registered. */
+export async function createDocument(): Promise<jsPDF> {
+  const { regular, bold } = await loadFonts();
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+  doc.addFileToVFS('AtkinsonHyperlegibleNext-Regular.ttf', regular);
+  doc.addFont('AtkinsonHyperlegibleNext-Regular.ttf', 'Atkinson', 'normal');
+  doc.addFileToVFS('AtkinsonHyperlegibleNext-Bold.ttf', bold);
+  doc.addFont('AtkinsonHyperlegibleNext-Bold.ttf', 'Atkinson', 'bold');
+  return doc;
+}
+
+export { MUTED as PDF_MUTED };

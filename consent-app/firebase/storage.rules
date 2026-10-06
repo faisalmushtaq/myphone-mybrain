@@ -1,18 +1,25 @@
 rules_version = '2';
 
-// quarantine/{uid}/{uploadId}
+// quarantine/{uid}/{uploadId}       the family app's screenshots
+// labquarantine/{uid}/{uploadId}    the lab study's screenshots and cleaned ZIP archives
 //   Written by the browser during a session. A session may create and delete
 //   its own objects only, within size and type limits, and can never read
-//   them back. The submitConsent function moves accepted images out of here;
-//   a bucket lifecycle rule deletes anything left after 1 day.
+//   them back. The submit functions move accepted files out of here; a
+//   scheduled purge (and optionally a bucket lifecycle rule) deletes anything
+//   left after 1 day.
 //
-// donations/{participantId}/...   research images (metadata stripped)
-// signatures/{participantId}/...  signature images from consent records
+// donations/{participantId}/...     research images (metadata stripped)
+// lab/{participantCode}/...         the lab study's cleaned archives and screenshots
+// signatures/{participantId}/...    signature images from consent records
+// signatures/lab/{participantCode}/ the lab study's signature images
 //   Only reachable through the Admin SDK and signed-in admin tooling.
 service firebase.storage {
   match /b/{bucket}/o {
     function isImage() {
       return request.resource.contentType in ['image/png', 'image/jpeg', 'image/webp'];
+    }
+    function isZip() {
+      return request.resource.contentType in ['application/zip', 'application/x-zip-compressed'];
     }
     function underLimit() {
       return request.resource.size < 10 * 1024 * 1024;
@@ -30,12 +37,28 @@ service firebase.storage {
       allow read, update: if false;
     }
 
+    match /labquarantine/{uid}/{uploadId} {
+      allow create: if ownsPath(uid) && ((isImage() && underLimit()) || (isZip() && request.resource.size < 64 * 1024 * 1024)) && uploadId.matches('^[0-9a-f-]{36}$');
+      allow delete: if ownsPath(uid);
+      allow read, update: if false;
+    }
+
     match /donations/{participantId}/{file} {
       allow read: if hasRole('researcher') || hasRole('coordinator');
       allow write: if false;
     }
 
+    match /lab/{participantCode}/{file} {
+      allow read: if hasRole('researcher') || hasRole('coordinator');
+      allow write: if false;
+    }
+
     match /signatures/{participantId}/{file} {
+      allow read: if hasRole('coordinator') || hasRole('auditor');
+      allow write: if false;
+    }
+
+    match /signatures/lab/{participantCode}/{file} {
       allow read: if hasRole('coordinator') || hasRole('auditor');
       allow write: if false;
     }

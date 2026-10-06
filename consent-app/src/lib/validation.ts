@@ -42,25 +42,25 @@ export function validateChildDetails(identity: ParticipantIdentity): FieldError[
     const { day, month, year } = identity.dateOfBirth;
     const allBlank = blank(day) && blank(month) && blank(year);
     if (allBlank) {
-      if (childFields.dateOfBirth.required) errors.push({ field: 'child-dob-day', message: 'Enter the date of birth.' });
+      if (childFields.dateOfBirth.required) errors.push({ field: 'child-dob', message: 'Enter the date of birth.' });
     } else if (toInt(day) === null || toInt(month) === null || toInt(year) === null || year.trim().length !== 4) {
-      errors.push({ field: 'child-dob-day', message: 'Date of birth must be numbers, for example 14 3 2013. Use four numbers for the year.' });
+      errors.push({ field: 'child-dob', message: 'Choose the full date of birth: day, month and year.' });
     } else {
       const date = partsToDate(identity.dateOfBirth);
       if (!date) {
-        errors.push({ field: 'child-dob-day', message: 'Date of birth must be a real date. Check the day and month.' });
+        errors.push({ field: 'child-dob', message: 'Date of birth must be a real date. Check the day and month.' });
       } else if (date.getTime() > Date.now()) {
-        errors.push({ field: 'child-dob-day', message: 'Date of birth must be in the past.' });
+        errors.push({ field: 'child-dob', message: 'Date of birth must be in the past.' });
       } else {
         const age = ageOn(date);
         if (age > study.maxAge) {
           errors.push({
-            field: 'child-dob-day',
+            field: 'child-dob',
             message: `This form is for young people aged ${study.minAge} to ${study.maxAge}. Someone aged 18 or over gives their own consent — please contact the team and we will send the right form.`,
           });
         } else if (age < study.minAge) {
           errors.push({
-            field: 'child-dob-day',
+            field: 'child-dob',
             message: `MyPhone/MyBrain is for young people aged ${study.minAge} to ${study.maxAge}. Check the date of birth, or contact us if you think this is wrong.`,
           });
         }

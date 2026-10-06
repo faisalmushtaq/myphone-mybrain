@@ -175,35 +175,36 @@ interface DateProps {
   onChange: (value: DateParts) => void;
   /** 'self' offers the browser's saved birthday; 'off' when someone is entering another person's date. */
   autofill?: 'self' | 'off';
+  /** Earliest and latest selectable dates, YYYY-MM-DD. */
+  min?: string;
+  max?: string;
 }
 
-/** Day / month / year as three inputs: easier on phones and screen readers than a date picker. */
-export function DateField({ id, label, hint, error, value, onChange, autofill = 'off' }: DateProps) {
-  const desc = describedBy(id, hint, error);
-  const part = (key: keyof DateParts, text: string, maxLength: number, width: string) => (
-    <label className="mpmb-date__part" htmlFor={`${id}-${key}`}>
-      <span className="mpmb-date__label">{text}</span>
+/** Turns day/month/year parts into YYYY-MM-DD for a date input, or '' while incomplete. */
+export function partsToInputValue(value: DateParts): string {
+  if (!value.year || !value.month || !value.day || value.year.length !== 4) return '';
+  return `${value.year}-${value.month.padStart(2, '0')}-${value.day.padStart(2, '0')}`;
+}
+
+/** A native date input: the phone's own date picker on mobile, a calendar on desktop. Stored as day/month/year parts. */
+export function DateField({ id, label, hint, error, value, onChange, autofill = 'off', min, max }: DateProps) {
+  return (
+    <FieldWrapper id={id} label={label} hint={hint} error={error}>
       <input
-        id={`${id}-${key}`}
-        className={`mpmb-input mpmb-input--${width}`}
-        inputMode="numeric"
-        pattern="[0-9]*"
-        autoComplete={autofill === 'self' ? (key === 'day' ? 'bday-day' : key === 'month' ? 'bday-month' : 'bday-year') : 'off'}
-        maxLength={maxLength}
-        value={value[key]}
-        onChange={(e) => onChange({ ...value, [key]: e.target.value.replace(/[^\d]/g, '') })}
-        aria-describedby={desc}
+        id={id}
+        type="date"
+        className="mpmb-input mpmb-input--date"
+        value={partsToInputValue(value)}
+        min={min}
+        max={max}
+        autoComplete={autofill === 'self' ? 'bday' : 'off'}
+        onChange={(e) => {
+          const [year = '', month = '', day = ''] = e.target.value.split('-');
+          onChange({ day, month, year });
+        }}
+        aria-describedby={describedBy(id, hint, error)}
         aria-invalid={error ? true : undefined}
       />
-    </label>
-  );
-  return (
-    <FieldWrapper id={id} label={label} hint={hint} error={error} as="fieldset">
-      <div className="mpmb-date">
-        {part('day', 'Day', 2, 'tiny')}
-        {part('month', 'Month', 2, 'tiny')}
-        {part('year', 'Year', 4, 'short')}
-      </div>
     </FieldWrapper>
   );
 }

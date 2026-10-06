@@ -12,10 +12,12 @@ const empty = fileURLToPath(new URL('./src/lib/empty.ts', import.meta.url));
 //    facsimile of the site header/footer, used for design review outside the Jekyll site.
 export default defineConfig(({ mode }) => {
   const standalone = mode === 'standalone';
+  // The emulator test serves the build from a plain folder, so paths are relative there too.
+  const relative = standalone || mode === 'emulator';
   return {
     plugins: [react()],
     resolve: { alias: { canvg: empty, html2canvas: empty, dompurify: empty } },
-    base: standalone ? './' : '/assets/consent-app/',
+    base: relative ? './' : '/assets/consent-app/',
     define: {
       __STANDALONE__: JSON.stringify(standalone),
       // The prototype (mock API + prototype controls) is on unless a production build says otherwise.
@@ -25,11 +27,16 @@ export default defineConfig(({ mode }) => {
       outDir: standalone ? 'dist-standalone' : '../assets/consent-app',
       emptyOutDir: true,
       assetsInlineLimit: standalone ? 300 * 1024 : 4096,
+      // One stylesheet for both apps, so the pages can reference a fixed file name.
+      cssCodeSplit: false,
       rollupOptions: {
+        // The standalone preview is a single inlined page of the family form; every other build
+        // also has the lab study's entry.
+        input: standalone ? 'index.html' : { 'consent-app': 'index.html', 'lab-app': 'lab.html' },
         output: {
           // The preview is one inlined file, so the lazily loaded PDF code must be inlined too.
           inlineDynamicImports: standalone,
-          entryFileNames: 'consent-app.js',
+          entryFileNames: '[name].js',
           chunkFileNames: 'consent-app-[name].js',
           assetFileNames: (info) => (info.names?.[0] ?? '').endsWith('.css') ? 'consent-app.css' : 'media/[name][extname]',
         },

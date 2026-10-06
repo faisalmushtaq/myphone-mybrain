@@ -20,7 +20,7 @@ export const childFields = {
     enabled: true,
     required: true,
     label: 'Date of birth',
-    hint: 'For example, 14 3 2013',
+    hint: 'Tap to choose the date.',
   },
   school: { enabled: true, required: true, label: 'School' },
   yearGroup: { enabled: true, required: false, label: 'Year group' },

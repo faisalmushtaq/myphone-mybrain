@@ -629,19 +629,9 @@
   font-size: 1.5rem;
   font-style: italic;
 }
-.mpmb-date {
-  display: flex;
-  gap: 0.75rem;
-}
-.mpmb-app .mpmb-date__part {
-  display: block;
-}
-.mpmb-app .mpmb-date__label {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--mpb-ink);
-  margin-bottom: 0.25rem;
+.mpmb-app .mpmb-input--date {
+  max-width: 14rem;
+  min-height: 3rem;
 }
 
 /* Checkbox card */
@@ -2613,3 +2603,279 @@
 
 /* Fraunces: fixed small optical size, no softness (see the site stylesheet). */
 .mpmb-app .mpmb-h1, .mpmb-app .mpmb-h2, .mpmb-app .mpmb-h3, .mpmb-app h1, .mpmb-app h2, .mpmb-app h3 { font-optical-sizing: none; font-variation-settings: "opsz" 14, "SOFT" 0, "WONK" 0; }
+
+/* ── The social media break study (lab) ─────────────────────── */
+.mpmb-lab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem 1.5rem;
+  margin-top: 0.6rem;
+  font-family: var(--f-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.88);
+}
+.mpmb-lab-bar strong {
+  color: var(--mpb-yellow);
+  font-weight: 500;
+}
+.mpmb-app .mpmb-mono {
+  font-family: var(--f-mono);
+  letter-spacing: 0.06em;
+}
+.mpmb-app .mpmb-code-line {
+  margin: 0.5rem 0 0;
+  padding: 0.85rem 1rem;
+  background: var(--mpb-mist);
+  border-left: 4px solid var(--mpb-teal);
+  font-size: 1rem;
+}
+.mpmb-app .mpmb-code-line strong {
+  font-size: 1.35rem;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-note {
+  margin: 0.75rem 0 0;
+  padding: 0.7rem 0.9rem;
+  background: var(--mpb-important-bg);
+  border-left: 4px solid var(--mpb-yellow-dark);
+  font-size: 0.95rem;
+  color: var(--mpb-ink);
+}
+
+/* Guide: numbered steps, each with its own screenshot. */
+.mpmb-app .mpmb-guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin: 1rem 0 1.75rem;
+}
+.mpmb-app .mpmb-guide-steps li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem 1.25rem;
+  padding: 1rem 0 1.25rem;
+  border-bottom: 1px solid var(--mpb-line);
+}
+.mpmb-app .mpmb-guide-steps li:last-child {
+  border-bottom: 0;
+}
+.mpmb-app .mpmb-guide-steps__text {
+  position: relative;
+  padding-left: 2.75rem;
+}
+.mpmb-app .mpmb-guide-steps__text .mpmb-h3 {
+  margin: 0 0 0.35rem;
+}
+.mpmb-app .mpmb-guide-steps__text p {
+  margin: 0;
+  font-size: 1rem;
+}
+.mpmb-app .mpmb-guide-steps__n {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--mpb-teal);
+  color: #fff;
+  font-family: var(--f-mono);
+  font-size: 0.78rem;
+}
+.mpmb-app .mpmb-guide-steps img {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  border: 1px solid var(--mpb-line);
+  background: var(--mpb-mist);
+  justify-self: start;
+}
+@media (min-width: 620px) {
+  .mpmb-app .mpmb-guide-steps li {
+    grid-template-columns: minmax(0, 1fr) 220px;
+    align-items: start;
+  }
+  .mpmb-app .mpmb-guide-steps img {
+    max-width: 220px;
+    justify-self: end;
+  }
+}
+
+/* Clean: the drop zone and what was found. */
+.mpmb-app .mpmb-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: clamp(1.25rem, 4vw, 2.25rem) 1.25rem;
+  text-align: center;
+  background: var(--mpb-paper);
+  border: 2px dashed var(--mpb-border);
+}
+.mpmb-app .mpmb-dropzone.is-over {
+  border-color: var(--mpb-teal);
+  background: var(--mpb-mist);
+}
+.mpmb-app .mpmb-dropzone__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  cursor: pointer;
+}
+.mpmb-app .mpmb-dropzone__title {
+  font-family: var(--f-serif);
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-dropzone__sub {
+  font-size: 0.93rem;
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-filelist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+.mpmb-app .mpmb-filelist li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--mpb-paper);
+  border: 1px solid var(--mpb-line);
+  border-left: 4px solid var(--mpb-teal);
+  font-size: 0.98rem;
+}
+.mpmb-app .mpmb-filelist li.is-failed {
+  border-left-color: var(--mpb-pink);
+  background: var(--mpb-error-bg);
+}
+.mpmb-app .mpmb-filelist__meta {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-check .mpmb-filelist__meta {
+  display: inline;
+  margin-left: 0.35rem;
+}
+.mpmb-app .mpmb-removed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0 1rem;
+}
+.mpmb-app .mpmb-removed li {
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--mpb-line);
+  background: #fff;
+  font-size: 0.88rem;
+  color: var(--mpb-body);
+  text-decoration: line-through;
+  text-decoration-color: var(--mpb-pink);
+}
+.mpmb-app .mpmb-preview {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0 1rem;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.mpmb-app .mpmb-preview tbody {
+  display: block;
+}
+/* Each row is a small grid, so long links wrap instead of widening the page. */
+.mpmb-app .mpmb-preview tr {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.75rem;
+  row-gap: 0.15rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--mpb-line);
+}
+.mpmb-app .mpmb-preview th,
+.mpmb-app .mpmb-preview td {
+  display: block;
+  padding: 0;
+  border: 0;
+  text-align: left;
+  font-weight: 400;
+  min-width: 0;
+}
+.mpmb-app .mpmb-preview th {
+  font-family: var(--f-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--mpb-teal);
+  white-space: nowrap;
+  padding-top: 0.15rem;
+}
+.mpmb-app .mpmb-preview td {
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-preview__what {
+  grid-column: 1 / -1;
+  color: var(--mpb-body);
+  overflow-wrap: anywhere;
+}
+@media (min-width: 620px) {
+  .mpmb-app .mpmb-preview tr {
+    grid-template-columns: 6rem 11rem minmax(0, 1fr);
+  }
+  .mpmb-app .mpmb-preview__what {
+    grid-column: auto;
+  }
+}
+
+/* Donate: screenshots waiting to go. */
+.mpmb-app .mpmb-shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.mpmb-app .mpmb-shots li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  background: var(--mpb-paper);
+  border: 1px solid var(--mpb-line);
+}
+.mpmb-app .mpmb-shots li.is-failed {
+  border-color: var(--mpb-pink);
+  background: var(--mpb-error-bg);
+}
+.mpmb-app .mpmb-shots img,
+.mpmb-app .mpmb-shots__placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  max-height: 220px;
+  object-fit: contain;
+  background: var(--mpb-mist);
+  border: 1px solid var(--mpb-line);
+}
+.mpmb-app .mpmb-shots__placeholder {
+  font-family: var(--f-mono);
+  font-size: 0.7rem;
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-shots__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.8rem;
+  color: var(--mpb-muted);
+}

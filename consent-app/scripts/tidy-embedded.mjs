@@ -2,5 +2,7 @@
 // index.html is not needed and would otherwise be served as a stray page.
 import fs from 'node:fs';
 import path from 'node:path';
-const stray = path.resolve('../assets/consent-app/index.html');
-if (fs.existsSync(stray)) fs.unlinkSync(stray);
+for (const name of ['index.html', 'lab.html']) {
+  const stray = path.resolve(`../assets/consent-app/${name}`);
+  if (fs.existsSync(stray)) fs.unlinkSync(stray);
+}

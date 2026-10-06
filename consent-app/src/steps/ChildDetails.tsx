@@ -3,6 +3,7 @@ import { GuardianFields } from '../components/GuardianFields';
 import { StepShell } from '../components/StepShell';
 import { Callout } from '../components/ui/Callout';
 import { DateField, SelectField, TextField } from '../components/ui/Field';
+import { dateOfBirthRange } from '../lib/dates';
 import { Icon } from '../components/ui/Icon';
 import { childFields, yearGroups } from '../config/fields';
 import { OTHER_SCHOOL_ID, schools } from '../config/schools';
@@ -15,6 +16,7 @@ import { limits, validateChildDetails, validateGuardian, type FieldError } from 
  * route they enter their own details and the parent's come after the handover.
  */
 export function ChildDetails() {
+  const dobRange = dateOfBirthRange();
   const { state, dispatch } = useStore();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [attempted, setAttempted] = useState(false);
@@ -74,7 +76,7 @@ export function ChildDetails() {
           </div>
         )}
         {childFields.dateOfBirth.enabled && (
-          <DateField id="child-dob" label={young ? 'Your date of birth' : childFields.dateOfBirth.label} hint={childFields.dateOfBirth.hint} value={identity.dateOfBirth} onChange={(dateOfBirth) => updateIdentity({ dateOfBirth })} error={errs['child-dob-day']} autofill={young ? 'self' : 'off'} />
+          <DateField id="child-dob" label={young ? 'Your date of birth' : childFields.dateOfBirth.label} hint={childFields.dateOfBirth.hint} value={identity.dateOfBirth} onChange={(dateOfBirth) => updateIdentity({ dateOfBirth })} error={errs['child-dob']} autofill={young ? 'self' : 'off'} min={dobRange.min} max={dobRange.max} />
         )}
         <div className="mpmb-fields__row">
           {childFields.school.enabled && (

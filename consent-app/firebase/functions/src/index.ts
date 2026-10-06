@@ -4,14 +4,17 @@ import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
-import { createHash, randomInt } from 'node:crypto';
-import sharp from 'sharp';
+import { randomInt } from 'node:crypto';
 import { study } from './forms.js';
-import { assess, flatnessOfPixels, inspectWithVision, visionEnabled, type Quality } from './quality.js';
+import { checkImage, cleanImage, RejectedUpload, type CleanImage } from './images.js';
+import type { Quality } from './quality.js';
+import { signatureRecord, storeSignature } from './signatures.js';
+import { LAB_QUARANTINE } from './lab.js';
 import { parseDate, validateConsentPayload, validateDonationPayload, type ConsentPayload, type DonationPayload } from './validate.js';
 
 export { enquiry } from './enquiry.js';
 export { exportData, exportNow } from './export.js';
+export { lookupLabParticipant, submitLabConsent, submitLabDonation } from './lab.js';
 
 initializeApp();
 
@@ -33,32 +36,6 @@ async function unusedReferenceCode(db: Firestore): Promise<string> {
     if (!existing.exists) return code;
   }
   throw new HttpsError('internal', 'Could not allocate a reference. Please try again.');
-}
-
-function sha256(buffer: Buffer): string {
-  return createHash('sha256').update(buffer).digest('hex');
-}
-
-/** Decodes a PNG data URL and checks it really is a PNG of acceptable size. */
-function decodeSignature(dataUrl: string): Buffer {
-  const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
-  const buffer = Buffer.from(base64, 'base64');
-  const isPng = buffer.length > 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  if (!isPng) throw new HttpsError('invalid-argument', 'The signature is not a PNG image.');
-  if (buffer.length > study.maxSignatureBytes) throw new HttpsError('invalid-argument', 'The signature image is too large.');
-  return buffer;
-}
-
-async function storeSignature(participantId: string, name: string, dataUrl: string): Promise<{ path: string; sha256: string }> {
-  const buffer = decodeSignature(dataUrl);
-  const path = `signatures/${participantId}/${name}.png`;
-  await getStorage().bucket().file(path).save(buffer, { contentType: 'image/png', resumable: false, metadata: { cacheControl: 'private, max-age=0' } });
-  return { path, sha256: sha256(buffer) };
-}
-
-function signatureRecord(sig: NonNullable<ConsentPayload['consent']>['signature'], stored: { path: string; sha256: string } | null) {
-  if (!sig) return null;
-  return { method: sig.method, typedName: sig.typedName, strokeCount: sig.strokeCount, pointerType: sig.pointerType, capturedAt: sig.capturedAt, image: stored };
 }
 
 /**
@@ -233,22 +210,6 @@ interface StoredImage {
   quality: Quality;
 }
 
-/** An image the checks would not keep. Carries a reason the family can act on. */
-class RejectedImage extends Error {
-  constructor(
-    public reason: string,
-    public quality: Quality | null,
-  ) {
-    super(reason);
-  }
-}
-
-/** Colour flatness of a small copy: high for flat UI, low for photographs. */
-async function flatnessOf(image: Buffer): Promise<number> {
-  const { data, info } = await sharp(image).resize(96, 96, { fit: 'inside' }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-  return flatnessOfPixels(new Uint8Array(data.buffer, data.byteOffset, data.byteLength), info.channels);
-}
-
 /**
  * Moves one upload out of quarantine: checks it belongs to this session, is
  * a real image, re-encodes it (which drops all metadata), runs the quality
@@ -259,47 +220,22 @@ async function acceptUpload(uid: string, participantId: string, upload: Donation
   const bucket = getStorage().bucket();
   const source = bucket.file(`${QUARANTINE}/${uid}/${upload.uploadId}`);
   const [exists] = await source.exists();
-  if (!exists) throw new RejectedImage('This image was not uploaded correctly. Please add it again.', null);
+  if (!exists) throw new RejectedUpload('This image was not uploaded correctly. Please add it again.');
   const [original] = await source.download();
-  let pipeline = sharp(original, { failOn: 'error' }).rotate();
-  let meta;
+  let image: CleanImage;
+  let quality: Quality;
   try {
-    meta = await pipeline.metadata();
-  } catch {
+    image = await cleanImage(original);
+    quality = await checkImage(image, upload.acknowledgedWarning, { uploadId: upload.uploadId });
+    if (quality.verdict === 'rejected') throw new RejectedUpload(quality.familyReason ?? 'This image could not be accepted.', quality);
+  } catch (error) {
     await source.delete({ ignoreNotFound: true });
-    throw new RejectedImage('This file is not an image we can read. Please add a PNG or JPEG screenshot.', null);
+    throw error;
   }
-  if (!meta.format || !['png', 'jpeg', 'webp'].includes(meta.format)) {
-    await source.delete({ ignoreNotFound: true });
-    throw new RejectedImage('This file is not a supported image. Please add a PNG or JPEG screenshot.', null);
-  }
-  if ((meta.width ?? 0) > 6000 || (meta.height ?? 0) > 12000) pipeline = pipeline.resize({ width: 3000, height: 6000, fit: 'inside', withoutEnlargement: true });
-  // Re-encoding without withMetadata() strips EXIF, GPS, ICC and XMP.
-  const output = meta.format === 'png' ? await pipeline.png({ compressionLevel: 9 }).toBuffer({ resolveWithObject: true }) : await pipeline.jpeg({ quality: 90, mozjpeg: true }).toBuffer({ resolveWithObject: true });
-
-  // Quality and safety, on the clean copy. A Vision outage flags the image for review rather than losing it.
-  const flatness = await flatnessOf(output.data);
-  let vision = null;
-  if (visionEnabled()) {
-    try {
-      vision = await inspectWithVision(output.data);
-    } catch (error) {
-      logger.warn('Vision check failed; image kept for review', { uploadId: upload.uploadId, error: error instanceof Error ? error.message : String(error) });
-    }
-  }
-  const quality = assess({ width: output.info.width, height: output.info.height, flatness, vision, acknowledgedWarning: upload.acknowledgedWarning });
-  if (!visionEnabled()) quality.reasons.push('Vision checks not enabled.');
-  if (quality.verdict === 'rejected') {
-    await source.delete({ ignoreNotFound: true });
-    throw new RejectedImage(quality.familyReason ?? 'This image could not be accepted.', quality);
-  }
-
-  const ext = meta.format === 'png' ? 'png' : 'jpg';
-  const contentType = meta.format === 'png' ? 'image/png' : 'image/jpeg';
-  const path = `donations/${participantId}/${upload.uploadId}.${ext}`;
-  await bucket.file(path).save(output.data, { contentType, resumable: false, metadata: { cacheControl: 'private, max-age=0' } });
+  const path = `donations/${participantId}/${upload.uploadId}.${image.ext}`;
+  await bucket.file(path).save(image.data, { contentType: image.contentType, resumable: false, metadata: { cacheControl: 'private, max-age=0' } });
   await source.delete({ ignoreNotFound: true });
-  return { uploadId: upload.uploadId, path, contentType, width: output.info.width, height: output.info.height, bytes: output.data.length, sha256: sha256(output.data), redacted: upload.redacted, cropped: upload.cropped, quality };
+  return { uploadId: upload.uploadId, path, contentType: image.contentType, width: image.width, height: image.height, bytes: image.data.length, sha256: image.sha256, redacted: upload.redacted, cropped: upload.cropped, quality };
 }
 
 /**
@@ -341,7 +277,7 @@ export const submitDonation = onCall(callOptions, async (request) => {
     try {
       images.push(await acceptUpload(uid, participantId, upload));
     } catch (error) {
-      if (!(error instanceof RejectedImage)) throw error;
+      if (!(error instanceof RejectedUpload)) throw error;
       rejected.push({ uploadId: upload.uploadId, reason: error.reason });
       logger.warn('Image rejected', { referenceCode: payload.referenceCode, uploadId: upload.uploadId, reasons: error.quality?.reasons ?? [error.reason] });
     }
@@ -377,17 +313,19 @@ export const submitDonation = onCall(callOptions, async (request) => {
   return { donationId, receivedAt: receivedAt.toISOString(), accepted: images.map((i) => i.uploadId), rejected };
 });
 
-/** Deletes quarantine objects that were never submitted. A bucket lifecycle rule can do the same. */
+/** Deletes quarantine objects that were never submitted, from both the family app's and the lab study's folders. A bucket lifecycle rule can do the same. */
 export const purgeQuarantine = onSchedule({ region: REGION, schedule: 'every 6 hours' }, async () => {
   const bucket = getStorage().bucket();
-  const [files] = await bucket.getFiles({ prefix: `${QUARANTINE}/` });
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   let removed = 0;
-  for (const file of files) {
-    const created = Date.parse(String(file.metadata.timeCreated ?? ''));
-    if (!Number.isNaN(created) && created < cutoff) {
-      await file.delete({ ignoreNotFound: true });
-      removed += 1;
+  for (const prefix of [QUARANTINE, LAB_QUARANTINE]) {
+    const [files] = await bucket.getFiles({ prefix: `${prefix}/` });
+    for (const file of files) {
+      const created = Date.parse(String(file.metadata.timeCreated ?? ''));
+      if (!Number.isNaN(created) && created < cutoff) {
+        await file.delete({ ignoreNotFound: true });
+        removed += 1;
+      }
     }
   }
   logger.info('Quarantine purge', { removed });

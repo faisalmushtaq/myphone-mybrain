@@ -61,3 +61,15 @@ export function formatTimestamp(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? iso : longDateTime.format(date);
 }
+
+/** YYYY-MM-DD for a date a number of whole years before today (local time). */
+export function isoYearsAgo(years: number): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - years);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** The dates of birth that fit the study's age range, for a date picker's min and max. */
+export function dateOfBirthRange(minAge = 11, maxAge = 17): { min: string; max: string } {
+  return { min: isoYearsAgo(maxAge + 1), max: isoYearsAgo(minAge) };
+}

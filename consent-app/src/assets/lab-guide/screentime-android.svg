@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="780" viewBox="0 0 390 780" font-family="Roboto, -apple-system, Segoe UI, sans-serif">
+  <!-- phone screen background -->
+  <rect width="390" height="780" fill="#ffffff"/>
+
+  <!-- status bar -->
+  <text x="24" y="34" font-size="15" font-weight="600" fill="#202124">9:41</text>
+  <g fill="#202124">
+    <rect x="322" y="22" width="14" height="12" rx="2"/>
+    <circle cx="346" cy="28" r="6"/>
+    <rect x="356" y="21" width="22" height="13" rx="3" fill="none" stroke="#202124" stroke-width="1.5"/>
+    <rect x="358" y="23" width="15" height="9" rx="1.5"/>
+  </g>
+
+  <!-- header -->
+  <text x="24" y="78" font-size="16" fill="#5f6368">&#8592;</text>
+  <text x="52" y="82" font-size="20" font-weight="600" fill="#202124">Digital Wellbeing</text>
+
+  <!-- donut chart -->
+  <g transform="translate(195,250)">
+    <!-- segments (start at top, clockwise): TikTok, YouTube, Instagram, Other -->
+    <g transform="rotate(-90)">
+      <circle r="70" fill="none" stroke="#1f2933" stroke-width="26" stroke-dasharray="174.6 265.2" stroke-dashoffset="0"/>
+      <circle r="70" fill="none" stroke="#ff0000" stroke-width="26" stroke-dasharray="105.1 334.7" stroke-dashoffset="-174.6"/>
+      <circle r="70" fill="none" stroke="#e1306c" stroke-width="26" stroke-dasharray="63.0 376.8" stroke-dashoffset="-279.7"/>
+      <circle r="70" fill="none" stroke="#dadce0" stroke-width="26" stroke-dasharray="97.0 342.8" stroke-dashoffset="-342.7"/>
+    </g>
+    <text x="0" y="-2" font-size="30" font-weight="600" fill="#202124" text-anchor="middle">4h 32m</text>
+    <text x="0" y="24" font-size="14" fill="#5f6368" text-anchor="middle">Today</text>
+  </g>
+
+  <!-- app list -->
+  <g font-size="15">
+    <!-- TikTok -->
+    <rect x="24" y="392" width="14" height="14" rx="4" fill="#1f2933"/>
+    <text x="48" y="404" fill="#202124" font-weight="500">TikTok</text>
+    <text x="366" y="404" fill="#202124" text-anchor="end">1h 48m</text>
+
+    <!-- YouTube -->
+    <rect x="24" y="430" width="14" height="14" rx="4" fill="#ff0000"/>
+    <text x="48" y="442" fill="#202124" font-weight="500">YouTube</text>
+    <text x="366" y="442" fill="#202124" text-anchor="end">1h 05m</text>
+
+    <!-- Instagram -->
+    <rect x="24" y="468" width="14" height="14" rx="4" fill="#e1306c"/>
+    <text x="48" y="480" fill="#202124" font-weight="500">Instagram</text>
+    <text x="366" y="480" fill="#202124" text-anchor="end">39m</text>
+
+    <!-- Other -->
+    <rect x="24" y="506" width="14" height="14" rx="4" fill="#dadce0"/>
+    <text x="48" y="518" fill="#5f6368" font-weight="500">Other apps</text>
+    <text x="366" y="518" fill="#5f6368" text-anchor="end">1h 00m</text>
+  </g>
+
+  <line x1="24" y1="548" x2="366" y2="548" stroke="#e8eaed" stroke-width="1"/>
+
+  <!-- bottom hint chips -->
+  <g>
+    <rect x="24" y="574" width="163" height="86" rx="14" fill="#f1f3f4"/>
+    <text x="40" y="606" font-size="13" fill="#5f6368">Screen time</text>
+    <text x="40" y="632" font-size="22" font-weight="600" fill="#202124">4h 32m</text>
+
+    <rect x="203" y="574" width="163" height="86" rx="14" fill="#f1f3f4"/>
+    <text x="219" y="606" font-size="13" fill="#5f6368">Unlocks</text>
+    <text x="219" y="632" font-size="22" font-weight="600" fill="#202124">72</text>
+  </g>
+
+  <rect x="24" y="676" width="342" height="52" rx="26" fill="#e8f0fe"/>
+  <text x="195" y="708" font-size="15" font-weight="600" fill="#1967d2" text-anchor="middle">See your Dashboard</text>
+</svg>

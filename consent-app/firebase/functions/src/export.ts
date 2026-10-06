@@ -3,11 +3,12 @@ import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions/v2';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { labExport } from './exportLab.js';
 import { parentQuestionsForm, questionWording, study } from './forms.js';
 
 /**
  * The hourly export: everything the study has recorded, written into a
- * private bucket of its own as two folders.
+ * private bucket of its own as three folders.
  *
  *   bids/          the research dataset in BIDS layout, de-identified: a
  *                  participants table, the parent questionnaire as a
@@ -15,10 +16,12 @@ import { parentQuestionsForm, questionWording, study } from './forms.js';
  *                  behavioural table listing the images and their quality
  *                  checks, the images themselves under sourcedata/, and
  *                  data dictionaries for every table.
+ *   lab/           the social media break study's dataset, also BIDS,
+ *                  labelled by participant code (exportLab.ts).
  *   identifying/   names, dates of birth, contact details, the consent and
  *                  agreement records, signatures and website enquiries,
  *                  with the key from BIDS labels to people. Never inside
- *                  the BIDS dataset.
+ *                  the BIDS datasets.
  *
  * The bucket is a mirror of the current records: every run rewrites the
  * tables, copies any image or signature that is missing, and deletes
@@ -480,12 +483,16 @@ assent_statements.tsv      one row per statement per agreement record
 submissions.tsv            one row per family: reference code, current record
                            ids, image counts
 enquiries.tsv              messages from the website's contact and school forms
-signatures/                drawn signatures, named by participant label and record
+lab_consents.tsv           the social media break study's consent records (adults,
+                           by participant code), with the typed names
+lab_consent_statements.tsv one row per statement per lab consent record
+signatures/                drawn signatures, named by participant label and record;
+                           signatures/lab/ for the social media break study
 raw/                       every document as JSON Lines
 
 Files are tab-separated UTF-8 with n/a for missing values; timestamps are
 ISO 8601 in UTC. The research data, labelled by participant only, is in the
-bids/ folder next to this one.
+bids/ and lab/ folders next to this one.
 `;
 
 const ROOT_README = `# MyPhone/MyBrain data export
@@ -495,19 +502,28 @@ mirror of the current records: tables are rewritten each run, new images are
 added, and anything deleted from the study (for example after a withdrawal)
 disappears from here too. Do not edit or add files in this folder.
 
-bids/          the research dataset in BIDS layout, labelled by participant
-               only (no names); for researchers
+bids/          the family study's research dataset in BIDS layout, labelled
+               by participant only (no names); for researchers
+lab/           the social media break study's dataset (adults; cleaned TikTok
+               and YouTube archives and screenshots), BIDS layout, labelled by
+               participant code; for researchers
 identifying/   names, contact details, consent records, signatures and the key
-               from labels to people; for study coordinators only
+               from labels to people, for both studies; for study coordinators
+               only
 
 manifest.json says when the last export ran and how many of each thing it holds.
 `;
 
-interface OutFile {
+export interface OutFile {
   path: string;
   body: string;
   contentType: string;
 }
+
+export const tsvFile = (path: string, rows: Row[], columns?: string[]): OutFile => ({ path, body: toTsv(rows, columns), contentType: 'text/tab-separated-values; charset=utf-8' });
+export const jsonFile = (path: string, value: unknown): OutFile => ({ path, body: `${JSON.stringify(value, null, 2)}\n`, contentType: 'application/json' });
+export const textFile = (path: string, body: string, contentType = 'text/plain; charset=utf-8'): OutFile => ({ path, body, contentType });
+export const jsonlFile = (path: string, docs: Doc[]): OutFile => ({ path, body: toJsonl(docs), contentType: 'application/x-ndjson' });
 
 /** Consenting participants without a study number get the next one, once, in order of arrival. */
 async function assignLabels(db: Firestore, participants: Doc[]): Promise<Map<string, string>> {
@@ -550,15 +566,16 @@ export async function runExport(): Promise<Manifest> {
   const exportedAt = new Date().toISOString();
 
   const load = async (name: string): Promise<Doc[]> => (await db.collection(name).get()).docs.map((d) => ({ id: d.id, data: plain(d.data()) as DocumentData }));
-  const [participants, consents, assents, submissions, enquiries, surveys, donations] = await Promise.all(['participants', 'consents', 'assents', 'submissions', 'enquiries', 'surveys', 'donations'].map(load));
+  const [participants, consents, assents, submissions, enquiries, surveys, donations, labParticipants, labConsents, labDonations] = await Promise.all(['participants', 'consents', 'assents', 'submissions', 'enquiries', 'surveys', 'donations', 'labParticipants', 'labConsents', 'labDonations'].map(load));
   const labels = await assignLabels(db, participants);
   const snap: Snapshot = { participants, consents, assents, submissions, enquiries, surveys, donations, labels };
   const sessions = sessionsOf(snap);
+  const lab = labExport({ participants: labParticipants, consents: labConsents, donations: labDonations }, exportedAt);
 
-  const tsv = (path: string, rows: Row[], columns?: string[]): OutFile => ({ path, body: toTsv(rows, columns), contentType: 'text/tab-separated-values; charset=utf-8' });
-  const json = (path: string, value: unknown): OutFile => ({ path, body: `${JSON.stringify(value, null, 2)}\n`, contentType: 'application/json' });
-  const text = (path: string, body: string, contentType = 'text/plain; charset=utf-8'): OutFile => ({ path, body, contentType });
-  const jsonl = (path: string, docs: Doc[]): OutFile => ({ path, body: toJsonl(docs), contentType: 'application/x-ndjson' });
+  const tsv = tsvFile;
+  const json = jsonFile;
+  const text = textFile;
+  const jsonl = jsonlFile;
 
   const files: OutFile[] = [
     text('README.md', ROOT_README, 'text/markdown; charset=utf-8'),
@@ -600,8 +617,10 @@ export async function runExport(): Promise<Manifest> {
     }
   }
 
+  files.push(...lab.files);
+
   // Binary files: copied once, deleted when their record goes.
-  const copies = new Map<string, string>();
+  const copies = new Map<string, string>(lab.copies);
   for (const s of sessions) s.images.forEach((img, i) => typeof img.path === 'string' && copies.set(img.path, `bids/${screenshotFile(s, i + 1, img.path)}`));
   for (const kind of ['consent', 'assent'] as const) {
     for (const d of kind === 'consent' ? consents : assents) {
@@ -649,8 +668,9 @@ export async function runExport(): Promise<Manifest> {
       surveys: surveys.length,
       sessions: sessions.length,
       screenshots,
-      signatures: copies.size - screenshots,
-      imagesCopiedThisRun: copied,
+      signatures: Array.from(copies.values()).filter((t) => t.startsWith('identifying/signatures/') && !t.startsWith('identifying/signatures/lab/')).length,
+      ...lab.counts,
+      filesCopiedThisRun: copied,
       filesMissing: missing,
     },
     files: Array.from(expected).sort(),

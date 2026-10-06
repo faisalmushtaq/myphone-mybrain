@@ -21,9 +21,36 @@ consent-app/
 │   ├── api/           ConsentApi interface + MockConsentApi
 │   ├── components/    reusable UI (progress nav, signature pad, image capture…)
 │   └── steps/         one component per journey step
+│   ├── lab/           the social media break study (adults): config, cleaner, state, steps (see below)
+│   └── lab.tsx        its entry point, mounted at /social-media-break/take-part/ (lab.html in development)
 ├── docs/              this folder
 └── scripts/           build helpers
 ```
+
+### The social media break study
+
+A second, separate flow for adults in the laboratory study shares the UI
+components, the API client and the stylesheet but has its own state, steps
+and backend functions (`src/lab/`, `firebase/functions/src/lab.ts`). There is
+no handover and no reference code: the participant is known by the code the
+lab questionnaire builds from four answers (`src/lab/config.ts`), which is
+also what the EEG data is labelled with, so the two meet without a name. The
+steps are welcome → participant code → information (the approved sheet,
+section by section) → consent (seven required statements, name, signature,
+sent at once) → guide (how to download TikTok and YouTube data and take
+screen-time screenshots; linkable with `?step=guide`) → clean → send → done.
+Because an export can take days to arrive, progress is kept in
+`localStorage` for 60 days and a known code is recognised from any device.
+
+Cleaning happens entirely on the device (`src/lab/cleaner.ts`, ported from
+the lab team's single-file tool and unit-tested with Vitest): the ZIP is read
+with JSZip, TikTok JSON and Google Takeout JSON or HTML are reduced to dates,
+links and search words, the participant unticks categories, a preview shows
+what would leave, and a new ZIP holding only `manifest.json`,
+`tiktok_cleaned.json` and the three YouTube files is built. The server
+(`submitLabDonation`) opens every archive and refuses anything that is not
+exactly that set of file names with the cleaner's manifest, so a raw
+download can never be stored by mistake.
 
 ## Data model (see `src/model/types.ts`)
 
