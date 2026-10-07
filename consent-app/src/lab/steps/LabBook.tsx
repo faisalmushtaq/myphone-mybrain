@@ -165,8 +165,11 @@ export function LabBook() {
     if (!chosen || !slots.some((s) => s.slotId === chosen)) found.push({ field: 'lab-slot', message: 'Choose a time.' });
     if (!email.trim()) found.push({ field: 'lab-email', message: 'Enter your email address, so we can send you the details.' });
     else if (!EMAIL.test(email.trim())) found.push({ field: 'lab-email', message: 'Enter an email address in the format name@example.com.' });
-    if (mobile.trim() && !ukMobile(mobile)) found.push({ field: 'lab-mobile', message: 'Enter a UK mobile number, such as 07700 900123, or leave it empty.' });
-    else if (smsReminders && !mobile.trim()) found.push({ field: 'lab-mobile', message: 'Enter your mobile number for text reminders, or untick them.' });
+    // The mobile number is asked for only once texts are set up.
+    if (options?.smsAvailable) {
+      if (mobile.trim() && !ukMobile(mobile)) found.push({ field: 'lab-mobile', message: 'Enter a UK mobile number, such as 07700 900123, or leave it empty.' });
+      else if (smsReminders && !mobile.trim()) found.push({ field: 'lab-mobile', message: 'Enter your mobile number for text reminders, or untick them.' });
+    }
     return found;
   };
 
@@ -181,7 +184,7 @@ export function LabBook() {
     try {
       const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
       const texts = Boolean(options?.smsAvailable && smsReminders && mobile.trim());
-      const result = await getApi().bookLabSlot(session, { participantCode: state.code, slotId: chosen, visit, email: email.trim(), mobile: mobile.trim() || null, smsReminders: texts, replaces: changing?.bookingId ?? null, client: labClientInfo() });
+      const result = await getApi().bookLabSlot(session, { participantCode: state.code, slotId: chosen, visit, email: email.trim(), mobile: options?.smsAvailable ? mobile.trim() || null : null, smsReminders: texts, replaces: changing?.bookingId ?? null, client: labClientInfo() });
       dispatch({ type: 'booking-confirmed', confirmed: { booking: result.booking, kind: changing ? 'moved' : 'booked', email: result.email, sms: result.sms } });
       announce(`${changing ? 'Moved' : 'Booked'}: your ${visitName(visit)}, ${ukDay(result.booking.start)}, ${ukHours(result.booking.start, result.booking.end)}.`);
       setChanging(null);
