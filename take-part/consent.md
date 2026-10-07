@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Take part online | MyPhone/MyBrain"
-description: "Give your permission for your child to take part in MyPhone/MyBrain and share phone-use information."
+description: "Share your child’s screen time for MyPhone/MyBrain online, or carry on with your reference."
 permalink: /take-part/consent/
 noindex: true
 ---

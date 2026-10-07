@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex">
   <meta http-equiv="refresh" content="0; url={{ page.redirect_to | relative_url }}">
   <link rel="canonical" href="{{ page.redirect_to | absolute_url }}">
-  <script>window.location.replace("{{ page.redirect_to | relative_url }}");</script>
+  <script>window.location.replace("{{ page.redirect_to | relative_url }}"{% unless page.redirect_to contains "#" %} + window.location.hash{% endunless %});</script>
 </head>
 <body>
   <p>Taking you to <a href="{{ page.redirect_to | relative_url }}">{{ page.redirect_to | absolute_url }}</a>…</p>

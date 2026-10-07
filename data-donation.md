@@ -1,12 +1,6 @@
 ---
-layout: default
-title: "Optional data donation | MyPhone/MyBrain"
-description: "What MyPhone/MyBrain asks from a young person's phone: optional screenshots of the screen-time page."
+layout: redirect
+title: "Sharing screen time | MyPhone/MyBrain"
 permalink: /data-donation/
-title_main: "Sharing"
-title_accent: "screen time."
-page_intro: "What we ask from a young person's phone, and what we never see."
+redirect_to: "/information/#screen-time"
 ---
-
-{% include page_hero.html %}
-{% include data_donation_placeholder.html %}

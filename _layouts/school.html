@@ -51,20 +51,10 @@ layout: default
       <a class="btn btn-secondary" href="{{ optout_url }}">How to opt out &nbsp;&rarr;</a>
     </div>
 
-    <div class="reassurance-block">
-      <h3>Key things to know</h3>
-      <ul class="info-checklist">
-        {% for item in site.data.audience.for_parents.what_to_know %}
-        <li>{{ item }}</li>
-        {% endfor %}
-      </ul>
-    </div>
-
     <div class="school-landing__more">
       <h2>Want to know more first?</h2>
       <ul class="school-links">
-        <li><a class="text-link" href="{{ '/information-sheet/' | relative_url }}">The information sheet: everything in one place &nbsp;&rarr;</a></li>
-        <li><a class="text-link" href="{{ '/families/' | relative_url }}">Full information for parents and carers &nbsp;&rarr;</a></li>
+        <li><a class="text-link" href="{{ '/information/' | relative_url }}">The information sheet: everything in one place &nbsp;&rarr;</a></li>
         <li><a class="text-link" href="{{ '/young-people/' | relative_url }}">Information for your child &nbsp;&rarr;</a></li>
         <li><a class="text-link" href="{{ '/faq/' | relative_url }}">Questions and answers &nbsp;&rarr;</a></li>
         <li><a class="text-link" href="{{ '/contact/?topic=Participant%20information' | relative_url }}">Ask the research team &nbsp;&rarr;</a></li>

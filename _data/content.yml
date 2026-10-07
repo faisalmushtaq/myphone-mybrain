@@ -31,13 +31,13 @@ about:
   body: |
     **MyPhone/MyBrain** is a four-year research project funded by the Huo Family Foundation. The team is based at the **Centre for Applied Education Research** and the **Wolfson Centre for Applied Health Research**. We work with secondary schools in Bradford and Leeds.
 
-    The project looks at young people's digital lives, wellbeing, learning and brain development. Young people can choose whether to take part in the MyPhone part, the MyBrain part, or both.
+    The project looks at young people's digital lives, wellbeing, learning and brain development. It has two parts, each a separate choice. Young people are invited to MyBrain, a workshop at school, unless a parent or carer opts them out, and decide on the day which parts to do. MyPhone, sharing screen time, is something families opt in to online.
 
     **MyPhone** asks, as an option, for screenshots of the phone's screen-time page: which apps were used and for how long. They do not show messages, photos, or what was posted or watched, and families can hide any part of a screenshot before it is sent.
 
     **MyBrain** is part of a two-hour workshop at school. A young person wears a lightweight EEG headset, sits quietly for a short time and completes a simple computer task. EEG is safe and painless. The research team brings the equipment and supports pupils throughout.
 
-    With the right consent and approvals, we may link research data to education and health records through **Connected West Yorkshire**. We use this to look at longer-term patterns in learning, wellbeing and health. We share findings about groups of people. We do not give schools or families individual profiles.
+    For young people who take part in the workshop, we link research data with education and health records through **Connected West Yorkshire**, with the approvals in place; opting out of the workshop also opts out of linking. We use this to look at longer-term patterns in learning, wellbeing and health. We share findings about groups of people. We do not give schools or families individual profiles.
 
     Professor Faisal Mushtaq at the University of Leeds leads the project. He works with researchers in brain science, data science, education and population research.
 
@@ -68,7 +68,7 @@ steps:
 
   - number: "04"
     title: "Learn from the research"
-    body: "With the right consent and approvals, we may link research data to education and health records through Connected West Yorkshire. Some young people may be invited again later. Schools receive updates about group findings."
+    body: "With the approvals in place, we link the research data of young people who take part in the workshop with education and health records through Connected West Yorkshire; opting out of the workshop also opts out of linking. Some young people may be invited again later. Schools receive updates about group findings."
 
 # What a two-hour workshop looks like (/participation/ and /schools/): from the approved information sheets and a school's own account of a session.
 session_timeline:

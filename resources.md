@@ -1,12 +1,6 @@
 ---
-layout: default
-title: "Resources | MyPhone/MyBrain"
-description: "Resources from the MyPhone/MyBrain research programme."
+layout: redirect
+title: "Information sheet | MyPhone/MyBrain"
 permalink: /resources/
-title_main: "Useful information,"
-title_accent: "in one place."
-page_intro: "Find programme materials, research updates and useful resources for schools, families and young people as they become available."
+redirect_to: "/information/"
 ---
-
-{% include page_hero.html %}
-{% include resources.html %}

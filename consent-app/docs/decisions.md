@@ -28,8 +28,8 @@ they are all in, the ethics forms get **one master update**;
 | **Everything is saved from the moment the parent signs**, even if the family never reaches the end or presses "Everything is right": answers are saved as they are given, and all of it can be used. | `SyncManager` (`src/App.tsx`), `firstIncomplete` (`src/state/useSync.ts`); `submitConsent` (`firebase/functions/src/index.ts`): versions only for changes to the record, one answers record per question form |
 | **One last prompt** before finishing without the screen time, when it could still come. | `lastCall` (`src/model/journey.ts`), `src/steps/Check.tsx` |
 | The age at their own smartphone goes down to **Under 5**, year by year, with **"I can't remember / I don't know"**; **more than one app** can be chosen as the ones used most. | `parentMoreForm` (`mpmb-parent-phone-use 0.2-draft`); multi-answer questions in `src/steps/ParentQuestions.tsx`, `validate.ts` and the export's data dictionary |
-| The approved information sheet is **on the website** (`/information-sheet/`), brought up to date with these decisions, with a section on **how taking part works**: the workshop and linking are opt-out (by email), the young person decides on the day, and screen time is opt-in online. Linked from the Documents page, the families page, every school's page, the footer, the FAQ and the form. | `information-sheet.md`; `content-placeholders.md` lists where it differs from the approved documents |
-| **No separate route for concerns or complaints** anywhere (the "independent of the study" paragraph is gone from the form, the thank-you page, the PDF and the site). | `src/config/copy.ts` (information `0.5-draft`), `src/steps/Done.tsx`, `src/lib/consentPdf.ts`, `_includes/documents_safeguards.html` |
+| The approved information sheet is **on the website** (`/information/`; the first address, `/information-sheet/`, redirects there), brought up to date with these decisions, with a section on **how taking part works**: the workshop and linking are opt-out (by email), the young person decides on the day, and screen time is opt-in online. Linked from the families page, every school's page, the privacy page, the footer, the FAQ and the form. | `information.md`; `content-placeholders.md` lists where it differs from the approved documents |
+| **No separate route for concerns or complaints** anywhere (the "independent of the study" paragraph is gone from the form, the thank-you page, the PDF and the site). | `src/config/copy.ts` (information `0.5-draft`), `src/steps/Done.tsx`, `src/lib/consentPdf.ts`, the site |
 
 For the master ethics update: opting out by email only (the approved
 documents describe a slip); sharing an under-16's screen time from the
@@ -37,6 +37,14 @@ parent's family view without asking the young person; the address being
 required and no parental-responsibility tick; no recontact question; keeping
 what a family gave after signing even if they stopped part-way; and no
 separate complaints route.
+
+### One place for the details (7 October 2026)
+
+| Decision | Where |
+| --- | --- |
+| The information sheet's address is **`/information/`**; the first address, `/information-sheet/`, redirects there (keeping the `#section`). The **"Share your child's screen time" box comes straight after "About the study"**, for parents who want to do it without reading on. | `information.md`, `information-sheet.md`, `_layouts/redirect.html` |
+| **Fewer ways in, and the details written down once**, in the information sheet; other pages summarise and link to it, so no two pages can disagree. The families page starts with the screen-time box, then points into the information sheet's sections; its "Key things to know" (also on every school's page) is gone. The Documents, Resources and data donation pages, which repeated or predated the sheet, now redirect to it. | `_includes/for_parents.html`, `_layouts/school.html`, `documents.md`, `resources.md`, `data-donation.md`, `_includes/footer.html`, `src/steps/Welcome.tsx` |
+| Details that differed from the information sheet now match it: record linkage is part of the workshop's opt-out ("with the right consent" is gone); screen time takes **about five minutes** everywhere; the FAQ gives the ethics approval (SoPREC 4202) and the one-month withdrawal; the privacy page no longer says the information sheet is still to come. **The Smart Data Donation Service is not mentioned to families** while the study does its own processing (it stays on the partners page as an organisation). | `_data/content.yml`, `_data/partners.yml`, `_data/faqs.yml`, `_data/privacy.yml`, `_includes/data_privacy.html`, `_includes/for_young_people.html` |
 
 ### The website for schools (teacher feedback, 7 October 2026)
 

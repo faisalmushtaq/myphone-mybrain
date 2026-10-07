@@ -196,7 +196,7 @@ export function Welcome() {
             </p>
           ))}
           <p>
-            Everything is in the <a href={study.contact.informationSheetUrl}>information sheet</a>, including how taking part and opting out work. More on the <a href={study.contact.familiesPageUrl}>information for families</a> and <a href={study.contact.privacyPageUrl}>data and privacy</a> pages.
+            Everything is in the <a href={study.contact.informationSheetUrl}>information sheet</a>, including how taking part and opting out work. More on our <a href={study.contact.privacyPageUrl}>data and privacy</a> page.
           </p>
         </Disclosure>
       </section>

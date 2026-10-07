@@ -58,7 +58,7 @@ for_schools:
     - "A live demonstration of EEG (electroencephalography): the brain's signals appear on screen as it happens."
     - "Pupils who agree fit lightweight headsets on each other, with our help, and see their own brain's signals."
     - "A short recording while they sit quietly, then simple computer tasks about attention and self-control."
-    - "Brief questionnaires about their background, wellbeing and behaviour, and time to ask the researchers about science and careers."
+    - "Short questionnaires about their background, wellbeing and everyday life, including their phone use, and time to ask the researchers about science and careers."
     - "Separately, and only if the family opts in online, screenshots of the phone's screen-time page: which apps were used and for how long."
   session_note: "Our team brings all the equipment and staff. Every part is a choice: pupils can say no to any part, or stop at any time."
 
@@ -66,7 +66,7 @@ for_schools:
     - "Everyone from our team who works in your school holds an enhanced DBS certificate. We send you the certificates before our first visit."
     - "At least two researchers are present at all times, including while setting up and packing away. No researcher is ever alone with a pupil."
     - "We follow your school's child protection, health and safety policies and codes of practice, and ask for copies before we visit."
-    - "No research takes place in your school before the study has ethics approval from the University of Leeds School of Psychology Research Ethics Committee. We can send you the approval letter."
+    - "The study was approved by the University of Leeds School of Psychology Research Ethics Committee (reference SoPREC 4202) on 11 June 2026. We can send you the approval letter."
 
   getting_ready:
     - "Before testing begins, we ask staff whether any pupils have disabilities or medical conditions we should know about."
@@ -81,28 +81,6 @@ for_schools:
     - "A follow-up session to share what we found with your school community."
 
   school_link: "When your visit is agreed, your school gets its own page for parents and carers, at an address such as myphonemybrain.com/your-school. It explains the study and opens the online form with your school already filled in. Share it through your usual channels, such as a letter, email or the school app, rather than public social media."
-
-for_parents:
-  heading: "Information for parents and carers"
-  subheading: "Clear information, real choice and careful data handling."
-  intro: |
-    MyPhone/MyBrain is about young people's digital lives, brain development and growing up. We know these topics can feel personal. We will give you clear information before you make any decision.
-
-    Every young person in the classes taking part is invited to the MyPhone/MyBrain workshop at school, unless a parent or carer opts them out by email. On the day, your child can still choose some parts and leave out others, and stop at any time. Sharing their screen time is a separate choice you make online, only if you want to. None of this will affect their education, their relationship with school or their access to services.
-  what_to_know:
-    - "Taking part is a choice: you can opt your child out of the workshop by email."
-    - "Opting out of the workshop also opts your child out of linking with health and school records."
-    - "Phone data donation is optional: you opt in online."
-    - "EEG is safe and painless."
-    - "The study is not a medical test."
-    - "EEG cannot read thoughts."
-    - "The study does not diagnose mental health, ADHD or other conditions."
-    - "We share findings about groups, rather than individuals."
-    - "We store and analyse data in secure systems."
-    - "We do not publish raw social media data openly."
-    - "We do not give pupil data to commercial companies."
-    - "You can contact the research team at any time."
-  consent_note: "If your child's school sent you a link, use it: it explains the study and how to opt out, and opens the online form for sharing screen time with the school already filled in. Need the information in another language, an easier-to-read version or on paper? Contact the team and we will send you what works for you."
 
 for_young_people:
   heading: "Information for young people"

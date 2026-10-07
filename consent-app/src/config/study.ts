@@ -87,10 +87,8 @@ export const study = {
     team: 'The MyPhone/MyBrain team, University of Leeds',
     contactPageUrl: '/contact/',
     privacyPageUrl: '/privacy/',
-    familiesPageUrl: '/families/',
-    documentsPageUrl: '/documents/',
     /** The participant information sheet on the website, with how taking part and opting out work. */
-    informationSheetUrl: '/information-sheet/',
+    informationSheetUrl: '/information/',
   },
 } as const;
 

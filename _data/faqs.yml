@@ -38,7 +38,7 @@
 
 - question: "What will pupils do?"
   answer: |
-    Each visit is a two-hour workshop at school, for the classes taking part. Pupils learn how the brain works and see a live demonstration of EEG. Those who agree wear a lightweight headset that records brain activity while they sit quietly and do a simple computer task, and answer brief questionnaires about their background, wellbeing and behaviour. Separately, and only if they choose, families can share screenshots of the phone's screen-time page online. Taking part is always a choice: a parent or carer can opt their child out by email beforehand, and on the day young people choose the parts they want to do and can stop at any time.
+    Each visit is a two-hour workshop at school, for the classes taking part. Pupils learn how the brain works and see a live demonstration of EEG. Those who agree wear a lightweight headset that records brain activity while they sit quietly and do a simple computer task, and answer short questionnaires about their background, wellbeing and everyday life, including their phone use. Separately, and only if they choose, families can share screenshots of the phone's screen-time page online. Taking part is always a choice: a parent or carer can opt their child out by email beforehand, and on the day young people choose the parts they want to do and can stop at any time.
 
 - question: "How long does a session take?"
   answer: |
@@ -66,11 +66,7 @@
 
 - question: "What happens to the data?"
   answer: |
-    The University of Leeds stores and handles data in line with UK data protection law and its own policies. Researchers use secure systems with controlled access. They work with data that do not directly identify a person wherever possible. We do not sell data or give it to social media companies or other commercial organisations.
-
-- question: "What is the Smart Data Donation Service?"
-  answer: |
-    A secure research environment, run by the University of York, where donated phone-use information, such as screen-time screenshots, can be processed for research. It only works with information people have chosen to donate.
+    The University of Leeds stores and handles data in line with UK data protection law and its own policies. Researchers use secure systems with controlled access. They work with data that do not directly identify a person wherever possible. We do not sell data or give it to social media companies or other commercial organisations. The [information sheet](/information/#information) has the details.
 
 - question: "What is Connected West Yorkshire?"
   answer: |
@@ -78,11 +74,11 @@
 
 - question: "Can parents or carers say no?"
   answer: |
-    Yes. Every young person in the classes taking part is invited to the workshop unless a parent or carer opts them out. To opt out, a parent or carer emails brainpop@leeds.ac.uk: the [opt-out page](/take-part/consent/?optout=1) explains what your child would miss, and then how. There is no form to fill in and no paper slip. An opt-out after the workshop withdraws your child's information too, as far as is still possible. This will not affect your child's education or relationship with school. The [information sheet](/information-sheet/#taking-part) explains how taking part and opting out work.
+    Yes. Every young person in the classes taking part is invited to the workshop unless a parent or carer opts them out. To opt out, a parent or carer emails brainpop@leeds.ac.uk: the [opt-out page](/take-part/consent/?optout=1) explains what your child would miss, and then how. There is no form to fill in and no paper slip. An opt-out after the workshop withdraws your child's information too, as far as is still possible. This will not affect your child's education or relationship with school. The [information sheet](/information/#taking-part) explains how taking part and opting out work.
 
 - question: "Can young people withdraw after taking part?"
   answer: |
-    Yes. They can stop at any time during a session, without giving a reason. Afterwards, they or their parent or carer can ask for their data to be withdrawn by telling the researchers or emailing brainpop@leeds.ac.uk, quoting their reference if they have one. It will not affect their place at school or their involvement in other activities.
+    Yes. They can stop at any time during a session, without giving a reason. Afterwards, they or their parent or carer can ask for their data to be withdrawn by telling the researchers or emailing brainpop@leeds.ac.uk, quoting their reference if they have one. Within one month of the workshop we can remove all of it; after that, we remove everything we still can. It will not affect their place at school or their involvement in other activities. More in the [information sheet](/information/#changing-your-mind).
 
 - question: "How could the school benefit?"
   answer: |
@@ -94,7 +90,7 @@
 
 - question: "Who funds and oversees the project?"
   answer: |
-    The **Huo Family Foundation** funds MyPhone/MyBrain. The University of Leeds leads the project with Born in Bradford, the Centre for Applied Education Research and partner schools. No research takes place in schools before the study has ethics approval from the University of Leeds School of Psychology Research Ethics Committee, and the University's data protection team signed off the study's data protection impact assessment in May 2026.
+    The **Huo Family Foundation** funds MyPhone/MyBrain. The University of Leeds leads the project with Born in Bradford, the Centre for Applied Education Research and partner schools. The study was approved by the University of Leeds School of Psychology Research Ethics Committee (reference SoPREC 4202) on 11 June 2026, and the University's data protection team signed off the study's data protection impact assessment in May 2026.
 
 - question: "Are the researchers DBS checked?"
   answer: |

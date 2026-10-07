@@ -12,7 +12,7 @@ promise:
     body: "Young people can choose the parts of the study they are happy to do. Families see each screenshot before it is sent, and can hide any part of it."
   - number: "3"
     heading: "We use secure systems"
-    body: "Screenshots are sent securely and kept with a code instead of a name. Research data and linked records are stored and analysed in secure systems with controlled access, including the Smart Data Donation Service's secure research environment."
+    body: "Screenshots are sent securely and kept with a code instead of a name. Research data and linked records are stored and analysed in secure systems with controlled access."
   - number: "4"
     heading: "We protect people’s privacy"
     body: "Researchers use coded or anonymous data wherever possible. We share findings about groups of people, rather than individuals."
@@ -31,7 +31,7 @@ promise:
 
 data_flow:
   - label: "Information for pupils and families, with the choice to opt out, or to opt in to sharing phone data"
-  - label: "MyPhone or MyBrain session"
+  - label: "The workshop at school, and screen time shared online"
   - label: "Secure data handling"
   - label: "Research using data without direct personal details"
   - label: "Findings and resources for groups"

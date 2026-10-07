@@ -34,7 +34,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
           <p>Researching how digital lives and adolescent brain development connect, with young people and schools in Bradford and Leeds.</p>
           <nav aria-label="Footer navigation">
             <a href={`${SITE}/privacy/`}>Data and privacy</a>
-            <a href={`${SITE}/documents/`}>Documents and safeguards</a>
+            <a href={`${SITE}/information/`}>Information sheet</a>
             <a href={`${SITE}/contact/`}>Contact</a>
           </nav>
         </div>

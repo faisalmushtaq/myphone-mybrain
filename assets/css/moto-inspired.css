@@ -131,7 +131,7 @@ p { max-width: 70ch; }
 .participant-next-step .text-link, .participant-info-grid .text-link { display: inline-block; margin-top: 1.1rem; }
 /* A heading's lead paragraph sits clear of it, on every page (the base stylesheet leaves only 0.4rem). */
 .section-subheading { margin-top: .9rem; }
-/* The information sheet (/information-sheet/): contents, the three choices, and a clear break between topics. */
+/* The information sheet (/information/): contents, the three choices, and a clear break between topics. */
 .info-sheet [id] { scroll-margin-top: calc(var(--nav-h) + 1rem); }
 .info-sheet__contents { padding: 1.1rem 1.25rem; border-left: 4px solid var(--mpb-yellow); background: #fff; }
 .info-sheet__contents p { margin: 0 0 .55rem; color: var(--mpb-teal); font-family: var(--f-mono); font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; }
@@ -298,6 +298,7 @@ p { max-width: 70ch; }
 .benefit-grid, .promise-grid { gap: 15px; }
 .benefit-card, .promise-card { border-left: 4px solid var(--mpb-yellow); border-radius: 0; box-shadow: var(--shadow-sm); }
 .benefit-card h3, .promise-card h3 { color: var(--mpb-teal); }
+.promise-card h3 { margin-bottom: .6rem; }
 .gatsby-header { background: var(--mpb-teal); }
 .gatsby-header .section-kicker { color: var(--mpb-yellow); }
 .gatsby-grid { background: #fff; }
@@ -474,16 +475,16 @@ fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin
 .school-hero__more:hover { color: var(--mpb-yellow); }
 .school-landing__grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
 .school-landing__grid .info-panel { margin: 0; }
-.school-landing__grid h2, .school-landing__more h2 { margin: 0 0 1rem; color: var(--mpb-teal); font-size: clamp(1.8rem, 3vw, 2.4rem); }
+.school-landing__grid h2, .school-landing__more h2, .school-landing__optout h2 { margin: 0 0 1rem; color: var(--mpb-teal); font-size: clamp(1.8rem, 3vw, 2.4rem); }
 .school-landing__cta { border-top: 6px solid var(--mpb-yellow); }
 .school-landing__cta .btn { margin-top: 1.4rem; }
+.school-landing__optout .btn { margin-top: 1.25rem; }
 .school-steps { margin: 0; padding: 0; list-style: none; counter-reset: school-step; color: #234c51; line-height: 1.5; }
 .school-steps li { position: relative; padding-left: 2.4rem; counter-increment: school-step; }
 .school-steps li::before { content: counter(school-step); position: absolute; left: 0; top: .05rem; display: grid; place-items: center; width: 1.65rem; height: 1.65rem; border-radius: 50%; background: var(--mpb-teal); color: #fff; font-family: var(--f-mono); font-size: .8rem; font-weight: 500; }
 .school-steps li + li { margin-top: .7rem; }
 .school-landing__note, .school-landing__hint { margin: 1.2rem 0 0; max-width: 60ch; color: #45666b; line-height: 1.5; }
 .school-landing__now { margin: 1rem 0 1.2rem; max-width: 60ch; font-weight: 700; line-height: 1.5; }
-.school-landing .reassurance-block { margin-top: 2.5rem; }
 .school-landing__more { margin-top: 2.5rem; }
 .school-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem 2rem; margin: 0; padding: 0; list-style: none; }
 @media (max-width: 680px) {
@@ -519,10 +520,13 @@ fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin
 .yp-next__help a { color: var(--mpb-yellow); font-weight: 700; }
 .parents-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
 .parents-actions__note { margin: 1rem 0 0; color: #45666b; }
-.parents-info-sheet { margin: 1.25rem 0 0; color: #45666b; }
-.parents-info-sheet .text-link { margin-right: .5rem; }
-.document-card .text-link { display: inline-block; margin-top: 1rem; }
-.document-card .document-status { display: block; }
+/* /families/: the screen-time box first, then the way into the information sheet (/information/), which holds the details. */
+.participant-next-step h2 { margin-bottom: .75rem; color: var(--mpb-teal); font-size: clamp(1.7rem, 3vw, 2.35rem); }
+.participant-next-step .parents-actions .btn { margin: 0; }
+.participant-info-section .narrow-content > .parents-hub__topics { margin-top: 1.5rem; }
+.participant-info-section .narrow-content > .parents-hub__read { margin-top: 1.25rem; }
+.parents-hub__read p { max-width: 62ch; margin: 1.1rem 0 0; color: #45666b; }
+.parents-hub__read p a { color: var(--mpb-teal); font-weight: 700; text-decoration: underline; text-underline-offset: .18em; }
 .faq-group-title { margin: 0 0 .75rem; color: var(--mpb-teal); font-size: 1.4rem; scroll-margin-top: 110px; }
 .faq-item + .faq-group-title { margin-top: 2.25rem; }
 .privacy-facts { margin-top: 2rem; }
@@ -543,7 +547,7 @@ fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin
 .form-failure__status:empty { display: none; }
 .form-failure__status { margin: .75rem 0 0 !important; font-weight: 700; }
 .enquiry-follow-up p + h3 { margin-top: 1.25rem; }
-.school-landing__note a, .parents-actions__note a, .participant-shortcut a { text-decoration: underline; text-underline-offset: .18em; }
+.school-landing__note a, .school-landing__hint a, .parents-actions__note a, .participant-shortcut a { text-decoration: underline; text-underline-offset: .18em; }
 
 /* What a session looks like (/participation/): the stages of a workshop, photos, and a school's words. */
 .session-timeline { display: grid; gap: .85rem; margin: 0; padding: 0; list-style: none; }

@@ -1,41 +1,40 @@
-<section id="parents" class="section section-light">
-  <div class="container">
-    <div class="reveal section-heading">
-      <h2>{{ site.data.audience.for_parents.heading }}</h2>
-    </div>
-
-    <div class="info-panel reveal">
-      <div class="prose">
-        {{ site.data.audience.for_parents.intro | markdownify }}
-      </div>
-    </div>
-
-    <div class="reassurance-block reveal">
-      <h3>Key things to know</h3>
-      <ul class="info-checklist">
-        {% for item in site.data.audience.for_parents.what_to_know %}
-        <li>{{ item }}</li>
-        {% endfor %}
-      </ul>
-    </div>
-
-    <figure class="section-photo-banner section-photo-banner--short reveal">
-      <img src="{{ '/assets/images/silhouettes/family.jpg' | relative_url }}"
-           alt="Simple silhouettes of a parent or carer and young person looking at study information together"
-           loading="lazy">
-    </figure>
-
-    <div class="info-panel info-panel-alt reveal">
-      <h3>Consent and information materials</h3>
-      <div class="prose">
-        {{ site.data.audience.for_parents.consent_note | markdownify }}
-      </div>
-      <p class="parents-info-sheet"><a class="text-link" href="{{ '/information-sheet/' | relative_url }}">Read the information sheet &nbsp;&rarr;</a> Everything in one place: the workshop, how taking part and opting out work, sharing screen time, and what happens to your child’s information.</p>
+<!-- For parents and carers: the one thing we ask first, then the one place where the details are written down (/information/). Nothing here repeats the information sheet, so the two can never disagree. -->
+<section id="parents" class="section participant-info-section parents-hub">
+  <div class="container narrow-content">
+    <div class="participant-next-step" id="share">
+      <h2>Share your child’s screen time.</h2>
+      <p>Online, in about five minutes: you answer a few questions about your child’s phone use and choose whether to share their screen time. Please do it as soon as you can. You don’t need to do anything for your child to take part in the workshop.</p>
       <div class="parents-actions">
         <a href="{{ '/take-part/consent/?who=parent' | relative_url }}" class="btn btn-primary">Share screen time online &nbsp;&rarr;</a>
         <a href="{{ '/contact/?topic=Taking%20part' | relative_url }}" class="btn btn-secondary">Ask the team a question &nbsp;&rarr;</a>
       </div>
-      <p class="parents-actions__note">Online, in about five minutes: you answer a few questions about your child’s phone use and choose whether to share their screen time. Please do it as soon as you can. You don’t need to do anything for the workshop. Started already? <a href="{{ '/take-part/consent/?finish' | relative_url }}">Finish with your reference</a>. Don’t want your child to take part? <a href="{{ '/take-part/consent/?optout=1' | relative_url }}">How to opt out</a>. <a href="{{ '/faq/' | relative_url }}">Questions and answers</a> · <a href="{{ '/participation/' | relative_url }}">What happens at school</a> · <a href="{{ '/privacy/' | relative_url }}">Data and privacy</a></p>
+      <p class="parents-actions__note">If your child’s school sent you a link, use it: the form opens with the school filled in. Started already? <a href="{{ '/take-part/consent/?finish' | relative_url }}">Finish with your reference</a>. Don’t want your child to take part? <a href="{{ '/take-part/consent/?optout=1' | relative_url }}">How to opt out</a>.</p>
     </div>
+
+    <h2 id="read">Everything about the study, in one place.</h2>
+    <p class="section-subheading">The information sheet explains what happens at school, how taking part and opting out work, and what happens to your child’s information. Please read it with your child if you can.</p>
+    <nav class="info-sheet__contents parents-hub__topics" aria-label="In the information sheet">
+      <p>In the information sheet</p>
+      <ol>
+        <li><a href="{{ '/information/#taking-part' | relative_url }}">How taking part works</a></li>
+        <li><a href="{{ '/information/#workshop' | relative_url }}">The workshop</a></li>
+        <li><a href="{{ '/information/#safety' | relative_url }}">Safety and preparing</a></li>
+        <li><a href="{{ '/information/#screen-time' | relative_url }}">Sharing screen time</a></li>
+        <li><a href="{{ '/information/#linking' | relative_url }}">Linking with records</a></li>
+        <li><a href="{{ '/information/#information' | relative_url }}">Your child’s information</a></li>
+        <li><a href="{{ '/information/#changing-your-mind' | relative_url }}">Changing your mind</a></li>
+        <li><a href="{{ '/information/#questions' | relative_url }}">Questions and approval</a></li>
+      </ol>
+    </nav>
+    <div class="parents-hub__read">
+      <a class="btn btn-primary" href="{{ '/information/' | relative_url }}">Read the information sheet &nbsp;&rarr;</a>
+      <p>Need it in another language, an easier-to-read version or on paper? <a href="{{ '/contact/?topic=Participant%20information' | relative_url }}">Contact the team</a> and we will send you what works for you. There is also a <a href="{{ '/young-people/' | relative_url }}">version for young people</a>, and <a href="{{ '/faq/' | relative_url }}">questions and answers</a>.</p>
+    </div>
+
+    <figure class="section-photo-banner section-photo-banner--short">
+      <img src="{{ '/assets/images/silhouettes/family.jpg' | relative_url }}"
+           alt="Simple silhouettes of a parent or carer and young person looking at study information together"
+           loading="lazy">
+    </figure>
   </div>
 </section>
