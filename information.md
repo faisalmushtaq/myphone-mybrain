@@ -64,6 +64,9 @@ page_intro: "You’re reading this because your child’s school is taking part 
     </ol>
     <h2 id="workshop">What happens at the workshop.</h2>
     <p class="section-subheading">About two hours, at school, during the school day, in a group of up to 30 young people, with at least two researchers.</p>
+    <figure class="section-photo-banner section-photo-banner--short illustration-banner">
+      <img src="{{ '/assets/images/silhouettes/study.jpg' | relative_url }}" alt="Simple silhouettes of a young person wearing an EEG headset and a researcher during a workshop" loading="lazy">
+    </figure>
     <div class="participant-info-grid">
       <div class="info-panel">
         <h3>What young people do</h3>

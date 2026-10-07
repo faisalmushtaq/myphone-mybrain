@@ -50,23 +50,6 @@ why:
 
     Our aim is to produce careful, useful evidence for young people, families, schools and people who make decisions about education and health. We will share what we learn clearly and responsibly.
 
-steps:
-  - number: "01"
-    title: "Talk with the school"
-    body: "We talk with the school about timing, year groups, safeguarding and what the school needs. We are inviting secondary schools in Bradford and Leeds."
-
-  - number: "02"
-    title: "Share information"
-    body: "Parents, carers and pupils receive clear information before anything happens. A parent or carer can opt their child out of the workshop by email; sharing phone data is a separate choice families opt in to online."
-
-  - number: "03"
-    title: "Run the session"
-    body: "Each visit is a two-hour workshop. In MyBrain, pupils learn how the brain works and can wear a lightweight EEG headset during a short rest and a simple computer task. In MyPhone, families who opt in share screenshots of the phone's screen-time page online. Young people choose which parts they are happy to do."
-
-  - number: "04"
-    title: "Learn from the research"
-    body: "With the approvals in place, we link the research data of young people who take part in the workshop with education and health records through Connected West Yorkshire; opting out of the workshop also opts out of linking. Some young people may be invited again later. Schools receive updates about group findings."
-
 # What a two-hour workshop looks like (/participation/ and /schools/): from the approved information sheets and a school's own account of a session.
 session_timeline:
   intro: "Two hours, in a classroom at school, run by our researchers with our equipment, and already tested in 8 schools with more than 1,000 students. Every part is a choice: young people can say no to any part, or stop at any time."
