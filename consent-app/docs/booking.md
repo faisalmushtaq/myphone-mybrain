@@ -20,9 +20,12 @@ break, and the end-of-break message.
 | `/break/check-in/` and `/break/after/`, the summary | The visits still to come (or, if a visit was missed or cancelled, booking it again) |
 | `/break/book/` (its own page; the personal link in every email) | Both visits: add to calendar (`.ics` file or Google Calendar); **Change my times** (keep either time or choose a new one; the second must still be 28 to 35 days after the first); **Cancel your visits** (cancels both; to take part they book both again) |
 
-Booking asks for an email address (the confirmation goes there) and, once
-texts are set up, a UK mobile number with a **Text me reminders** tick. The
-device remembers both for the next booking. Changes and cancellations online
+Booking asks for an email address (the confirmation goes there) and a UK
+mobile number, which is **required**: the team needs it to contact people
+about their visits (decided 7 October 2026). A **Text me reminders** tick,
+on unless they untick it, decides whether the reminders and the break-time
+nudges also go by text; until texts are set up, the choice is kept and texts
+start once they are. The device remembers both for the next booking. Changes and cancellations online
 close 24 hours before a visit; after that the page says to contact Miftah.
 Times are always UK times, whatever the phone's time zone.
 
@@ -79,9 +82,13 @@ send the same message twice: each is claimed in a transaction first.
    as times exist, from 24 hours ahead. Close a time to stop new bookings;
    remove one nobody has booked.
 4. **Texts (optional).** Texts need an SMS provider account. The code uses
-   [Twilio](https://www.twilio.com/sms/pricing/gb) (pay as you go, about
-   $0.046 (roughly 3.5p) a text to a UK mobile, no monthly fee beyond a
-   number if one is used):
+   [Twilio](https://www.twilio.com/sms/pricing/gb) (pay as you go, $0.056
+   a text to a UK mobile in October 2026, no monthly fee with the
+   **MyPhoneStdy** name as the sender). Each participant gets at most ten
+   texts, all under 160 characters (one billed text each): the booking, the
+   day before and the morning of each visit, four weekly check-in nudges
+   and the last day of the break, plus one per change of times; for 120
+   participants, about 1,200 to 1,400 texts, roughly $70 to $80:
    - create the account and note the account SID and auth token;
    - in Cloud Shell: `bash consent-app/firebase/scripts/set-sms-credentials.sh myphone-mybrain`;
    - the sender is **MyPhoneStdy** (the deploy workflow's default; to

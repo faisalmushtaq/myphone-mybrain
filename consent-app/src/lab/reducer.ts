@@ -71,7 +71,8 @@ export function initialLabState(flow: LabFlow = 'baseline', phase: LabPhase = la
     submission: { consentId: null, consentVersion: 0, consentSentAt: null, consentStage: 'idle', consentError: null, consentOnFile: false, donationStage: 'idle', donationError: null, donationIds: [], lastDonationAt: null, archivesSent: 0, screenshotsSent: 0 },
     archives: [],
     screenshots: [],
-    booking: { options: null, email: '', mobile: '', smsReminders: false, confirmed: null },
+    // Text reminders on unless the person unticks them; the mobile number itself is required (the team contacts people about their visits).
+    booking: { options: null, email: '', mobile: '', smsReminders: true, confirmed: null },
     story: emptyStory(),
     session: null,
     restored: false,

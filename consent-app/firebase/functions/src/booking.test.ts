@@ -217,12 +217,13 @@ test('the confirmation email: both visits, what to bring, the links, copied to t
   assert.match(bookingText('same-day', v1), /main entrance/);
 });
 
-test('booking requests: a time for each visit, an email, a UK mobile only when texts are wanted', () => {
-  const ok = { participantCode: 'MP2670FF90A5F2', visits: [{ visit: 1, slotId: 'abc123' }, { visit: 2, slotId: 'def456' }], email: 'jane@example.com', mobile: '', smsReminders: false, client };
+test('booking requests: a time for each visit, an email and a UK mobile (texts optional)', () => {
+  const ok = { participantCode: 'MP2670FF90A5F2', visits: [{ visit: 1, slotId: 'abc123' }, { visit: 2, slotId: 'def456' }], email: 'jane@example.com', mobile: '07700 900123', smsReminders: false, client };
   assert.deepEqual(validateBookingPayload(ok), []);
   assert.deepEqual(validateBookingPayload({ ...ok, visits: [{ visit: 2, slotId: 'def456' }] }), [], 'one visit, to move it or book the one left');
-  assert.deepEqual(validateBookingPayload({ ...ok, mobile: '07700 900123', smsReminders: true }), []);
-  assert.match(validateBookingPayload({ ...ok, smsReminders: true }).join(' '), /mobile number for text reminders/);
+  assert.deepEqual(validateBookingPayload({ ...ok, smsReminders: true }), []);
+  assert.match(validateBookingPayload({ ...ok, mobile: '' }).join(' '), /Enter your mobile number, so the team can contact you/, 'the mobile number is required, texts or not');
+  assert.match(validateBookingPayload({ ...ok, mobile: null }).join(' '), /Enter your mobile number/);
   assert.match(validateBookingPayload({ ...ok, mobile: '0113 343 5000' }).join(' '), /UK mobile/);
   assert.match(validateBookingPayload({ ...ok, email: 'nope' }).join(' '), /email address/);
   assert.match(validateBookingPayload({ ...ok, visits: [{ visit: 3, slotId: 'abc123' }] }).join(' '), /Choose a time for each visit/);

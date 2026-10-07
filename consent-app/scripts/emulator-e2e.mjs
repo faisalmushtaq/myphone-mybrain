@@ -515,7 +515,7 @@ async function inner() {
     const twice = await staffCall({ action: 'add-slots', slots: [{ start: v1a.toISOString(), minutes: 120, capacity: 1 }] });
     ok('adding the same time twice is skipped, not doubled', twice.data?.created === 0 && twice.data?.skipped === 1, JSON.stringify(twice.data));
     ok('a past time is refused', await refused(() => staffCall({ action: 'add-slots', slots: [{ start: new Date(Date.now() - DAY).toISOString() }] }), 'invalid-argument'));
-    ok('nobody can book without consent on file', await stranger(() => httpsCallable(fns, 'bookLabSlot')({ participantCode: 'MP33CE17327FF2', visits: [{ visit: 1, slotId: 'abc' }, { visit: 2, slotId: 'def' }], email: 'x@example.com', mobile: null, smsReminders: false, client })));
+    ok('nobody can book without consent on file', await stranger(() => httpsCallable(fns, 'bookLabSlot')({ participantCode: 'MP33CE17327FF2', visits: [{ visit: 1, slotId: 'abc' }, { visit: 2, slotId: 'def' }], email: 'x@example.com', mobile: '07700 900123', smsReminders: false, client })));
     const icsStamp = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 
     await page.goto(`http://127.0.0.1:${PORT}/lab.html`);
@@ -634,14 +634,14 @@ async function inner() {
     ok('only the times for a first visit are offered first, by day; the second waits for it', (await page.locator('#lab-slot-1 .mpmb-slots__time').count()) === 2 && (await page.locator('#lab-slot-1 .mpmb-slots__day').count()) === 2 && (await page.getByText('Choose your first visit, and the times for your second appear here.').count()) === 1);
     await page.getByRole('button', { name: 'Book both visits' }).click();
     await page.getByText('Choose a time for your first visit.').first().waitFor();
-    ok('booking without times or an email is held back with reasons', (await page.getByText(/Enter your email address, so we can send you the details/).count()) >= 1 && (await page.getByText(/Choose your first visit, then a time for your second/).count()) >= 1);
+    ok('booking without times, an email or a mobile number is held back with reasons (the mobile is required)', (await page.getByText(/Enter your email address, so we can send you the details/).count()) >= 1 && (await page.getByText(/Enter your mobile number, so the team can contact you about your visits/).count()) >= 1 && (await page.getByText(/Choose your first visit, then a time for your second/).count()) >= 1);
     await page.locator('#lab-slot-1 .mpmb-slots__time').first().click();
     await page.locator('#lab-slot-2 .mpmb-slots__time').first().waitFor({ timeout: 30000 });
     ok('the second visit offers only the times 28 to 35 days after the first chosen', (await page.locator('#lab-slot-2 .mpmb-slots__time').count()) === 2 && (await page.getByText(/It is 28 to 35 days after the first: between/).count()) === 1);
     await page.locator('#lab-slot-2 .mpmb-slots__time').first().click();
     await page.getByLabel('Email address').fill('jane@example.com');
     await page.getByLabel(/Mobile number/).fill('07700 900123');
-    ok('giving a mobile number ticks text reminders', await page.locator('#lab-sms').isChecked());
+    ok('text reminders are ticked by default', await page.locator('#lab-sms').isChecked());
     await snap('book');
     await page.getByRole('button', { name: 'Book both visits' }).click();
     await page.getByText(/Booked: your two lab visits/).first().waitFor({ timeout: 30000 });
@@ -869,7 +869,7 @@ async function inner() {
     await bookPage.getByRole('heading', { name: 'Book your two lab visits.', level: 1 }).waitFor({ timeout: 30000 });
     await bookPage.locator('#lab-slot-1 .mpmb-slots__time').first().click();
     await bookPage.locator('#lab-slot-2 .mpmb-slots__time').first().click();
-    await bookPage.getByRole('button', { name: 'Use a different email address' }).click();
+    await bookPage.getByRole('button', { name: 'Use a different email address or mobile number' }).click();
     await bookPage.getByLabel('Email address').fill('jane.smith@example.org');
     await bookPage.getByLabel(/Mobile number/).fill('07700 900123');
     await bookPage.getByRole('button', { name: 'Book both visits' }).click();

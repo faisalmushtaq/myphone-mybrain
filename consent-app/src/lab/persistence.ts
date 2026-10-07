@@ -120,7 +120,7 @@ export function loadLabState(flow: LabFlow, phase: LabPhase = labFlowPhase[flow]
       flow,
       phase,
       // What the server said about bookings is asked again on every visit; the contact details are kept.
-      booking: { ...base.booking, email: parsed.booking?.email ?? contact?.email ?? '', mobile: parsed.booking?.mobile ?? contact?.mobile ?? '', smsReminders: parsed.booking?.smsReminders ?? contact?.smsReminders ?? false },
+      booking: { ...base.booking, email: parsed.booking?.email ?? contact?.email ?? '', mobile: parsed.booking?.mobile ?? contact?.mobile ?? '', smsReminders: parsed.booking?.smsReminders ?? contact?.smsReminders ?? true },
       // A story half-written for another phase's questions is not this page's.
       story: parsed.story && parsed.phase === phase ? { ...emptyStory(), ...parsed.story } : emptyStory(),
       // Only the four details the ID is built from.

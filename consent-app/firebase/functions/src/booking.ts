@@ -641,12 +641,12 @@ export function validateBookingPayload(input: unknown): string[] {
   // null: keep the email address and text settings already on file (changing visits on another device, without typing them again).
   const keep = input.email === null;
   if (!keep && (!str(input.email, 254) || !EMAIL.test(String(input.email).trim()))) problems.push('Enter an email address in the format name@example.com.');
-  if (input.mobile !== null && input.mobile !== undefined && input.mobile !== '') {
-    if (keep) problems.push('A new mobile number needs the email address too.');
-    else if (!str(input.mobile, 30) || !ukMobile(String(input.mobile))) problems.push('Enter a UK mobile number, such as 07700 900123, or leave it empty.');
-  }
+  // The mobile number is required with new contact details: the team needs it to contact people about their visits (decided 7 October 2026).
+  const hasMobile = input.mobile !== null && input.mobile !== undefined && input.mobile !== '';
+  if (keep && hasMobile) problems.push('A new mobile number needs the email address too.');
+  else if (!keep && !hasMobile) problems.push('Enter your mobile number, so the team can contact you about your visits.');
+  else if (!keep && (!str(input.mobile, 30) || !ukMobile(String(input.mobile)))) problems.push('Enter a UK mobile number, such as 07700 900123.');
   if (typeof input.smsReminders !== 'boolean') problems.push('Say whether you want text reminders.');
-  else if (input.smsReminders && !input.mobile && !keep) problems.push('Enter your mobile number for text reminders, or untick them.');
   validateClient(input.client, problems);
   return problems;
 }
@@ -697,6 +697,7 @@ export const bookLabSlot = onCall(callOptions, async (request) => {
   await rateLimitLookups(db, uid, 'lab-booking', BOOKINGS_PER_HOUR);
   const onFile = await contactOf(db, code);
   if (p.email === null && !onFile.email) throw new HttpsError('invalid-argument', 'Enter your email address, so we can send you the details.');
+  if (p.email === null && !onFile.mobile) throw new HttpsError('invalid-argument', 'Enter your mobile number, so the team can contact you about your visits.');
   const now = new Date();
   const result = await placeVisits(db, { code, choices: p.visits.map((v) => ({ visit: v.visit, slotId: v.slotId })), by: 'participant', uid, client: p.client }, now);
   const mobile = p.mobile ? ukMobile(p.mobile) : null;

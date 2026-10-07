@@ -415,6 +415,7 @@ export class MockConsentApi implements ConsentApi {
     const { missing, active } = this.bookingStateOf(p);
     if (missing.length) throw new ApiError('validation', `Your lab visits can be booked once ${missing.join(' and ')} ${missing.length === 1 ? 'has' : 'have'} arrived.`);
     if (payload.email === null && !p.contact) throw new ApiError('validation', 'Enter your email address, so we can send you the details.');
+    if (payload.email !== null && !payload.mobile) throw new ApiError('validation', 'Enter your mobile number, so the team can contact you about your visits.');
     const all = this.mockSlots();
     const plan: Record<LabVisit, { start: string } | undefined> = { 1: active[1], 2: active[2] };
     const chosen = payload.visits.map((c) => {
