@@ -12,7 +12,7 @@ import { describeError, labClientInfo, labSession } from '../api';
 import { idDetails, labConsentForm, type LabStatement } from '../config';
 import { LabShell } from '../LabShell';
 import { useLab } from '../store';
-import { validateLabConsent, type FieldError } from '../validation';
+import { ukMobile, validateLabConsent, type FieldError } from '../validation';
 
 /** A statement's note for the participant, and in preview builds the remark about its wording's approval. */
 const hintOf = (s: LabStatement): string | undefined => [s.note, __PROTOTYPE__ ? s.draft : undefined].filter(Boolean).join(' ') || undefined;
@@ -38,7 +38,9 @@ export function LabConsent() {
       const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
       const details = idDetails(state.codeParts);
       if (!details) throw new Error('Your details are missing. Go back to the first step and enter them again.');
-      const result = await getApi().submitLabConsent(session, { participantCode: state.code, consent: { ...consent, completedAt }, codeParts: details, client: labClientInfo() });
+      const mobile = ukMobile(state.booking.mobile) ? state.booking.mobile.trim() : null;
+      if (!mobile) throw new Error('Your mobile number is missing. Go back to the first step and enter it with your details.');
+      const result = await getApi().submitLabConsent(session, { participantCode: state.code, consent: { ...consent, completedAt }, codeParts: details, mobile, client: labClientInfo() });
       dispatch({ type: 'submission', patch: { consentStage: 'sent', consentError: null, consentId: result.consentId, consentVersion: result.version, consentSentAt: result.receivedAt } });
       announce('Consent saved.');
       dispatch({ type: 'next' });

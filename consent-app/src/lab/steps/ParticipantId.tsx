@@ -11,14 +11,14 @@ import { LabShell } from '../LabShell';
 import { namesOf } from '../PlatformChecklist';
 import { nextFilesStep, phaseHave, platformsToDo, resumeStep } from '../reducer';
 import { useLab } from '../store';
-import type { FieldError } from '../validation';
+import { ukMobile, type FieldError } from '../validation';
 import { filesPhrase } from '../words';
 
 const words = {
   baseline: {
     kicker: 'About you',
     title: 'Tell us who you are.',
-    lead: 'Your first name, last name, date of birth and postcode make your participant ID: the label on everything you send, instead of your name. The study’s questionnaire asks for the same four details, so your answers there and your data here can be matched.',
+    lead: 'Your first name, last name, date of birth and postcode make your participant ID: the label on everything you send, instead of your name. The study’s questionnaire asks for the same four details, so your answers there and your data here can be matched. We also ask for your mobile number, so the team can contact you.',
     leadKnown: 'Your participant ID is the label on everything you send, instead of your name.',
   },
   checkin: {
@@ -87,6 +87,9 @@ export function ParticipantId() {
     else if (age !== null && age > 110) found.push({ field: 'lab-dob', message: 'Check the year of your date of birth.' });
     if (!parts.postcode.trim()) found.push({ field: 'lab-postcode', message: 'Enter your postcode.' });
     else if (!isUkPostcode(parts.postcode)) found.push({ field: 'lab-postcode', message: 'Enter a full UK postcode, such as LS2 9JT.' });
+    // The first page also asks for a mobile number (decided 7 October 2026): not part of the ID, but the team needs it to contact people.
+    if (firstPage && !state.booking.mobile.trim()) found.push({ field: 'lab-mobile-start', message: 'Enter your mobile number, so the team can contact you.' });
+    else if (firstPage && !ukMobile(state.booking.mobile)) found.push({ field: 'lab-mobile-start', message: 'Enter a UK mobile number, such as 07700 900123.' });
     return found;
   };
 
@@ -259,6 +262,22 @@ export function ParticipantId() {
             onBlur={() => parts.postcode && dispatch({ type: 'code-parts', parts: { postcode: formatPostcode(parts.postcode) } })}
             error={errs['lab-postcode']}
           />
+          {firstPage && (
+            <TextField
+              id="lab-mobile-start"
+              label="Mobile number"
+              hint="A UK mobile, so the team can contact you about the study. It is not part of your participant ID."
+              required
+              type="tel"
+              autoComplete="tel"
+              inputMode="tel"
+              maxLength={30}
+              width="half"
+              value={state.booking.mobile}
+              onChange={(e) => dispatch({ type: 'booking-contact', patch: { mobile: e.target.value } })}
+              error={errs['lab-mobile-start']}
+            />
+          )}
           {firstPage && age !== null && age > labStudy.maxAge && (
             <Callout tone="info">
               <p>

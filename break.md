@@ -60,7 +60,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
 
     <div class="participant-next-step">
       <h3>Ready to take part?</h3>
-      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube and Instagram data. Downloads can take a few days to arrive. Once your data is in, you book both lab visits on this site at the same sitting: the first starts your break, and the second, 28 to 35 days later, ends it. You give us your email address and mobile number, so the team can contact you, and you get a confirmation with calendar files, and reminders. We can email you a link that brings you back to the right page, on any device; or just come back and enter your participant ID (it is in our emails), or the same name, date of birth and postcode.</p>
+      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube and Instagram data. Downloads can take a few days to arrive. Once your data is in, you book both lab visits on this site at the same sitting: the first starts your break, and the second, 28 to 35 days later, ends it. You give your mobile number at the start, so the team can contact you, and your email address when you book; you get a confirmation with calendar files, and reminders. We can email you a link that brings you back to the right page, on any device; or just come back and enter your participant ID (it is in our emails), or the same name, date of birth and postcode.</p>
       <a class="btn btn-primary" href="{{ '/break/take-part/' | relative_url }}">Take part &nbsp;→</a>
       <a class="text-link" href="{{ '/break/take-part/?step=guide' | relative_url }}">Just show me how to download my data &nbsp;→</a>
     </div>
@@ -83,7 +83,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
     <div class="info-panel break-data-panel">
       <h3>Your data in this study</h3>
       <ul class="info-checklist">
-        <li><strong>What is collected:</strong> your screen-time screenshots, the cleaned files from your apps, your check-in answers and any MyStory stories, and the record of your consent (with your name, signature, date of birth and postcode), plus the email address and mobile number you give when you book, for your bookings and reminders and so the team can contact you.</li>
+        <li><strong>What is collected:</strong> your screen-time screenshots, the cleaned files from your apps, your check-in answers and any MyStory stories, and the record of your consent (with your name, signature, date of birth and postcode), plus the mobile number you give when you sign up and the email address you give when you book, for your bookings and reminders and so the team can contact you.</li>
         <li><strong>How it is labelled:</strong> research data carry your participant ID, never your name. Your name and contact details are kept separately, for the study coordinators only.</li>
         <li><strong>Where it is kept:</strong> secure storage run for the University of Leeds, which is the data controller. Only the research team can see it.</li>
         <li><strong>Changing your mind:</strong> what you have sent is kept and used unless you ask to withdraw, which you can do up to one month after your final session. Email Miftah Faizah to ask.</li>

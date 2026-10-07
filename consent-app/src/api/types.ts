@@ -129,6 +129,8 @@ export interface LabConsentPayload {
   consent: LabConsentRecord;
   /** The four details the participant ID is built from (identifying: kept with the consent only). */
   codeParts: { firstName: string; lastName: string; dateOfBirth: string; postcode: string };
+  /** Their UK mobile number, asked with the four details (not part of the ID), so the team can contact them; kept with the contact details. */
+  mobile: string;
   client: ClientInfo;
 }
 
@@ -217,8 +219,8 @@ export interface LabBookingOptions {
   /** Whether text reminders are set up. */
   smsAvailable: boolean;
   rules: { minNoticeHours: number; changeUntilHours: number };
-  /** Where confirmations go now, masked (j•••@example.com, the mobile's last three digits); null before the first booking. */
-  contact: { email: string; mobileEnding: string | null; smsReminders: boolean } | null;
+  /** The contact details on file, masked (j•••@example.com, the mobile's last three digits): the mobile from sign-up, the email from the first booking; null when there are none. */
+  contact: { email: string | null; mobileEnding: string | null; smsReminders: boolean } | null;
 }
 
 export interface LabVisitChoice {
@@ -230,8 +232,9 @@ export interface LabBookPayload {
   participantCode: string;
   /** One time for each visit being booked or moved: both at the first booking. */
   visits: LabVisitChoice[];
-  /** null: keep the email address and text settings on file (changing visits without typing them again). */
+  /** null: keep the email address on file (changing visits without typing it again). */
   email: string | null;
+  /** null: keep the mobile number on file (given at sign-up). */
   mobile: string | null;
   smsReminders: boolean;
   client: ClientInfo;

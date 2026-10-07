@@ -2497,7 +2497,8 @@
   color: var(--mpb-muted, inherit);
 }
 .mpmb-welcome__resume .mpmb-btn--link,
-.mpmb-id-switch .mpmb-btn--link {
+.mpmb-id-switch .mpmb-btn--link,
+.mpmb-booking__onfile .mpmb-btn--link {
   display: inline;
   padding: 0;
   min-height: 0;

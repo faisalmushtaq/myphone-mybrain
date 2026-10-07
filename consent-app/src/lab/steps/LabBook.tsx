@@ -128,8 +128,9 @@ export function LabBook() {
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
-  // A different email address from the one on file (only asked for when someone chooses it).
-  const [newAddress, setNewAddress] = useState(false);
+  // A different email address, or mobile number, from the one on file (only asked for when someone chooses it).
+  const [newEmail, setNewEmail] = useState(false);
+  const [newMobile, setNewMobile] = useState(false);
   // Where the last confirmation went, for the message after booking.
   const [sentTo, setSentTo] = useState<string | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
@@ -161,9 +162,18 @@ export function LabBook() {
   const current = (v: LabVisit): LabBooking | null => standing.filter((b) => b.visit === v).at(-1) ?? null;
   const toBook = options?.toBook ?? [];
   const planning = Boolean(options) && (toBook.length > 0 || changing);
-  // Changing visits, or booking again, keeps the contact details on file (an email address and, since 7 October 2026, a mobile number) unless the person chooses others: nothing to type again on a new device.
+  // Each contact detail on file is kept unless the person chooses to change it: the mobile number usually from sign-up (since 7 October 2026), the email
+  // address from an earlier booking. So the first booking asks only for the email, and changing visits on another device asks for nothing.
   const onFile = options?.contact ?? null;
-  const keepContact = Boolean(onFile?.mobileEnding) && !newAddress;
+  const keepEmail = Boolean(onFile?.email) && !newEmail;
+  const keepMobile = Boolean(onFile?.mobileEnding) && !newMobile;
+  // The text-reminder tick starts from the choice on file, once, when the visits first load.
+  const textsSynced = useRef(false);
+  useEffect(() => {
+    if (!onFile || textsSynced.current) return;
+    textsSynced.current = true;
+    dispatch({ type: 'booking-contact', patch: { smsReminders: onFile.smsReminders } });
+  }, [onFile, dispatch]);
 
   /** Each visit in the planner: still to book, booked and movable (when changing), or staying as it is. */
   const role = (v: LabVisit): 'open' | 'keep' | 'fixed' => {
@@ -199,12 +209,11 @@ export function LabBook() {
       found.push({ field: 'lab-slot-2', message });
     }
     if (!found.length && !picks.length) found.push({ field: `lab-slot-${role(1) === 'fixed' ? 2 : 1}`, message: 'Choose a new time for at least one visit, or keep your current times.' });
-    if (keepContact) return found;
-    if (!email.trim()) found.push({ field: 'lab-email', message: 'Enter your email address, so we can send you the details.' });
-    else if (!EMAIL.test(email.trim())) found.push({ field: 'lab-email', message: 'Enter an email address in the format name@example.com.' });
+    if (!keepEmail && !email.trim()) found.push({ field: 'lab-email', message: 'Enter your email address, so we can send you the details.' });
+    else if (!keepEmail && !EMAIL.test(email.trim())) found.push({ field: 'lab-email', message: 'Enter an email address in the format name@example.com.' });
     // The mobile number is required: the team needs it to contact people about their visits (decided 7 October 2026).
-    if (!mobile.trim()) found.push({ field: 'lab-mobile', message: 'Enter your mobile number, so the team can contact you about your visits.' });
-    else if (!ukMobile(mobile)) found.push({ field: 'lab-mobile', message: 'Enter a UK mobile number, such as 07700 900123.' });
+    if (!keepMobile && !mobile.trim()) found.push({ field: 'lab-mobile', message: 'Enter your mobile number, so the team can contact you about your visits.' });
+    else if (!keepMobile && !ukMobile(mobile)) found.push({ field: 'lab-mobile', message: 'Enter a UK mobile number, such as 07700 900123.' });
     return found;
   };
 
@@ -234,10 +243,10 @@ export function LabBook() {
     try {
       const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
       // Text reminders are kept as chosen even before texts are set up, so they start once they are.
-      const contact = keepContact ? { email: null, mobile: null, smsReminders: false } : { email: email.trim(), mobile: mobile.trim(), smsReminders };
-      const result = await getApi().bookLabSlot(session, { participantCode: state.code, visits: picks, ...contact, client: labClientInfo() });
-      setSentTo(keepContact ? onFile!.email : email.trim());
-      setNewAddress(false);
+      const result = await getApi().bookLabSlot(session, { participantCode: state.code, visits: picks, email: keepEmail ? null : email.trim(), mobile: keepMobile ? null : mobile.trim(), smsReminders, client: labClientInfo() });
+      setSentTo(keepEmail ? onFile!.email : email.trim());
+      setNewEmail(false);
+      setNewMobile(false);
       dispatch({ type: 'booking-confirmed', confirmed: { booked: result.booked, kind: result.kind, email: result.email, sms: result.sms } });
       announce(`${result.kind === 'moved' ? 'Changed' : 'Booked'}: ${result.booked.map((b) => `your ${visitName(b.visit)}, ${ukDay(b.start)}, ${ukHours(b.start, b.end)}`).join('; ')}.`);
       setChanging(false);
@@ -483,66 +492,88 @@ export function LabBook() {
           </p>
           {VISITS.filter((v) => changing || toBook.length === 2 || toBook.includes(v) || role(v) === 'fixed').map(visitBlock)}
 
-          {anyTimes && keepContact && onFile && (
+          {anyTimes && (
             <div className="mpmb-fields mpmb-booking__contact">
               <h3 className="mpmb-h3">How we contact you</h3>
-              <p>
-                We will email the {changing ? 'new times' : 'details'} to <strong>{onFile.email}</strong>, the address you gave before{onFile.smsReminders ? `, and text the mobile number ending ${onFile.mobileEnding}` : `. We have your mobile number ending ${onFile.mobileEnding} to contact you about your visits`}.
-              </p>
-              <Button variant="link" onClick={() => setNewAddress(true)}>
-                Use a different email address or mobile number
-              </Button>
-            </div>
-          )}
-          {anyTimes && !keepContact && (
-            <div className="mpmb-fields mpmb-booking__contact">
-              <h3 className="mpmb-h3">How we contact you</h3>
-              <TextField
-                id="lab-email"
-                label="Email address"
-                type="email"
-                required
-                autoComplete="email"
-                inputMode="email"
-                maxLength={254}
-                value={email}
-                onChange={(e) => {
-                  dispatch({ type: 'booking-contact', patch: { email: e.target.value } });
-                  if (errs['lab-email'] && EMAIL.test(e.target.value.trim())) setErrors((x) => x.filter((f) => f.field !== 'lab-email'));
-                }}
-                error={errs['lab-email']}
-                hint="The details and a calendar file for each visit go here. We email a reminder the day before each visit."
-              />
-              <TextField
-                id="lab-mobile"
-                label="Mobile number"
-                required
-                type="tel"
-                autoComplete="tel"
-                inputMode="tel"
-                maxLength={30}
-                width="half"
-                value={mobile}
-                onChange={(e) => {
-                  dispatch({ type: 'booking-contact', patch: { mobile: e.target.value } });
-                  if (errs['lab-mobile'] && ukMobile(e.target.value)) setErrors((x) => x.filter((f) => f.field !== 'lab-mobile'));
-                }}
-                error={errs['lab-mobile']}
-                hint="A UK mobile. The team uses it to contact you about your visits."
-              />
-              <CheckboxField id="lab-sms" checked={smsReminders} onChange={(checked) => dispatch({ type: 'booking-contact', patch: { smsReminders: checked } })} label="Text me reminders" hint="The day before and on the day of each visit, and a nudge for each weekly check-in during the break." />
-              <p className="mpmb-hint">Used to send you your bookings and reminders, and for the research team to contact you about the study. Kept with your consent record, not with your data.{onFile ? ' We will also let the email address you gave before know that it has changed.' : ''}</p>
-              {onFile?.mobileEnding && (
-                <Button
-                  variant="link"
-                  onClick={() => {
-                    setNewAddress(false);
-                    setErrors((x) => x.filter((f) => f.field !== 'lab-email' && f.field !== 'lab-mobile'));
-                  }}
-                >
-                  Keep sending to {onFile.email}
-                </Button>
+              {keepEmail ? (
+                <p className="mpmb-booking__onfile">
+                  We will email the {changing ? 'new times' : 'details'} to <strong>{onFile!.email}</strong>, the address you gave before.{' '}
+                  <Button variant="link" onClick={() => setNewEmail(true)}>
+                    Use a different email address
+                  </Button>
+                </p>
+              ) : (
+                <>
+                  <TextField
+                    id="lab-email"
+                    label="Email address"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    inputMode="email"
+                    maxLength={254}
+                    value={email}
+                    onChange={(e) => {
+                      dispatch({ type: 'booking-contact', patch: { email: e.target.value } });
+                      if (errs['lab-email'] && EMAIL.test(e.target.value.trim())) setErrors((x) => x.filter((f) => f.field !== 'lab-email'));
+                    }}
+                    error={errs['lab-email']}
+                    hint={`The details and a calendar file for each visit go here. We email a reminder the day before each visit.${onFile?.email ? ' We will also let the address you gave before know that it has changed.' : ''}`}
+                  />
+                  {onFile?.email && (
+                    <Button
+                      variant="link"
+                      onClick={() => {
+                        setNewEmail(false);
+                        setErrors((x) => x.filter((f) => f.field !== 'lab-email'));
+                      }}
+                    >
+                      Keep {onFile.email}
+                    </Button>
+                  )}
+                </>
               )}
+              {keepMobile ? (
+                <p className="mpmb-booking__onfile">
+                  Your mobile number ends in <strong>{onFile!.mobileEnding}</strong>: the team uses it to contact you.{' '}
+                  <Button variant="link" onClick={() => setNewMobile(true)}>
+                    Use a different mobile number
+                  </Button>
+                </p>
+              ) : (
+                <>
+                  <TextField
+                    id="lab-mobile"
+                    label="Mobile number"
+                    required
+                    type="tel"
+                    autoComplete="tel"
+                    inputMode="tel"
+                    maxLength={30}
+                    width="half"
+                    value={mobile}
+                    onChange={(e) => {
+                      dispatch({ type: 'booking-contact', patch: { mobile: e.target.value } });
+                      if (errs['lab-mobile'] && ukMobile(e.target.value)) setErrors((x) => x.filter((f) => f.field !== 'lab-mobile'));
+                    }}
+                    error={errs['lab-mobile']}
+                    hint="A UK mobile. The team uses it to contact you about your visits."
+                  />
+                  {onFile?.mobileEnding && (
+                    <Button
+                      variant="link"
+                      onClick={() => {
+                        setNewMobile(false);
+                        setErrors((x) => x.filter((f) => f.field !== 'lab-mobile'));
+                      }}
+                    >
+                      Keep the number ending {onFile.mobileEnding}
+                    </Button>
+                  )}
+                </>
+              )}
+              <CheckboxField id="lab-sms" checked={smsReminders} onChange={(checked) => dispatch({ type: 'booking-contact', patch: { smsReminders: checked } })} label="Text me reminders" hint="The day before and on the day of each visit, and a nudge for each weekly check-in during the break." />
+              <p className="mpmb-hint">Used to send you your bookings and reminders, and for the research team to contact you about the study. Kept with your consent record, not with your data.</p>
             </div>
           )}
           <div className="mpmb-actions">

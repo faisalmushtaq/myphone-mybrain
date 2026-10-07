@@ -21,6 +21,7 @@ const consent = () => ({
     completedAt: now as string | null,
   },
   codeParts: { firstName: 'Jane', lastName: 'Smith', dateOfBirth: '2005-03-14', postcode: 'ls2 9jt' } as Record<string, string> | null,
+  mobile: '07700 900123' as string | null,
   client,
 });
 
@@ -37,6 +38,9 @@ test('participant IDs have their shape and are normalised', () => {
 
 test('a complete lab consent is accepted; missing statements, old versions, bad codes and no signature are not', () => {
   assert.deepEqual(validateLabConsentPayload(consent()), []);
+  // The mobile number, asked with the four details, is required (not part of the ID).
+  for (const mobile of [null, '', '0113 343 5000', '07700']) assert.ok(validateLabConsentPayload({ ...consent(), mobile }).some((p) => p.includes('UK mobile number')), String(mobile));
+  assert.deepEqual(validateLabConsentPayload({ ...consent(), mobile: '+44 7700 900123' }), []);
   const missing = consent();
   delete missing.consent.responses['take-part'];
   assert.ok(validateLabConsentPayload(missing).some((p) => p.includes('"take-part" was not agreed')));

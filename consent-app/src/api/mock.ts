@@ -32,7 +32,7 @@ interface MockLab {
   bookings: MockBooking[];
   stories: Pick<LabStoryPayload, 'phase' | 'promptId' | 'title'>[];
   /** Where booking confirmations go, as the server's labContacts. */
-  contact?: { email: string; mobile: string | null; smsReminders: boolean } | null;
+  contact?: { email: string | null; mobile: string | null; smsReminders: boolean } | null;
 }
 
 interface MockSubmission {
@@ -253,6 +253,8 @@ export class MockConsentApi implements ConsentApi {
     if (!payload.consent.signature) throw new ApiError('validation', 'The consent record has no signature.');
     const existing = this.lab.get(payload.participantCode) ?? { sessionId: session.sessionId, consents: [], donations: [], checkIns: [], notUsed: [], bookings: [], stories: [] };
     existing.consents.push(payload);
+    // As the server: the mobile number from sign-up goes with the contact details; text reminders start on.
+    existing.contact = { email: existing.contact?.email ?? null, mobile: payload.mobile, smsReminders: existing.contact?.smsReminders ?? true };
     this.lab.set(payload.participantCode, existing);
     this.persistLab();
     return { participantCode: payload.participantCode, consentId: `labc_${existing.consents.length}_${payload.participantCode}`, receivedAt: new Date().toISOString(), version: existing.consents.length };
@@ -402,7 +404,7 @@ export class MockConsentApi implements ConsentApi {
       gap: { ...labBooking.visit2AfterDays },
       smsAvailable: true,
       rules: { minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours },
-      contact: p?.contact ? { email: `${p.contact.email.slice(0, 1)}•••@${p.contact.email.split('@')[1] ?? ''}`, mobileEnding: p.contact.mobile ? p.contact.mobile.replace(/\D/g, '').slice(-3) : null, smsReminders: p.contact.smsReminders } : null,
+      contact: p?.contact && (p.contact.email || p.contact.mobile) ? { email: p.contact.email ? `${p.contact.email.slice(0, 1)}•••@${p.contact.email.split('@')[1] ?? ''}` : null, mobileEnding: p.contact.mobile ? p.contact.mobile.replace(/\D/g, '').slice(-3) : null, smsReminders: p.contact.smsReminders } : null,
     };
   }
 
@@ -414,8 +416,11 @@ export class MockConsentApi implements ConsentApi {
     if (!p?.consents.length) throw new ApiError('validation', 'We have no consent on file for this participant ID.');
     const { missing, active } = this.bookingStateOf(p);
     if (missing.length) throw new ApiError('validation', `Your lab visits can be booked once ${missing.join(' and ')} ${missing.length === 1 ? 'has' : 'have'} arrived.`);
-    if (payload.email === null && !p.contact) throw new ApiError('validation', 'Enter your email address, so we can send you the details.');
-    if (payload.email !== null && !payload.mobile) throw new ApiError('validation', 'Enter your mobile number, so the team can contact you about your visits.');
+    // As the server: each detail is new, or null to keep the one on file; both must end up on file.
+    const email = payload.email ?? p.contact?.email ?? null;
+    const mobile = payload.mobile ?? p.contact?.mobile ?? null;
+    if (!email) throw new ApiError('validation', 'Enter your email address, so we can send you the details.');
+    if (!mobile) throw new ApiError('validation', 'Enter your mobile number, so the team can contact you about your visits.');
     const all = this.mockSlots();
     const plan: Record<LabVisit, { start: string } | undefined> = { 1: active[1], 2: active[2] };
     const chosen = payload.visits.map((c) => {
@@ -437,7 +442,7 @@ export class MockConsentApi implements ConsentApi {
       p.bookings.push(booking);
       return this.bookingView(payload.participantCode, booking);
     });
-    if (payload.email !== null) p.contact = { email: payload.email, mobile: payload.mobile, smsReminders: payload.smsReminders };
+    p.contact = { email, mobile, smsReminders: payload.smsReminders };
     this.persistLab();
     return { booked, kind: chosen.some((c) => c.previous) ? 'moved' : 'booked', email: 'sent' as DeliveryOutcome, sms: p.contact?.smsReminders ? 'sent' : 'not-wanted' };
   }

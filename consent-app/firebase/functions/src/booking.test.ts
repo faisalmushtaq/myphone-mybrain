@@ -223,7 +223,6 @@ test('booking requests: a time for each visit, an email and a UK mobile (texts o
   assert.deepEqual(validateBookingPayload({ ...ok, visits: [{ visit: 2, slotId: 'def456' }] }), [], 'one visit, to move it or book the one left');
   assert.deepEqual(validateBookingPayload({ ...ok, smsReminders: true }), []);
   assert.match(validateBookingPayload({ ...ok, mobile: '' }).join(' '), /Enter your mobile number, so the team can contact you/, 'the mobile number is required, texts or not');
-  assert.match(validateBookingPayload({ ...ok, mobile: null }).join(' '), /Enter your mobile number/);
   assert.match(validateBookingPayload({ ...ok, mobile: '0113 343 5000' }).join(' '), /UK mobile/);
   assert.match(validateBookingPayload({ ...ok, email: 'nope' }).join(' '), /email address/);
   assert.match(validateBookingPayload({ ...ok, visits: [{ visit: 3, slotId: 'abc123' }] }).join(' '), /Choose a time for each visit/);
@@ -232,11 +231,12 @@ test('booking requests: a time for each visit, an email and a UK mobile (texts o
   assert.match(validateBookingPayload({ ...ok, visits: [] }).join(' '), /Choose a time for each visit/);
   assert.match(validateBookingPayload({ ...ok, visits: [...ok.visits, { visit: 1, slotId: 'c' }] }).join(' '), /Choose a time for each visit/);
   assert.match(validateBookingPayload({ ...ok, slotId: 'abc123', visit: 1, visits: undefined }).join(' '), /Choose a time for each visit/, 'the old one-visit request is refused');
-  // Changing visits on another device: the address on file is kept (email null), with nothing new for texts.
+  // Each detail on file can be kept (null) on its own: the mobile from sign-up with a new email at the first booking, or both when changing visits on another device.
   assert.deepEqual(validateBookingPayload({ ...ok, email: null, mobile: null, smsReminders: false }), []);
-  assert.deepEqual(validateBookingPayload({ ...ok, email: null, mobile: null, smsReminders: true }), [], 'the text setting on file is kept, whatever the page sends');
-  assert.match(validateBookingPayload({ ...ok, email: null, mobile: '07700 900123', smsReminders: true }).join(' '), /mobile number needs the email address too/);
+  assert.deepEqual(validateBookingPayload({ ...ok, mobile: null }), [], 'the mobile from sign-up, with the email given now');
+  assert.deepEqual(validateBookingPayload({ ...ok, email: null, mobile: '07700 900456', smsReminders: true }), [], 'a new mobile, keeping the email');
   assert.match(validateBookingPayload({ ...ok, email: undefined }).join(' '), /email address/, 'leaving the email out is not keeping it');
+  assert.match(validateBookingPayload({ ...ok, mobile: undefined }).join(' '), /Enter your mobile number/, 'leaving the mobile out is not keeping it');
 });
 
 test('changing visits from another device: the address on file, masked; the old address told of a new one', () => {
@@ -244,8 +244,8 @@ test('changing visits from another device: the address on file, masked; the old 
   assert.equal(maskEmail('x@leeds.ac.uk'), 'x•••@leeds.ac.uk');
   assert.equal(maskEmail('nonsense'), '•••');
   assert.deepEqual(maskedContact({ email: 'jane@example.com', mobile: '+447700900123', smsReminders: true }), { email: 'j•••@example.com', mobileEnding: '123', smsReminders: true });
-  assert.deepEqual(maskedContact({ email: 'jane@example.com', mobile: null, smsReminders: true }), { email: 'j•••@example.com', mobileEnding: null, smsReminders: false }, 'no texts without a number');
-  assert.equal(maskedContact({ email: null, mobile: null, smsReminders: false }), null, 'nothing on file before the first booking');
+  assert.deepEqual(maskedContact({ email: null, mobile: '+447700900123', smsReminders: true }), { email: null, mobileEnding: '123', smsReminders: true }, 'the mobile from sign-up, before any booking');
+  assert.equal(maskedContact({ email: null, mobile: null, smsReminders: false }), null, 'nothing on file for someone who signed up before mobiles were asked for, until they book');
   const v1 = booking({ status: 'attended' });
   const v2 = booking({ id: 'b2', visit: 2, slotId: 's2', start: new Date('2026-11-12T10:00:00Z'), end: new Date('2026-11-12T12:00:00Z') });
   const gone = booking({ id: 'b0', visit: 2, status: 'cancelled' });

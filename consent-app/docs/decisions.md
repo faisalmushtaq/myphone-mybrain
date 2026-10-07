@@ -37,7 +37,7 @@ parent's family view without asking the young person.
 | Before a visit: bring the phone, charged; clean, dry hair with no products; glasses (or contact lenses) if worn; arrive 10 minutes early: the team meets participants at the **main entrance of the School of Psychology**. The building and room stay a placeholder for now. | `src/lab/booking.ts` |
 | MyStory runs on this site's own form, after **every weekly check-in**. Before and after the break it is told **at the lab visits**, on a lab computer, from the staff page's links. The prompts stay as drafts until MySelf's arrive. | `src/lab/mystory.ts`, the staff page |
 | Ages **18 to 24**. The optional Yes/No for record linkage stays. | `src/lab/config.ts` |
-| Participants must give a **mobile number** when they book: the team needs it to contact them. Text reminders are on unless they untick them. | `src/lab/steps/LabBook.tsx`, `validateBookingPayload` and `bookLabSlot` in `booking.ts`; `docs/booking.md` (costs) |
+| Participants must give a **mobile number**, at sign-up with their four details (not part of the ID): the team needs it to contact them. Text reminders are on unless they untick them when booking. | `src/lab/steps/ParticipantId.tsx`, `submitLabConsent` (`lab.ts`), `src/lab/steps/LabBook.tsx`, `booking.ts`; `docs/booking.md` (costs) |
 | Participants can **come back later to reschedule**, signing in with their **participant ID** (as well as the four details or the emailed link). Changing times keeps the email address on file; a new address is possible, and then the old one is told. | `src/lab/steps/ParticipantId.tsx` ("Use my participant ID instead"), `src/lab/steps/LabBook.tsx`; `bookLabSlot` (`email: null` keeps the address; `addressChangedEmail`), `docs/booking.md` |
 
 ### Other

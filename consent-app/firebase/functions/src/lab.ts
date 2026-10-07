@@ -10,6 +10,7 @@ import { checkImage, cleanImage, RejectedUpload, sha256 } from './images.js';
 import type { Quality } from './quality.js';
 import { sendMail } from './mail.js';
 import { signatureRecord, storeSignature } from './signatures.js';
+import { ukMobile } from './sms.js';
 import { blank, isObj, ISO_DATE, limits, str, UUID, validateClient, validateResponses, validateSignature, validTime, type ClientInfo, type SignatureRecord, type StatementRecord } from './validate.js';
 
 /**
@@ -77,6 +78,8 @@ export interface LabConsentPayload {
   };
   /** The four details the participant ID is built from. Identifying: stored with the consent only. */
   codeParts: CodeParts;
+  /** Their UK mobile number, asked with the four details (not part of the ID): the team needs it to contact them. Kept in labContacts, not with the consent. */
+  mobile: string;
   client: ClientInfo;
 }
 
@@ -185,6 +188,8 @@ export function validateLabConsentPayload(input: unknown): string[] {
     if (!idName(parts.firstName) || !idName(parts.lastName)) problems.push('A name has no letters.');
     else if (real && code && buildParticipantId(parts) !== code) problems.push('The participant ID does not match the details it was built from.');
   }
+  // Required since 7 October 2026: the team needs a way to contact everyone who signs up.
+  if (!str(p.mobile, 30) || !ukMobile(String(p.mobile))) problems.push('Enter a UK mobile number, such as 07700 900123: the team needs it to contact you.');
   const c = p.consent;
   if (!isObj(c)) problems.push('The consent record is missing.');
   else {
@@ -435,6 +440,8 @@ export const submitLabConsent = onCall(callOptions, async (request) => {
   const previous = (await participantRef.get()).data() ?? null;
   const version = Number(previous?.consentVersion ?? 0) + 1;
   const consentRef = db.collection('labConsents').doc();
+  const contactRef = db.collection('labContacts').doc(code);
+  const contactBefore = (await contactRef.get()).data();
   const sig = payload.consent.signature;
   const stored = sig?.method === 'drawn' && sig.imageDataUrl ? await storeSignature(`lab/${code}`, consentRef.id, sig.imageDataUrl) : null;
 
@@ -472,6 +479,8 @@ export const submitLabConsent = onCall(callOptions, async (request) => {
     },
     { merge: true },
   );
+  // The mobile number goes with the contact details, apart from the consent and the data; text reminders start on, and the booking page lets them untick it.
+  batch.set(contactRef, { participantCode: code, mobile: ukMobile(payload.mobile), ...(typeof contactBefore?.smsReminders === 'boolean' ? {} : { smsReminders: true }), mobileGivenAt: receivedAt, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   await batch.commit();
   logger.info(version > 1 ? 'Lab consent amended' : 'Lab consent recorded', { participantCode: code, consentId: consentRef.id, version });
   return { participantCode: code, consentId: consentRef.id, receivedAt: receivedAt.toISOString(), version };

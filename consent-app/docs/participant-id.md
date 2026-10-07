@@ -13,7 +13,9 @@ are tested against the worked examples below.
 
 ## The four questions
 
-Ask them with the same wording everywhere, so people answer the same way:
+Ask them with the same wording everywhere, so people answer the same way. (On
+the first page the website also asks for a mobile number, so the team can
+contact people. It is **not** part of the ID and is kept apart from it.)
 
 | Question | Hint shown |
 | --- | --- |

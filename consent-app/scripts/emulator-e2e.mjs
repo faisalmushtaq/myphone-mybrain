@@ -530,6 +530,8 @@ async function inner() {
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByText('Enter a full UK postcode, such as LS2 9JT.').first().waitFor();
     ok('half a postcode and an under-18 date of birth are refused', (await page.getByText(/you need to be 18 or over/).count()) >= 1);
+    ok('the mobile number is asked for with the four details, and is required', (await page.getByText('Enter your mobile number, so the team can contact you.').count()) >= 1);
+    await page.getByLabel('Mobile number').fill('07700 900123');
     await page.getByLabel('Date of birth').fill('2005-03-14');
     await page.getByLabel('Postcode').fill('ls29jt');
     await page.getByLabel('Postcode').blur();
@@ -581,6 +583,8 @@ async function inner() {
     const labParticipant = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data();
     ok('lab consent recorded against the participant code', Boolean(labParticipant?.consentId) && labParticipant?.consentVersion === 1 && labParticipant?.archiveCount === 0);
     const labConsent = labParticipant?.consentId ? (await db.collection('labConsents').doc(labParticipant.consentId).get()).data() : null;
+    const signUpContact = (await db.collection('labContacts').doc('MP2670FF90A5F2').get()).data();
+    ok('the mobile number from sign-up is kept with the contact details (international form, texts on), not in the consent', signUpContact?.mobile === '+447700900123' && signUpContact?.smsReminders === true && !signUpContact?.email && !JSON.stringify(labConsent ?? {}).includes('7700'), JSON.stringify(signUpContact));
     ok('lab consent record complete, every statement agreed, drawn signature under signatures/lab/', labConsent?.typedName === 'Jane Smith' && Object.keys(labConsent?.responses ?? {}).length === 9 && labConsent?.responses?.['data-kept']?.response === 'agreed' && labConsent?.responses?.['link-records']?.response === 'declined' && labConsent?.signature?.image?.path?.startsWith('signatures/lab/MP2670FF90A5F2/') && labConsent?.formVersion === '2.0-draft' && labConsent?.informationVersion === '2.0');
     ok('the four details are kept with the consent, tidied, and the ID is the documented one', labConsent?.codeParts?.firstName === 'Jane' && labConsent?.codeParts?.lastName === 'Smith' && labConsent?.codeParts?.dateOfBirth === '2005-03-14' && labConsent?.codeParts?.postcode === 'LS2 9JT' && labConsent?.participantCode === 'MP2670FF90A5F2', JSON.stringify(labConsent?.codeParts));
     ok('the participant row carries no name', !JSON.stringify(labParticipant).includes('Jane'));
@@ -634,13 +638,12 @@ async function inner() {
     ok('only the times for a first visit are offered first, by day; the second waits for it', (await page.locator('#lab-slot-1 .mpmb-slots__time').count()) === 2 && (await page.locator('#lab-slot-1 .mpmb-slots__day').count()) === 2 && (await page.getByText('Choose your first visit, and the times for your second appear here.').count()) === 1);
     await page.getByRole('button', { name: 'Book both visits' }).click();
     await page.getByText('Choose a time for your first visit.').first().waitFor();
-    ok('booking without times, an email or a mobile number is held back with reasons (the mobile is required)', (await page.getByText(/Enter your email address, so we can send you the details/).count()) >= 1 && (await page.getByText(/Enter your mobile number, so the team can contact you about your visits/).count()) >= 1 && (await page.getByText(/Choose your first visit, then a time for your second/).count()) >= 1);
+    ok('booking without times or an email is held back with reasons; the mobile from sign-up is kept, not asked again', (await page.getByText(/Enter your email address, so we can send you the details/).count()) >= 1 && (await page.getByText(/Choose your first visit, then a time for your second/).count()) >= 1 && (await page.getByLabel(/Mobile number/).count()) === 0 && (await page.getByText(/Your mobile number ends in 123/).count()) === 1);
     await page.locator('#lab-slot-1 .mpmb-slots__time').first().click();
     await page.locator('#lab-slot-2 .mpmb-slots__time').first().waitFor({ timeout: 30000 });
     ok('the second visit offers only the times 28 to 35 days after the first chosen', (await page.locator('#lab-slot-2 .mpmb-slots__time').count()) === 2 && (await page.getByText(/It is 28 to 35 days after the first: between/).count()) === 1);
     await page.locator('#lab-slot-2 .mpmb-slots__time').first().click();
     await page.getByLabel('Email address').fill('jane@example.com');
-    await page.getByLabel(/Mobile number/).fill('07700 900123');
     ok('text reminders are ticked by default', await page.locator('#lab-sms').isChecked());
     await snap('book');
     await page.getByRole('button', { name: 'Book both visits' }).click();
@@ -708,6 +711,7 @@ async function inner() {
     await again.getByLabel('Last name').fill('SMITH ');
     await again.getByLabel('Date of birth').fill('2005-03-14');
     await again.getByLabel('Postcode').fill('ls2 9jt');
+    await again.getByLabel('Mobile number').fill('07700 900123');
     await again.getByRole('button', { name: 'Continue' }).click();
     await again.getByRole('heading', { name: 'Welcome back.' }).waitFor({ timeout: 30000 });
     ok('the same details, in any case or spacing, find the same participant on a new device', (await again.locator('.mpmb-step').innerText()).includes('MP2670FF90A5F2'));
@@ -847,7 +851,7 @@ async function inner() {
     await bookPage.screenshot({ path: path.join(root, 'dist-emulator', 'lab-book-page.png'), fullPage: true });
     await bookPage.getByRole('button', { name: 'Change my times' }).click();
     await bookPage.getByRole('heading', { name: 'Change your lab visit times.', level: 1 }).waitFor();
-    ok('changing starts from the current times, kept, and the confirmation goes to the address on file without typing it again', (await bookPage.locator('#lab-slot-1 input[value="keep"]').isChecked()) && (await bookPage.locator('#lab-slot-2 input[value="keep"]').isChecked()) && (await bookPage.getByLabel('Email address').count()) === 0 && (await bookPage.getByText('We will email the new times to j•••@example.com, the address you gave before, and text the mobile number ending 123.').count()) === 1);
+    ok('changing starts from the current times, kept, and the contact details on file are kept without typing them again', (await bookPage.locator('#lab-slot-1 input[value="keep"]').isChecked()) && (await bookPage.locator('#lab-slot-2 input[value="keep"]').isChecked()) && (await bookPage.getByLabel('Email address').count()) === 0 && (await bookPage.getByLabel(/Mobile number/).count()) === 0 && (await bookPage.getByText('We will email the new times to j•••@example.com, the address you gave before.').count()) === 1 && (await bookPage.getByText(/Your mobile number ends in 123/).count()) === 1);
     await bookPage.getByRole('button', { name: 'Save my times' }).click();
     await bookPage.getByText('Choose a new time for at least one visit, or keep your current times.').first().waitFor();
     ok('the second visit can move to the other time in its window, not the one too late', (await bookPage.locator('#lab-slot-2 .mpmb-slots__time').count()) === 2);
@@ -869,9 +873,8 @@ async function inner() {
     await bookPage.getByRole('heading', { name: 'Book your two lab visits.', level: 1 }).waitFor({ timeout: 30000 });
     await bookPage.locator('#lab-slot-1 .mpmb-slots__time').first().click();
     await bookPage.locator('#lab-slot-2 .mpmb-slots__time').first().click();
-    await bookPage.getByRole('button', { name: 'Use a different email address or mobile number' }).click();
+    await bookPage.getByRole('button', { name: 'Use a different email address' }).click();
     await bookPage.getByLabel('Email address').fill('jane.smith@example.org');
-    await bookPage.getByLabel(/Mobile number/).fill('07700 900123');
     await bookPage.getByRole('button', { name: 'Book both visits' }).click();
     await bookPage.getByText(/Booked: your two lab visits/).first().waitFor({ timeout: 30000 });
     const newContact = (await db.collection('labContacts').doc('MP2670FF90A5F2').get()).data();

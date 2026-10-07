@@ -20,12 +20,17 @@ break, and the end-of-break message.
 | `/break/check-in/` and `/break/after/`, the summary | The visits still to come (or, if a visit was missed or cancelled, booking it again) |
 | `/break/book/` (its own page; the personal link in every email) | Both visits: add to calendar (`.ics` file or Google Calendar); **Change my times** (keep either time or choose a new one; the second must still be 28 to 35 days after the first); **Cancel your visits** (cancels both; to take part they book both again) |
 
-Booking asks for an email address (the confirmation goes there) and a UK
-mobile number, which is **required**: the team needs it to contact people
-about their visits (decided 7 October 2026). A **Text me reminders** tick,
-on unless they untick it, decides whether the reminders and the break-time
-nudges also go by text; until texts are set up, the choice is kept and texts
-start once they are. The device remembers both for the next booking. Changes and cancellations online
+The **mobile number** is asked for at sign-up, on the first page with the
+four details (it is not part of the participant ID), and is **required**: the
+team needs it to contact people (decided 7 October 2026). It goes into the
+contact details (`labContacts`), not the consent. Booking then asks only for
+an **email address** (the confirmation goes there); a mobile number only if
+none is on file. Each detail on file is kept unless the person chooses to
+change it, so changing visits on another device asks for nothing. A **Text
+me reminders** tick, on unless they untick it, decides whether the reminders
+and the break-time nudges also go by text; until texts are set up, the
+choice is kept and texts start once they are. The device remembers both for
+the next booking. Changes and cancellations online
 close 24 hours before a visit; after that the page says to contact Miftah.
 Times are always UK times, whatever the phone's time zone.
 
@@ -187,7 +192,7 @@ copied on every confirmation as before.
 | --- | --- |
 | `labSlots/` | the times: start, end, places, booked, open or closed, visit, place |
 | `labBookings/` | one per booking: participant ID, visit, time, place, status (`booked`, `attended`, `missed`, `cancelled`), who booked or cancelled and why, the booking it replaces or was replaced by, the calendar sequence, the confirmation, and each reminder with its outcome |
-| `labContacts/{code}` | email address, UK mobile (international form) and whether texts are wanted (identifying) |
+| `labContacts/{code}` | UK mobile (international form, from sign-up), email address (from the first booking) and whether texts are wanted (identifying) |
 | `labParticipants/{code}` | gains `visit1At`, `visit2At`, `messages` (each break-time message and its outcome) and `messagesPaused` |
 
 The hourly export adds `social-media-break/identifying/visits.tsv` (every
