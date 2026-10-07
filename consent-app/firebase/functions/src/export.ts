@@ -304,6 +304,7 @@ export function participantsKey(snap: Snapshot): Row[] {
       relationship_other: d.guardian?.relationshipOther,
       address: d.guardian?.address ?? null,
       postcode: d.guardian?.postcode,
+      uprn: d.guardian?.uprn ?? null,
       email: d.guardian?.email,
       phone: d.guardian?.phone,
       version: d.version,
@@ -539,8 +540,10 @@ edit files here.
 
 participants_key.tsv       the key from participant labels (sub-00001...) to
                            names, date of birth, school, parent or carer and
-                           contact details, whether the young person decided
-                           alone (16 or 17), and whether they are opted out
+                           contact details (with the address's UPRN when it was
+                           picked with the address finder), whether the young
+                           person decided alone (16 or 17), and whether they
+                           are opted out
 consents.tsv               every parent permission record; an amendment is a
                            new row and supersedes points at the one before
 consent_statements.tsv     one row per statement per permission record

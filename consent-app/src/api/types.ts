@@ -374,8 +374,39 @@ export interface LateAgreementResult {
   status: 'completed' | 'declined';
 }
 
+/** One address at a postcode, from the address finder (firebase/functions/src/address.ts). */
+export interface FoundAddress {
+  /** What the list shows: the address lines without the town. */
+  label: string;
+  /** What goes in the address box: the lines and the town. */
+  address: string;
+  /** The property's UPRN, when it has one. */
+  uprn: string | null;
+}
+
+/** The address finder's answer: the addresses at the postcode, an unknown postcode, or "type it in" (not set up, out of credit, or not answering). */
+export type AddressLookup = { status: 'found'; postcode: string; addresses: FoundAddress[] } | { status: 'not-found' } | { status: 'unavailable' };
+
+/** An address matching what the parent has typed so far, worded by Ideal Postcodes, for example "12 Long Lane, Leeds, LS6". */
+export interface AddressSuggestion {
+  id: string;
+  label: string;
+}
+
+/** Suggestions as the parent types, or "type it in" (not set up, too many asked for, or not answering). */
+export type AddressSuggestions = { status: 'suggestions'; suggestions: AddressSuggestion[] } | { status: 'unavailable' };
+
+/** The full address for a suggestion the parent chose. */
+export type PickedAddress = { status: 'picked'; postcode: string; address: string; uprn: string | null } | { status: 'not-found' } | { status: 'unavailable' };
+
 export interface ConsentApi {
   startSession(): Promise<SessionInfo>;
+  /** The addresses at a postcode, so a parent can pick theirs instead of typing it. */
+  findAddresses(session: SessionInfo, postcode: string): Promise<AddressLookup>;
+  /** Addresses matching what the parent has typed so far, near the postcode they have given if any (free). */
+  suggestAddresses(session: SessionInfo, search: string, near: string): Promise<AddressSuggestions>;
+  /** The full address, postcode and UPRN of the suggestion the parent chose (one lookup). */
+  pickAddress(session: SessionInfo, id: string): Promise<PickedAddress>;
   submitConsent(session: SessionInfo, payload: ConsentPayload): Promise<ConsentResult>;
   /** Carrying on later: find a record by its reference and the young person's date of birth; this session may then add to it. */
   resumeLookup(session: SessionInfo, payload: ResumeLookupPayload): Promise<ResumeSummary>;

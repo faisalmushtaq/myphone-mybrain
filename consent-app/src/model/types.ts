@@ -43,6 +43,8 @@ export interface GuardianIdentity {
   /** Home address and postcode: required (decided 7 October 2026), for linking the young person's records. */
   address: string;
   postcode: string;
+  /** The property's UPRN, only while the address is the one picked from the address finder (src/components/AddressFinder.tsx); gone once it is changed by hand. */
+  uprn?: string;
   /** Optional contact details. Nothing is ever emailed to families; they download their copy of the record instead. */
   email: string;
   phone: string;

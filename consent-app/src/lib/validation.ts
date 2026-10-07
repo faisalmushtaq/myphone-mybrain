@@ -18,7 +18,7 @@ export interface FieldError {
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
+export const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
 const PHONE = /^\+?[\d\s()-]{7,20}$/;
 
 /** Maximum lengths, enforced here and as maxLength on the inputs. The server enforces them too. */

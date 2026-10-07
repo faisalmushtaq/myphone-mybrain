@@ -1,7 +1,9 @@
+import { addressFinder } from '../config/features';
 import { guardianFields, relationships } from '../config/fields';
 import { study } from '../config/study';
 import { limits } from '../lib/validation';
 import type { GuardianIdentity } from '../model/types';
+import { AddressFinder, AddressSearch } from './AddressFinder';
 import { Callout } from './ui/Callout';
 import { SelectField, TextField } from './ui/Field';
 
@@ -45,21 +47,31 @@ export function GuardianFields({ guardian, update, errors: errs, childName }: Pr
           </p>
         </Callout>
       )}
-      <TextField id="guardian-address" label={guardianFields.address.label} hint={guardianFields.address.hint} required autoComplete="street-address" maxLength={limits.address} value={guardian.address} onChange={(e) => update({ address: e.target.value })} error={errs['guardian-address']} />
-      <TextField
-        id="guardian-postcode"
-        label={guardianFields.postcode.label}
-        hint={guardianFields.postcode.hint}
-        required
-        autoComplete="postal-code"
-        autoCapitalize="characters"
-        maxLength={limits.postcode}
-        width="short"
-        className="mpmb-input--upper"
-        value={guardian.postcode}
-        onChange={(e) => update({ postcode: e.target.value })}
-        error={errs['guardian-postcode']}
-      />
+      {addressFinder ? (
+        // The postcode first, with the addresses it finds; then the address, with suggestions as it is typed.
+        <>
+          <AddressFinder guardian={guardian} update={update} errors={errs} />
+          <AddressSearch guardian={guardian} update={update} errors={errs} />
+        </>
+      ) : (
+        <>
+          <TextField id="guardian-address" label={guardianFields.address.label} hint={guardianFields.address.hint} required autoComplete="street-address" maxLength={limits.address} value={guardian.address} onChange={(e) => update({ address: e.target.value })} error={errs['guardian-address']} />
+          <TextField
+            id="guardian-postcode"
+            label={guardianFields.postcode.label}
+            hint={guardianFields.postcode.hint}
+            required
+            autoComplete="postal-code"
+            autoCapitalize="characters"
+            maxLength={limits.postcode}
+            width="short"
+            className="mpmb-input--upper"
+            value={guardian.postcode}
+            onChange={(e) => update({ postcode: e.target.value })}
+            error={errs['guardian-postcode']}
+          />
+        </>
+      )}
       {guardianFields.email.enabled && (
         <TextField id="guardian-email" type="email" inputMode="email" label={guardianFields.email.label} hint={guardianFields.email.hint} required={guardianFields.email.required} autoComplete="email" maxLength={limits.email} value={guardian.email} onChange={(e) => update({ email: e.target.value })} error={errs['guardian-email']} />
       )}

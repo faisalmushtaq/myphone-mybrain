@@ -10,4 +10,5 @@ firebase/*-debug.log
 firebase/.cache/
 firebase/emulator-data/
 dist-emulator/
+dist-emulator-finder/
 firebase/.site-variables.txt

@@ -4,7 +4,7 @@ import { connectAuthEmulator, getAuth, signInAnonymously, type Auth, type User }
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, deleteObject, getStorage, ref, uploadBytesResumable, type FirebaseStorage } from 'firebase/storage';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabStoryPayload, type LabStoryResult, type LateAgreementPayload, type LateAgreementResult, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type AddressLookup, type AddressSuggestions, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabStoryPayload, type LabStoryResult, type LateAgreementPayload, type LateAgreementResult, type PickedAddress, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
 
 /**
  * Firebase implementation of the API boundary.
@@ -162,6 +162,18 @@ export class FirebaseConsentApi implements ConsentApi {
 
   submitConsent(session: SessionInfo, payload: ConsentPayload): Promise<ConsentResult> {
     return this.call<ConsentPayload, ConsentResult>(session, 'submitConsent', payload);
+  }
+
+  findAddresses(session: SessionInfo, postcode: string): Promise<AddressLookup> {
+    return this.call<{ postcode: string }, AddressLookup>(session, 'findAddresses', { postcode });
+  }
+
+  suggestAddresses(session: SessionInfo, search: string, near: string): Promise<AddressSuggestions> {
+    return this.call<{ search: string; near: string }, AddressSuggestions>(session, 'findAddresses', { search, near });
+  }
+
+  pickAddress(session: SessionInfo, pick: string): Promise<PickedAddress> {
+    return this.call<{ pick: string }, PickedAddress>(session, 'findAddresses', { pick });
   }
 
   submitDonation(session: SessionInfo, payload: DonationPayload): Promise<DonationResult> {

@@ -65,7 +65,7 @@ export interface ConsentPayload {
   route: 'parent' | 'young';
   identity: { firstName: string; lastName: string; dateOfBirth: { day: string; month: string; year: string }; schoolId: string; schoolOther: string; yearGroup: string };
   /** The home address and postcode are required (7 October 2026); email and phone are optional. No parental-responsibility tick: only a parent or carer fills it in. */
-  guardian: { fullName: string; relationship: string; relationshipOther: string; address: string; postcode: string; email: string; phone: string };
+  guardian: { fullName: string; relationship: string; relationshipOther: string; address: string; postcode: string; email: string; phone: string; uprn?: string };
   consent: {
     formId: string;
     formVersion: string;
@@ -261,7 +261,7 @@ export function validateConsentPayload(input: unknown): string[] {
   const g = p.guardian;
   if (!isObj(g)) problems.push('Parent or carer details are missing.');
   else if (alone) {
-    if (!blank(String(g.fullName ?? '')) || !blank(String(g.email ?? '')) || !blank(String(g.phone ?? '')) || !blank(String(g.postcode ?? '')) || !blank(String(g.address ?? ''))) problems.push('A young person deciding alone sends no parent or carer details.');
+    if (!blank(String(g.fullName ?? '')) || !blank(String(g.email ?? '')) || !blank(String(g.phone ?? '')) || !blank(String(g.postcode ?? '')) || !blank(String(g.address ?? '')) || !blank(String(g.uprn ?? ''))) problems.push('A young person deciding alone sends no parent or carer details.');
   } else {
     if (!str(g.fullName, limits.name) || blank(g.fullName as string)) problems.push('The parent or carer’s name is missing.');
     if (typeof g.relationship !== 'string' || !RELATIONSHIPS.includes(g.relationship)) problems.push('The relationship is not one of the allowed values.');
@@ -272,6 +272,8 @@ export function validateConsentPayload(input: unknown): string[] {
     if (!str(g.phone, limits.phone) || (!blank(g.phone as string) && !PHONE.test((g.phone as string).trim()))) problems.push('The phone number is not valid.');
     if (!str(g.postcode, limits.postcode) || blank(g.postcode as string)) problems.push('The postcode is missing.');
     else if (!UK_POSTCODE.test((g.postcode as string).trim())) problems.push('The postcode is not valid.');
+    // Only from the address finder: the property's UPRN, up to 12 digits.
+    if (g.uprn !== undefined && g.uprn !== null && g.uprn !== '' && !(typeof g.uprn === 'string' && /^\d{1,12}$/.test(g.uprn))) problems.push('The property reference is not valid.');
   }
 
   // The parent's permission: none when deciding alone; otherwise the statements asked at this age, signed.

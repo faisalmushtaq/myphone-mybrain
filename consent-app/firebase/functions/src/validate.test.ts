@@ -96,6 +96,10 @@ test('the parent’s home address and postcode are required; email and phone are
   const p = valid();
   assert.ok(validateConsentPayload({ ...p, guardian: { ...p.guardian, address: ' ' } }).includes('The home address is missing.'));
   assert.ok(validateConsentPayload({ ...p, guardian: { ...p.guardian, postcode: '' } }).includes('The postcode is missing.'));
+  // The property's UPRN, only from the address finder: digits, or nothing.
+  assert.deepEqual(validateConsentPayload({ ...p, guardian: { ...p.guardian, uprn: '72001234' } }), validateConsentPayload(p));
+  assert.ok(validateConsentPayload({ ...p, guardian: { ...p.guardian, uprn: '72-001' } }).includes('The property reference is not valid.'));
+  assert.ok(validateConsentPayload({ ...p, guardian: { ...p.guardian, uprn: '1234567890123' } }).includes('The property reference is not valid.'));
   assert.ok(validateConsentPayload({ ...p, guardian: { ...p.guardian, postcode: 'LS2' } }).includes('The postcode is not valid.'));
   assert.deepEqual(validateConsentPayload({ ...p, guardian: { ...p.guardian, email: '', phone: '' } }), [], 'no email or phone is fine');
 });

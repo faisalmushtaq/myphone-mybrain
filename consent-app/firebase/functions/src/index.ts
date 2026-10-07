@@ -22,6 +22,7 @@ export { submitLabStory } from './story.js';
 export { schoolUpload } from './schoolUpload.js';
 export { staffApi } from './staff.js';
 export { purgeUsage, usage } from './usage.js';
+export { findAddresses } from './address.js';
 
 initializeApp();
 
@@ -164,6 +165,8 @@ export const submitConsent = onCall(callOptions, async (request) => {
               phone: payload.guardian.phone.trim() || null,
               address: payload.guardian.address.trim(),
               postcode: payload.guardian.postcode.trim().toUpperCase(),
+              // The property's UPRN, when the address was picked with the address finder and not changed by hand afterwards.
+              uprn: typeof payload.guardian.uprn === 'string' && payload.guardian.uprn ? payload.guardian.uprn : null,
             },
         ...(amendment ? { updatedAt: FieldValue.serverTimestamp() } : { createdAt: FieldValue.serverTimestamp() }),
       },

@@ -10,6 +10,7 @@
 // --prefix firebase/functions run build), and Playwright with Chromium.
 import { execSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
+import http from 'node:http';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 
@@ -17,33 +18,86 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const PROJECT = 'demo-mpmb';
 const BUCKET = `${PROJECT}.appspot.com`;
 const PORT = 8420;
+/** The app again with the address finder switched on (it is off on the live site until the Ideal Postcodes key is stored). */
+const FINDER_PORT = 8421;
+/** A stand-in for Ideal Postcodes, so nothing is asked of the real one. */
+const ADDRESS_PORT = 8431;
 
 if (process.env.MPMB_E2E_INNER !== '1') {
   // Outer phase: build the app for the emulators, then run this script inside `emulators:exec`.
   console.log('Building the app against the emulators…');
-  execSync('npx vite build --mode emulator --outDir dist-emulator', {
-    cwd: root,
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      VITE_MPMB_BACKEND: 'firebase',
-      VITE_FIREBASE_EMULATOR_HOST: '127.0.0.1:4000',
-      VITE_FIREBASE_API_KEY: 'demo-key',
-      VITE_FIREBASE_PROJECT_ID: PROJECT,
-      VITE_FIREBASE_APP_ID: '1:demo:web:demo',
-      VITE_FIREBASE_AUTH_DOMAIN: `${PROJECT}.firebaseapp.com`,
-      VITE_FIREBASE_STORAGE_BUCKET: BUCKET,
-    },
-  });
+  const env = {
+    ...process.env,
+    VITE_MPMB_BACKEND: 'firebase',
+    VITE_FIREBASE_EMULATOR_HOST: '127.0.0.1:4000',
+    VITE_FIREBASE_API_KEY: 'demo-key',
+    VITE_FIREBASE_PROJECT_ID: PROJECT,
+    VITE_FIREBASE_APP_ID: '1:demo:web:demo',
+    VITE_FIREBASE_AUTH_DOMAIN: `${PROJECT}.firebaseapp.com`,
+    VITE_FIREBASE_STORAGE_BUCKET: BUCKET,
+  };
+  execSync('npx vite build --mode emulator --outDir dist-emulator', { cwd: root, stdio: 'inherit', env });
+  execSync('npx vite build --mode emulator --outDir dist-emulator-finder', { cwd: root, stdio: 'inherit', env: { ...env, VITE_MPMB_ADDRESS_LOOKUP: 'on' } });
+  const addresses = fakeIdealPostcodes(ADDRESS_PORT);
   console.log('Starting the emulator suite…');
   const result = spawn('firebase', ['emulators:exec', '--project', PROJECT, '--only', 'auth,functions,firestore,storage', `MPMB_E2E_INNER=1 node ${path.join(root, 'scripts/emulator-e2e.mjs')}`], {
     cwd: path.join(root, 'firebase'),
     stdio: 'inherit',
-    env: { ...process.env, FIREBASE_STORAGE_EMULATOR_HOST: '127.0.0.1:9199' },
+    // The functions emulator passes its environment on, so the address finder asks the stand-in.
+    env: { ...process.env, FIREBASE_STORAGE_EMULATOR_HOST: '127.0.0.1:9199', MPMB_ADDRESS_API: `http://127.0.0.1:${ADDRESS_PORT}` },
   });
-  result.on('exit', (code) => process.exit(code ?? 1));
+  result.on('exit', (code) => {
+    addresses.close();
+    process.exit(code ?? 1);
+  });
 } else {
   await inner();
+}
+
+/**
+ * Ideal Postcodes, as far as the address finder uses it: three addresses at
+ * LS6 1AB, suggestions from them, the full address for a suggestion's id, an
+ * empty account for ZZ2 0ZZ, and /__seen, what it has been asked (for the checks).
+ */
+function fakeIdealPostcodes(port) {
+  const street = [
+    { id: 'paf_12', line_1: '12 Long Lane', line_2: '', uprn: '72000012' },
+    { id: 'paf_14', line_1: '14 Long Lane', line_2: '', uprn: '72000014' },
+    { id: 'paf_16', line_1: 'Flat 1', line_2: '16 Long Lane', uprn: '' },
+  ];
+  const record = (a) => ({ id: a.id, line_1: a.line_1, line_2: a.line_2, line_3: '', post_town: 'LEEDS', postcode: 'LS6 1AB', uprn: a.uprn, udprn: Number(a.id.slice(4)) });
+  const seen = [];
+  const server = http.createServer((req, res) => {
+    const url = new URL(req.url, 'http://localhost');
+    const send = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(body));
+    };
+    if (url.pathname === '/__seen') return send(200, seen);
+    const { api_key: key, ...params } = Object.fromEntries(url.searchParams);
+    seen.push({ path: url.pathname, params, key });
+    if (key !== 'emulator-address-key') return send(401, { code: 4010, message: 'Invalid Key' });
+    let m = url.pathname.match(/^\/v1\/postcodes\/([A-Z0-9]+)$/);
+    if (m) {
+      if (m[1] === 'LS61AB') return send(200, { code: 2000, message: 'Success', result: street.map(record) });
+      if (m[1] === 'ZZ20ZZ') return send(402, { code: 4020, message: 'Token balance depleted' });
+      return send(404, { code: 4040, message: 'Postcode Not Found' });
+    }
+    if (url.pathname === '/v1/autocomplete/addresses') {
+      const words = (params.query ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+      const label = (a) => [a.line_1, a.line_2].filter(Boolean).join(', ');
+      const hits = street.filter((a) => words.every((w) => `${label(a)} leeds`.toLowerCase().includes(w))).map((a) => ({ id: a.id, suggestion: `${label(a)}, Leeds, LS6`, udprn: Number(a.id.slice(4)), urls: { udprn: `/v1/udprn/${a.id.slice(4)}` } }));
+      return send(200, { code: 2000, message: 'Success', result: { hits } });
+    }
+    m = url.pathname.match(/^\/v1\/autocomplete\/addresses\/([^/]+)\/gbr$/);
+    if (m) {
+      const a = street.find((s) => s.id === decodeURIComponent(m[1]));
+      return a ? send(200, { code: 2000, message: 'Success', result: record(a) }) : send(404, { code: 4044, message: 'Address Not Found' });
+    }
+    return send(404, { code: 4040, message: 'Not Found' });
+  });
+  server.listen(port, '127.0.0.1');
+  return server;
 }
 
 async function inner() {
@@ -69,8 +123,9 @@ async function inner() {
     if (!cond) failures.push(name);
   };
 
-  // Serve the emulator build.
+  // Serve the emulator builds.
   const server = spawn('python3', ['-m', 'http.server', String(PORT), '-d', path.join(root, 'dist-emulator')], { stdio: 'ignore' });
+  const finderServer = spawn('python3', ['-m', 'http.server', String(FINDER_PORT), '-d', path.join(root, 'dist-emulator-finder')], { stdio: 'ignore' });
   await new Promise((r) => setTimeout(r, 1200));
 
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
@@ -1115,6 +1170,79 @@ async function inner() {
     ok('…with the parts read, in order, and the links followed', (await page.locator('.mpmb-usage__table tbody th').allInnerTexts()).join('|') === 'about|share|taking part' && (await page.getByText('Share screen time online →').count()) === 1);
     await toolsSnap('website-use');
 
+    // The address finder, switched on in this build: the addresses at a postcode, then suggestions as the address is typed.
+    await page.evaluate(() => window.sessionStorage.clear());
+    await page.goto(`http://127.0.0.1:${FINDER_PORT}/index.html?who=parent&school=dua`);
+    await page.getByLabel('First name', { exact: true }).fill('Mia');
+    await page.getByLabel('Last name', { exact: true }).fill('Hughes');
+    await page.getByLabel('Date of birth', { exact: true }).fill(yearsAgo(13));
+    await page.getByLabel('Year group').selectOption('Year 8');
+    await page.getByLabel('Your full name', { exact: true }).fill('Sam Hughes');
+    await page.getByLabel('Your relationship to the young person').selectOption('father');
+    await page.getByLabel('Your postcode').fill('ls6 1ab');
+    await page.getByRole('button', { name: 'Find your address' }).click();
+    await page.getByLabel('Choose your address').waitFor({ timeout: 30000 });
+    ok('the address finder lists the addresses at a postcode, through our own function', (await page.locator('#guardian-address-pick option').count()) === 5 && (await page.locator('.mpmb-address-finder__status', { hasText: '3 addresses at LS6 1AB: choose yours below.' }).count()) === 1);
+    await page.getByLabel('Choose your address').selectOption({ label: '12 Long Lane' });
+    ok('…and picking one fills in the address and the postcode', (await page.locator('#guardian-address').inputValue()) === '12 Long Lane, Leeds' && (await page.locator('#guardian-postcode').inputValue()) === 'LS6 1AB');
+    const addressBox = page.locator('#guardian-address');
+    await addressBox.fill('');
+    await addressBox.pressSequentially('14 long', { delay: 50 });
+    await page.locator('#guardian-address-suggestions').waitFor({ state: 'visible', timeout: 30000 });
+    ok('typing the address lists the matching addresses', (await page.locator('#guardian-address-suggestions [role="option"]').allInnerTexts()).join('|') === '14 Long Lane, Leeds, LS6');
+    await addressBox.press('ArrowDown');
+    await addressBox.press('Enter');
+    await page.waitForFunction(() => document.querySelector('#guardian-address').value === '14 Long Lane, Leeds', null, { timeout: 30000 });
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: /Your permission: Mia’s phone use/ }).waitFor();
+    await page.getByLabel(/I confirm all of the above/).check();
+    await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.6]]);
+    await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
+    await page.getByRole('button', { name: 'Skip these questions' }).click();
+    await page.getByRole('heading', { name: /Can we have Mia’s screen time/ }).waitFor();
+    await page.locator('#phone-source-none').check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: /Some more questions about Mia’s phone use/ }).waitFor();
+    await page.getByRole('button', { name: 'Skip these questions' }).click();
+    await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
+    await page.locator('.mpmb-save', { hasText: 'Everything so far is saved.' }).waitFor({ timeout: 60000 });
+    const miaCode = (await page.locator('.mpmb-save strong').innerText()).trim();
+    const miaSubmission = (await db.collection('submissions').doc(miaCode).get()).data();
+    const miaParent = miaSubmission ? (await db.collection('participants').doc(miaSubmission.participantId).get()).data()?.guardian : null;
+    ok('the chosen address is stored with its postcode and the property’s UPRN', miaParent?.address === '14 Long Lane, Leeds' && miaParent?.postcode === 'LS6 1AB' && miaParent?.uprn === '72000014', JSON.stringify(miaParent));
+    const asked = await (await fetch(`http://127.0.0.1:${ADDRESS_PORT}/__seen`)).json();
+    ok(
+      'Ideal Postcodes is asked only for the postcode, the words typed (near the postcode given) and the chosen address, with the key, never who is asking',
+      asked.every((r) => r.key === 'emulator-address-key') && asked.some((r) => r.path === '/v1/postcodes/LS61AB') && asked.some((r) => r.path === '/v1/autocomplete/addresses' && r.params.query === '14 long' && r.params.bias_postcode === 'LS6 1AB' && r.params.limit === '8') && asked.some((r) => r.path === '/v1/autocomplete/addresses/paf_14/gbr') && !/Hughes|Mia|Sam/.test(JSON.stringify(asked)),
+      JSON.stringify(asked),
+    );
+    await page.getByRole('button', { name: /Everything is right/ }).click();
+    await page.getByRole('heading', { name: 'Would you share Mia’s screen time after all?' }).waitFor();
+    await page.getByRole('button', { name: 'No, finish' }).click();
+    await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
+    // The limits, from a browser session of its own.
+    const addressApp = initWeb({ apiKey: 'demo-key', projectId: PROJECT, appId: '1:demo:web:demo', storageBucket: BUCKET }, 'address-check');
+    const addressAuth = getAuth(addressApp);
+    connectAuthEmulator(addressAuth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    await signInAnonymously(addressAuth);
+    const addressFns = getFunctions(addressApp, 'europe-west2');
+    connectFunctionsEmulator(addressFns, '127.0.0.1', 5001);
+    const finder = async (data) => (await httpsCallable(addressFns, 'findAddresses')(data)).data;
+    ok('the finder refuses what is not a postcode, a search or an address id', (await refused(() => finder({ postcode: 'LS6' }), 'invalid-argument')) && (await refused(() => finder({ search: 'ab' }), 'invalid-argument')) && (await refused(() => finder({ pick: '../postcodes/LS61AB' }), 'invalid-argument')));
+    const emptyAccount = await finder({ postcode: 'ZZ2 0ZZ' });
+    const alert = (await db.collection('meta').doc('address-alert').get()).data();
+    ok('when the account runs out of credit, families are asked to type and the team is told', emptyAccount.status === 'unavailable' && alert?.reason === 'no-credit');
+    const answers = [];
+    for (let i = 0; i < 10; i += 1) answers.push((await finder({ postcode: 'ZZ9 9ZZ' })).status);
+    ok('one browser session gets ten lookups an hour, then is asked to type', answers.slice(0, 9).every((a) => a === 'not-found') && answers[9] === 'unavailable', answers.join(','));
+    const unknownPick = await finder({ pick: 'paf_99' });
+    ok('…and a chosen address counts as a lookup too', unknownPick.status === 'unavailable');
+    const suggestions = await finder({ search: 'flat 1 long', near: 'LS6' });
+    ok('suggestions have their own allowance, and come back as the list shows them', suggestions.status === 'suggestions' && suggestions.suggestions.length === 1 && suggestions.suggestions[0].id === 'paf_16' && suggestions.suggestions[0].label === 'Flat 1, 16 Long Lane, Leeds, LS6', JSON.stringify(suggestions));
+    const lastAsked = (await (await fetch(`http://127.0.0.1:${ADDRESS_PORT}/__seen`)).json()).at(-1);
+    ok('a part postcode puts addresses in its area first', lastAsked.params.bias_postcode_outward === 'LS6' && !('bias_postcode' in lastAsked.params), JSON.stringify(lastAsked));
+
     const finalManifest = await (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' })).json();
     const midTsv = await readExport('social-media-break/donations/phenotype/mystory_mid.tsv');
     const postTsv = await readExport('social-media-break/donations/phenotype/mystory_post.tsv');
@@ -1144,6 +1272,7 @@ async function inner() {
   } finally {
     await browser.close();
     server.kill();
+    finderServer.kill();
   }
   fs.writeFileSync(path.join(root, 'dist-emulator', 'e2e-result.json'), JSON.stringify({ failures }, null, 2));
   console.log(failures.length ? `\n${failures.length} check(s) failed` : '\nAll emulator checks passed');

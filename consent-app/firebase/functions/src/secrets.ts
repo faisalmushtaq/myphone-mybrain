@@ -20,6 +20,7 @@ let client: SecretManagerServiceClient | null = null;
 /** Values used only by the emulator's end-to-end test. */
 export const EMULATOR_SECRETS: Record<string, string> = {
   'mpmb-staff-key': 'emulator-staff-key',
+  'mpmb-address-key': 'emulator-address-key',
 };
 
 export async function readSecret(name: string): Promise<string | null> {

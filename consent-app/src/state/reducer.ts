@@ -232,6 +232,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, identity: { ...state.identity, ...action.patch } };
     case 'update-guardian': {
       const guardian = { ...state.guardian, ...action.patch };
+      // An empty UPRN means the address no longer comes from the address finder: the key goes, so the record is as if it never had one.
+      if (guardian.uprn === '') delete guardian.uprn;
       // The name on the permission screen starts as the name given here, unless the parent has already changed it.
       const typedName = state.consent.typedName === state.guardian.fullName || !state.consent.typedName ? guardian.fullName : state.consent.typedName;
       return { ...state, guardian, consent: { ...state.consent, typedName } };

@@ -3,7 +3,7 @@ import { referenceCode } from '../lib/ids';
 import type { SessionInfo } from '../model/types';
 import { labBooking } from '../lab/booking';
 import { addDays, atUkTime, daysBetween, previewIcs, ukIsoDay } from '../lab/calendar';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBooking, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabSlot, type LabStoryPayload, type LabStoryResult, type LabVisit, type LateAgreementPayload, type LateAgreementResult, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type AddressLookup, type AddressSuggestions, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBooking, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabSlot, type LabStoryPayload, type LabStoryResult, type LabVisit, type LateAgreementPayload, type LateAgreementResult, type PickedAddress, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
 
 export interface MockFlags {
   failUploads: boolean;
@@ -11,6 +11,8 @@ export interface MockFlags {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+/** The preview's made-up street, for the address finder. */
+const PREVIEW_STREET = ['Flat 1, 10 Long Lane', 'Flat 2, 10 Long Lane', '12 Long Lane', '14 Long Lane', 'The Old Bakery, Long Lane'];
 const jitter = (min: number, max: number) => min + Math.random() * (max - min);
 
 interface MockBooking {
@@ -65,6 +67,8 @@ export class MockConsentApi implements ConsentApi {
   private uploads = new Map<string, { sessionId: string; size: number; type: string }>();
   private lab = new Map<string, MockLab>();
   private submissions = new Map<string, MockSubmission>();
+  /** The preview's suggested addresses, by id, for when one is chosen. */
+  private suggested = new Map<string, { address: string; postcode: string; uprn: string }>();
   private static STORE_KEY = 'mpmb-mock-server:v2';
   /** The lab study's records, in localStorage so the study's three pages see the same participants, as they would the real server. */
   private static LAB_KEY = 'mpmb-mock-lab:v1';
@@ -125,6 +129,45 @@ export class MockConsentApi implements ConsentApi {
   private checkSession(session: SessionInfo): void {
     if (!session.sessionId) throw new ApiError('expired', 'No session.');
     if (Date.parse(session.expiresAt) < Date.now()) throw new ApiError('expired', 'The session has expired.');
+  }
+
+  /** A made-up street for the preview; postcodes starting ZZ are "not found". */
+  async findAddresses(session: SessionInfo, postcode: string): Promise<AddressLookup> {
+    await sleep(jitter(300, 700));
+    this.checkSession(session);
+    const compact = postcode.toUpperCase().replace(/\s+/g, '');
+    if (compact.startsWith('ZZ')) return { status: 'not-found' };
+    const formatted = `${compact.slice(0, -3)} ${compact.slice(-3)}`;
+    const addresses = PREVIEW_STREET.map((label, i) => ({ label, address: `${label}, Leeds`, uprn: String(72000100 + i) }));
+    return { status: 'found', postcode: formatted, addresses };
+  }
+
+  /** The preview's suggestions: the made-up street if what was typed matches it, otherwise what was typed in three made-up places; anything with "zz" matches nothing. */
+  async suggestAddresses(session: SessionInfo, search: string, near: string): Promise<AddressSuggestions> {
+    await sleep(jitter(120, 350));
+    this.checkSession(session);
+    const words = search.toLowerCase().split(/[\s,]+/).filter(Boolean);
+    if (words.some((w) => w.includes('zz'))) return { status: 'suggestions', suggestions: [] };
+    const street = PREVIEW_STREET.map((line, i) => ({ id: `preview_${i}`, label: `${line}, Leeds, LS6`, address: `${line}, Leeds`, postcode: 'LS6 1AB', uprn: String(72000100 + i) }));
+    let found = street.filter((a) => words.every((w) => a.label.toLowerCase().includes(w)));
+    if (!found.length) {
+      const typed = search.trim().replace(/\s+/g, ' ').replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+      const places = [['Leeds', 'LS6', 'LS6 2DX'], ['Bradford', 'BD7', 'BD7 1AB'], ['Wakefield', 'WF1', 'WF1 2QW']];
+      // A postcode in the postcode box puts its place first, as the real finder does.
+      const first = places.findIndex((p) => near.toUpperCase().replace(/\s+/g, '').startsWith(p[1]));
+      if (first > 0) places.unshift(...places.splice(first, 1));
+      const tag = [...typed].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7).toString(36);
+      found = places.map(([town, outward, postcode], i) => ({ id: `preview_${tag}_${i}`, label: `${typed}, ${town}, ${outward}`, address: `${typed}, ${town}`, postcode, uprn: String(72000900 + i) }));
+    }
+    found.forEach(({ id, address, postcode, uprn }) => this.suggested.set(id, { address, postcode, uprn }));
+    return { status: 'suggestions', suggestions: found.map(({ id, label }) => ({ id, label })) };
+  }
+
+  async pickAddress(session: SessionInfo, id: string): Promise<PickedAddress> {
+    await sleep(jitter(200, 500));
+    this.checkSession(session);
+    const chosen = this.suggested.get(id);
+    return chosen ? { status: 'picked', ...chosen } : { status: 'not-found' };
   }
 
   async startSession(): Promise<SessionInfo> {

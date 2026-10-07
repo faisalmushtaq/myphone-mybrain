@@ -3598,3 +3598,57 @@
   margin: 0.25rem 0 0;
   font-size: 1rem;
 }
+
+/* The address finder (src/components/AddressFinder.tsx): the postcode box with its button beside it, then the addresses at the postcode. */
+.mpmb-address-finder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.mpmb-address-finder__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+}
+.mpmb-address-finder__row .mpmb-field {
+  flex: 0 1 auto;
+}
+.mpmb-address-finder__status {
+  margin: 0;
+  font-weight: 700;
+}
+.mpmb-suggest + .mpmb-address-finder__status {
+  margin-top: 0.5rem;
+}
+
+/* Addresses matching what the parent types (AddressSearch), listed under the address box, in the page's flow so nothing covers the fields below. */
+.mpmb-suggest__list {
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  border: 2px solid var(--mpb-teal);
+  background: #fff;
+}
+.mpmb-suggest__list[hidden] {
+  display: none;
+}
+.mpmb-suggest__option {
+  min-height: 44px;
+  padding: 0.65rem 0.85rem;
+  border-top: 1px solid var(--mpb-line);
+  color: var(--mpb-ink);
+  cursor: pointer;
+}
+.mpmb-suggest__option:first-child {
+  border-top: 0;
+}
+.mpmb-suggest__option:hover {
+  background: var(--mpb-mist);
+}
+.mpmb-suggest__option.is-active {
+  background: var(--mpb-deep);
+  color: #fff;
+  outline: 3px solid var(--mpb-yellow);
+  outline-offset: -3px;
+}

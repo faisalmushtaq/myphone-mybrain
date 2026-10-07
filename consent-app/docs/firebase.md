@@ -56,6 +56,7 @@ with a role claim.
 | `firebase/functions/src/quality.ts` | Image quality and safety checks: flatness, Cloud Vision SafeSearch and text detection, the verdict rules |
 | `firebase/functions/src/forms.ts` | The statement ids, versions and wording the server accepts, for both studies, derived at build time from the app's `src/config` and `src/lab` by `scripts/generate-forms.mjs`, so they cannot drift; also the cleaner's file allow-list |
 | `firebase/functions/src/enquiry.ts`, `mail.ts` | The website's contact and school forms: validation, storage in `enquiries/`, and the email to the team sent over SMTP |
+| `firebase/functions/src/address.ts` | `findAddresses`: the family form's address finder (the addresses at a postcode, suggestions as the address is typed, the chosen one in full), asking Ideal Postcodes on the form's behalf, with its limits; off until the key is stored (`docs/address-lookup.md`) |
 | `firebase/functions/src/usage.ts` | How the website is used, counted anonymously: the `usage` endpoint the site's pages send to (`assets/js/usage.js`, with the forms' steps from `src/lib/usage.ts`), the daily `purgeUsage` (records go after a year), and the summary on the staff page's "Website use" tab |
 | `firebase/functions/src/export.ts`, `exportLab.ts` | The hourly export: one folder per study in the private exports bucket (`schools/`, `social-media-break/`), each with the website's dataset `donations/` in BIDS layout (the lab study's archives unpacked into per-task tables) and a separate `identifying/` folder (see "Getting the data out") |
 | `firebase/scripts/setup-exports.sh`, `mac-sync-install.sh` | One-off set-up of the export bucket and read-only key, and the Mac job that mirrors it into OneDrive |
@@ -284,12 +285,18 @@ Run it again any time; it skips what is already done.
     credentials, and the repository variable `MPMB_SMS_FROM` names the
     sender. See `docs/booking.md`; the schools' UPN uploads are in
     `docs/school-uploads.md`.
-12. **Staff access to the database.** Give team members roles with the Admin SDK, for example
+12. **The address finder** (when the study has an Ideal Postcodes account).
+    Store the key once, in Cloud Shell:
+    `bash consent-app/firebase/scripts/set-address-key.sh <project-id>`,
+    then set `VITE_MPMB_ADDRESS_LOOKUP=on` in `.env.production`. See
+    `docs/address-lookup.md`, which also covers the dashboard settings
+    (no allowed URLs, a daily limit, no usage history kept).
+13. **Staff access to the database.** Give team members roles with the Admin SDK, for example
     `admin.auth().setCustomUserClaims(uid, { roles: ['coordinator'] })`, after
     they sign in to an admin tool with a University account (Google Workspace
     or Microsoft via Identity Platform). Nobody reads data as a plain console
     user in day-to-day use; the console is for the project owner only.
-12. **Retention.** Add a bucket lifecycle rule deleting `quarantine/` objects
+14. **Retention.** Add a bucket lifecycle rule deleting `quarantine/` objects
     after 1 day (the scheduled function also does this), and apply the study's
     retention schedule to the other paths when it is agreed.
 
@@ -486,6 +493,15 @@ withdrawal is not final there until it is emptied.
   a year. The privacy page says so. Name it in the DPIA and the University's
   record of processing, and check it against the rules on storage and access
   technologies (PECR as amended by the Data (Use and Access) Act 2025).
+* **The address finder** (off until the study's Ideal Postcodes account is
+  set up). Ideal Postcodes receives the postcode or the part of the address
+  a parent has typed, and the id of the address they choose, from the
+  `findAddresses` function, never from the family's browser, so it never
+  sees their IP address or anything else from the form. It keeps search
+  terms in its usage log until it redacts them (28 days by default; the
+  dashboard can set 0). The property's UPRN is stored with the address and
+  exported only to `identifying/`. Name Ideal Postcodes as a processor; see
+  `docs/address-lookup.md`.
 * **Copies for families.** Nothing is emailed to families. The thank-you
   page builds a PDF of the record on the device, from what was recorded,
   for the family to download and keep; no personal data leaves the server
