@@ -225,7 +225,7 @@ export interface Handover {
 }
 
 /**
- * Carrying on later with a record sent earlier (often after the workshop):
+ * Finishing a record sent earlier (a family that stopped part-way, chased by the team):
  * what the server said can still be added. While this is set, the form is
  * only the young person's agreement and the screenshots for that record.
  */

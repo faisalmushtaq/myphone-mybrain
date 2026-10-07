@@ -3,9 +3,9 @@ import { finishLink } from '../lib/entryLink';
 import { Button } from './ui/Button';
 
 /**
- * The link that brings a family back to carry on with their record later,
- * before or after the workshop (src/steps/Resume.tsx): on the thank-you page
- * whenever the young person's part or the screenshots are still to come. It
+ * The link that brings a family back to finish their record (src/steps/Resume.tsx):
+ * on the thank-you page whenever the young person's part or the screenshots
+ * are still to come, asking for them as soon as possible. It
  * opens the form at "Carry on with your reference", which then asks for the
  * young person's date of birth. Shown in full, so it can be written down or
  * screenshotted, with a button to share or copy it.
@@ -18,7 +18,7 @@ export function CarryOnLink({ referenceCode, childName }: { referenceCode: strin
   const send = async () => {
     try {
       if (canShare) {
-        await navigator.share({ title: 'MyPhone/MyBrain', text: `To carry on with ${childName}’s screen time for MyPhone/MyBrain (it asks for their date of birth):`, url });
+        await navigator.share({ title: 'MyPhone/MyBrain', text: `To finish ${childName}’s screen time for MyPhone/MyBrain (it asks for their date of birth):`, url });
         setStatus('shared');
         return;
       }
@@ -33,9 +33,9 @@ export function CarryOnLink({ referenceCode, childName }: { referenceCode: strin
 
   return (
     <div className="mpmb-card mpmb-carryon" role="region" aria-label="Carry on later">
-      <p className="mpmb-carryon__title">Your link to carry on later</p>
+      <p className="mpmb-carryon__title">Your link to finish</p>
       <p className="mpmb-mono mpmb-carryon__url">{url}</p>
-      <p className="mpmb-hint">Or go to the form at any time, choose “Carry on with your reference” and enter {referenceCode}. You will need {childName}’s date of birth.</p>
+      <p className="mpmb-hint">Or go to the form, choose “Carry on with your reference” and enter {referenceCode}. You will need {childName}’s date of birth.</p>
       <div className="mpmb-actions">
         <Button variant="secondary" onClick={() => void send()}>
           {canShare ? 'Share the link' : 'Copy the link'}

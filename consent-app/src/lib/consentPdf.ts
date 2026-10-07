@@ -285,9 +285,9 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
 
   w.heading('Screen time and apps');
   if (source === 'none') w.paragraph(consent.responses['phone-use']?.response === 'declined' ? 'Not shared: you chose not to share screen-time screenshots. You can change this later by contacting the team.' : 'Not shared: you chose to answer more questions instead.');
-  else if (source === 'child' && assent.status === 'deferred') w.paragraph(`Not shared from ${childName}’s phone yet. ${childName} can do their part later, before or after the workshop: go to ${finishLink(reference)} and enter ${childName}’s date of birth.`);
+  else if (source === 'child' && assent.status === 'deferred') w.paragraph(`Not shared from ${childName}’s phone yet. Please ask ${childName} to do their part as soon as possible: go to ${finishLink(reference)} and enter ${childName}’s date of birth.`);
   else if (source === 'child' && assent.status !== 'completed') w.paragraph(`Not shared from ${childName}’s phone.`);
-  else if (donation.status === 'skipped' || sent === 0) w.paragraph(`No screenshots were added this time. To add them later, before or after the workshop, go to ${finishLink(reference)} and enter ${childName}’s date of birth.`);
+  else if (donation.status === 'skipped' || sent === 0) w.paragraph(`No screenshots were added yet. Please add them as soon as you can: go to ${finishLink(reference)} and enter ${childName}’s date of birth.`);
   else {
     w.row('From', source === 'parent' ? 'The parent or carer’s phone (Family Sharing or Family Link)' : `${childName}’s phone`);
     w.row('Phone', platforms.find((p) => p.id === donation.platform)?.name ?? '');

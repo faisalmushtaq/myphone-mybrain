@@ -89,7 +89,7 @@ export function Done() {
             </p>
           ) : (
             <p>
-              {said === 'completed' ? `${own ? 'Your' : `${childName}’s`} answer is saved. ` : ''}No screenshots were added this time. You can come back with the same reference and date of birth at any time, before or after the workshop.
+              {said === 'completed' ? `${own ? 'Your' : `${childName}’s`} answer is saved. ` : ''}No screenshots were added yet. Please add them as soon as you can, with the same reference and date of birth.
             </p>
           )}
           <p>There is nothing to do for the workshop at school: it is separate from this form. To change your mind about anything, email <a href={`mailto:${study.contact.email}`}>{study.contact.email}</a> quoting the reference.</p>
@@ -120,8 +120,8 @@ export function Done() {
   // What can still be added later, with the reference: the young person's part when it was put off, or the screenshots.
   const partLater = source === 'child' && state.assent.status === 'deferred';
   const shotsLater = (source === 'parent' || (source === 'child' && state.assent.status === 'completed')) && sentImages === 0;
-  if (partLater) steps.push(`${later ? `${childName} wanted to decide later.` : `${childName} can do their part later.`} Nothing from ${childName}’s phone has been sent. When they are ready, before or after the workshop, they can say yes or no, and share their screen time if they want to, with the link below and their date of birth.`);
-  if (shotsLater) steps.push(`No screenshots were added. To add them later, before or after the workshop, use the link below with ${childName}’s date of birth.`);
+  if (partLater) steps.push(`${later ? `${childName} wanted to decide later.` : `${childName} still has their part to do.`} Nothing from ${childName}’s phone has been sent yet. Please ask them to do it as soon as possible, with the link below and their date of birth: they can say yes or no, and share their screen time if they want to.`);
+  if (shotsLater) steps.push(`No screenshots were added yet. Please add them as soon as you can, with the link below and ${childName}’s date of birth.`);
   steps.push('There is nothing to do for the workshop at school: it is separate from this form.');
 
   return (
@@ -147,7 +147,7 @@ export function Done() {
           <h2 className="mpmb-h3">For you, {state.identity.firstName.trim() || 'the young person'}</h2>
           <ul className="mpmb-list">
             <li>You can still change your mind about your screenshots. Just tell the researcher or your teacher, or email the team at {study.contact.email}. You don’t have to say why.</li>
-            <li>If the workshop at school is still to come, the researchers will explain it again on the day.</li>
+            <li>The researchers will explain the workshop again at school, on the day.</li>
           </ul>
         </div>
       )}

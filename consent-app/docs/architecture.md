@@ -287,6 +287,6 @@ compliance claims.
   (`study.selfConsentAge`, 16 since 7 October 2026; to confirm with ethics).
 * A deferred agreement is resumed with the reference and the young person's
   date of birth (`src/steps/Resume.tsx`, `resumeRecord`; see `journey.md`,
-  "Carrying on later").
+  "Finishing later").
 * Whether a typed signature is acceptable as an accessibility alternative to
   a drawn one (`study.allowTypedSignature`).

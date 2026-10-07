@@ -352,7 +352,7 @@ async function inner() {
     await page.getByRole('button', { name: /Everything is right/ }).click();
     await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
     const carryOnUrl = (await page.locator('.mpmb-carryon__url').innerText()).trim();
-    ok('the thank-you page gives the link to carry on later, before or after the workshop, instead of “the team will send a link”', carryOnUrl.endsWith(`?finish=${noahCode}`) && (await page.getByText(/Noah can do their part later\. Nothing from Noah’s phone has been sent\. When they are ready, before or after the workshop/).count()) === 1 && (await page.getByText(/the team will send/).count()) === 0, carryOnUrl);
+    ok('the thank-you page gives the link to finish, asking for it as soon as possible (never “later” or “after the workshop”)', carryOnUrl.endsWith(`?finish=${noahCode}`) && (await page.getByText(/Noah still has their part to do\. Nothing from Noah’s phone has been sent yet\. Please ask them to do it as soon as possible/).count()) === 1 && (await page.getByText(/the team will send|after the workshop/).count()) === 0, carryOnUrl);
     const noahBefore = (await db.collection('submissions').doc(noahCode).get()).data();
     const laterDevice = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const noahPage = await laterDevice.newPage();

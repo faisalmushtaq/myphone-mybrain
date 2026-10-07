@@ -459,6 +459,7 @@ fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin
 .school-steps li::before { content: counter(school-step); position: absolute; left: 0; top: .05rem; display: grid; place-items: center; width: 1.65rem; height: 1.65rem; border-radius: 50%; background: var(--mpb-teal); color: #fff; font-family: var(--f-mono); font-size: .8rem; font-weight: 500; }
 .school-steps li + li { margin-top: .7rem; }
 .school-landing__note, .school-landing__hint { margin: 1.2rem 0 0; max-width: 60ch; color: #45666b; line-height: 1.5; }
+.school-landing__now { margin: 1rem 0 1.2rem; max-width: 60ch; font-weight: 700; line-height: 1.5; }
 .school-landing .reassurance-block { margin-top: 2.5rem; }
 .school-landing__more { margin-top: 2.5rem; }
 .school-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem 2rem; margin: 0; padding: 0; list-style: none; }

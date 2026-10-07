@@ -15,7 +15,7 @@ import { useStore } from '../state/context';
 import { clearState } from '../state/persistence';
 
 /**
- * Carrying on later with a record sent earlier, before or after the workshop:
+ * Finishing a record sent earlier (the team chases families who have not, after the workshop too, but the wording never offers "later"):
  * the reference from the thank-you page (or the copy of the record) and the
  * young person's date of birth find it, on any device. Then only what can
  * still be added is asked: the young person's answer, if it was put off, and
@@ -108,7 +108,7 @@ export function Resume() {
     <StepShell
       kicker="Carry on"
       title="Carry on with your reference."
-      intro={<p>Started this form before, but didn’t finish? You can add the young person’s part, or the screenshots, at any time: before or after the workshop at school.</p>}
+      intro={<p>Started this form but didn’t finish? Add the young person’s part, or the screenshots, here.</p>}
       errors={errors}
       onContinue={() => void find()}
       continueLabel="Find my record"

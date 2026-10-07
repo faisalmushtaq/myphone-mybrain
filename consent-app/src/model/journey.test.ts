@@ -116,7 +116,7 @@ describe('the family form after 7 October 2026: who decides, and where the scree
   });
 });
 
-describe('carrying on later with a reference (before or after the workshop)', () => {
+describe('finishing later with a reference', () => {
   const summary = (over: Partial<import('../api/types').ResumeSummary> = {}): import('../api/types').ResumeSummary => ({ referenceCode: 'MPMB-ABCD-EF2', firstName: 'Kai', selfConsent: false, phoneSource: 'child', assentStatus: 'deferred', imageCount: 0, maxImages: 6, canAgree: true, canAddScreenshots: false, reason: null, ...over });
   const found = (over: Partial<import('../api/types').ResumeSummary> = {}) => reducer(initialState(), { type: 'resume-found', summary: summary(over), dateOfBirth: dobFor(13) });
 

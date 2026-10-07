@@ -41,12 +41,15 @@ Decided by the study lead (`decisions.md`):
 | Parent, 16 or 17 | details → permission (no screenshots question) → quick questions → *handover* → agreement → screenshots → check → done; not there, no or later: longer questions |
 | Opting out | welcome → "Opt out of the workshop" (or `?optout=1`, from the school pages) → warning → second warning → how to email the team (a ready-made email, the school filled in). Nothing is sent. |
 
-### Carrying on later (before or after the workshop)
+### Finishing later
 
-Families can fill in the form at any time, before or after the workshop. A
-family that sent its record but did not finish it carries on later, on any
-device, with the **reference** (on the thank-you page, which shows a ready
-link, and in the PDF copy) and the **young person's date of birth**:
+The form stays open after the workshop, so the team can chase families who
+have not done it, but the wording never offers "later": the letter and the
+site ask for it as soon as the family gets it (`decisions.md`). A family that
+sent its record but did not finish it finishes on any device with the
+**reference** (on the thank-you page, which shows a ready link and asks for
+it as soon as possible, and in the PDF copy) and the **young person's date of
+birth**:
 
 | Came back to | Steps |
 | --- | --- |

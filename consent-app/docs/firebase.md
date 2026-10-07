@@ -140,8 +140,8 @@ metadata) and only the clean copy is checked and stored. Images the checks
 refuse are deleted from quarantine and reported back with a reason; the rest
 are stored and recorded, so one bad image never loses the others.
 
-**`resumeRecord`** lets a family carry on later, before or after the
-workshop. `lookup` takes the reference and the young person's date of birth:
+**`resumeRecord`** lets a family that stopped part-way finish later (the team
+chases them; the site asks for it as soon as possible). `lookup` takes the reference and the young person's date of birth:
 a match adds the caller's anonymous session to the submission's `resumeUids`
 and says what can still be added (`canAgree`: the young person's answer was
 put off; `canAddScreenshots`; or why nothing can). A wrong date of birth

@@ -212,7 +212,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
         ) : source === null ? (
           <p className="mpmb-summary__note">Not decided yet.</p>
         ) : donation.status === 'skipped' ? (
-          <p className="mpmb-summary__note">Skipped for now: the screenshots can be added later with your reference, before or after the workshop.</p>
+          <p className="mpmb-summary__note">Not added yet: please add the screenshots as soon as you can, with your reference.</p>
         ) : (
           <>
             <dl className="mpmb-summary__list">

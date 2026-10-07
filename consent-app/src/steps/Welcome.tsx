@@ -116,7 +116,7 @@ export function Welcome() {
       </p>
       <div className="mpmb-callout mpmb-callout--info">
         <p>
-          <strong>The workshop at school is separate:</strong> you don’t need this form for it, and you can fill this in before or after the workshop. Every young person in the classes taking part is invited, unless a parent or carer opts them out.
+          <strong>The workshop at school is separate:</strong> you don’t need this form for it. Every young person in the classes taking part is invited, unless a parent or carer opts them out.
         </p>
       </div>
 
@@ -178,7 +178,7 @@ export function Welcome() {
       </div>
 
       <p className="mpmb-welcome__resume">
-        Started before and want to finish, or add screenshots?{' '}
+        Started already and need to finish, or add screenshots?{' '}
         <Button variant="link" onClick={() => dispatch({ type: 'go-to', stepId: 'resume', returnTo: null })}>
           Carry on with your reference
         </Button>
