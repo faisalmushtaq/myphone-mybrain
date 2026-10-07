@@ -87,7 +87,7 @@ export function ParentConsent() {
         </ul>
         <p className="mpmb-hint">
           Full documents:{' '}
-          <a href={study.contact.documentsPageUrl} target="_blank" rel="noopener">
+          <a href={study.contact.informationSheetUrl} target="_blank" rel="noopener">
             participant information sheet
           </a>{' '}
           and{' '}

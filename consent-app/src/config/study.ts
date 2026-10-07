@@ -89,6 +89,8 @@ export const study = {
     privacyPageUrl: '/privacy/',
     familiesPageUrl: '/families/',
     documentsPageUrl: '/documents/',
+    /** The participant information sheet on the website, with how taking part and opting out work. */
+    informationSheetUrl: '/information-sheet/',
   },
 } as const;
 

@@ -86,7 +86,7 @@ export function OptOut() {
               </Button>
             </div>
             <p className="mpmb-hint">
-              Questions first? Read the <a href={study.contact.familiesPageUrl}>information for families</a>.
+              Questions first? Read the <a href={`${study.contact.informationSheetUrl}#taking-part`}>information sheet</a>, which explains how taking part and opting out work.
             </p>
           </div>
         </>
