@@ -45,6 +45,8 @@ body { font-family: var(--f-sans); background: var(--mpb-paper); color: var(--mp
 h1, h2, h3 { font-family: var(--f-serif); letter-spacing: -.045em; font-optical-sizing: none; font-variation-settings: "opsz" 14, "SOFT" 0, "WONK" 0; }
 h1 { line-height: .93; }
 h2 { line-height: .98; }
+/* The base stylesheet takes every margin away, so a heading would sit right on the text under it: put a gap back wherever text follows a heading directly (no weight of its own, so any section that sets its own spacing keeps it). */
+:where(h1, h2) + :where(p, .prose, ul, ol) { margin-top: clamp(.9rem, 1.6vw, 1.25rem); }
 p { max-width: 70ch; }
 .container { max-width: 1200px; padding-inline: clamp(1.35rem, 4vw, 3.5rem); }
 .section { position: relative; padding-block: clamp(4.6rem, 8vw, 7.6rem); background: var(--mpb-paper); }
