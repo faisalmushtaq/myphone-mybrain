@@ -1,8 +1,64 @@
-# Consent and screen-time donation: user journey (v3)
+# Consent and screen-time donation: user journey (v4)
 
 This document defines who does what, in which order, where the device
 changes hands, and when things are sent. `src/model/journey.ts` is the
-executable version.
+executable version, and `src/model/journey.test.ts` walks every route.
+
+## Version 4 (7 October 2026): the workshop is opt-out, screen time is opt-in
+
+Decided by the study lead (`decisions.md`):
+
+* The **workshop at school** (EEG), and **linking with records** through
+  Connected West Yorkshire, are **opt-out**, as one: a parent or carer opts
+  their child out **by email** to brainpop@leeds.ac.uk, after **two warnings**
+  on this site saying what the child would miss. No form and no paper slip;
+  the form records nothing about it, and the team logs each email on the staff
+  page (Opt-outs). An opt-out after the workshop withdraws the data too.
+* The form is now the **opt-in** for **screen time**, plus the parent's
+  answers. It no longer asks permission for the workshop ("take-part") or for
+  linking ("link-records").
+* **16 and 17:** the young person decides alone (`study.selfConsentAge`): no
+  parent steps at all on their own route; on the parent's route the parent
+  answers their questions and the young person decides about their screen time.
+* **Under 16:** the parent says yes or no to the screenshots first. After a
+  yes, on the parent's route, the parent chooses **where the screen time comes
+  from** (`phone-source`): their own phone, if they can see it with Apple
+  Family Sharing or Google Family Link (the parent's permission is enough; the
+  young person is not asked); the young person's phone, if the young person
+  agrees; or neither. On the young person's route it is their phone.
+* Whenever the screen time is not coming through the form (the parent said
+  no or chose neither, could not send it, or the young person said no, was not
+  there, put it off or skipped it), the parent answers **longer questions**
+  (`parent-more`: time and apps, night-time and sleep, effects). Every parent
+  answers the **quick questions**.
+
+| Route | Steps (`buildJourney`) |
+| --- | --- |
+| Young person, 16 or 17 | details → their agreement → screenshots → check → done (a no ends with nothing sent) |
+| Young person, under 16 | details → *handover* → parent's details → permission → quick questions → *handover* → agreement → screenshots → check → done; after the parent's no, or the young person's no or "later": → *handover* → longer questions → check |
+| Parent, under 16, yes | details → permission → quick questions → where from → (own phone: screenshots) or (child's phone: *handover* → agreement → screenshots) or (neither: longer questions) → check → done |
+| Parent, under 16, no | details → permission → quick questions → longer questions → check → done |
+| Parent, 16 or 17 | details → permission (no screenshots question) → quick questions → *handover* → agreement → screenshots → check → done; not there, no or later: longer questions |
+| Opting out | welcome → "Opt out of the workshop" (or `?optout=1`, from the school pages) → warning → second warning → how to email the team (a ready-made email, the school filled in). Nothing is sent. |
+
+The website's links choose where the form starts (`?who=parent`,
+`?who=young`, `?optout=1`; `src/lib/entryLink.ts`). The welcome screen reads
+that once and drops it from the address, so after "Finish and clear this
+device", "Start again" or the privacy clear the next person on the device
+starts at the welcome screen and chooses for themselves. `?school=` stays: it
+only fills in the school.
+
+The record is sent (`submitConsent`) as soon as it is complete and the family
+reaches the screenshots, the longer questions or the check page; changes after
+that go once, as an amendment, from the check page. There is no "declined"
+record any more: a young person's no is part of the parent's record, and a 16-
+or 17-year-old's no on their own sends nothing. The server works out who
+decided and where the screen time comes from from the record itself, refuses
+anything that does not add up, and refuses screenshots from a young person's
+phone without their agreement in the app.
+
+The rest of this document describes version 3; where it differs from the
+above, the above wins.
 
 Version 3 follows a round of testing with the streamlined v2 flow. The big
 change is *when* things are sent: the permission and agreement go to the

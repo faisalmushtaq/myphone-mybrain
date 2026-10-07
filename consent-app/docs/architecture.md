@@ -5,11 +5,15 @@
 A front end (React + TypeScript, built with Vite) that mounts inside the
 existing Jekyll site at `/take-part/consent/`, with the complete user
 journey, validation, consent data model and an **API abstraction** with two
-implementations: an in-memory mock (the default; nothing leaves the page,
-latency and failures are simulated) and Firebase (`docs/firebase.md`). Two
-things are sent, at different moments: the permission and agreement as soon
-as the young person has signed (and again as an amendment when something is
-changed), and the screenshots when their send button is pressed.
+implementations: an in-memory mock (preview builds only; nothing leaves the
+page, latency and failures are simulated) and Firebase (`docs/firebase.md`,
+what the live site uses). Since 7 October 2026 the form is the **opt-in for
+screen time** (the workshop at school is opt-out, by email: `docs/journey.md`,
+`docs/opt-outs.md`). Two things are sent, at different moments: the record
+(the parent's permission and answers, and the young person's agreement when
+they are asked) as soon as it is complete (and again as an amendment when
+something is changed), and the screenshots when their send button is
+pressed.
 
 ```
 consent-app/

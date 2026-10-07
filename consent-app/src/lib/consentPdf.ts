@@ -3,9 +3,10 @@ import boldUrl from '../assets/fonts/AtkinsonHyperlegibleNext-Bold.ttf?url';
 import regularUrl from '../assets/fonts/AtkinsonHyperlegibleNext-Regular.ttf?url';
 import { covered } from '../assets/fonts/coverage';
 import { relationships } from '../config/fields';
-import { parentQuestionsForm } from '../config/questions';
+import { parentMoreForm, parentQuestionsForm } from '../config/questions';
 import { OTHER_SCHOOL_ID, schools } from '../config/schools';
-import { childAssentForm, parentConsentForm } from '../config/statements';
+import { childAssentForm, parentConsentForm, statementsFor } from '../config/statements';
+import { childAge, parentInvolved, parentMoreApplies, phoneSourceOf } from '../model/journey';
 import { study } from '../config/study';
 import { platforms } from '../config/walkthroughs';
 import type { AppState, SignatureRecord, StatementResponse } from '../model/types';
@@ -188,8 +189,10 @@ function hasUncovered(...values: string[]): boolean {
 
 /** Builds the PDF and returns it with the file name to save it under. */
 export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; fileName: string }> {
-  const { identity, guardian, consent, assent, donation, survey, submission } = state;
+  const { identity, guardian, consent, assent, donation, survey, more, submission } = state;
   const { regular, bold } = await loadFonts();
+  const withParent = parentInvolved(state);
+  const source = phoneSourceOf(state);
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   doc.addFileToVFS('AtkinsonHyperlegibleNext-Regular.ttf', regular);
@@ -206,10 +209,11 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
   const relationship = guardian.relationship === 'other' ? guardian.relationshipOther : (relationships.find((r) => r.id === guardian.relationship)?.label ?? '');
   const sent = donation.images.filter((i) => i.status === 'sent').length;
   const answered = parentQuestionsForm.questions.filter((q) => survey.responses[q.id]).length;
+  const answeredMore = parentMoreForm.questions.filter((q) => more.responses[q.id]).length;
 
   doc.setProperties({
     title: `MyPhone/MyBrain – your copy of the record (${reference})`,
-    subject: 'Copy of the permission and agreement recorded for the MyPhone/MyBrain study',
+    subject: 'Copy of what was recorded for the MyPhone/MyBrain study: permission, agreement and screen time',
     author: study.contact.team,
     creator: 'MyPhone/MyBrain consent form',
   });
@@ -219,7 +223,9 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
   w.paragraph('Your copy of what was agreed', { size: 21, style: 'bold', after: 1.5 });
   w.paragraph(`Reference ${reference}${recorded ? ` · Recorded ${recorded}` : ''}`, { size: 10.5, color: MUTED, after: 4 });
   w.paragraph(
-    `This is a copy of the record made when ${guardianName || 'a parent or guardian'} gave permission for ${childName} to take part in MyPhone/MyBrain. Keep it somewhere safe. To change anything, or to stop taking part, email ${study.contact.email} and quote the reference. Nobody will ask why.`,
+    withParent
+      ? `This is a copy of the record made when ${guardianName || 'a parent or carer'} answered the MyPhone/MyBrain form about ${childName}’s phone use. Keep it somewhere safe. To change anything, email ${study.contact.email} and quote the reference. Nobody will ask why.`
+      : `This is a copy of the record made when ${childName} agreed to share their screen time with MyPhone/MyBrain. Keep it somewhere safe. To change anything, email ${study.contact.email} and quote the reference. Nobody will ask why.`,
   );
   if (hasUncovered(fullName, guardianName, identity.schoolOther, guardian.relationshipOther, consent.typedName, consent.signature?.typedName ?? '', assent.signature?.typedName ?? '')) {
     w.note('Some letters in the names could not be shown in this document’s typeface. The record itself holds them exactly as they were typed.');
@@ -231,53 +237,63 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
   w.row('School', schoolName);
   w.row('Year group', identity.yearGroup);
 
-  w.heading('Parent or guardian');
-  w.row('Name', guardianName);
-  w.row('Relationship', relationship);
-  w.row('Email', guardian.email);
-  w.row('Phone', guardian.phone);
-  w.row('Postcode', guardian.postcode.toUpperCase());
+  if (withParent) {
+    w.heading('Parent or carer');
+    w.row('Name', guardianName);
+    w.row('Relationship', relationship);
+    w.row('Email', guardian.email);
+    w.row('Phone', guardian.phone);
+    w.row('Postcode', guardian.postcode.toUpperCase());
 
-  w.heading('Parent or guardian’s permission');
-  for (const s of parentConsentForm.statements) w.statement(s.text, consent.responses[s.id]?.response);
-  w.row('Signed by', consent.typedName);
-  await w.signature(consent.signature);
-  w.row('Date', consent.confirmedDate ? formatIsoDate(consent.confirmedDate) : '');
-  w.row('Recorded', consent.completedAt ? formatTimestamp(consent.completedAt) : '');
-  w.row('Form version', `${consent.formId} ${consent.formVersion}`);
-  w.row('Information version', consent.informationVersion ?? '');
+    w.heading('Parent or carer’s permission');
+    for (const s of statementsFor(parentConsentForm, childAge(state), study.selfConsentAge)) w.statement(s.text, consent.responses[s.id]?.response);
+    w.row('Signed by', consent.typedName);
+    await w.signature(consent.signature);
+    w.row('Date', consent.confirmedDate ? formatIsoDate(consent.confirmedDate) : '');
+    w.row('Recorded', consent.completedAt ? formatTimestamp(consent.completedAt) : '');
+    w.row('Form version', `${consent.formId} ${consent.formVersion}`);
+    w.row('Information version', consent.informationVersion ?? '');
 
-  if (study.parentQuestions) {
-    w.heading('Parent or guardian’s quick questions');
-    const status = survey.status === 'not-started' ? 'Not answered.' : survey.status === 'skipped' && !answered ? 'Skipped; these questions are optional.' : `${answered} of ${parentQuestionsForm.questions.length} answered.`;
-    w.paragraph(`${status} The answers are kept with ${childName}’s code and are not included in this copy.`);
+    if (study.parentQuestions) {
+      w.heading('Parent or carer’s quick questions');
+      const status = survey.status === 'not-started' ? 'Not answered.' : survey.status === 'skipped' && !answered ? 'Skipped; these questions are optional.' : `${answered} of ${parentQuestionsForm.questions.length} answered.`;
+      w.paragraph(`${status} The answers are kept with ${childName}’s code and are not included in this copy.`);
+    }
+    if (parentMoreApplies(state)) {
+      w.heading('More questions');
+      const status = more.status === 'not-started' ? 'Not answered.' : more.status === 'skipped' && !answeredMore ? 'Skipped; these questions are optional.' : `${answeredMore} of ${parentMoreForm.questions.length} answered.`;
+      w.paragraph(`${status} The answers are kept with ${childName}’s code and are not included in this copy.`);
+    }
   }
 
-  w.heading(`${childName}’s agreement`);
-  if (assent.status === 'deferred') {
-    w.paragraph(assent.deferredBy === 'young' ? `${childName} would like to decide later. The team will ask again, for example at school.` : 'To be collected separately, for example at school.');
-  } else if (assent.status === 'declined') {
-    w.paragraph(`${childName} did not want to take part.`);
-  } else if (assent.status === 'not-started') {
-    w.paragraph('Not completed yet.');
-  } else {
-    for (const s of childAssentForm.statements) if (assent.responses[s.id]) w.statement(s.text, assent.responses[s.id]?.response);
-    await w.signature(assent.signature);
-    w.row('Recorded', assent.completedAt ? formatTimestamp(assent.completedAt) : '');
-    w.row('Form version', `${assent.formId} ${assent.formVersion}`);
+  if (source === 'child') {
+    w.heading(`${childName}’s agreement`);
+    if (assent.status === 'deferred') {
+      w.paragraph(assent.deferredBy === 'young' ? `${childName} would like to decide later. Nothing has been shared from their phone.` : `${childName} wasn’t there, so nothing has been shared from their phone.`);
+    } else if (assent.status === 'declined') {
+      w.paragraph(`${childName} said no to sharing their screen time.`);
+    } else if (assent.status === 'not-started') {
+      w.paragraph('Not completed yet.');
+    } else {
+      for (const s of childAssentForm.statements) if (assent.responses[s.id]) w.statement(s.text, assent.responses[s.id]?.response);
+      await w.signature(assent.signature);
+      w.row('Recorded', assent.completedAt ? formatTimestamp(assent.completedAt) : '');
+      w.row('Form version', `${assent.formId} ${assent.formVersion}`);
+    }
   }
 
   w.heading('Screen time and apps');
-  if (donation.status === 'not-consented') w.paragraph('Not shared: you chose not to share screen-time information. You can change this later by contacting the team.');
-  else if (donation.status === 'deferred') w.paragraph(`Waiting until ${childName} has given their agreement.`);
+  if (source === 'none') w.paragraph(consent.responses['phone-use']?.response === 'declined' ? 'Not shared: you chose not to share screen-time screenshots. You can change this later by contacting the team.' : 'Not shared: you chose to answer more questions instead.');
+  else if (source === 'child' && assent.status !== 'completed') w.paragraph(`Not shared from ${childName}’s phone.`);
   else if (donation.status === 'skipped' || sent === 0) w.paragraph('No screenshots were added this time. The team can send a link to add them later.');
   else {
+    w.row('From', source === 'parent' ? 'The parent or carer’s phone (Family Sharing or Family Link)' : `${childName}’s phone`);
     w.row('Phone', platforms.find((p) => p.id === donation.platform)?.name ?? '');
     w.row('Screenshots', `${sent} sent`);
   }
 
   w.heading('Changing your mind');
-  w.paragraph(`You can stop at any time, from the whole study or from one part such as linking to health or school records, by emailing ${study.contact.email}. Quote your reference if you have it. Nobody will ask why.`);
+  w.paragraph(`You can change your mind at any time, about the screenshots or the answers, by emailing ${study.contact.email}. Quote your reference if you have it. Nobody will ask why. The workshop at school is separate: to opt a young person out of it, a parent or carer emails the same address.`);
   if (study.contact.concerns.email) w.paragraph(`If you have a concern about how the study is being run and would rather not raise it with the research team, contact ${study.contact.concerns.name} at ${study.contact.concerns.email}, who are independent of the study.`);
   w.note(`Produced on ${formatTimestamp(new Date().toISOString())} by the MyPhone/MyBrain consent form from the answers on this device. ${study.contact.team}.`);
   w.footer(reference);

@@ -8,14 +8,18 @@ import { CheckboxField, TextField } from '../components/ui/Field';
 import { Disclosure } from '../components/ui/Disclosure';
 import { Draft } from '../components/ui/Draft';
 import { parentInformation, parentInformationVersion } from '../config/copy';
-import { parentConsentForm } from '../config/statements';
+import { parentConsentForm, statementsFor } from '../config/statements';
 import { study } from '../config/study';
 import { formatIsoDate, todayIso } from '../lib/dates';
 import { limits, namesLookDifferent, validateConsent, type FieldError } from '../lib/validation';
+import { childAge, decidesAlone } from '../model/journey';
 import { useStore } from '../state/context';
 
 /**
- * One screen: the information, the statements, and the signature.
+ * One screen: the information, the statements, and the signature. Since the
+ * workshop became opt-out (7 October 2026) this is the parent's permission
+ * for the opt-in part: their answers, and, for an under-16, sharing the
+ * screen time (from 16 the young person decides that themselves).
  *
  * The information sits at the top as six one-line summaries, each opening to
  * the full wording, so it is all available without a separate page. The
@@ -30,13 +34,15 @@ export function ParentConsent() {
   const consent = state.consent;
   const childName = state.identity.firstName.trim() || 'the young person';
   const nameWarning = consent.typedName && namesLookDifferent(consent.typedName, state.guardian.fullName);
-  const required = parentConsentForm.statements.filter((s) => s.kind === 'required');
-  const optional = parentConsentForm.statements.filter((s) => s.kind === 'optional');
+  const age = childAge(state);
+  const asked = statementsFor(parentConsentForm, age, study.selfConsentAge);
+  const required = asked.filter((s) => s.kind === 'required');
+  const optional = asked.filter((s) => s.kind === 'optional');
   const allRequiredAgreed = required.every((s) => consent.responses[s.id]?.response === 'agreed');
   const grouped = study.groupRequiredStatements;
 
   const next = () => {
-    const found = validateConsent(consent, parentConsentForm, grouped);
+    const found = validateConsent(consent, parentConsentForm, grouped, age);
     setErrors(found);
     if (found.length) return;
     dispatch({ type: 'consent-complete', informationVersion: parentInformationVersion.version });
@@ -45,9 +51,9 @@ export function ParentConsent() {
 
   return (
     <StepShell
-      kicker="Parent or guardian"
-      title={<>Your permission for {childName} to take part.</>}
-      intro={<p>Read the short summary, confirm the statements, choose the separate permissions, and sign. About three minutes.</p>}
+      kicker="Parent or carer"
+      title={<>Your permission: {childName}’s phone use.</>}
+      intro={<p>Read the short summary, confirm the statements, answer the choices, and sign. About three minutes. This is not about the workshop at school, which goes ahead unless you opt out.</p>}
       errors={errors}
       onContinue={next}
       continueLabel="Confirm and sign"
@@ -96,7 +102,7 @@ export function ParentConsent() {
 
       <section className="mpmb-required" aria-labelledby="required-heading">
         <h2 className="mpmb-h3" id="required-heading">
-          Needed to take part <Draft />
+          To continue <Draft />
         </h2>
         {grouped ? (
           <div className={`mpmb-required__group${errs['stmt-required-group'] ? ' has-error' : ''}`}>
@@ -120,7 +126,8 @@ export function ParentConsent() {
         <h2 className="mpmb-h3" id="choices-heading">
           Your choices
         </h2>
-        <p className="mpmb-hint">Each of these is separate. You can say no to any of them and still take part.</p>
+        <p className="mpmb-hint">Each of these is separate. You can say no to any of them.</p>
+        {decidesAlone(state) && <p className="mpmb-hint">{childName} is 16 or over, so they decide for themselves about sharing their screen time: we ask them after your part.</p>}
         <PermissionRows statements={optional} responses={consent.responses} errors={errs} onRespond={(s, response) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, response })} />
       </section>
 
@@ -174,7 +181,7 @@ export function ParentConsent() {
             )}
           </div>
           <Disclosure summary="What happens with this record">
-            <p>Your choices, name, signature and the version of the information you read are stored as the record of your permission. The time you confirm is also recorded. You can withdraw at any time by contacting the team.</p>
+            <p>Your choices, name, signature and the version of the information you read are stored as the record of your permission. The time you confirm is also recorded. You can change your mind at any time by contacting the team.</p>
           </Disclosure>
         </div>
       </section>

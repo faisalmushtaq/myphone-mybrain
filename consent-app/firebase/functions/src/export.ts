@@ -4,8 +4,8 @@ import { logger } from 'firebase-functions/v2';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { labExport } from './exportLab.js';
-import { upnExport } from './exportUpn.js';
-import { parentQuestionsForm, questionWording, study } from './forms.js';
+import { optOutFor, optOutsOf, upnExport } from './exportUpn.js';
+import { moreQuestionTopics, moreQuestionWording, parentMoreForm, parentQuestionsForm, questionWording, study, type ServedQuestionForm } from './forms.js';
 
 /**
  * The hourly export: everything the studies have recorded, written into a
@@ -126,6 +126,8 @@ export interface Snapshot {
   enquiries: Doc[];
   surveys: Doc[];
   donations: Doc[];
+  /** Parents' emailed opt-outs from the workshop, as the team logged them on the staff page. */
+  optOuts?: Doc[];
   /** Firestore participant id → sub-label, for participants with a permission record. */
   labels: Map<string, string>;
 }
@@ -168,9 +170,11 @@ export function signatureFile(label: string | undefined, participantId: string, 
   return `signatures/${who}/${who}_${kind}-v${String(version ?? 1)}_signature.png`;
 }
 
-function latestSurveys(snap: Snapshot): Map<string, Doc> {
+/** Each participant's latest answers to one of the parent's question forms (records from before the longer questions are the quick ones). */
+function latestSurveys(snap: Snapshot, formId: string = parentQuestionsForm.id): Map<string, Doc> {
   const latest = new Map<string, Doc>();
   for (const s of snap.surveys) {
+    if (String(s.data.formId ?? parentQuestionsForm.id) !== formId) continue;
     const pid = String(s.data.participantId);
     const current = latest.get(pid);
     if (!current || Number(s.data.version ?? 0) > Number(current.data.version ?? 0)) latest.set(pid, s);
@@ -186,6 +190,8 @@ export function participantsTable(snap: Snapshot): Row[] {
   const consentBy = new Map(snap.consents.map((c) => [c.id, c]));
   const assentBy = new Map(snap.assents.map((a) => [a.id, a]));
   const surveyBy = latestSurveys(snap);
+  const moreBy = latestSurveys(snap, parentMoreForm.id);
+  const optOuts = optOutsOf(snap.optOuts ?? []);
   return snap.participants
     .filter((p) => snap.labels.has(p.id))
     .map((p) => {
@@ -193,27 +199,36 @@ export function participantsTable(snap: Snapshot): Row[] {
       const consent = submission?.data.consentId ? consentBy.get(String(submission.data.consentId)) : undefined;
       const assent = submission?.data.assentId ? assentBy.get(String(submission.data.assentId)) : undefined;
       const mine = sessions.filter((s) => s.participantId === p.id);
+      // A 16- or 17-year-old deciding alone has no permission record: their own agreement dates the record.
+      const agreedOn = consent?.data.confirmedDate ?? (typeof assent?.data.completedAt === 'string' ? assent.data.completedAt.slice(0, 10) : null);
       return {
         participant_id: snap.labels.get(p.id),
-        age: ageAt(p.data.dateOfBirth, consent?.data.confirmedDate ?? consent?.data.completedAt),
+        age: ageAt(p.data.dateOfBirth, agreedOn ?? consent?.data.completedAt),
         year_group: p.data.yearGroup,
         site: p.data.schoolId,
         route: consent?.data.route ?? submission?.data.route,
-        consented_on: consent?.data.confirmedDate,
-        consent_version: consent?.data.formVersion,
+        consented_on: agreedOn,
+        consent_version: consent?.data.formVersion ?? null,
+        self_consent: Boolean(p.data.selfConsent ?? submission?.data.selfConsent),
+        phone_source: p.data.phoneSource ?? submission?.data.phoneSource ?? null,
         assent_status: assent?.data.status,
         questions_status: surveyBy.get(p.id)?.data.status ?? 'not-started',
+        more_questions_status: moreBy.get(p.id)?.data.status ?? 'not-asked',
         sessions_n: mine.length,
         screenshots_n: mine.reduce((n, s) => n + s.images.length, 0),
         platform: mine.length ? mine[mine.length - 1].donation.data.platform : null,
+        opted_out: Boolean(optOutFor(p.data, optOuts)),
       };
     })
     .sort(byLabel);
 }
 
-export function phenotypeTable(snap: Snapshot): Row[] {
-  const ids = parentQuestionsForm.questions.map((q) => q.id);
-  return Array.from(latestSurveys(snap).entries())
+/** The columns of participants.tsv, in order. */
+export const PARTICIPANT_COLUMNS = ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'opted_out'];
+
+export function phenotypeTable(snap: Snapshot, form: ServedQuestionForm = parentQuestionsForm): Row[] {
+  const ids = form.questions.map((q) => q.id);
+  return Array.from(latestSurveys(snap, form.id).entries())
     .filter(([pid]) => snap.labels.has(pid))
     .map(([pid, s]) => ({
       participant_id: snap.labels.get(pid),
@@ -265,12 +280,17 @@ export function behTable(s: Session): Row[] {
 /* ── identifying/ tables ───────────────────────────────────────────────── */
 
 export function participantsKey(snap: Snapshot): Row[] {
+  const optOuts = optOutsOf(snap.optOuts ?? []);
   return snap.participants
     .map(({ id, data: d }) => ({
       participant_id: snap.labels.get(id) ?? null,
       firestore_id: id,
       reference_code: d.referenceCode,
       kind: d.kind,
+      self_consent: Boolean(d.selfConsent),
+      phone_source: d.phoneSource ?? null,
+      opted_out: Boolean(optOutFor(d, optOuts)),
+      opt_out_id: optOutFor(d, optOuts)?.id ?? null,
       first_name: d.firstName,
       last_name: d.lastName,
       date_of_birth: d.dateOfBirth,
@@ -393,18 +413,40 @@ export function datasetDescription(exportedAt: string): Record<string, unknown> 
 export function participantsDictionary(): Record<string, unknown> {
   return {
     participant_id: { Description: 'Participant label, assigned in order of consent. The key from labels to names is kept outside this dataset, in identifying/participants_key.tsv.' },
-    age: { Description: 'Age in whole years on the date the parent or guardian confirmed consent', Units: 'years' },
+    age: { Description: 'Age in whole years on the date of the record (the parent’s confirmed date, or the young person’s agreement when they decided alone)', Units: 'years' },
     year_group: { Description: 'School year group at consent (England)' },
     site: { Description: 'School identifier from the study’s school list; "other" when the school was typed in (the name is in identifying/)' },
-    route: { Description: 'Who started the form', Levels: { parent: 'A parent or guardian started and handed over', young: 'The young person started and handed over' } },
-    consented_on: { Description: 'Date the parent or guardian confirmed consent, from the current permission record' },
-    consent_version: { Description: 'Version of the consent form wording agreed to' },
-    assent_status: { Description: 'The young person’s own agreement in the app', Levels: { completed: 'Signed in the app', deferred: 'To be collected separately, for example on paper at school', 'not-started': 'Not reached' } },
-    questions_status: { Description: 'The parent or guardian’s quick questions (phenotype/parent_perceptions.tsv)', Levels: { completed: 'Answered', 'in-progress': 'Partly answered', skipped: 'Skipped', 'not-started': 'Not reached' } },
+    route: { Description: 'Who started the form', Levels: { parent: 'A parent or carer started it', young: 'The young person started it' } },
+    consented_on: { Description: 'Date of the record: the parent or carer’s confirmed date, or, for a 16- or 17-year-old deciding alone, the day they agreed' },
+    consent_version: { Description: 'Version of the parent’s permission form agreed to; n/a when the young person decided alone' },
+    self_consent: { Description: 'Whether the young person (16 or 17) decided about sharing their screen time themselves (from 7 October 2026)' },
+    phone_source: { Description: 'Where the screen time was to come from (from 7 October 2026)', Levels: { child: 'The young person’s own phone, with their agreement', parent: 'The parent or carer’s phone (Apple Family Sharing or Google Family Link), with the parent’s permission', none: 'Not shared: the parent said no or chose the longer questions instead' } },
+    assent_status: { Description: 'The young person’s own agreement to share their screen time, in the app', Levels: { completed: 'Signed in the app', deferred: 'Put off: not there, or deciding later', declined: 'Said no to sharing', 'not-started': 'Not asked (the screen time came from the parent’s phone, or was not shared)' } },
+    questions_status: { Description: 'The parent or carer’s quick questions (phenotype/parent_perceptions.tsv)', Levels: { completed: 'Answered', 'in-progress': 'Partly answered', skipped: 'Skipped', 'not-started': 'Not reached' } },
+    more_questions_status: { Description: 'The parent or carer’s longer questions, asked when the screen time was not shared (phenotype/parent_phone_use.tsv)', Levels: { completed: 'Answered', 'in-progress': 'Partly answered', skipped: 'Skipped', 'not-asked': 'Not asked' } },
     sessions_n: { Description: 'Occasions on which screenshots were sent; each is a session' },
     screenshots_n: { Description: 'Screenshots accepted in total' },
     platform: { Description: 'Phone type reported at the latest send', Levels: { ios: 'iPhone', android: 'Android', other: 'Something else, or not sure' } },
+    opted_out: { Description: 'Whether a parent or carer has opted the young person out of the workshop and the study by email (identifying/opt_outs.tsv): if true, their data is not to be used, and is withdrawn as far as possible' },
   };
+}
+
+/** The data dictionary for the longer questions (phenotype/parent_phone_use.tsv). */
+export function phoneUseDictionary(): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    MeasurementToolMetadata: { Description: `MyPhone/MyBrain parent questions on phone use (${parentMoreForm.id} ${parentMoreForm.version}): time and apps, night-time and sleep, and effects, asked of the parent or carer when the young person’s screen time was not shared. Wording is draft until approved by ethics.`, TermURL: CODE_URL },
+    participant_id: { Description: 'Participant label; see participants.tsv' },
+  };
+  for (const q of parentMoreForm.questions) {
+    const wording = moreQuestionWording[q.id];
+    const entry: Record<string, unknown> = { Description: `${moreQuestionTopics[q.id] ? `${moreQuestionTopics[q.id]}: ` : ''}${(wording?.text ?? q.id).replace(/\{child\}/g, 'the young person')}` };
+    if (q.type === 'choice') entry.Levels = Object.fromEntries(q.options.map((o) => [o, wording?.labels?.[o] ?? o]));
+    out[snake(q.id)] = entry;
+  }
+  out.status = { Description: 'Whether the questions were answered', Levels: { completed: 'All reached and answered or skipped individually', 'in-progress': 'Partly answered', skipped: 'Skipped as a whole' } };
+  out.form_version = { Description: 'Version of the questionnaire wording shown' };
+  out.completed_at = { Description: 'When the questions were finished (ISO 8601, UTC)' };
+  return out;
 }
 
 export function phenotypeDictionary(): Record<string, unknown> {
@@ -460,9 +502,12 @@ mirror of the current records. Do not edit files here.
 participants.tsv          one row per consenting young person: age at consent,
                           year group, site, consent and agreement status,
                           number of screenshot sends and screenshots
-phenotype/                the parent or guardian's quick questions about the
-                          young person's phone use, latest answers per
-                          participant, with a data dictionary
+phenotype/                the parent or carer's answers about the young
+                          person's phone use, latest per participant, each
+                          with a data dictionary: parent_perceptions (the quick
+                          questions every parent is asked) and parent_phone_use
+                          (the longer questions, asked when the screen time was
+                          not shared: time and apps, sleep, effects)
 sub-<label>/              one session (ses-01, ses-02, ...) per occasion on
                           which the family sent screenshots; each holds
                           beh/*_task-screentime_beh.tsv listing the images with
@@ -489,8 +534,9 @@ coordinators only. Regenerated every hour as a mirror of the database; do not
 edit files here.
 
 participants_key.tsv       the key from participant labels (sub-00001...) to
-                           names, date of birth, school, parent or guardian
-                           and contact details; declined families have no label
+                           names, date of birth, school, parent or carer and
+                           contact details, whether the young person decided
+                           alone (16 or 17), and whether they are opted out
 consents.tsv               every parent permission record; an amendment is a
                            new row and supersedes points at the one before
 consent_statements.tsv     one row per statement per permission record
@@ -499,6 +545,12 @@ assent_statements.tsv      one row per statement per agreement record
 submissions.tsv            one row per family: reference code, current record
                            ids, image counts
 enquiries.tsv              messages from the website's contact and school forms
+opt_outs.tsv               every opt-out from the workshop a parent or carer
+                           emailed, as the team logged it on the staff page,
+                           with the website record and the UPN it names, if any.
+                           Opted out means no workshop and no data at all
+                           (including linking); after the workshop, the data
+                           is withdrawn as far as possible
 signatures/                drawn signatures, named by participant label and record
 raw/                       every document as JSON Lines
 
@@ -510,9 +562,11 @@ its own folder, social-media-break/, with the same layout.
 
 const SCHOOLS_README = `# MyPhone/MyBrain: the young people's study
 
-Consent given online by parents or guardians and young people in Bradford
-and Leeds schools, the parents' quick questions, and the screen-time
-screenshots families shared. Regenerated automatically every hour; do not edit
+What families in Bradford and Leeds schools gave online: since 7 October
+2026, the opt-in for screen time (parents of under-16s, and 16- and
+17-year-olds for themselves), the parents' answers about phone use, and the
+screen-time screenshots; and the opt-outs from the workshop parents emailed,
+as the team logged them. Regenerated automatically every hour; do not edit
 or add files here.
 
 donations/     written by the website every hour: the research dataset in
@@ -617,14 +671,14 @@ export async function runExport(): Promise<Manifest> {
   const exportedAt = new Date().toISOString();
 
   const load = async (name: string): Promise<Doc[]> => (await db.collection(name).get()).docs.map((d) => ({ id: d.id, data: plain(d.data()) as DocumentData }));
-  const [participants, consents, assents, submissions, enquiries, surveys, donations, labParticipants, labConsents, labDonations, labReminders, labCheckIns, labStories, labBookings, labContacts, schoolUploads] = await Promise.all(
-    ['participants', 'consents', 'assents', 'submissions', 'enquiries', 'surveys', 'donations', 'labParticipants', 'labConsents', 'labDonations', 'labReminders', 'labCheckIns', 'labStories', 'labBookings', 'labContacts', 'schoolUploads'].map(load),
+  const [participants, consents, assents, submissions, enquiries, surveys, donations, labParticipants, labConsents, labDonations, labReminders, labCheckIns, labStories, labBookings, labContacts, schoolUploads, optOuts] = await Promise.all(
+    ['participants', 'consents', 'assents', 'submissions', 'enquiries', 'surveys', 'donations', 'labParticipants', 'labConsents', 'labDonations', 'labReminders', 'labCheckIns', 'labStories', 'labBookings', 'labContacts', 'schoolUploads', 'optOuts'].map(load),
   );
   const labels = await assignLabels(db, participants);
-  const snap: Snapshot = { participants, consents, assents, submissions, enquiries, surveys, donations, labels };
+  const snap: Snapshot = { participants, consents, assents, submissions, enquiries, surveys, donations, optOuts, labels };
   const sessions = sessionsOf(snap);
   const lab = labExport({ participants: labParticipants, consents: labConsents, donations: labDonations, reminders: labReminders, checkIns: labCheckIns, stories: labStories, bookings: labBookings, contacts: labContacts }, exportedAt);
-  const upn = upnExport(schoolUploads, participants, labels);
+  const upn = upnExport(schoolUploads, participants, labels, optOuts);
 
   const tsv = tsvFile;
   const json = jsonFile;
@@ -637,10 +691,12 @@ export async function runExport(): Promise<Manifest> {
     json(`${B}/dataset_description.json`, datasetDescription(exportedAt)),
     text(`${B}/README`, BIDS_README),
     text(`${B}/CHANGES`, `1.0.0 ${exportedAt.slice(0, 10)}\n  - Regenerated automatically every hour; see ../../manifest.json.\n`),
-    tsv(`${B}/participants.tsv`, participantsTable(snap), ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'assent_status', 'questions_status', 'sessions_n', 'screenshots_n', 'platform']),
+    tsv(`${B}/participants.tsv`, participantsTable(snap), PARTICIPANT_COLUMNS),
     json(`${B}/participants.json`, participantsDictionary()),
     tsv(`${B}/phenotype/parent_perceptions.tsv`, phenotypeTable(snap), ['participant_id', ...parentQuestionsForm.questions.map((q) => snake(q.id)), 'status', 'form_version', 'completed_at']),
     json(`${B}/phenotype/parent_perceptions.json`, phenotypeDictionary()),
+    tsv(`${B}/phenotype/parent_phone_use.tsv`, phenotypeTable(snap, parentMoreForm), ['participant_id', ...parentMoreForm.questions.map((q) => snake(q.id)), 'status', 'form_version', 'completed_at']),
+    json(`${B}/phenotype/parent_phone_use.json`, phoneUseDictionary()),
     text(`${B}/sourcedata/README.md`, SOURCEDATA_README, 'text/markdown; charset=utf-8'),
     jsonl(`${B}/sourcedata/raw/surveys.jsonl`, surveys),
     jsonl(`${B}/sourcedata/raw/donations.jsonl`, donations),
@@ -648,6 +704,8 @@ export async function runExport(): Promise<Manifest> {
     tsv(`${I}/participants_key.tsv`, participantsKey(snap)),
     tsv(`${I}/submissions.tsv`, submissionsTable(snap)),
     tsv(`${I}/enquiries.tsv`, enquiriesTable(enquiries)),
+    tsv(`${I}/opt_outs.tsv`, upn.optOutTable, ['opt_out_id', 'status', 'received_on', 'after_workshop', 'school_id', 'first_name', 'last_name', 'date_of_birth', 'year_group', 'class', 'parent_name', 'notes', 'recorded_at', 'website_participant_id', 'website_firestore_id', 'upn', 'upn_match']),
+    jsonl(`${I}/raw/opt_outs.jsonl`, optOuts),
     jsonl(`${I}/raw/participants.jsonl`, participants),
     jsonl(`${I}/raw/consents.jsonl`, consents),
     jsonl(`${I}/raw/assents.jsonl`, assents),

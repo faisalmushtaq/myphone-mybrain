@@ -1,6 +1,6 @@
 import { childFields, guardianFields } from '../config/fields';
 import { OTHER_SCHOOL_ID } from '../config/schools';
-import type { StatementForm } from '../config/statements';
+import { statementsFor, type StatementForm } from '../config/statements';
 import { study } from '../config/study';
 import type { AssentRecord, ConsentRecord, GuardianIdentity, ParticipantIdentity } from '../model/types';
 import { ageOn, partsToDate, toInt } from './dates';
@@ -130,16 +130,18 @@ export function statementField(statementId: string, kind: 'required' | 'optional
   return kind === 'required' ? `stmt-${statementId}` : `stmt-${statementId}-agreed`;
 }
 
-export function validateConsent(consent: ConsentRecord, form: StatementForm, groupedRequired = study.groupRequiredStatements): FieldError[] {
+/** `age` is the young person's age: statements asked only of under-16s' parents are left out from 16. */
+export function validateConsent(consent: ConsentRecord, form: StatementForm, groupedRequired = study.groupRequiredStatements, age: number | null = null): FieldError[] {
   const errors: FieldError[] = [];
-  const required = form.statements.filter((s) => s.kind === 'required');
+  const asked = statementsFor(form, age, study.selfConsentAge);
+  const required = asked.filter((s) => s.kind === 'required');
   const missingRequired = required.filter((s) => consent.responses[s.id]?.response !== 'agreed');
   if (groupedRequired) {
-    if (missingRequired.length) errors.push({ field: 'stmt-required-group', message: 'Tick the box to confirm the statements needed to take part.' });
+    if (missingRequired.length) errors.push({ field: 'stmt-required-group', message: 'Tick the box to confirm the statements above.' });
   } else {
-    for (const s of missingRequired) errors.push({ field: statementField(s.id, 'required'), message: `Tick “${s.label}” to continue. This one is needed to take part.` });
+    for (const s of missingRequired) errors.push({ field: statementField(s.id, 'required'), message: `Tick “${s.label}” to continue.` });
   }
-  for (const statement of form.statements) {
+  for (const statement of asked) {
     if (statement.kind === 'optional' && !consent.responses[statement.id]) {
       errors.push({ field: statementField(statement.id, 'optional'), message: `Choose Yes or No for “${statement.label}”.` });
     }

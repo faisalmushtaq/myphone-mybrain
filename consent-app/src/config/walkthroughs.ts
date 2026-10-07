@@ -111,3 +111,49 @@ export const walkthroughs: Record<PlatformId, Walkthrough> = {
     screenshotHint: 'Any screen that shows a list of apps with the time used on each one is what we are looking for.',
   },
 };
+
+/**
+ * For a parent or carer sending an under-16's screen time from their own
+ * phone (decided 7 October 2026): where it is in Apple Family Sharing (the
+ * young person has an iPhone) or Google Family Link (an Android phone). The
+ * chip chosen is the young person's phone.
+ */
+export const familyWalkthroughs: Record<'ios' | 'android', Walkthrough> = {
+  ios: {
+    id: 'ios',
+    name: 'Apple Family Sharing',
+    screenName: 'Screen Time',
+    intro: 'If your child’s iPhone is in your Family Sharing group, your own iPhone shows their screen time in Settings.',
+    steps: [
+      { title: 'Open Settings on your iPhone', detail: 'Tap the grey gear icon.', illustration: 'settings' },
+      { title: 'Tap “Screen Time”', detail: 'It has a purple hourglass icon.', illustration: 'screen-time-row' },
+      {
+        title: 'Tap your child’s name',
+        detail: 'It is listed under “Family”, further down the page.',
+        note: 'No “Family” list? Then Screen Time is not shared with you: go back and choose another way, or skip this part.',
+        illustration: 'screen-time-row',
+      },
+      { title: 'Tap “See All App & Website Activity”, then “Week”', detail: 'So the summary shows the last 7 days.', illustration: 'week-view' },
+      { title: 'Take a screenshot', detail: 'With the list of apps on the screen, press the side button and the volume-up button at the same time.', note: 'On an iPhone with a home button, press the home button and the side button together.', illustration: 'screenshot' },
+      { title: 'Scroll down and take one more', detail: 'If the list of apps carries on below the screen, take another so we can see every app.', illustration: 'scroll' },
+    ],
+    screenshotHint: 'The screenshots we need show your child’s list of apps with the time next to each one, for the week.',
+    websitesNote: 'The list may also show websites. We only need the apps: hide any row you would rather not show.',
+  },
+  android: {
+    id: 'android',
+    name: 'Google Family Link',
+    screenName: 'Family Link',
+    intro: 'If you manage your child’s Android phone with Google Family Link, the Family Link app on your phone (Android or iPhone) shows their screen time.',
+    steps: [
+      { title: 'Open the Family Link app on your phone', detail: 'Its icon is a green, yellow and blue shape.', illustration: 'settings' },
+      { title: 'Choose your child', detail: 'Tap their name or picture at the top.', illustration: 'wellbeing-row' },
+      { title: 'Open their screen time', detail: 'Tap “Screen time”, or “App activity”, to see the list of apps and the time on each.', note: 'The names vary a little between versions of the app.', illustration: 'dashboard' },
+      { title: 'Choose the last 7 days', detail: 'If there is a choice of days, choose the week.', note: 'If it only shows one day, that is fine.', illustration: 'week-view' },
+      { title: 'Take a screenshot', detail: 'On an Android phone, press the power and volume-down buttons together. On an iPhone, the side and volume-up buttons.', illustration: 'screenshot' },
+      { title: 'Scroll down and take one more', detail: 'If the list of apps carries on below the screen, take another so we can see every app.', illustration: 'scroll' },
+    ],
+    screenshotHint: 'The screenshots we need show your child’s list of apps with the time next to each one.',
+  },
+};
+

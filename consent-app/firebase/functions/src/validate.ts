@@ -1,4 +1,4 @@
-import { childAssentForm, parentConsentForm, parentQuestionsForm, informationVersion, REFERENCE_CODE, study } from './forms.js';
+import { childAssentForm, parentConsentForm, parentMoreForm, parentQuestionsForm, informationVersion, REFERENCE_CODE, study, type ServedQuestionForm } from './forms.js';
 
 /**
  * Server-side validation. Mirrors the browser rules in src/lib/validation.ts
@@ -6,9 +6,15 @@ import { childAssentForm, parentConsentForm, parentQuestionsForm, informationVer
  * ids and versions, signatures and upload references.
  *
  * Two payloads arrive at different moments (see src/api/types.ts in the app):
- *   - the permission and agreement (validateConsentPayload), sent as soon as
- *     the young person has signed, declined or deferred, and again as an
- *     amendment when something is changed;
+ *   - the record (validateConsentPayload): the parent's permission and
+ *     answers, and the young person's agreement when they are asked for it,
+ *     sent as soon as it is complete, and again as an amendment when
+ *     something is changed. Since 7 October 2026 the workshop is opt-out (by
+ *     email) and this form is the opt-in for screen time: 16- and
+ *     17-year-olds decide alone (no parent, no permission record); for
+ *     under-16s the parent's yes comes first, and the screen time comes from
+ *     the parent's own phone, the young person's (with their agreement), or
+ *     nowhere (the parent answers the longer questions instead);
  *   - the screenshots (validateDonationPayload), sent from the screen-time
  *     screen and linked by the reference code.
  * Each function returns a list of plain-English problems; empty means accepted.
@@ -36,8 +42,20 @@ export interface ClientInfo {
   timezoneOffset: number;
 }
 
+export type SurveyPayload = {
+  formId: string;
+  formVersion: string;
+  status: 'not-started' | 'in-progress' | 'completed' | 'skipped';
+  responses: Record<string, { questionId: string; version: string; value: string; answeredAt: string }>;
+  startedAt: string | null;
+  completedAt: string | null;
+};
+
+/** Where the young person's screen time comes from: their own phone, the parent's family view, or nowhere. */
+export type PhoneSource = 'parent' | 'child' | 'none';
+
 export interface ConsentPayload {
-  kind: 'consent' | 'declined';
+  kind: 'consent';
   /** Set when amending a record this session already sent. */
   referenceCode: string | null;
   studyId: string;
@@ -67,15 +85,11 @@ export interface ConsentPayload {
     startedAt: string | null;
     completedAt: string | null;
   };
-  /** The parent's quick questions; research data, never sent with a declined record. */
-  survey: {
-    formId: string;
-    formVersion: string;
-    status: 'not-started' | 'in-progress' | 'completed' | 'skipped';
-    responses: Record<string, { questionId: string; version: string; value: string; answeredAt: string }>;
-    startedAt: string | null;
-    completedAt: string | null;
-  } | null;
+  /** The parent's quick questions; null when a young person decides alone. */
+  survey: SurveyPayload | null;
+  phoneSource: PhoneSource | null;
+  /** The parent's longer questions, when the screen time is not coming through the form. */
+  more: SurveyPayload | null;
   client: ClientInfo;
 }
 
@@ -102,7 +116,7 @@ export const str = (v: unknown, max: number) => typeof v === 'string' && v.lengt
 export const blank = (v: string) => v.trim().length === 0;
 export const validTime = (v: unknown) => typeof v === 'string' && !Number.isNaN(Date.parse(v));
 
-function ageOn(dob: Date, today = new Date()): number {
+export function ageOn(dob: Date, today = new Date()): number {
   const age = today.getUTCFullYear() - dob.getUTCFullYear();
   const before = today.getUTCMonth() < dob.getUTCMonth() || (today.getUTCMonth() === dob.getUTCMonth() && today.getUTCDate() < dob.getUTCDate());
   return before ? age - 1 : age;
@@ -166,12 +180,49 @@ export function validateClient(cl: unknown, problems: string[]): void {
   if (!isObj(cl) || !str(cl.userAgent, 400) || !validTime(cl.submittedAt) || typeof cl.timezoneOffset !== 'number') problems.push('Client information is malformed.');
 }
 
+/** One of the parent's question forms: the right form and version, known questions, answers from the list (or short text), valid times. */
+function validateSurvey(sv: unknown, form: ServedQuestionForm, what: string, problems: string[]): void {
+  if (!isObj(sv)) {
+    problems.push(`The ${what} record is malformed.`);
+    return;
+  }
+  if (sv.formId !== form.id || sv.formVersion !== form.version) problems.push(`The ${what} form must be ${form.id} ${form.version}.`);
+  if (!['not-started', 'in-progress', 'completed', 'skipped'].includes(String(sv.status))) problems.push(`Unknown ${what} status.`);
+  if (!isObj(sv.responses)) problems.push(`The ${what} responses are missing.`);
+  else {
+    for (const key of Object.keys(sv.responses)) {
+      const q = form.questions.find((qq) => qq.id === key);
+      const r = sv.responses[key];
+      if (!q) {
+        problems.push(`Unknown question "${key}".`);
+        continue;
+      }
+      if (!isObj(r)) {
+        problems.push(`Malformed answer for "${key}".`);
+        continue;
+      }
+      const valueOk = q.type === 'text' ? typeof r.value === 'string' && !blank(r.value) && r.value.length <= q.maxLength : q.options.includes(String(r.value));
+      if (r.questionId !== key || !valueOk || !validTime(r.answeredAt)) problems.push(`Malformed answer for "${key}".`);
+      else if (r.version !== q.version) problems.push(`Question "${key}" was shown as version ${String(r.version)} but the current version is ${q.version}.`);
+    }
+  }
+  if (sv.startedAt !== null && !validTime(sv.startedAt)) problems.push(`The ${what} record has no valid start time.`);
+  if (sv.completedAt !== null && !validTime(sv.completedAt)) problems.push(`The ${what} record has no valid completion time.`);
+}
+
+/** Who decides about the screen time, worked out from the record itself: 16 or over decides alone. */
+export function selfConsentOf(payload: Pick<ConsentPayload, 'identity'>, today = new Date()): boolean {
+  const dob = isObj(payload.identity) && isObj(payload.identity.dateOfBirth) ? parseDate(payload.identity.dateOfBirth) : null;
+  return study.selfConsentAge !== null && dob !== null && ageOn(dob, today) >= study.selfConsentAge;
+}
+
 export function validateConsentPayload(input: unknown): string[] {
   const problems: string[] = [];
   if (!isObj(input)) return ['The submission is not an object.'];
   const p = input as Partial<ConsentPayload>;
 
-  if (p.kind !== 'consent' && p.kind !== 'declined') problems.push('Unknown submission kind.');
+  // Since the workshop became opt-out (7 October 2026) there is no "declined" record: a young person who says no to sharing is part of the parent's record, or nothing is sent.
+  if (p.kind !== 'consent') problems.push('Unknown submission kind.');
   if (p.referenceCode !== null && p.referenceCode !== undefined && (typeof p.referenceCode !== 'string' || !REFERENCE_CODE.test(p.referenceCode))) problems.push('The reference code is malformed.');
   if (p.studyId !== study.studyId) problems.push('Unknown study.');
   if (typeof p.siteId !== 'string' || !study.siteIds.includes(p.siteId)) problems.push('Unknown site.');
@@ -186,54 +237,68 @@ export function validateConsentPayload(input: unknown): string[] {
     if (!str(id.schoolId, 40) || blank(id.schoolId as string)) problems.push('The school is missing.');
     if (id.schoolId === 'other' && (!str(id.schoolOther, limits.school) || (id.schoolOther as string).trim().length < study.schoolMin)) problems.push(`The school name needs at least ${study.schoolMin} letters.`);
     if (!str(id.yearGroup, 20)) problems.push('The year group is malformed.');
-    if (p.kind === 'consent') {
-      const dob = isObj(id.dateOfBirth) ? parseDate(id.dateOfBirth as ConsentPayload['identity']['dateOfBirth']) : null;
-      if (!dob) problems.push('The date of birth is not a valid date.');
-      else {
-        const age = ageOn(dob);
-        if (age < study.minAge || age > study.maxAge) problems.push(`The young person must be aged ${study.minAge} to ${study.maxAge}.`);
-      }
+    const dob = isObj(id.dateOfBirth) ? parseDate(id.dateOfBirth as ConsentPayload['identity']['dateOfBirth']) : null;
+    if (!dob) problems.push('The date of birth is not a valid date.');
+    else {
+      const age = ageOn(dob);
+      if (age < study.minAge || age > study.maxAge) problems.push(`The young person must be aged ${study.minAge} to ${study.maxAge}.`);
     }
   }
+  const selfConsent = isObj(id) ? selfConsentOf(p as ConsentPayload) : false;
+  const alone = selfConsent && p.route === 'young';
 
-  // Guardian. The email address is optional; when given it must be valid. Nothing is emailed to families.
+  // Guardian: none when a 16- or 17-year-old decides alone. The email address is optional; when given it must be valid. Nothing is emailed to families.
   const g = p.guardian;
-  if (!isObj(g)) problems.push('Parent or guardian details are missing.');
-  else {
-    if (!str(g.fullName, limits.name) || blank(g.fullName as string)) problems.push('The parent or guardian’s name is missing.');
+  if (!isObj(g)) problems.push('Parent or carer details are missing.');
+  else if (alone) {
+    if (!blank(String(g.fullName ?? '')) || !blank(String(g.email ?? '')) || !blank(String(g.phone ?? '')) || !blank(String(g.postcode ?? ''))) problems.push('A young person deciding alone sends no parent or carer details.');
+  } else {
+    if (!str(g.fullName, limits.name) || blank(g.fullName as string)) problems.push('The parent or carer’s name is missing.');
     if (typeof g.relationship !== 'string' || !RELATIONSHIPS.includes(g.relationship)) problems.push('The relationship is not one of the allowed values.');
     if (g.relationship === 'other' && (!str(g.relationshipOther, limits.relationship) || blank(g.relationshipOther as string))) problems.push('The relationship description is missing.');
-    if (p.kind === 'consent' && g.hasParentalResponsibility !== true) problems.push('Parental responsibility was not confirmed.');
+    if (g.hasParentalResponsibility !== true) problems.push('Parental responsibility was not confirmed.');
     if (!str(g.email, limits.email)) problems.push('The email address is malformed.');
     else if (!blank(g.email as string) && !EMAIL.test((g.email as string).trim())) problems.push('The email address is not valid.');
     if (!str(g.phone, limits.phone) || (!blank(g.phone as string) && !PHONE.test((g.phone as string).trim()))) problems.push('The phone number is not valid.');
     if (!str(g.postcode, limits.postcode) || (!blank(g.postcode as string) && !UK_POSTCODE.test((g.postcode as string).trim()))) problems.push('The postcode is not valid.');
   }
 
-  // Consent record
-  if (p.kind === 'consent') {
-    const c = p.consent;
-    if (!isObj(c)) problems.push('The permission record is missing.');
-    else {
-      if (c.formId !== parentConsentForm.id || c.formVersion !== parentConsentForm.version) problems.push(`The permission form must be ${parentConsentForm.id} ${parentConsentForm.version}.`);
-      if (c.informationVersion !== informationVersion) problems.push(`The information shown must be version ${informationVersion}.`);
-      validateResponses(c.responses, parentConsentForm, problems, 'Permission');
-      const responses = isObj(c.responses) ? (c.responses as Record<string, StatementRecord>) : {};
-      for (const s of parentConsentForm.statements) {
-        const r = responses[s.id];
-        if (s.kind === 'required' && r?.response !== 'agreed') problems.push(`Required statement "${s.id}" was not agreed.`);
-        if (s.kind === 'optional' && !r) problems.push(`Optional statement "${s.id}" was not answered.`);
+  // The parent's permission: none when deciding alone; otherwise the statements asked at this age, signed.
+  const c = p.consent;
+  let phoneAnswer: string | undefined;
+  if (alone) {
+    if (c !== null && c !== undefined) problems.push('A young person deciding alone sends no permission record.');
+  } else if (!isObj(c)) problems.push('The permission record is missing.');
+  else {
+    if (c.formId !== parentConsentForm.id || c.formVersion !== parentConsentForm.version) problems.push(`The permission form must be ${parentConsentForm.id} ${parentConsentForm.version}.`);
+    if (c.informationVersion !== informationVersion) problems.push(`The information shown must be version ${informationVersion}.`);
+    validateResponses(c.responses, parentConsentForm, problems, 'Permission');
+    const responses = isObj(c.responses) ? (c.responses as Record<string, StatementRecord>) : {};
+    for (const s of parentConsentForm.statements) {
+      const r = responses[s.id];
+      if (s.underSelfConsentAge && selfConsent) {
+        if (r) problems.push(`Statement "${s.id}" is not asked when the young person is ${study.selfConsentAge} or over: they decide for themselves.`);
+        continue;
       }
-      if (!str(c.typedName, limits.name) || blank(c.typedName as string)) problems.push('The signer’s name is missing.');
-      validateSignature(c.signature, 'Permission', problems);
-      if (typeof c.confirmedDate !== 'string' || !ISO_DATE.test(c.confirmedDate) || Date.parse(c.confirmedDate) > Date.now() + 24 * 3600 * 1000) problems.push('The confirmed date is not valid.');
-      if (!validTime(c.completedAt)) problems.push('The permission record has no completion time.');
+      if (s.kind === 'required' && r?.response !== 'agreed') problems.push(`Required statement "${s.id}" was not agreed.`);
+      if (s.kind === 'optional' && !r) problems.push(`Optional statement "${s.id}" was not answered.`);
     }
-  } else if (p.consent !== null && p.consent !== undefined) {
-    problems.push('A declined submission must not carry a permission record.');
+    phoneAnswer = responses['phone-use']?.response;
+    if (!str(c.typedName, limits.name) || blank(c.typedName as string)) problems.push('The signer’s name is missing.');
+    validateSignature(c.signature, 'Permission', problems);
+    if (typeof c.confirmedDate !== 'string' || !ISO_DATE.test(c.confirmedDate) || Date.parse(c.confirmedDate) > Date.now() + 24 * 3600 * 1000) problems.push('The confirmed date is not valid.');
+    if (!validTime(c.completedAt)) problems.push('The permission record has no completion time.');
   }
 
-  // Assent record
+  // Where the screen time comes from, as the answers say: 16 or over, their own phone; under 16, nowhere after the parent's no; the young person's phone on their own route; otherwise the parent's choice.
+  let source: PhoneSource | null = null;
+  if (selfConsent) source = 'child';
+  else if (phoneAnswer === 'declined') source = 'none';
+  else if (phoneAnswer === 'agreed') source = p.route === 'young' ? 'child' : p.phoneSource === 'parent' || p.phoneSource === 'child' || p.phoneSource === 'none' ? p.phoneSource : null;
+  if (!source && isObj(c) && !alone) problems.push('Where the screen time comes from is missing.');
+  else if (source && p.phoneSource !== source) problems.push('Where the screen time comes from does not match the answers.');
+
+  // The young person's agreement: asked whenever the screenshots are to come from their phone.
   const a = p.assent;
   if (!isObj(a)) problems.push('The agreement record is missing.');
   else {
@@ -241,11 +306,9 @@ export function validateConsentPayload(input: unknown): string[] {
     if (!['not-started', 'completed', 'deferred', 'declined'].includes(String(a.status))) problems.push('Unknown agreement status.');
     validateResponses(a.responses, childAssentForm, problems, 'Agreement');
     const responses = isObj(a.responses) ? (a.responses as Record<string, StatementRecord>) : {};
-    if (p.kind === 'declined') {
-      if (a.status !== 'declined' || responses['take-part']?.response !== 'declined') problems.push('A declined submission must carry a declined agreement.');
-    } else if (a.status === 'declined') {
-      problems.push('A declined agreement must be sent as a declined submission.');
-    } else if (a.status === 'completed') {
+    if (alone && a.status !== 'completed') problems.push('A young person deciding alone sends their record only once they have agreed.');
+    if (source === 'child' && a.status === 'not-started') problems.push('The young person’s agreement was not completed, put off or declined.');
+    if (a.status === 'completed') {
       for (const sid of childAssentForm.signed) {
         if (responses[sid]?.response !== 'agreed' || responses[sid]?.via !== 'signature') problems.push(`Agreement statement "${sid}" was not signed.`);
       }
@@ -253,41 +316,19 @@ export function validateConsentPayload(input: unknown): string[] {
       if (!validTime(a.completedAt)) problems.push('The agreement has no completion time.');
     } else if (a.status === 'deferred') {
       if (a.deferredBy !== 'parent' && a.deferredBy !== 'young') problems.push('A deferred agreement must say who deferred it.');
-    } else if (a.status === 'not-started') {
-      problems.push('The agreement was not completed, deferred or declined.');
+    } else if (a.status === 'declined') {
+      if (responses['take-part']?.response !== 'declined') problems.push('A declined agreement must record the young person’s no.');
     }
   }
 
-  // The parent's quick questions (optional; only with a permission record)
-  const sv = p.survey;
-  if (p.kind === 'declined') {
-    if (sv !== null && sv !== undefined) problems.push('A declined submission must not carry the questions.');
-  } else if (sv !== null && sv !== undefined) {
-    if (!isObj(sv)) problems.push('The questions record is malformed.');
-    else {
-      if (sv.formId !== parentQuestionsForm.id || sv.formVersion !== parentQuestionsForm.version) problems.push(`The questions form must be ${parentQuestionsForm.id} ${parentQuestionsForm.version}.`);
-      if (!['not-started', 'in-progress', 'completed', 'skipped'].includes(String(sv.status))) problems.push('Unknown questions status.');
-      if (!isObj(sv.responses)) problems.push('Question responses are missing.');
-      else {
-        for (const key of Object.keys(sv.responses)) {
-          const q = parentQuestionsForm.questions.find((qq) => qq.id === key);
-          const r = sv.responses[key];
-          if (!q) {
-            problems.push(`Unknown question "${key}".`);
-            continue;
-          }
-          if (!isObj(r)) {
-            problems.push(`Malformed answer for "${key}".`);
-            continue;
-          }
-          const valueOk = q.type === 'text' ? typeof r.value === 'string' && !blank(r.value) && r.value.length <= q.maxLength : q.options.includes(String(r.value));
-          if (r.questionId !== key || !valueOk || !validTime(r.answeredAt)) problems.push(`Malformed answer for "${key}".`);
-          else if (r.version !== q.version) problems.push(`Question "${key}" was shown as version ${String(r.version)} but the current version is ${q.version}.`);
-        }
-      }
-      if (sv.startedAt !== null && !validTime(sv.startedAt)) problems.push('The questions record has no valid start time.');
-      if (sv.completedAt !== null && !validTime(sv.completedAt)) problems.push('The questions record has no valid completion time.');
-    }
+  // The parent's questions: none when deciding alone.
+  for (const [value, form, what] of [
+    [p.survey, parentQuestionsForm, 'questions'],
+    [p.more, parentMoreForm, 'longer questions'],
+  ] as const) {
+    if (value === null || value === undefined) continue;
+    if (alone) problems.push(`A young person deciding alone sends no ${what}.`);
+    else validateSurvey(value, form, what, problems);
   }
 
   validateClient(p.client, problems);
@@ -317,7 +358,7 @@ export function validateDonationPayload(input: unknown): string[] {
     }
   }
 
-  // The young person's agreement travels with the screenshots when they signed in the app; otherwise it is collected separately and nothing waits for it.
+  // The young person's agreement travels with the screenshots from their own phone; the parent's family view needs none.
   const served = childAssentForm.statements.find((s) => s.id === 'phone-use');
   const a = p.agreement;
   if (a !== null && a !== undefined) {

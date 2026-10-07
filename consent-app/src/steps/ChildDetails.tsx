@@ -8,6 +8,7 @@ import { dateOfBirthRange } from '../lib/dates';
 import { Icon } from '../components/ui/Icon';
 import { childFields, yearGroups } from '../config/fields';
 import { OTHER_SCHOOL_ID, schoolFromLink, schools } from '../config/schools';
+import { decidesAlone } from '../model/journey';
 import { useStore } from '../state/context';
 import { limits, validateChildDetails, validateGuardian, type FieldError } from '../lib/validation';
 
@@ -61,7 +62,7 @@ export function ChildDetails() {
         <p>
           {young
             ? 'So the team can match you with your school and your answers. Your name and date of birth are kept in a separate, locked-away list; your answers get a code number instead.'
-            : 'So the team can match your child with their school and their answers, and record who gave permission. Names and contact details are kept apart from research information, which is labelled with a code.'}
+            : 'So the team can match your child with their school and the rest of the study, and record who gave permission. Names and contact details are kept apart from research information, which is labelled with a code.'}
         </p>
       }
       errors={errors}
@@ -129,7 +130,8 @@ export function ChildDetails() {
       {young && (
         <Callout tone="info">
           <p>
-            <Icon name="hand" size={18} /> After this, you will hand the phone to your parent or guardian for their part. Then it comes back to you.
+            <Icon name="hand" size={18} />{' '}
+            {decidesAlone(state) ? 'You are 16 or over, so you can decide for yourself: no parent or carer needed.' : 'If you are under 16, after this you hand the phone to your parent or carer for their part. Then it comes back to you.'}
           </p>
         </Callout>
       )}

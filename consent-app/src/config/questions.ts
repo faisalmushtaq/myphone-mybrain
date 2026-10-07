@@ -1,5 +1,5 @@
 /**
- * A few quick questions for the parent or guardian about how they see the
+ * A few quick questions for the parent or carer about how they see the
  * young person's phone use, asked straight after their permission. Optional,
  * and clearly separate from the permission: the answers are research
  * information, stored with the participant's code rather than their name.
@@ -19,6 +19,8 @@ interface QuestionBase {
   version: string;
   /** Short label for summaries. */
   label: string;
+  /** The part of a longer form the question belongs to, shown above it. */
+  topic?: string;
   /** "{child}" is replaced with the young person's first name. */
   text: string;
 }
@@ -95,3 +97,173 @@ export const parentQuestionsForm: { id: string; version: string; draft: boolean;
     },
   ],
 };
+
+const dontKnow = { value: 'unsure', label: 'I don’t know' };
+const hours = [
+  { value: 'under-1', label: 'Less than 1 hour' },
+  { value: '1-2', label: '1 to 2 hours' },
+  { value: '2-3', label: '2 to 3 hours' },
+  { value: '3-4', label: '3 to 4 hours' },
+  { value: '4-6', label: '4 to 6 hours' },
+  { value: 'over-6', label: 'More than 6 hours' },
+  dontKnow,
+];
+
+/**
+ * The longer questions for the parent or carer, asked whenever the young
+ * person's screen time is not coming through this form: the parent said no
+ * to the screenshots, or could not send them from their own phone, or the
+ * young person said no, was not there, or skipped them (decided 7 October
+ * 2026: time and apps, night-time and sleep, and effects; not rules at
+ * home). Every question can be skipped. PLACEHOLDER wording, to be replaced
+ * with the team's own (validated) items. Keep in step with the server, which
+ * reads this file at build time.
+ */
+export const parentMoreForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
+  id: 'mpmb-parent-phone-use',
+  version: '0.1-draft',
+  draft: true,
+  questions: [
+    {
+      id: 'own-phone-age',
+      version: '0.1-draft',
+      type: 'choice',
+      topic: 'Time and apps',
+      label: 'Age at own smartphone',
+      text: 'How old was {child} when they got their own smartphone?',
+      options: [
+        { value: 'under-9', label: 'Under 9' },
+        { value: '9-10', label: '9 or 10' },
+        { value: '11', label: '11' },
+        { value: '12', label: '12' },
+        { value: '13-plus', label: '13 or older' },
+        { value: 'none', label: 'They don’t have their own' },
+        dontKnow,
+      ],
+    },
+    { id: 'school-day-time', version: '0.1-draft', type: 'choice', topic: 'Time and apps', label: 'Time on a school day', text: 'On a school day, roughly how long is {child} on their phone, outside school hours?', options: hours },
+    { id: 'weekend-time', version: '0.1-draft', type: 'choice', topic: 'Time and apps', label: 'Time on a weekend day', text: 'On a weekend day, roughly how long is {child} on their phone?', options: hours },
+    {
+      id: 'top-app',
+      version: '0.1-draft',
+      type: 'choice',
+      topic: 'Time and apps',
+      label: 'App used most',
+      text: 'Which app does {child} spend most time on?',
+      options: [
+        { value: 'tiktok', label: 'TikTok' },
+        { value: 'youtube', label: 'YouTube' },
+        { value: 'instagram', label: 'Instagram' },
+        { value: 'snapchat', label: 'Snapchat' },
+        { value: 'whatsapp', label: 'WhatsApp' },
+        { value: 'games', label: 'Games' },
+        { value: 'other', label: 'Something else' },
+        dontKnow,
+      ],
+    },
+    {
+      id: 'phone-in-bedroom',
+      version: '0.1-draft',
+      type: 'choice',
+      topic: 'Night-time and sleep',
+      label: 'Phone in the bedroom at night',
+      text: 'How often does {child}’s phone stay in their bedroom overnight?',
+      options: [
+        { value: 'never', label: 'Never' },
+        { value: 'some-nights', label: 'Some nights' },
+        { value: 'most-nights', label: 'Most nights' },
+        { value: 'every-night', label: 'Every night' },
+        dontKnow,
+      ],
+    },
+    {
+      id: 'after-bedtime',
+      version: '0.1-draft',
+      type: 'choice',
+      topic: 'Night-time and sleep',
+      label: 'On the phone after bedtime',
+      text: 'How often is {child} on their phone when they should be asleep?',
+      options: [
+        { value: 'never', label: 'Never' },
+        { value: 'rarely', label: 'Rarely' },
+        { value: 'sometimes', label: 'Sometimes' },
+        { value: 'often', label: 'Often' },
+        { value: 'most-nights', label: 'Most nights' },
+        dontKnow,
+      ],
+    },
+    {
+      id: 'sleep-effect',
+      version: '0.1-draft',
+      type: 'choice',
+      topic: 'Night-time and sleep',
+      label: 'Effect on sleep',
+      text: 'How much do you think {child}’s phone use affects their sleep?',
+      options: [
+        { value: 'not-at-all', label: 'Not at all' },
+        { value: 'a-little', label: 'A little' },
+        { value: 'somewhat', label: 'Somewhat' },
+        { value: 'a-lot', label: 'A lot' },
+        dontKnow,
+      ],
+    },
+    {
+      id: 'mood-after',
+      version: '0.1-draft',
+      type: 'choice',
+      topic: 'Effects',
+      label: 'Mood after phone use',
+      text: 'After time on their phone, how does {child} usually seem?',
+      options: [
+        { value: 'much-worse', label: 'Much worse' },
+        { value: 'a-bit-worse', label: 'A bit worse' },
+        { value: 'no-different', label: 'No different' },
+        { value: 'a-bit-better', label: 'A bit better' },
+        { value: 'much-better', label: 'Much better' },
+        dontKnow,
+      ],
+    },
+    {
+      id: 'helps',
+      version: '0.1-draft',
+      type: 'choice',
+      topic: 'Effects',
+      label: 'How much it helps',
+      text: 'How much does {child}’s phone help them, for example to keep in touch, learn or relax?',
+      options: [
+        { value: 'not-at-all', label: 'Not at all' },
+        { value: 'a-little', label: 'A little' },
+        { value: 'somewhat', label: 'Somewhat' },
+        { value: 'a-lot', label: 'A lot' },
+        dontKnow,
+      ],
+    },
+    {
+      id: 'good-or-bad',
+      version: '0.1-draft',
+      type: 'choice',
+      topic: 'Effects',
+      label: 'Good or bad overall',
+      text: 'Overall, do you think {child}’s phone use is good or bad for them?',
+      options: [
+        { value: 'very-bad', label: 'Very bad' },
+        { value: 'quite-bad', label: 'Quite bad' },
+        { value: 'neither', label: 'Neither' },
+        { value: 'quite-good', label: 'Quite good' },
+        { value: 'very-good', label: 'Very good' },
+        dontKnow,
+      ],
+    },
+    {
+      id: 'more-notes',
+      version: '0.1-draft',
+      type: 'text',
+      topic: 'Effects',
+      label: 'Anything else',
+      text: 'Is there anything else about {child}’s phone use, their sleep or how it affects them that you would like to tell us?',
+      hint: 'Optional. Please don’t include names or anything that could identify someone else.',
+      maxLength: 500,
+    },
+  ],
+};
+

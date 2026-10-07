@@ -21,12 +21,14 @@ export const study = {
   maxAge: 17,
 
   /**
-   * Age from which a young person may consent for themselves. Not enabled:
-   * the journey always captures parent/guardian consent for under-18s. If the
-   * ethics committee approves self-consent (for example at 16), this value is
-   * the place to implement it.
+   * Age from which a young person decides for themselves about sharing their
+   * screen time, without a parent or carer (decided 7 October 2026). Under
+   * this age a parent or carer gives permission first: from their own phone
+   * if they can see the young person's screen time there (Apple Family
+   * Sharing, Google Family Link), otherwise the young person shares from
+   * theirs if they want to. See docs/decisions.md.
    */
-  selfConsentAge: null as number | null,
+  selfConsentAge: 16 as number | null,
 
   /**
    * Minutes without any interaction before the form clears itself. Protects
@@ -50,24 +52,24 @@ export const study = {
   allowTypedSignature: true,
 
   /**
-   * When the young person is not present (parent route), allow their
-   * agreement to be collected separately (for example at school). The record
-   * stores assent as "deferred" and the phone-use steps are skipped.
+   * Let the young person decide later, or the parent say they are not there:
+   * the record stores their agreement as "deferred", nothing is shared from
+   * their phone, and the parent answers the longer questions instead.
    */
   allowDeferredAssent: true,
 
-  /** Ask the parent or guardian a few one-tap questions about how they see the young person's phone use, straight after their permission. */
+  /** Ask every parent or carer a few one-tap questions about how they see the young person's phone use, straight after their permission. */
   parentQuestions: true,
 
   /**
-   * Whether the screen-time step waits until the young person has given their
-   * agreement in the app. Off: the young person's agreement may be collected
-   * separately (for example on paper at school), so a parent can complete
-   * everything, screenshots included, when the young person is not there or
-   * wants to decide later. The app records what it knows and never treats an
-   * agreement that is not in the app as missing.
+   * The workshop at school (and linking with records) is opt-out: a parent or
+   * carer emails the team, after two warnings on this site. No form, no
+   * paper slip (decided 7 October 2026).
    */
-  screenshotsWaitForAssent: false,
+  optOut: {
+    email: 'brainpop@leeds.ac.uk',
+    subject: 'Opt out: MyPhone/MyBrain workshop',
+  },
 
   /** Upload limits enforced in the browser (and again on the server). */
   upload: {

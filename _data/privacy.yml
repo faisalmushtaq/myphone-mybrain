@@ -1,12 +1,12 @@
 heading: "Data, privacy and choice"
 subheading: "You choose whether to take part and what to share."
 intro: |
-  MyPhone/MyBrain may use different kinds of information. This can include survey answers, EEG recordings, task results and optional digital data. With the right consent and approvals, it may also include linked education and health records. We explain the information that applies to each activity before anyone decides.
+  MyPhone/MyBrain may use different kinds of information. This can include survey answers, EEG recordings, task results and optional digital data. For young people who take part in the workshop it may also include linked education and health records, with the approvals in place; a parent or carer can opt their child out of the workshop, and so out of linking, by email. Sharing phone data is opt-in. We explain the information that applies to each activity before anyone decides.
 
 promise:
   - number: "1"
     heading: "Taking part is your choice"
-    body: "Young people and families decide whether to take part. Phone data donation is optional and separate from the other parts of the study."
+    body: "Parents and carers can opt their child out of the workshop, and young people can say no or stop at any time. Phone data donation is optional, separate, and only happens if the family opts in."
   - number: "2"
     heading: "You decide what feels right"
     body: "Young people can choose the parts of the study they are happy to do. Families see each screenshot before it is sent, and can hide any part of it."
@@ -30,7 +30,7 @@ promise:
     body: "Young people, parent representatives and school leaders will help us decide how to share findings in a fair and respectful way."
 
 data_flow:
-  - label: "Permission from pupils and families"
+  - label: "Information for pupils and families, with the choice to opt out, or to opt in to sharing phone data"
   - label: "MyPhone or MyBrain session"
   - label: "Secure data handling"
   - label: "Research using data without direct personal details"

@@ -8,6 +8,8 @@ import { thankYou } from '../config/copy';
 import { study } from '../config/study';
 import { announce } from '../lib/announce';
 import { formatTimestamp } from '../lib/dates';
+import { takeEntryLink } from '../lib/entryLink';
+import { parentInvolved, phoneSourceOf } from '../model/journey';
 import { useStore } from '../state/context';
 import { clearState } from '../state/persistence';
 
@@ -23,7 +25,6 @@ export function Done() {
   const { state, dispatch } = useStore();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [copy, setCopy] = useState<CopyStatus>({ kind: 'idle' });
-  const declined = state.assent.status === 'declined';
   const childName = state.identity.firstName.trim() || 'the young person';
   const { submission } = state;
   const sentImages = state.donation.images.filter((i) => i.status === 'sent').length;
@@ -34,7 +35,9 @@ export function Done() {
     headingRef.current?.focus({ preventScroll: true });
   }, []);
 
+  // The next person on the device starts from the welcome screen, whatever link this one came in by.
   const finish = () => {
+    takeEntryLink();
     clearState();
     dispatch({ type: 'reset' });
   };
@@ -54,16 +57,22 @@ export function Done() {
     }
   };
 
-  // The young person chose to decide later: nothing about their phone was sent, and nothing says they have signed up.
+  // The young person chose to decide later: nothing from their phone was sent.
   const later = state.assent.status === 'deferred' && state.assent.deferredBy === 'young';
   const youngHolding = state.route === 'young';
+  const withParent = parentInvolved(state);
+  const source = phoneSourceOf(state);
   const steps: string[] = [];
-  if (!declined) {
-    steps.push(youngHolding ? 'Give your parent or carer a copy of what you both agreed to: tap “Download a copy” and send it to them, or take a screenshot of this page. We do not email it.' : 'Keep a copy of what you agreed to: tap “Download a copy”, or take a screenshot of this page. We do not email it to you.');
-    if (state.assent.status === 'deferred') steps.push(later ? `${childName} wanted to decide later. Nothing about ${childName}’s phone has been sent. The researchers will ask again, for example at school.` : `The team will ask ${childName} for their own agreement separately, for example at school.`);
-    if (state.assent.status === 'completed' && sentImages === 0) steps.push(`No screenshots were added. To add them later, email ${study.contact.email} quoting your reference, and the team will send you a link.`);
-    steps.push('The team will be in touch about the next parts of the study, such as the surveys and the school session.');
-  }
+  steps.push(
+    !withParent
+      ? 'Keep a copy of what you agreed to: tap “Download a copy”, or take a screenshot of this page. We do not email it to you.'
+      : youngHolding
+        ? 'Give your parent or carer a copy of what you both agreed to: tap “Download a copy” and send it to them, or take a screenshot of this page. We do not email it.'
+        : 'Keep a copy of what you agreed to: tap “Download a copy”, or take a screenshot of this page. We do not email it to you.',
+  );
+  if (later) steps.push(`${childName} wanted to decide later. Nothing from ${childName}’s phone has been sent. If they decide to share it, email ${study.contact.email} quoting your reference, and the team will send a link.`);
+  if ((source === 'parent' || (source === 'child' && state.assent.status === 'completed')) && sentImages === 0) steps.push(`No screenshots were added. To add them later, email ${study.contact.email} quoting your reference, and the team will send you a link.`);
+  steps.push('The workshop at school goes ahead as planned: you don’t need to do anything for it.');
 
   return (
     <div className="mpmb-step mpmb-step--wide mpmb-done">
@@ -71,9 +80,9 @@ export function Done() {
         <span className="mpmb-done__tick" aria-hidden="true">
           <Icon name="check" size={34} />
         </span>
-        <p className="mpmb-kicker">{declined ? 'Recorded' : later ? 'Saved' : 'All done'}</p>
+        <p className="mpmb-kicker">{later ? 'Saved' : 'All done'}</p>
         <h1 className="mpmb-h1" tabIndex={-1} ref={headingRef}>
-          {declined ? 'Thank you for letting us know.' : later ? 'Thanks. You can decide later.' : thankYou.heading}
+          {later ? 'Thanks. You can decide later.' : thankYou.heading}
         </h1>
         {submission.referenceCode && (
           <p className="mpmb-done__ref">
@@ -83,53 +92,45 @@ export function Done() {
         )}
       </div>
 
-      {declined ? (
-        <p className="mpmb-lead">{childName} will not be included in the study. If anyone changes their mind, contact the team using the details below.</p>
-      ) : (
-        <>
-          {youngHolding && (
-            <div className="mpmb-card mpmb-card--mist">
-              <h2 className="mpmb-h3">For you, {state.identity.firstName.trim() || 'the young person'}</h2>
-              <ul className="mpmb-list">
-                <li>The researchers will explain everything again at school, on the day.</li>
-                <li>You can still change your mind, about any part. Just tell the researcher or your teacher. You don’t have to say why.</li>
-                <li>Your parent or carer can email the team at {study.contact.email}, the MyPhone/MyBrain inbox.</li>
-              </ul>
-            </div>
-          )}
-          <div className="mpmb-done__why">
-            <h2 className="mpmb-h3">
-              Why this matters {thankYou.draft && <Draft />}
-            </h2>
-            {thankYou.why.map((p) => (
-              <p key={p}>{p}</p>
-            ))}
-            {sentImages > 0 && (
-              <p>
-                <strong>
-                  {childName} shared {sentImages === 1 ? 'one screenshot' : `${sentImages} screenshots`}. Thank you.
-                </strong>
-              </p>
-            )}
-          </div>
-
-          <h2 className="mpmb-h3">What happens next</h2>
-          <ol className="mpmb-next-steps" role="list">
-            {steps.map((text, i) => (
-              <li key={text}>
-                <span aria-hidden="true">{i + 1}</span>
-                <p>{text}</p>
-              </li>
-            ))}
-          </ol>
-        </>
+      {youngHolding && (
+        <div className="mpmb-card mpmb-card--mist">
+          <h2 className="mpmb-h3">For you, {state.identity.firstName.trim() || 'the young person'}</h2>
+          <ul className="mpmb-list">
+            <li>You can still change your mind about your screenshots. Just tell the researcher or your teacher, or email the team at {study.contact.email}. You don’t have to say why.</li>
+            <li>The researchers will explain the workshop again at school, on the day.</li>
+          </ul>
+        </div>
       )}
+      <div className="mpmb-done__why">
+        <h2 className="mpmb-h3">
+          Why this matters {thankYou.draft && <Draft />}
+        </h2>
+        {thankYou.why.map((p) => (
+          <p key={p}>{p}</p>
+        ))}
+        {sentImages > 0 && (
+          <p>
+            <strong>
+              {childName} shared {sentImages === 1 ? 'one screenshot' : `${sentImages} screenshots`}. Thank you.
+            </strong>
+          </p>
+        )}
+      </div>
+
+      <h2 className="mpmb-h3">What happens next</h2>
+      <ol className="mpmb-next-steps" role="list">
+        {steps.map((text, i) => (
+          <li key={text}>
+            <span aria-hidden="true">{i + 1}</span>
+            <p>{text}</p>
+          </li>
+        ))}
+      </ol>
 
       <div className="mpmb-card mpmb-card--mist">
         <h2 className="mpmb-h3">Changing your mind</h2>
         <p>
-          You can stop at any time, from the whole study or from one part such as linking to health or school records, by emailing <a href={`mailto:${study.contact.email}`}>{study.contact.email}</a>.
-          Quote your reference if you have it. Nobody will ask why.
+          You can change your mind at any time, about the screenshots or the answers, by emailing <a href={`mailto:${study.contact.email}`}>{study.contact.email}</a>. Quote your reference if you have it. Nobody will ask why.
         </p>
         {study.contact.concerns.email && (
           <p>
@@ -139,18 +140,14 @@ export function Done() {
         )}
       </div>
 
-      {!declined && (
-        <Disclosure summary="See what was recorded">
-          <ConsentSummary detailed />
-        </Disclosure>
-      )}
+      <Disclosure summary="See what was recorded">
+        <ConsentSummary detailed />
+      </Disclosure>
 
       <div className="mpmb-done__actions">
-        {!declined && (
-          <Button variant="primary" onClick={download} loading={copy.kind === 'working'}>
-            Download a copy (PDF)
-          </Button>
-        )}
+        <Button variant="primary" onClick={download} loading={copy.kind === 'working'}>
+          Download a copy (PDF)
+        </Button>
         <Button variant="secondary" onClick={finish}>
           Finish and clear this device
         </Button>

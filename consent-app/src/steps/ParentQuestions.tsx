@@ -2,22 +2,36 @@ import { useEffect, useRef, useState } from 'react';
 import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Draft } from '../components/ui/Draft';
-import { parentQuestionsForm } from '../config/questions';
+import { parentMoreForm, parentQuestionsForm } from '../config/questions';
 import { announce } from '../lib/announce';
 import { useStore } from '../state/context';
 
-/**
- * A few one-tap questions for the parent or guardian about how they see the
- * young person's phone use. Optional and clearly separate from the
- * permission. Tapping an answer moves to the next question; the last answer
- * moves on to the next step. Coming back here shows the answers given, with
- * a way to change them, rather than asking everything again.
- */
+/** The quick questions every parent or carer is asked. */
 export function ParentQuestions() {
+  return <QuestionsStep which="quick" />;
+}
+
+/** The longer questions, when the young person's screen time is not coming through this form. */
+export function ParentMore() {
+  return <QuestionsStep which="more" />;
+}
+
+/**
+ * One-tap questions for the parent or carer about how they see the young
+ * person's phone use: the quick ones every parent is asked, or the longer
+ * ones (time and apps, night-time and sleep, effects) when the screen time
+ * itself is not coming. Every question can be skipped, and so can the lot.
+ * Tapping an answer moves to the next question; the last answer moves on to
+ * the next step. Coming back here shows how many were answered, with a way
+ * to answer again, rather than putting the answers back on screen.
+ */
+function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   const { state, dispatch } = useStore();
-  const { survey } = state;
+  const config = which === 'more' ? parentMoreForm : parentQuestionsForm;
+  const survey = which === 'more' ? state.more : state.survey;
+  const form = which;
   const childName = state.identity.firstName.trim() || 'your child';
-  const questions = parentQuestionsForm.questions;
+  const questions = config.questions;
   const total = questions.length;
   const answered = questions.filter((q) => survey.responses[q.id]).length;
   const finished = survey.status === 'completed' || survey.status === 'skipped';
@@ -52,13 +66,13 @@ export function ParentQuestions() {
     window.requestAnimationFrame(() => questionRef.current?.focus());
   };
   const finish = () => {
-    dispatch({ type: 'survey-status', status: 'completed' });
+    dispatch({ type: 'survey-status', status: 'completed', form });
     dispatch({ type: 'next' });
   };
   const advance = () => (last ? finish() : moveTo(index + 1));
   const choose = (value: string) => {
     if (selecting !== null) return;
-    dispatch({ type: 'answer-question', questionId: q.id, version: q.version, value });
+    dispatch({ type: 'answer-question', questionId: q.id, version: q.version, value, form });
     setSelecting(value);
     // A moment to see the choice land before the next question appears.
     timer.current = window.setTimeout(() => {
@@ -67,35 +81,40 @@ export function ParentQuestions() {
     }, 260);
   };
   const skipQuestion = () => {
-    dispatch({ type: 'skip-question', questionId: q.id });
+    dispatch({ type: 'skip-question', questionId: q.id, form });
     advance();
   };
   /** The open question is saved when its button is pressed; an empty box counts as skipped. */
   const submitText = () => {
     const value = draft.trim();
-    if (value) dispatch({ type: 'answer-question', questionId: q.id, version: q.version, value: value.slice(0, q.type === 'text' ? q.maxLength : value.length) });
-    else dispatch({ type: 'skip-question', questionId: q.id });
+    if (value) dispatch({ type: 'answer-question', questionId: q.id, version: q.version, value: value.slice(0, q.type === 'text' ? q.maxLength : value.length), form });
+    else dispatch({ type: 'skip-question', questionId: q.id, form });
     advance();
   };
   const skipAll = () => {
-    dispatch({ type: 'survey-status', status: 'skipped' });
+    dispatch({ type: 'survey-status', status: 'skipped', form });
     dispatch({ type: 'next' });
   };
 
   const title = (
     <>
-      A few quick questions about {childName}’s phone use. {parentQuestionsForm.draft && <Draft />}
+      {which === 'more' ? `Some more questions about ${childName}’s phone use.` : `A few quick questions about ${childName}’s phone use.`} {config.draft && <Draft />}
     </>
   );
+  const kicker = which === 'more' ? 'More questions' : 'Quick questions';
+  const intro =
+    which === 'more'
+      ? `We won’t have ${childName}’s screen time from this form, so these questions help us understand their phone use instead: time and apps, night-time and sleep, and how it affects them. About three minutes. Answer what you can: you can skip any question. Your answers are kept with ${childName}’s code, not your name.`
+      : `Optional, and about a minute. These questions are for you, not ${childName}: if ${childName} is next to you, you can skip them. Tap an answer to move to the next question. Your answers are kept with ${childName}’s code, not your name.`;
 
   if (!asking) {
     return (
-      <StepShell kicker="Quick questions" title={title} intro={<p>{survey.status === 'skipped' && !answered ? 'You skipped these questions. That is fine: they are optional.' : `You answered ${answered} of ${total}. Thank you. Your answers are not shown again on this phone.`}</p>} onContinue={() => dispatch({ type: 'next' })}>
+      <StepShell kicker={kicker} title={title} intro={<p>{survey.status === 'skipped' && !answered ? 'You skipped these questions. That is fine: they are optional.' : `You answered ${answered} of ${total}. Thank you. Your answers are not shown again on this phone.`}</p>} onContinue={() => dispatch({ type: 'next' })}>
         <Button
           variant="link"
           onClick={() => {
             // Starting again from blank, so earlier answers are never put back on screen.
-            for (const qq of questions) if (survey.responses[qq.id]) dispatch({ type: 'skip-question', questionId: qq.id });
+            for (const qq of questions) if (survey.responses[qq.id]) dispatch({ type: 'skip-question', questionId: qq.id, form });
             setReviewing(true);
             moveTo(0);
           }}
@@ -108,9 +127,9 @@ export function ParentQuestions() {
 
   return (
     <StepShell
-      kicker="Quick questions"
+      kicker={kicker}
       title={title}
-      intro={<p>Optional, and about a minute. These questions are for you, not {childName}: if {childName} is next to you, you can skip them. Tap an answer to move to the next question. Your answers are kept with {childName}’s code, not your name, and are not part of your permission.</p>}
+      intro={<p>{intro}</p>}
       hideContinue
       secondaryAction={
         <Button variant="link" onClick={skipAll}>
@@ -120,7 +139,7 @@ export function ParentQuestions() {
     >
       <div className="mpmb-quiz">
         <p className="mpmb-quiz__count">
-          Question {index + 1} of {total}
+          {q.topic ? `${q.topic} · ` : ''}Question {index + 1} of {total}
         </p>
         <h2 className="mpmb-h3 mpmb-quiz__question" id="mpmb-quiz-question" tabIndex={-1} ref={questionRef}>
           {text(q.text)}

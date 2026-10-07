@@ -7,6 +7,15 @@ export type Route = 'parent' | 'young';
 /** Who should be holding the device for a step. */
 export type Actor = 'parent' | 'young' | 'anyone';
 
+/**
+ * Where an under-16's screen time comes from, chosen by the parent or carer
+ * once they have said yes to sharing it: their own phone, where they can see
+ * it with Apple Family Sharing or Google Family Link ('parent'); the young
+ * person's phone, if the young person agrees ('child'); or neither, when the
+ * parent answers the longer questions instead ('none').
+ */
+export type PhoneSource = 'parent' | 'child' | 'none';
+
 export interface DateParts {
   day: string;
   month: string;
@@ -207,7 +216,7 @@ export interface SubmissionState {
   declinedSentAt: string | null;
 }
 
-export type StepId = 'welcome' | 'child-details' | 'parent-details' | 'parent-consent' | 'parent-questions' | 'child-assent' | 'assent-declined' | 'phone-use' | 'check' | 'done';
+export type StepId = 'welcome' | 'opt-out' | 'child-details' | 'parent-details' | 'parent-consent' | 'parent-questions' | 'phone-source' | 'child-assent' | 'assent-declined' | 'phone-use' | 'parent-more' | 'check' | 'done';
 
 export interface Handover {
   from: Actor;
@@ -239,6 +248,10 @@ export interface AppState {
   donation: PhoneUseDonation;
   /** The parent's quick questions about the young person's phone use. */
   survey: SurveyRecord;
+  /** Parent route, under 16, after a yes to sharing: where the screen time comes from (null until chosen). */
+  phoneSource: PhoneSource | null;
+  /** The parent's longer questions, when the young person's screen time is not coming through this form. */
+  more: SurveyRecord;
   submission: SubmissionState;
   session: SessionInfo | null;
   prototype: PrototypeFlags;

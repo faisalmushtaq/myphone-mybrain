@@ -7,6 +7,7 @@ import { labBooking, labJourneyMessages, schools } from './forms.js';
 import { normaliseCode, notUsedOf, phaseCountsOf, toIso } from './lab.js';
 import { participantLinks, schoolUploadLink } from './links.js';
 import { sendMail, settingsFromEnv } from './mail.js';
+import { nameKey } from './exportUpn.js';
 import { countFailure, schoolBySlug, setSchoolPassword } from './schoolUpload.js';
 import { readSecret } from './secrets.js';
 import { sendSms, smsReady, ukMobile } from './sms.js';
@@ -32,6 +33,9 @@ import { isObj } from './validate.js';
  *   schools         each school's upload page, whether it has a password, and what it has sent
  *   school-password a new password for a school's upload page, shown once
  *   school-revoke   close a school's upload page
+ *   opt-outs        the opt-outs from the workshop parents have emailed, as logged here
+ *   add-opt-out     log one opt-out email (the export flags the young person everywhere)
+ *   cancel-opt-out  undo one, for a parent who changes their mind (kept, marked cancelled)
  *   test-message    send a test email and text, to check they arrive
  */
 
@@ -205,6 +209,75 @@ async function participantsList(db: Firestore) {
     .sort((a, b) => String(b.consentedAt).localeCompare(String(a.consentedAt)));
 }
 
+export interface NewOptOut {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string | null;
+  schoolId: string;
+  yearGroup: string;
+  className: string;
+  parentName: string;
+  receivedOn: string;
+  afterWorkshop: boolean;
+  notes: string;
+}
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+
+/** An opt-out email as the team logs it: the young person's names and school are needed to find them; the rest helps. */
+export function validateOptOut(input: unknown, now = new Date()): { optOut: NewOptOut | null; problems: string[] } {
+  const problems: string[] = [];
+  if (!isObj(input)) return { optOut: null, problems: ['The opt-out is malformed.'] };
+  const optOut: NewOptOut = {
+    firstName: text(input.firstName, 100),
+    lastName: text(input.lastName, 100),
+    dateOfBirth: text(input.dateOfBirth, 10) || null,
+    schoolId: text(input.schoolId, 40),
+    yearGroup: text(input.yearGroup, 20),
+    className: text(input.className, 40),
+    parentName: text(input.parentName, 100),
+    receivedOn: text(input.receivedOn, 10) || now.toISOString().slice(0, 10),
+    afterWorkshop: input.afterWorkshop === true,
+    notes: text(input.notes, 500),
+  };
+  if (!optOut.firstName || !optOut.lastName) problems.push('Enter the young person’s first and last name, as in the email.');
+  if (!schools.some((x) => x.id === optOut.schoolId)) problems.push('Choose the school.');
+  if (optOut.dateOfBirth && (!ISO_DAY.test(optOut.dateOfBirth) || Number.isNaN(Date.parse(optOut.dateOfBirth)))) problems.push('The date of birth is not a date.');
+  if (!ISO_DAY.test(optOut.receivedOn) || Number.isNaN(Date.parse(optOut.receivedOn)) || optOut.receivedOn > now.toISOString().slice(0, 10)) problems.push('The date the email arrived is not a date in the past.');
+  return { optOut: problems.length ? null : optOut, problems };
+}
+
+/** Every logged opt-out, newest first, with whether a family record on the website names the same young person. */
+async function optOutsList(db: Firestore) {
+  const [optOuts, participants] = await Promise.all([db.collection('optOuts').get(), db.collection('participants').get()]);
+  const records = participants.docs.map((d) => d.data());
+  return optOuts.docs
+    .map((d) => {
+      const o = d.data();
+      const onWebsite = records.some((p) => p.schoolId === o.schoolId && nameKey(p.firstName) === nameKey(o.firstName) && nameKey(p.lastName) === nameKey(o.lastName));
+      return {
+        optOutId: d.id,
+        firstName: String(o.firstName ?? ''),
+        lastName: String(o.lastName ?? ''),
+        dateOfBirth: o.dateOfBirth ?? null,
+        schoolId: String(o.schoolId ?? ''),
+        schoolName: schools.find((x) => x.id === o.schoolId)?.name ?? String(o.schoolId ?? ''),
+        yearGroup: String(o.yearGroup ?? ''),
+        className: String(o.className ?? ''),
+        parentName: String(o.parentName ?? ''),
+        receivedOn: String(o.receivedOn ?? ''),
+        afterWorkshop: Boolean(o.afterWorkshop),
+        notes: String(o.notes ?? ''),
+        status: o.status === 'cancelled' ? 'cancelled' : 'active',
+        cancelReason: o.cancelReason ?? null,
+        recordedAt: toIso(o.recordedAt),
+        onWebsite,
+      };
+    })
+    .sort((a, b) => b.receivedOn.localeCompare(a.receivedOn) || String(b.recordedAt).localeCompare(String(a.recordedAt)));
+}
+
 async function schoolsList(db: Firestore) {
   const [access, uploads] = await Promise.all([db.collection('schoolUploadAccess').get(), db.collection('schoolUploads').get()]);
   const accessBy = new Map(access.docs.map((d) => [d.id, d.data()]));
@@ -372,6 +445,29 @@ export const staffApi = onCall(callOptions, async (request) => {
       if (!school) throw bad('Unknown school.');
       await db.collection('schoolUploadAccess').doc(school.slug).set({ active: false, revokedAt: now }, { merge: true });
       return { ok: true };
+    }
+
+    case 'opt-outs':
+      return { optOuts: await optOutsList(db), schools: schools.map((x) => ({ id: x.id, name: x.name })) };
+
+    case 'add-opt-out': {
+      const { optOut, problems } = validateOptOut(data.optOut, now);
+      if (!optOut) throw new HttpsError('invalid-argument', problems[0], { problems });
+      const ref = db.collection('optOuts').doc();
+      await ref.set({ ...optOut, status: 'active', recordedAt: FieldValue.serverTimestamp(), recordedBy: 'staff' });
+      logger.info('Opt-out logged', { optOutId: ref.id, schoolId: optOut.schoolId, afterWorkshop: optOut.afterWorkshop });
+      return { optOutId: ref.id };
+    }
+
+    case 'cancel-opt-out': {
+      const ref = db.collection('optOuts').doc(docId(data.optOutId, 'opt-out'));
+      const reason = typeof data.reason === 'string' && data.reason.trim() ? data.reason.trim().slice(0, 300) : null;
+      return db.runTransaction(async (tx) => {
+        const current = (await tx.get(ref)).data();
+        if (!current) throw new HttpsError('not-found', 'That opt-out was not found.');
+        tx.update(ref, { status: 'cancelled', cancelReason: reason, cancelledAt: now });
+        return { ok: true };
+      });
     }
 
     case 'test-message': {

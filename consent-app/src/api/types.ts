@@ -1,14 +1,16 @@
-import type { AssentRecord, ConsentRecord, GuardianIdentity, ParticipantIdentity, SessionInfo, SignatureRecord, StatementRecord, SurveyRecord } from '../model/types';
+import type { AssentRecord, ConsentRecord, GuardianIdentity, ParticipantIdentity, PhoneSource, SessionInfo, SignatureRecord, StatementRecord, SurveyRecord } from '../model/types';
 import type { PlatformId } from '../config/walkthroughs';
 
 /**
  * The boundary between the interface and the server.
  *
  * Two things are sent, at different moments:
- *   1. the permission and agreement (`submitConsent`), as soon as the young
- *      person has signed, declined or deferred — so participation is on
- *      record even if the family stops there. Sending it again with the
- *      reference code records an amendment; nothing is overwritten.
+ *   1. the record (`submitConsent`): the parent's permission and answers,
+ *      and the young person's agreement when they are asked for it, sent as
+ *      soon as it is complete and the family reaches the screenshots, the
+ *      longer questions or the check page — so it is on record even if the
+ *      family stops there. Sending it again with the reference code records
+ *      an amendment; nothing is overwritten.
  *   2. screenshots (`submitDonation`), from the screen-time screen, linked
  *      by the reference code. Each send is a separate donation record.
  *
@@ -38,18 +40,25 @@ export interface UploadMeta {
  * for a copy.
  */
 export interface ConsentPayload {
-  kind: 'consent' | 'declined';
+  /** Always 'consent' now: since the workshop became opt-out (7 October 2026) there is no "declined" record to send. */
+  kind: 'consent';
   /** Present when amending a record that was already sent. */
   referenceCode: string | null;
   studyId: string;
   siteId: string;
   route: 'parent' | 'young';
   identity: ParticipantIdentity;
+  /** Blank when a 16- or 17-year-old does this on their own. */
   guardian: GuardianIdentity;
+  /** The parent's permission; null when a 16- or 17-year-old does this on their own. */
   consent: ConsentRecord | null;
   assent: AssentRecord;
-  /** The parent's quick questions; never sent with a declined record. */
+  /** The parent's quick questions; null when there is no parent. */
   survey: SurveyRecord | null;
+  /** Where the young person's screen time comes from: their own phone ('child'), the parent's family view ('parent'), or nowhere ('none'). */
+  phoneSource: PhoneSource | null;
+  /** The parent's longer questions, when the screen time is not coming through the form. */
+  more: SurveyRecord | null;
   client: ClientInfo;
 }
 
@@ -74,8 +83,8 @@ export interface DonationPayload {
   uploads: { uploadId: string; redacted: boolean; cropped: boolean; acknowledgedWarning: boolean }[];
   /**
    * The young person's agreement to share, recorded by the act of sending
-   * when they have signed in the app; null otherwise (their agreement may be
-   * collected separately, for example on paper at school).
+   * when the screenshots come from their phone; null when the parent sends
+   * them from their own phone (Family Sharing, Family Link).
    */
   agreement: StatementRecord | null;
   client: ClientInfo;

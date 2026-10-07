@@ -3,6 +3,7 @@ import { HandoverScreen } from './components/HandoverScreen';
 import { ProgressNav } from './components/ProgressNav';
 import { PrototypePanel } from './components/PrototypePanel';
 import { buildJourney } from './model/journey';
+import { firstIncomplete } from './state/useSync';
 import type { StepId } from './model/types';
 import { StoreProvider, useStore } from './state/context';
 import { useSync } from './state/useSync';
@@ -12,20 +13,25 @@ import { ChildDetails } from './steps/ChildDetails';
 import { Done } from './steps/Done';
 import { ParentConsent } from './steps/ParentConsent';
 import { ParentDetails } from './steps/ParentDetails';
-import { ParentQuestions } from './steps/ParentQuestions';
+import { OptOut } from './steps/OptOut';
+import { ParentMore, ParentQuestions } from './steps/ParentQuestions';
+import { PhoneSource } from './steps/PhoneSource';
 import { PhoneUse } from './steps/PhoneUse';
 import { Check } from './steps/Check';
 import { Welcome } from './steps/Welcome';
 
 const steps: Record<StepId, ComponentType> = {
   welcome: Welcome,
+  'opt-out': OptOut,
   'child-details': ChildDetails,
   'parent-details': ParentDetails,
   'parent-consent': ParentConsent,
   'parent-questions': ParentQuestions,
+  'phone-source': PhoneSource,
   'child-assent': ChildAssent,
   'assent-declined': AssentDeclined,
   'phone-use': PhoneUse,
+  'parent-more': ParentMore,
   check: Check,
   done: Done,
 };
@@ -80,18 +86,20 @@ function useHistorySync() {
 }
 
 /**
- * Sends the permission and agreement as soon as the agreement step is
- * finished (and sends changes made later), so a family that stops at the
- * screenshots still counts as having taken part. Failures are left for the
- * person to retry from the status line; nothing loops.
+ * Sends the record as soon as everything it needs is in and the family
+ * reaches the screenshots, the longer questions or the check page (and sends
+ * changes made later), so a family that stops part-way still counts.
+ * Failures are left for the person to retry from the status line; nothing
+ * loops.
  */
 function SyncManager() {
   const { state } = useStore();
   const { sendConsent, dirty } = useSync();
   const { stepId } = state;
   const { consentStage } = state.submission;
-  const ready = state.assent.status !== 'not-started' && (stepId === 'phone-use' || stepId === 'check');
-  const due = ready && (consentStage === 'idle' || (consentStage === 'sent' && dirty));
+  const ready = (stepId === 'phone-use' || stepId === 'parent-more' || stepId === 'check') && firstIncomplete(state) === null;
+  // Changes after the first send go as one amendment from the check page, not one per answer.
+  const due = ready && (consentStage === 'idle' || (consentStage === 'sent' && dirty && stepId === 'check'));
   useEffect(() => {
     if (!due) return;
     const timer = window.setTimeout(() => void sendConsent(), 400);
@@ -104,7 +112,7 @@ function Shell() {
   const { state } = useStore();
   useHistorySync();
   const Step = steps[state.stepId];
-  const showProgress = state.stepId !== 'welcome' && state.stepId !== 'done';
+  const showProgress = state.stepId !== 'welcome' && state.stepId !== 'done' && state.stepId !== 'opt-out';
   const showHandover = state.handover !== null;
 
   return (
@@ -112,7 +120,7 @@ function Shell() {
       <div className={`mpmb-band${showProgress ? '' : ' mpmb-band--slim'}`}>
         <div className="mpmb-band__inner">
           <p className="mpmb-band__kicker">
-            <span>MyPhone/MyBrain</span> Take part online
+            <span>MyPhone/MyBrain</span> Phone use and screen time
           </p>
           {showProgress && <ProgressNav />}
         </div>

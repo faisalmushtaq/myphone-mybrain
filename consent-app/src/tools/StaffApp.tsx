@@ -4,17 +4,19 @@ import { Callout } from '../components/ui/Callout';
 import { TextField } from '../components/ui/Field';
 import { callTool, messageOf, type Overview } from './api';
 import { Bookings } from './staff/Bookings';
+import { OptOuts } from './staff/OptOuts';
 import { Participants } from './staff/Participants';
 import { Schools } from './staff/Schools';
 import { Times } from './staff/Times';
 
 const KEY_STORE = 'mpmb-staff-key';
-type Tab = 'times' | 'bookings' | 'participants' | 'schools';
+type Tab = 'times' | 'bookings' | 'participants' | 'schools' | 'opt-outs';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'times', label: 'Lab times' },
   { id: 'bookings', label: 'Bookings' },
   { id: 'participants', label: 'Participants' },
   { id: 'schools', label: 'School uploads' },
+  { id: 'opt-outs', label: 'Opt-outs' },
 ];
 
 function readKey(): string {
@@ -152,6 +154,7 @@ export function StaffApp() {
         {tab === 'bookings' && <Bookings staff={staff} />}
         {tab === 'participants' && <Participants staff={staff} />}
         {tab === 'schools' && <Schools staff={staff} />}
+        {tab === 'opt-outs' && <OptOuts staff={staff} />}
       </div>
     </div>
   );

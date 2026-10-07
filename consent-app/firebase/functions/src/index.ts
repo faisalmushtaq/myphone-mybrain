@@ -10,7 +10,7 @@ import { checkImage, cleanImage, RejectedUpload, type CleanImage } from './image
 import type { Quality } from './quality.js';
 import { signatureRecord, storeSignature } from './signatures.js';
 import { LAB_QUARANTINE } from './lab.js';
-import { parseDate, validateConsentPayload, validateDonationPayload, type ConsentPayload, type DonationPayload } from './validate.js';
+import { parseDate, selfConsentOf, validateConsentPayload, validateDonationPayload, type ConsentPayload, type DonationPayload } from './validate.js';
 
 export { enquiry } from './enquiry.js';
 export { exportData, exportNow } from './export.js';
@@ -43,12 +43,14 @@ async function unusedReferenceCode(db: Firestore): Promise<string> {
 }
 
 /**
- * Records the permission and agreement. Called as soon as the young person
- * has signed, declined or deferred, so a family that stops there still
- * counts as having taken part; called again with the reference code when
- * something is changed. Amendments append new permission and agreement
- * records (each pointing at the one it supersedes) and update the
- * identifying details; nothing is overwritten or deleted.
+ * Records the family's form: the parent's permission and answers, and the
+ * young person's agreement when they were asked for it (a 16- or 17-year-old
+ * deciding alone sends no parent details and no permission record). Called
+ * as soon as the record is complete, so a family that stops part-way still
+ * counts; called again with the reference code when something is changed.
+ * Amendments append new permission, agreement and answer records (each
+ * pointing at the one it supersedes) and update the identifying details;
+ * nothing is overwritten or deleted.
  */
 export const submitConsent = onCall(callOptions, async (request) => {
   const uid = request.auth?.uid;
@@ -83,6 +85,10 @@ export const submitConsent = onCall(callOptions, async (request) => {
   const participantId = participantRef.id;
   const amendment = version > 1;
   const dob = parseDate(payload.identity.dateOfBirth);
+  // Who decided about the screen time, and where it comes from (decided 7 October 2026: 16 or over alone; under 16 the parent first).
+  const selfConsent = selfConsentOf(payload);
+  const alone = selfConsent && payload.route === 'young';
+  const phoneSource = payload.phoneSource;
   const consentRef = payload.consent ? db.collection('consents').doc() : null;
   const assentRef = db.collection('assents').doc();
 
@@ -94,7 +100,7 @@ export const submitConsent = onCall(callOptions, async (request) => {
   const common = { studyId: payload.studyId, siteId: payload.siteId, schoolId: payload.identity.schoolId, participantId, referenceCode: code, receivedAt, sessionUid: uid, version };
   const email = payload.guardian.email.trim().toLowerCase();
 
-  // 1. Identifying details (restricted collection). A declined record keeps the minimum; an amendment updates in place.
+  // 1. Identifying details (restricted collection). An amendment updates in place.
   batch.set(
     participantRef,
     {
@@ -102,18 +108,22 @@ export const submitConsent = onCall(callOptions, async (request) => {
       kind: payload.kind,
       firstName: payload.identity.firstName.trim(),
       lastName: payload.identity.lastName.trim(),
-      dateOfBirth: payload.kind === 'consent' && dob ? dob.toISOString().slice(0, 10) : null,
+      dateOfBirth: dob ? dob.toISOString().slice(0, 10) : null,
       schoolOther: payload.identity.schoolOther.trim() || null,
       yearGroup: payload.identity.yearGroup || null,
-      guardian: {
-        fullName: payload.guardian.fullName.trim(),
-        relationship: payload.guardian.relationship,
-        relationshipOther: payload.guardian.relationshipOther.trim() || null,
-        hasParentalResponsibility: payload.guardian.hasParentalResponsibility,
-        email: email || null,
-        phone: payload.guardian.phone.trim() || null,
-        postcode: payload.guardian.postcode.trim().toUpperCase() || null,
-      },
+      selfConsent,
+      phoneSource,
+      guardian: alone
+        ? null
+        : {
+            fullName: payload.guardian.fullName.trim(),
+            relationship: payload.guardian.relationship,
+            relationshipOther: payload.guardian.relationshipOther.trim() || null,
+            hasParentalResponsibility: payload.guardian.hasParentalResponsibility,
+            email: email || null,
+            phone: payload.guardian.phone.trim() || null,
+            postcode: payload.guardian.postcode.trim().toUpperCase() || null,
+          },
       ...(amendment ? { updatedAt: FieldValue.serverTimestamp() } : { createdAt: FieldValue.serverTimestamp() }),
     },
     { merge: amendment },
@@ -160,25 +170,26 @@ export const submitConsent = onCall(callOptions, async (request) => {
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  // 3b. The parent's quick questions: research data, labelled by participant id only (no names, no reference).
-  const surveyRef = payload.kind === 'consent' && payload.survey && payload.survey.status !== 'not-started' ? db.collection('surveys').doc() : null;
-  if (surveyRef && payload.survey) {
-    batch.set(surveyRef, {
-      studyId: payload.studyId,
-      siteId: payload.siteId,
-      participantId,
-      formId: payload.survey.formId,
-      formVersion: payload.survey.formVersion,
-      status: payload.survey.status,
-      responses: payload.survey.responses,
-      startedAt: payload.survey.startedAt,
-      completedAt: payload.survey.completedAt,
-      version,
-      supersedes: (previous?.surveyId as string | null | undefined) ?? null,
-      receivedAt,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-  }
+  // 3b. The parent's questions, quick and longer: research data, labelled by participant id only (no names, no reference).
+  const surveyDoc = (record: ConsentPayload['survey'], supersedes: unknown) => ({
+    studyId: payload.studyId,
+    siteId: payload.siteId,
+    participantId,
+    formId: record!.formId,
+    formVersion: record!.formVersion,
+    status: record!.status,
+    responses: record!.responses,
+    startedAt: record!.startedAt,
+    completedAt: record!.completedAt,
+    version,
+    supersedes: (supersedes as string | null | undefined) ?? null,
+    receivedAt,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  const surveyRef = payload.survey && payload.survey.status !== 'not-started' ? db.collection('surveys').doc() : null;
+  if (surveyRef) batch.set(surveyRef, surveyDoc(payload.survey, previous?.surveyId));
+  const moreRef = payload.more && payload.more.status !== 'not-started' ? db.collection('surveys').doc() : null;
+  if (moreRef) batch.set(moreRef, surveyDoc(payload.more, previous?.moreSurveyId));
 
   // 4. Submission index: one row per reference, pointing at the current records and listing every version.
   const submissionRef = db.collection('submissions').doc(code);
@@ -189,15 +200,18 @@ export const submitConsent = onCall(callOptions, async (request) => {
     consentId: consentRef?.id ?? null,
     assentId: assentRef.id,
     surveyId: surveyRef?.id ?? (previous?.surveyId as string | null | undefined) ?? null,
+    moreSurveyId: moreRef?.id ?? (previous?.moreSurveyId as string | null | undefined) ?? null,
+    selfConsent,
+    phoneSource,
     userAgent: payload.client.userAgent.slice(0, 200),
-    versions: FieldValue.arrayUnion({ version, kind: payload.kind, consentId: consentRef?.id ?? null, assentId: assentRef.id, surveyId: surveyRef?.id ?? null, receivedAt }),
+    versions: FieldValue.arrayUnion({ version, kind: payload.kind, consentId: consentRef?.id ?? null, assentId: assentRef.id, surveyId: surveyRef?.id ?? null, moreSurveyId: moreRef?.id ?? null, receivedAt }),
     ...(amendment ? { updatedAt: FieldValue.serverTimestamp() } : { donationIds: [], imageCount: 0, createdAt: FieldValue.serverTimestamp() }),
   };
   batch.set(submissionRef, submission, { merge: amendment });
 
   // Nothing is emailed to families: the thank-you page offers a copy of the record to download.
   await batch.commit();
-  logger.info(amendment ? 'Permission record amended' : 'Permission record created', { referenceCode: code, participantId, kind: payload.kind, version });
+  logger.info(amendment ? 'Permission record amended' : 'Permission record created', { referenceCode: code, participantId, version, selfConsent, phoneSource });
   return { referenceCode: code, participantId, receivedAt: receivedAt.toISOString(), version };
 });
 
@@ -243,11 +257,15 @@ async function acceptUpload(uid: string, participantId: string, upload: Donation
 }
 
 /**
- * Records screenshots against a permission record this session created.
- * Both agreements are checked on the server's own copy of the records, each
- * image is checked and cleaned, and the young person's agreement to share
- * (given by sending) is stored with the images and on the agreement record.
- * Images the checks refuse are reported back with a reason and not stored.
+ * Records screenshots against a record this session created. Who may share
+ * is checked on the server's own copy of the records: a 16- or 17-year-old's
+ * own agreement; for an under-16, the parent's yes, and, when the
+ * screenshots come from the young person's phone, the young person's
+ * agreement too (from the parent's own phone, the parent's yes is enough).
+ * Each image is checked and cleaned, and the young person's agreement to
+ * share (given by sending) is stored with the images and on the agreement
+ * record. Images the checks refuse are reported back with a reason and not
+ * stored.
  */
 export const submitDonation = onCall(callOptions, async (request) => {
   const uid = request.auth?.uid;
@@ -265,13 +283,18 @@ export const submitDonation = onCall(callOptions, async (request) => {
   const submissionRef = db.collection('submissions').doc(payload.referenceCode);
   const submission = (await submissionRef.get()).data();
   if (!submission || submission.sessionUid !== uid) throw new HttpsError('failed-precondition', 'That reference does not belong to this session.');
-  if (submission.kind !== 'consent' || !submission.consentId) throw new HttpsError('failed-precondition', 'Screenshots cannot be added to this record.');
-  const consent = (await db.collection('consents').doc(submission.consentId as string).get()).data();
-  if (consent?.responses?.['phone-use']?.response !== 'agreed') throw new HttpsError('failed-precondition', 'The parent or guardian has not agreed to screen-time screenshots.');
-  // The young person's agreement is not a gate: it may be collected separately, on paper at school. What the app knows is recorded, nothing more.
+  if (submission.kind !== 'consent' || (!submission.consentId && !submission.selfConsent)) throw new HttpsError('failed-precondition', 'Screenshots cannot be added to this record.');
+  // null for records made before 7 October 2026, when the young person's agreement could also be given on paper.
+  const source = (submission.phoneSource ?? null) as 'parent' | 'child' | 'none' | null;
+  if (source === 'none') throw new HttpsError('failed-precondition', 'This record does not include screen time.');
+  if (!submission.selfConsent) {
+    const consent = (await db.collection('consents').doc(submission.consentId as string).get()).data();
+    if (consent?.responses?.['phone-use']?.response !== 'agreed') throw new HttpsError('failed-precondition', 'The parent or carer has not agreed to screen-time screenshots.');
+  }
   const assentRef = db.collection('assents').doc(submission.assentId as string);
   const assent = (await assentRef.get()).data();
-  if (assent?.status === 'declined') throw new HttpsError('failed-precondition', 'The young person said no to taking part.');
+  if (assent?.status === 'declined') throw new HttpsError('failed-precondition', 'The young person said no to sharing their screen time.');
+  if ((source === 'child' || submission.selfConsent) && assent?.status !== 'completed') throw new HttpsError('failed-precondition', 'The young person has not agreed to share their screen time.');
   if (Number(submission.imageCount ?? 0) + payload.uploads.length > study.maxImages) throw new HttpsError('invalid-argument', `At most ${study.maxImages} images can be sent in total.`);
 
   const participantId = submission.participantId as string;
@@ -298,8 +321,10 @@ export const submitDonation = onCall(callOptions, async (request) => {
       siteId: submission.siteId,
       participantId,
       platform: payload.platform,
+      // Whose phone the screenshots come from: the parent's family view, or the young person's own.
+      from: source === 'parent' ? 'parent-phone' : 'young-person-phone',
       images,
-      agreement: payload.agreement,
+      agreement: source === 'parent' ? null : payload.agreement,
       // For the team: whether the young person had agreed in the app when this was sent (their agreement may instead be on paper).
       assentStatusAtSend: assent?.status ?? null,
       youngPersonAgreedInApp: payload.agreement !== null,
@@ -308,7 +333,7 @@ export const submitDonation = onCall(callOptions, async (request) => {
       client: payload.client,
       createdAt: FieldValue.serverTimestamp(),
     });
-    if (payload.agreement && assent?.status === 'completed' && assent?.responses?.['phone-use']?.response !== 'agreed') batch.update(assentRef, { 'responses.phone-use': payload.agreement, updatedAt: FieldValue.serverTimestamp() });
+    if (source !== 'parent' && payload.agreement && assent?.status === 'completed' && assent?.responses?.['phone-use']?.response !== 'agreed') batch.update(assentRef, { 'responses.phone-use': payload.agreement, updatedAt: FieldValue.serverTimestamp() });
     batch.update(submissionRef, { donationIds: FieldValue.arrayUnion(donationId), imageCount: FieldValue.increment(images.length), platform: payload.platform, lastDonationAt: receivedAt, updatedAt: FieldValue.serverTimestamp() });
     await batch.commit();
   }

@@ -3,14 +3,15 @@ layout: default
 ---
 {% assign school = page.school %}
 {% capture form_url %}{{ '/take-part/consent/' | relative_url }}?who=parent&amp;school={{ school.slug }}{% endcapture %}
+{% capture optout_url %}{{ '/take-part/consent/' | relative_url }}?optout=1&amp;school={{ school.slug }}{% endcapture %}
 <!-- One school's page for parents and carers (made from _data/schools.json by _plugins/school_pages.rb). -->
 <section class="page-hero page-hero--teal school-hero">
   <div class="container">
     <p class="hero-kicker">For parents and carers at {{ school.name }}</p>
     <h1>Your child is invited to <span>MyPhone/<wbr>MyBrain.</span></h1>
-    <p class="school-hero__intro">{{ school.name }} is taking part in MyPhone/MyBrain, a University of Leeds study about young people’s phones, brains and growing up. Here is what it involves and how to say yes online, in about five minutes.</p>
+    <p class="school-hero__intro">{{ school.name }} is taking part in MyPhone/MyBrain, a University of Leeds study about young people’s phones, brains and growing up. Here is what it involves, and the one optional thing you can do online, in about five minutes.</p>
     <div class="school-hero__actions">
-      <a class="btn btn-primary" href="{{ form_url }}">Start the form &nbsp;&rarr;</a>
+      <a class="btn btn-primary" href="{{ form_url }}">Share screen time online &nbsp;&rarr;</a>
       <a class="school-hero__more" href="#what-it-involves">Read what it involves first</a>
     </div>
   </div>
@@ -22,24 +23,31 @@ layout: default
       <div class="info-panel" id="what-it-involves">
         <h2>What taking part involves</h2>
         <ul class="info-checklist">
-          <li>Short surveys about everyday life, phones and how your child feels.</li>
-          <li>For some young people, a session at school with our researchers: a soft cap records brain activity (EEG) while they do simple computer tasks. It is safe and painless, and it cannot read thoughts.</li>
-          <li>Only if you and your child want to: screenshots of the phone’s screen-time summary, showing which apps are used and for how long.</li>
+          <li>A two-hour workshop at school with our researchers, for the classes taking part: young people learn how the brain works, and wear a soft cap that records brain activity (EEG) while they do simple computer tasks. It is safe and painless, and it cannot read thoughts.</li>
+          <li>Short questionnaires about everyday life, phones and how your child feels.</li>
+          <li>Linking, through Connected West Yorkshire, with records already held about your child (health and school records), using a code instead of a name and only with the approvals in place.</li>
+          <li>Only if you want to: screenshots of the phone’s screen-time summary, showing which apps are used and for how long.</li>
           <li>We never read messages, look at photos or see what is posted.</li>
         </ul>
-        <p class="school-landing__note">Your child can only take part if you give permission and they agree too. They can say no to any part, or stop at any time, and it will not affect anything at school.</p>
+        <p class="school-landing__note">You don’t need to do anything for your child to take part in the workshop. On the day they can say no to any part, or stop at any time, and it will not affect anything at school.</p>
       </div>
 
       <div class="info-panel info-panel-alt school-landing__cta" id="give-permission">
-        <h2>Say yes online</h2>
+        <h2>Share screen time online (optional)</h2>
         <ol class="school-steps">
-          <li>You enter your child’s details and give your permission.</li>
-          <li>Your child reads a short explanation and signs to say they agree.</li>
-          <li>If you both want to, you add a screenshot of the phone’s screen time.</li>
+          <li>You answer a few questions about your child’s phone use, and say whether we can have their screen time.</li>
+          <li>You send screenshots from your own phone, if you can see their screen time there (Apple Family Sharing or Google Family Link); or your child sends them from theirs, if they want to.</li>
+          <li>Young people aged 16 or 17 can do this themselves.</li>
         </ol>
         <a class="btn btn-primary" href="{{ form_url }}">Start the form &nbsp;&rarr;</a>
         <p class="school-landing__hint">The form already has <strong>{{ school.name }}</strong> filled in. Not your child’s school? You can change it in the form.</p>
       </div>
+    </div>
+
+    <div class="info-panel school-landing__optout" id="opt-out">
+      <h2>Don’t want your child to take part?</h2>
+      <p>You can opt your child out of the workshop. That also means nothing about them is linked with health or school records, and none of their information is used. Opting out is by email, from a parent or carer; there is no form or paper slip. If you opt out after the workshop, we withdraw your child’s information too, as far as is still possible.</p>
+      <a class="btn btn-secondary" href="{{ optout_url }}">How to opt out &nbsp;&rarr;</a>
     </div>
 
     <div class="reassurance-block">

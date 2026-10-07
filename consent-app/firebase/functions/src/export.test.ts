@@ -47,7 +47,7 @@ test('participants.tsv holds only consenting participants, de-identified, with a
   ];
   const rows = participantsTable(snap);
   assert.equal(rows.length, 1);
-  assert.deepEqual(rows[0], { participant_id: 'sub-00001', age: 13, year_group: 'Year 8', site: 'BRD-001', route: 'young', consented_on: '2026-10-01', consent_version: '0.5-draft', assent_status: 'completed', questions_status: 'not-started', sessions_n: 2, screenshots_n: 3, platform: 'android' });
+  assert.deepEqual(rows[0], { participant_id: 'sub-00001', age: 13, year_group: 'Year 8', site: 'BRD-001', route: 'young', consented_on: '2026-10-01', consent_version: '0.5-draft', self_consent: false, phone_source: null, assent_status: 'completed', questions_status: 'not-started', more_questions_status: 'not-asked', sessions_n: 2, screenshots_n: 3, platform: 'android', opted_out: false });
   assert.ok(!JSON.stringify(rows).includes('Patel'));
   const sessions = sessionsOf(snap);
   assert.deepEqual(sessions.map((s) => [s.session, s.donation.id]), [['ses-01', 'd1'], ['ses-02', 'd2']], 'sessions are numbered in time order');
@@ -282,5 +282,29 @@ test('UPN lists: kept in their own folder, read rows beside each file, matched b
   const unmatched = out.files.find((f) => f.path === 'schools/upn-uploads/upn_unmatched.tsv')!.body;
   assert.ok(unmatched.includes('DUA\tA123456789013\tSamuel\tLee'));
   assert.ok(!unmatched.includes('A123456789012'));
-  assert.deepEqual(out.counts, { upnUploads: 1, upnPupils: 2, upnMatched: 1 });
+  assert.deepEqual(out.counts, { upnUploads: 1, upnPupils: 2, upnMatched: 1, optOuts: 0 });
+
+  // Opt-outs the team logged: flagged on the family's record and on the school's list, and listed with what they name.
+  const optOuts = [
+    { id: 'o1', data: { firstName: 'Samuel', lastName: 'Lee', schoolId: 'DUA', dateOfBirth: null, receivedOn: '2026-10-08', status: 'active', parentName: 'Mrs Lee' } },
+    { id: 'o2', data: { firstName: 'Zoe', lastName: 'OBrien Smith', schoolId: 'DUA', dateOfBirth: '2012-03-14', receivedOn: '2026-10-09', status: 'active', afterWorkshop: true } },
+    { id: 'o3', data: { firstName: 'Ann', lastName: 'Other', schoolId: 'GSAL', receivedOn: '2026-10-05', status: 'cancelled' } },
+    { id: 'o4', data: { firstName: 'Zoe', lastName: 'OBrien Smith', schoolId: 'DUA', dateOfBirth: '2011-01-01', receivedOn: '2026-10-10', status: 'active' } },
+  ];
+  const flagged = upnExport(uploads, participants, new Map([['p1', 'sub-00001'], ['p3', 'sub-00002']]), optOuts);
+  const flaggedMatches = flagged.files.find((f) => f.path === 'schools/upn-uploads/upn_matches.tsv')!.body.split('\n');
+  assert.ok(flaggedMatches[0].endsWith('\topted_out\topt_out_id'));
+  assert.ok(flaggedMatches[1].endsWith('\ttrue\to2'), `the opt-out names p1 (a different date of birth does not): ${flaggedMatches[1]}`);
+  assert.ok(flaggedMatches[2].endsWith('\tfalse\tn/a'), 'no opt-out for this one');
+  assert.ok(flagged.files.find((f) => f.path === 'schools/upn-uploads/upn_unmatched.tsv')!.body.includes('DUA\tA123456789013\tSamuel\tLee\t2012-05-01\t9\t9Y\taaaaaaaa-1111-2222-3333-444444444444\t3\ttrue\to1'));
+  assert.equal(flagged.counts.optOuts, 3);
+  assert.deepEqual(
+    flagged.optOutTable.map((r) => [r.opt_out_id, r.status, r.website_participant_id, r.upn, r.upn_match]),
+    [
+      ['o3', 'cancelled', 'sub-00002', null, 'none'],
+      ['o1', 'active', null, 'A123456789013', 'name-only'],
+      ['o2', 'active', 'sub-00001', 'A123456789012', 'name-and-dob'],
+      ['o4', 'active', null, 'A123456789012', 'name-only'],
+    ],
+  );
 });

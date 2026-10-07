@@ -16,6 +16,15 @@
  * `affects` links a statement to a part of the journey that is removed if the
  * statement is declined (for example the phone-use step).
  *
+ * `underSelfConsentAge` marks a statement asked of the parent only while the
+ * young person is under study.selfConsentAge (16): from then on the young
+ * person decides for themselves.
+ *
+ * Since 7 October 2026 the workshop at school, and linking with records, are
+ * opt-out (by email, see docs/decisions.md), so these forms no longer ask
+ * permission for either: they are about sharing screen time and answering
+ * questions about phone use, which are opt-in.
+ *
  * For the young person's form, `coveredBySignature` marks the statements that
  * their single signature agrees to; the phone-use statement is instead
  * recorded by the act of sending (or not sending) a screenshot.
@@ -31,6 +40,8 @@ export interface Statement {
   /** Optional plain-English explanation behind "Find out more". */
   more?: string;
   affects?: 'phone-use';
+  /** Asked only while the young person is under study.selfConsentAge. */
+  underSelfConsentAge?: boolean;
   coveredBySignature?: boolean;
   /** True while the wording is draft. Shown as a marker in the interface. */
   draft: boolean;
@@ -45,31 +56,31 @@ export interface StatementForm {
 
 export const parentConsentForm: StatementForm = {
   id: 'mpmb-parent-consent',
-  version: '0.5-draft', // PLACEHOLDER — ethics-approved version identifier
-  title: 'Parent or guardian permission',
+  version: '0.6-draft', // PLACEHOLDER — ethics-approved version identifier
+  title: 'Parent or carer permission',
   statements: [
     {
       id: 'read-information',
-      version: '0.3-draft',
+      version: '0.4-draft',
       kind: 'required',
       label: 'Reading the information',
-      text: 'I have read and understood the information above, and I have been able to ask questions.',
+      text: 'I have read and understood the information above about sharing my child’s screen time and answering questions about their phone use, and I have been able to ask questions.',
       draft: true,
     },
     {
-      id: 'take-part',
-      version: '0.3-draft',
+      id: 'answers',
+      version: '0.1-draft',
       kind: 'required',
-      label: 'Taking part in the study',
-      text: 'I agree to my child taking part in MyPhone/MyBrain, including the surveys and, if my child chooses, the session at school.',
+      label: 'My answers',
+      text: 'My answers to the questions about my child’s phone use may be used in the study, labelled with a code rather than a name.',
       draft: true,
     },
     {
       id: 'understand-withdraw',
-      version: '0.3-draft',
+      version: '0.4-draft',
       kind: 'required',
-      label: 'Stopping at any time',
-      text: 'I understand that my child can stop at any time, and that I can withdraw my permission at any time, without giving a reason.',
+      label: 'Changing my mind',
+      text: 'I understand that I can change my mind at any time, without giving a reason, by contacting the research team.',
       draft: true,
     },
     {
@@ -82,24 +93,15 @@ export const parentConsentForm: StatementForm = {
     },
     {
       id: 'phone-use',
-      version: '0.4-draft',
+      version: '0.5-draft',
       kind: 'optional',
       label: 'Screen-time and app-use screenshots',
       text: 'The research team may collect and analyse screenshots of my child’s screen-time summary showing which apps they use and how long they spend on each.',
       more:
-        'This is a screenshot of the phone’s Screen Time or Digital Wellbeing screen, including the list of apps. We ask for the apps as well as the total because how a phone is used matters as much as how long. It does not show messages, photos or what was posted. Your child can hide parts of an image before sharing it, and images are stored with a code rather than a name.',
+        'This is a screenshot of the phone’s Screen Time or Digital Wellbeing screen, including the list of apps. We ask for the apps as well as the total because how a phone is used matters as much as how long. It does not show messages, photos or what was posted. If you can see your child’s screen time on your own phone (Apple Family Sharing or Google Family Link), you can send it from there; otherwise your child can send it from their phone, if they want to. Parts of an image can be hidden before it is shared, and images are stored with a code rather than a name. If you say no, we ask you a few more questions about your child’s phone use instead.',
       affects: 'phone-use',
+      underSelfConsentAge: true,
       draft: true,
-    },
-    {
-      id: 'link-records',
-      version: '0.4-draft',
-      kind: 'optional',
-      label: 'Linking with records already held',
-      text: 'My child’s study information may be linked, through Connected West Yorkshire, with records already held about them: NHS health records, education records such as attendance and results, and other routinely collected records.',
-      more:
-        'Linking means adding information from records that already exist, so the study can look at longer-term patterns in health, learning and wellbeing without asking families for more forms. It can only happen with approvals in place: the study’s ethics approval from the University of Leeds and, for NHS records, from an NHS Research Ethics Committee; permission from the organisation that holds each record, such as the NHS or the Department for Education; and approval through Connected West Yorkshire’s own data access process. Linked information is labelled with a code, not your child’s name. It is not anonymous, because the study keeps a secure key that links the code back to your child, but researchers analysing the information do not see names or contact details. The full list of records is in the participant information sheet.',
-      draft: true, // PLACEHOLDER — confirm the exact approvals and their references with the governance team
     },
     {
       id: 'recontact',
@@ -115,15 +117,15 @@ export const parentConsentForm: StatementForm = {
 
 export const childAssentForm: StatementForm = {
   id: 'mpmb-child-assent',
-  version: '0.4-draft', // PLACEHOLDER — ethics-approved version identifier
+  version: '0.5-draft', // PLACEHOLDER — ethics-approved version identifier
   title: 'Young person’s agreement',
   statements: [
     {
       id: 'understand',
-      version: '0.3-draft',
+      version: '0.4-draft',
       kind: 'required',
-      label: 'Understanding the study',
-      text: 'I know what MyPhone/MyBrain is about, and I can ask questions.',
+      label: 'Understanding what sharing means',
+      text: 'I know what sharing my screen time means, and I can ask questions.',
       coveredBySignature: true,
       draft: true,
     },
@@ -138,18 +140,18 @@ export const childAssentForm: StatementForm = {
     },
     {
       id: 'take-part',
-      version: '0.3-draft',
+      version: '0.4-draft',
       kind: 'required',
-      label: 'Taking part',
-      text: 'I want to take part.',
+      label: 'Sharing my screen time',
+      text: 'I want to share my screen time with MyPhone/MyBrain.',
       coveredBySignature: true,
       draft: true,
     },
     {
       id: 'phone-use',
-      version: '0.4-draft',
+      version: '0.5-draft',
       kind: 'optional',
-      label: 'Sharing screenshots of your screen time and apps',
+      label: 'Sending screenshots of your screen time and apps',
       text: 'I am happy to share screenshots of my phone’s screen-time summary, including which apps I use and for how long.',
       more: 'It shows which apps you use and for how long — not what you do in them. Both matter: how you use your phone, not just how much. You can hide any part before sharing, and you can skip it.',
       affects: 'phone-use',
@@ -157,3 +159,9 @@ export const childAssentForm: StatementForm = {
     },
   ],
 };
+
+/** The statements a form asks, given the young person's age (null while it is not known). */
+export function statementsFor(form: StatementForm, age: number | null, selfConsentAge: number | null): Statement[] {
+  const decidesAlone = selfConsentAge !== null && age !== null && age >= selfConsentAge;
+  return form.statements.filter((s) => !(s.underSelfConsentAge && decidesAlone));
+}

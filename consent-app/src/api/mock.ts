@@ -127,7 +127,8 @@ export class MockConsentApi implements ConsentApi {
     await sleep(jitter(600, 1200));
     if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');
     this.checkSession(session);
-    if (payload.kind === 'consent' && !payload.consent?.signature) throw new ApiError('validation', 'The permission record has no signature.');
+    // A 16- or 17-year-old on their own sends no permission record; anyone else's must be signed.
+    if (payload.consent ? !payload.consent.signature : payload.assent.status !== 'completed') throw new ApiError('validation', payload.consent ? 'The permission record has no signature.' : 'The young person’s agreement is missing.');
     const receivedAt = new Date().toISOString();
     if (payload.referenceCode) {
       const existing = this.submissions.get(payload.referenceCode);

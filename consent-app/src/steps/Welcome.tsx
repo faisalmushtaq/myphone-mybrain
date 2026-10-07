@@ -7,9 +7,15 @@ import { Icon } from '../components/ui/Icon';
 import { aboutStudy } from '../config/copy';
 import { schoolFromLink } from '../config/schools';
 import { study } from '../config/study';
+import { takeEntryLink } from '../lib/entryLink';
 import { useStore } from '../state/context';
 
-/** Entry screen: who is starting, what this involves, and three reassurances. */
+/**
+ * Entry screen: who is starting, what this form is for (sharing screen time
+ * and answering questions, both opt-in), the separate opt-out from the
+ * workshop at school, and three reassurances. A school page can link
+ * straight to the opt-out (?optout=1).
+ */
 export function Welcome() {
   const { state, dispatch } = useStore();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -27,16 +33,23 @@ export function Welcome() {
     // A school's page links here with ?school=<slug>: that school is chosen already, and can be changed on the details step.
     const school = schoolFromLink();
     if (school && !state.identity.schoolId) dispatch({ type: 'update-identity', patch: { schoolId: school.id } });
-    // The website's buttons link here with ?who=young or ?who=parent, so the choice is already made.
-    const who = new URLSearchParams(window.location.search).get('who');
-    if (who === 'young' && state.route === null) {
-      setYoungIntro(true);
-      window.setTimeout(() => headingRef.current?.focus({ preventScroll: true }), 0);
-      return;
-    }
-    if (who === 'parent' && state.route === null) {
-      choose(who);
-      return;
+    // The website's buttons link here with ?who=young, ?who=parent or ?optout=1, so the choice is already made: once, for the first person (see lib/entryLink.ts).
+    // After the privacy clear, the welcome screen says why the form is empty instead.
+    const link = takeEntryLink();
+    if (state.route === null && !state.clearedReason) {
+      if (link.optOut) {
+        dispatch({ type: 'go-to', stepId: 'opt-out', returnTo: null });
+        return;
+      }
+      if (link.who === 'young') {
+        setYoungIntro(true);
+        window.setTimeout(() => headingRef.current?.focus({ preventScroll: true }), 0);
+        return;
+      }
+      if (link.who === 'parent') {
+        choose('parent');
+        return;
+      }
     }
     headingRef.current?.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -47,36 +60,36 @@ export function Welcome() {
   if (youngIntro) {
     return (
       <div className="mpmb-welcome">
-        <p className="mpmb-kicker">Take part online</p>
+        <p className="mpmb-kicker">Your screen time</p>
         <h1 className="mpmb-h1 mpmb-welcome__title" tabIndex={-1} ref={headingRef}>
           Before you start.
         </h1>
-        <p className="mpmb-lead">MyPhone/MyBrain is a study run by the University of Leeds with schools in Bradford and Leeds. It is about how young people use their phones, and how that connects with how you feel, learn and grow.</p>
+        <p className="mpmb-lead">MyPhone/MyBrain is a study run by the University of Leeds with schools in Bradford and Leeds. It is about how young people use their phones, and how that connects with how you feel, learn and grow. Here you can share your screen time with the study.</p>
         <ul className="mpmb-reassure mpmb-reassure--stack" aria-label="Good to know">
           <li>
             <Icon name="check" size={20} />
-            <span>It’s your choice. You can say no to any part, or stop at any time. Nobody will mind.</span>
+            <span>It’s your choice. You can say no, or stop at any time. Nobody will mind.</span>
           </li>
           <li>
             <Icon name="parent" size={20} />
-            <span>You need your parent or carer with you. They say yes first, then you decide for yourself.</span>
+            <span>16 or 17? You can do this on your own. Under 16? You need your parent or carer with you: they say yes first, then you decide for yourself.</span>
           </li>
           <li>
             <Icon name="phone" size={20} />
-            <span>It takes about 10 minutes, together.</span>
+            <span>It takes about 5 minutes.</span>
           </li>
           <li>
             <Icon name="shield" size={20} />
-            <span>We ask for your name, birthday and school, and keep them locked away, apart from your answers.</span>
+            <span>We ask for your name, birthday and school, and keep them locked away, apart from your screenshots.</span>
           </li>
         </ul>
         <div className="mpmb-actions">
           <Button variant="primary" arrow onClick={() => choose('young')}>
-            My parent or carer is with me: start
+            Start
           </Button>
           {!noParent && (
             <Button variant="ghost" onClick={() => setNoParent(true)}>
-              They’re not here
+              I’m under 16 and my parent or carer isn’t here
             </Button>
           )}
         </div>
@@ -90,13 +103,18 @@ export function Welcome() {
 
   return (
     <div className="mpmb-welcome">
-      <p className="mpmb-kicker">Take part online</p>
+      <p className="mpmb-kicker">Phone use and screen time</p>
       <h1 className="mpmb-h1 mpmb-welcome__title" tabIndex={-1} ref={headingRef}>
-        Take part in MyPhone/MyBrain.
+        Share screen time with MyPhone/MyBrain.
       </h1>
       <p className="mpmb-lead">
-        About five minutes, done together: a parent or guardian gives permission, the young person signs to say yes, and, if you both want to, you share a screenshot of the phone’s screen-time summary.
+        About five minutes. Choose whether to share screenshots of the young person’s screen-time summary (which apps they use, and for how long), and, for parents and carers, answer a few questions about their phone use. It is all optional.
       </p>
+      <div className="mpmb-callout mpmb-callout--info">
+        <p>
+          <strong>The workshop at school is separate:</strong> you don’t need this form for it. Every young person in the classes taking part is invited, unless a parent or carer opts them out.
+        </p>
+      </div>
 
       {state.clearedReason && (
         <div className="mpmb-callout mpmb-callout--info" role="status">
@@ -130,10 +148,10 @@ export function Welcome() {
             <Icon name="parent" size={30} />
           </span>
           <span className="mpmb-route__title" id="route-parent-title">
-            I’m a parent or guardian
+            I’m a parent or carer
           </span>
           <span className="mpmb-route__body" id="route-parent-body">
-            You enter the details and give your permission, then hand the phone to your child to sign.
+            You give your permission and answer a few questions. Then you, or your child, can share their screen time.
           </span>
           <span className="mpmb-route__cta" aria-hidden="true">
             Start →
@@ -147,7 +165,7 @@ export function Welcome() {
             I’m the young person
           </span>
           <span className="mpmb-route__body" id="route-young-body">
-            Do this when your parent or guardian is with you: you enter your details, they give permission, then you sign.
+            16 or 17: you can do this on your own. Under 16: do it when your parent or carer is with you; they say yes first, then you decide.
           </span>
           <span className="mpmb-route__cta" aria-hidden="true">
             Start →
@@ -160,7 +178,7 @@ export function Welcome() {
           What the study is <Draft />
         </h2>
         <p>{aboutStudy.parent.intro}</p>
-        <Disclosure summary="What taking part involves">
+        <Disclosure summary="The workshop, this form, and what we don’t do">
           {aboutStudy.parent.cards.map((card) => (
             <p key={card.title}>
               <strong>{card.title}.</strong> {card.body}
@@ -179,13 +197,23 @@ export function Welcome() {
         </li>
         <li>
           <Icon name="check" size={20} />
-          <span>Every permission is a separate choice. You can say no to any part.</span>
+          <span>Every choice is separate. You can say no to any part.</span>
         </li>
         <li>
           <Icon name="refresh" size={20} />
           <span>You can change your mind later by contacting the team.</span>
         </li>
       </ul>
+
+      <section className="mpmb-welcome__optout" aria-labelledby="optout-heading">
+        <h2 className="mpmb-h3" id="optout-heading">
+          Parents and carers: opting out of the workshop
+        </h2>
+        <p>If you don’t want your child to take part in the workshop at school, you can opt them out. That also means nothing about them is linked with health or school records.</p>
+        <Button variant="secondary" onClick={() => dispatch({ type: 'go-to', stepId: 'opt-out', returnTo: null })}>
+          Opt out of the workshop
+        </Button>
+      </section>
     </div>
   );
 }

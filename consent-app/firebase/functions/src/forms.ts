@@ -14,9 +14,11 @@ export interface ServedStatement {
   id: string;
   version: string;
   kind: 'required' | 'optional';
+  /** Asked only while the young person is under study.selfConsentAge. */
+  underSelfConsentAge: boolean;
 }
 
-const served = (s: { id: string; version: string; kind: string }): ServedStatement => ({ id: s.id, version: s.version, kind: s.kind as ServedStatement['kind'] });
+const served = (s: { id: string; version: string; kind: string; underSelfConsentAge?: boolean }): ServedStatement => ({ id: s.id, version: s.version, kind: s.kind as ServedStatement['kind'], underSelfConsentAge: Boolean(s.underSelfConsentAge) });
 
 export const parentConsentForm = {
   id: generated.parentConsentForm.id,
@@ -36,19 +38,33 @@ export const childAssentForm = {
 
 export const informationVersion: string = generated.informationVersion;
 
-/** The parent's quick questions (src/config/questions.ts in the app). */
+/** The parent's question forms (src/config/questions.ts in the app). */
 export type ServedQuestion = { id: string; version: string; type: 'choice'; options: string[] } | { id: string; version: string; type: 'text'; maxLength: number };
+export interface ServedQuestionForm {
+  id: string;
+  version: string;
+  questions: ServedQuestion[];
+}
 
-export const parentQuestionsForm = {
-  id: generated.parentQuestionsForm.id,
-  version: generated.parentQuestionsForm.version,
-  questions: generated.parentQuestionsForm.questions.map((q): ServedQuestion => (q.type === 'choice' ? { id: q.id, version: q.version, type: 'choice', options: q.options.map((o) => o.value as string) } : { id: q.id, version: q.version, type: 'text', maxLength: q.maxLength })),
-};
+type GeneratedQuestion = { id: string; version: string; type: string; text: string; options?: readonly { value: string; label: string }[]; maxLength?: number };
+const questionForm = (f: { id: string; version: string; questions: readonly GeneratedQuestion[] }): ServedQuestionForm => ({
+  id: f.id,
+  version: f.version,
+  questions: f.questions.map((q): ServedQuestion => (q.type === 'choice' ? { id: q.id, version: q.version, type: 'choice', options: (q.options ?? []).map((o) => o.value) } : { id: q.id, version: q.version, type: 'text', maxLength: Number(q.maxLength) })),
+});
+const wordingOf = (f: { questions: readonly GeneratedQuestion[] }): Record<string, { text: string; labels?: Record<string, string> }> =>
+  Object.fromEntries(f.questions.map((q) => [q.id, { text: q.text, labels: q.type === 'choice' ? Object.fromEntries((q.options ?? []).map((o) => [o.value, o.label])) : undefined }]));
 
-/** The questions' wording and answer labels, for the exported data dictionary. {child} stands for the young person's name. */
-export const questionWording: Record<string, { text: string; labels?: Record<string, string> }> = Object.fromEntries(
-  generated.parentQuestionsForm.questions.map((q) => [q.id, { text: q.text as string, labels: q.type === 'choice' ? Object.fromEntries(q.options.map((o) => [o.value, o.label as string])) : undefined }]),
-);
+/** The quick questions every parent or carer is asked. */
+export const parentQuestionsForm = questionForm(generated.parentQuestionsForm as unknown as { id: string; version: string; questions: GeneratedQuestion[] });
+/** The longer questions, when the young person's screen time is not coming through the form. */
+export const parentMoreForm = questionForm(generated.parentMoreForm as unknown as { id: string; version: string; questions: GeneratedQuestion[] });
+
+/** The questions' wording and answer labels, for the exported data dictionaries. {child} stands for the young person's name. */
+export const questionWording = wordingOf(generated.parentQuestionsForm as unknown as { questions: GeneratedQuestion[] });
+export const moreQuestionWording = wordingOf(generated.parentMoreForm as unknown as { questions: GeneratedQuestion[] });
+/** The topic of each longer question (time and apps, night-time and sleep, effects). */
+export const moreQuestionTopics: Record<string, string> = Object.fromEntries((generated.parentMoreForm.questions as readonly { id: string; topic: string | null }[]).map((q) => [q.id, q.topic ?? '']));
 
 /** The statements' wording by form and id, for the exported consent tables. */
 export const statementWording: Record<string, Record<string, { label: string; text: string }>> = {
@@ -62,6 +78,8 @@ export const study = {
   siteIds: ['LEEDS-BRADFORD'],
   minAge: 11,
   maxAge: 17,
+  /** From this age the young person decides about sharing their own screen time, without a parent (src/config/study.ts, decided 7 October 2026); null: never alone. */
+  selfConsentAge: generated.selfConsentAge as number | null,
   maxImages: 6,
   maxSignatureBytes: 200 * 1024,
   /** Shortest school name accepted when "another school" is typed in. */

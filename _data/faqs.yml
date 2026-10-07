@@ -38,7 +38,7 @@
 
 - question: "What will pupils do?"
   answer: |
-    Each visit is a two-hour workshop at school. Pupils learn how the brain works and see a live demonstration of EEG. Those who agree wear a lightweight headset that records brain activity while they sit quietly and do a simple computer task, and answer brief questionnaires about their background, wellbeing and behaviour. If they and their family agree, they can also share screenshots of their phone's screen-time page. Taking part is always a choice: young people choose the parts they want to do and can stop at any time.
+    Each visit is a two-hour workshop at school, for the classes taking part. Pupils learn how the brain works and see a live demonstration of EEG. Those who agree wear a lightweight headset that records brain activity while they sit quietly and do a simple computer task, and answer brief questionnaires about their background, wellbeing and behaviour. Separately, and only if they choose, families can share screenshots of the phone's screen-time page online. Taking part is always a choice: a parent or carer can opt their child out by email beforehand, and on the day young people choose the parts they want to do and can stop at any time.
 
 - question: "How long does a session take?"
   answer: |
@@ -54,11 +54,11 @@
 
 - question: "Do pupils have to share phone data?"
   answer: |
-    No. Phone data donation is optional. Young people can take part in other parts of the study without donating phone data. Their choice will not affect their place at school or their relationship with staff.
+    No. Phone data donation is optional, and only happens if the family opts in online: a parent or carer says yes first for under-16s, and 16- and 17-year-olds decide for themselves. Young people take part in the workshop without donating phone data. Their choice will not affect their place at school or their relationship with staff.
 
 - question: "What phone data could be donated?"
   answer: |
-    Only if the young person and their family agree: screenshots of the phone's Screen Time page (iPhone) or Digital Wellbeing page (Android). They show which apps were used and for how long. They do not show messages, photos, videos, posts, contacts, or what was watched or searched, and any part of a screenshot can be hidden before it is sent.
+    Only if the family opts in online: screenshots of the phone's Screen Time page (iPhone) or Digital Wellbeing page (Android). They show which apps were used and for how long. A parent who can see their child's screen time on their own phone (Apple Family Sharing or Google Family Link) can send it from there; otherwise the young person sends it from their phone, if they want to. Screenshots do not show messages, photos, videos, posts, contacts, or what was watched or searched, and any part of a screenshot can be hidden before it is sent. If the screen time is not shared, we ask the parent a few more questions about their child's phone use instead.
 
 - question: "What happens to the data?"
   answer: |
@@ -70,11 +70,11 @@
 
 - question: "What is Connected West Yorkshire?"
   answer: |
-    **Connected West Yorkshire** is a research data programme that provides access to linked information through more than one dataset. This can include health, care and education records. The online form asks families about this as a separate Yes or No. If they say no, nothing is linked, and the young person can still take part.
+    **Connected West Yorkshire** is a research data programme that provides access to linked information through more than one dataset. This can include health, care and education records. Linking is part of the study for young people who take part in the workshop, using a code rather than a name and only with the approvals in place. Opting out of the workshop also opts out of linking: without the workshop there is nothing to link.
 
 - question: "Can parents or carers say no?"
   answer: |
-    Yes. Taking part is a choice. A parent or carer must give permission, and the young person must agree too. Parents and carers can withdraw their child at any time. This will not affect the child's education or relationship with school.
+    Yes. Every young person in the classes taking part is invited to the workshop unless a parent or carer opts them out. To opt out, a parent or carer emails brainpop@leeds.ac.uk: the [opt-out page](/take-part/consent/?optout=1) explains what your child would miss, and then how. There is no form to fill in and no paper slip. An opt-out after the workshop withdraws your child's information too, as far as is still possible. This will not affect your child's education or relationship with school.
 
 - question: "Can young people withdraw after taking part?"
   answer: |

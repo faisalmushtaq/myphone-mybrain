@@ -29,7 +29,7 @@ export function ParentDetails() {
   };
 
   return (
-    <StepShell kicker="Parent or guardian" title="Your details." intro={<p>We record who gave permission for {childName} to take part, and how to reach you if we need to.</p>} errors={errors} onContinue={next}>
+    <StepShell kicker="Parent or carer" title="Your details." intro={<p>We record who gave permission for {childName}’s screen time and answered the questions, and how to reach you if we need to.</p>} errors={errors} onContinue={next}>
       <div className="mpmb-card mpmb-card--mist mpmb-check-details">
         <p className="mpmb-check-details__title">
           {childName} entered: <strong>{identity.firstName} {identity.lastName}</strong>, born {formatParts(identity.dateOfBirth)}, {schoolName}

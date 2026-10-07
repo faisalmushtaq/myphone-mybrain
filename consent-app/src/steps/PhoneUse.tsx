@@ -12,7 +12,8 @@ import { Draft } from '../components/ui/Draft';
 import { Icon } from '../components/ui/Icon';
 import { whyPhoneUse } from '../config/copy';
 import { study } from '../config/study';
-import { platforms, walkthroughs, type PlatformId } from '../config/walkthroughs';
+import { familyWalkthroughs, platforms, walkthroughs, type PlatformId } from '../config/walkthroughs';
+import { phoneSourceOf } from '../model/journey';
 import type { DonationImage } from '../model/types';
 import { useStore } from '../state/context';
 import { useSync } from '../state/useSync';
@@ -22,9 +23,13 @@ import { useUploader } from '../state/useUploader';
  * The whole screen-time part on one screen: why we ask (folded), which
  * phone, how to find the summary (folded once images are added), add and
  * check the screenshots, send. Sending uploads the images and records them
- * against the permission straight away; it is also how the young person
- * agrees to share them. Skipping is possible, but not without an appeal:
- * the screenshots are the part of the study nobody else can provide.
+ * against the permission straight away; when they come from the young
+ * person's phone it is also how the young person agrees to share them. A
+ * parent sending an under-16's screen time from their own phone (Family
+ * Sharing, Family Link) gets those instructions instead. Skipping is
+ * possible (the parent then answers the longer questions), but not without
+ * an appeal: the screenshots are the part of the study nobody else can
+ * provide.
  */
 export function PhoneUse() {
   const { state, dispatch } = useStore();
@@ -43,9 +48,11 @@ export function PhoneUse() {
   const sentCount = images.length - unsent.length;
   const failed = images.some((i) => i.status === 'failed');
   const doubtful = unsent.filter((i) => i.quality?.verdict === 'unlikely' && !i.acknowledged);
-  const young = state.route === 'young' || state.assent.status === 'completed';
+  // From the parent's own phone: their family view of the young person's screen time.
+  const familyView = phoneSourceOf(state) === 'parent';
+  const young = !familyView && (state.route === 'young' || state.assent.status === 'completed');
   const childName = state.identity.firstName.trim() || 'The young person';
-  const walkthrough = platform ? walkthroughs[platform] : null;
+  const walkthrough = platform ? (familyView && platform !== 'other' ? familyWalkthroughs[platform] : walkthroughs[platform]) : null;
   const hasImages = images.length > 0;
   const showHow = howOpen ?? (platform !== null && !hasImages);
 
@@ -118,11 +125,15 @@ export function PhoneUse() {
       kicker="Screen time"
       title={
         <>
-          Share {young ? 'your screen time and the apps you use' : 'the screen time and the apps used'}. {whyPhoneUse.draft && <Draft />}
+          {familyView ? `Share ${childName}’s screen time from your phone.` : `Share ${young ? 'your screen time and the apps you use' : 'the screen time and the apps used'}.`} {whyPhoneUse.draft && <Draft />}
         </>
       }
       intro={
-        young ? (
+        familyView ? (
+          <p>
+            Screenshots of {childName}’s screen time, from Apple Family Sharing or Google Family Link on your phone: <strong>which apps they used and for how long</strong>. Not messages, photos or posts. You can hide any part of an image before it goes.
+          </p>
+        ) : young ? (
           <p>
             Next, you can send us screenshots of your phone’s screen-time page. They show <strong>which apps you used and for how long</strong>. They don’t show your messages, photos or what you watched, and we never show them to your school. You can cover up anything first. This part is your choice too.
           </p>
@@ -152,15 +163,6 @@ export function PhoneUse() {
     >
       <SaveStatus />
 
-      {state.assent.status === 'deferred' && (
-        <Callout tone="info" role="status">
-          <p>
-            {state.assent.deferredBy === 'parent' ? `${childName} isn’t here, so you would be sharing on their behalf. ` : ''}
-            {childName}’s own agreement to taking part will be collected separately, for example at school.
-          </p>
-        </Callout>
-      )}
-
       <Disclosure summary="Why we ask, and what we do with it">
         <p>{whyPhoneUse.intro}</p>
         <ul className="mpmb-list">
@@ -176,7 +178,7 @@ export function PhoneUse() {
       </Disclosure>
 
       <fieldset className="mpmb-field">
-        <legend className="mpmb-label">{young ? 'Which phone do you have?' : 'Which phone does the young person have?'}</legend>
+        <legend className="mpmb-label">{young ? 'Which phone do you have?' : familyView ? `Which phone does ${childName} have?` : 'Which phone does the young person have?'}</legend>
         <div className="mpmb-chips" role="presentation">
           {platforms.map((p) => (
             <label key={p.id} className={`mpmb-chip${platform === p.id ? ' is-selected' : ''}`} htmlFor={`platform-${p.id}`}>
@@ -209,7 +211,7 @@ export function PhoneUse() {
             }}
           >
             <Icon name="phone" size={20} />
-            <span>How to find the {walkthrough.screenName} summary on {walkthrough.name === 'Other phones' ? 'your phone' : `an ${walkthrough.name}`.replace('an Android', 'an Android phone')}</span>
+            <span>{familyView && platform !== 'other' ? `How to find ${childName}’s screen time in ${walkthrough.name}` : `How to find the ${walkthrough.screenName} summary on ${walkthrough.name === 'Other phones' ? 'your phone' : `an ${walkthrough.name}`.replace('an Android', 'an Android phone')}`}</span>
             <span className="mpmb-disclosure__chevron" aria-hidden="true" />
           </summary>
           <div className="mpmb-how__body">
@@ -227,7 +229,7 @@ export function PhoneUse() {
 
       <div id="mpmb-capture-choose" tabIndex={-1}>
         <h2 className="mpmb-h3 mpmb-section-title">Add the screenshots</h2>
-        <ImageCapture onFiles={(files) => void uploader.addFiles(files)} count={images.length} disabled={sending} cameraHint={young ? 'If your screen time is on a different phone.' : `If the screen time is on ${state.identity.firstName.trim() || 'the young person'}’s phone and this form is on yours.`} />
+        <ImageCapture onFiles={(files) => void uploader.addFiles(files)} count={images.length} disabled={sending} cameraHint={young ? 'If your screen time is on a different phone.' : familyView ? 'If this form is on a different device from the phone that shows the screen time.' : `If the screen time is on ${state.identity.firstName.trim() || 'the young person'}’s phone and this form is on yours.`} />
       </div>
 
       {uploader.rejected.length > 0 && (
@@ -289,7 +291,7 @@ export function PhoneUse() {
       {appeal && !young && (
         <Callout tone="important" role="alert" title="Before you skip">
           <p>
-            That’s fine: taking part is already recorded. If you can, though, the screenshots take about a minute, and they are the part of MyPhone/MyBrain no one else can provide: real screen time and real app use, not guesses.
+            That’s fine: your answers are already saved, and we will ask you a few more questions instead. If you can, though, the screenshots take about a minute, and they are the part of MyPhone/MyBrain no one else can provide: real screen time and real app use, not guesses.
           </p>
           <div className="mpmb-callout__actions">
             <Button

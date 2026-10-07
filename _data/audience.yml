@@ -87,10 +87,11 @@ for_parents:
   intro: |
     MyPhone/MyBrain is about young people's digital lives, brain development and growing up. We know these topics can feel personal. We will give you clear information before you make any decision.
 
-    Your child can only take part if you give permission and they agree on the day. They can choose some parts of the study and leave out others. They can stop at any time. Their choice will not affect their education, their relationship with school or their access to services.
+    Every young person in the classes taking part is invited to the MyPhone/MyBrain workshop at school, unless a parent or carer opts them out by email. On the day, your child can still choose some parts and leave out others, and stop at any time. Sharing their screen time is a separate choice you make online, only if you want to. None of this will affect their education, their relationship with school or their access to services.
   what_to_know:
-    - "Taking part is a choice."
-    - "Phone data donation is optional."
+    - "Taking part is a choice: you can opt your child out of the workshop by email."
+    - "Opting out of the workshop also opts your child out of linking with health and school records."
+    - "Phone data donation is optional: you opt in online."
     - "EEG is safe and painless."
     - "The study is not a medical test."
     - "EEG cannot read thoughts."
@@ -100,7 +101,7 @@ for_parents:
     - "We do not publish raw social media data openly."
     - "We do not give pupil data to commercial companies."
     - "You can contact the research team at any time."
-  consent_note: "If your child's school sent you a link, use it: it explains the study and opens the online form with the school already filled in. Prefer paper, or the information in another language or an easier-to-read version? Contact the team and we will send you what works for you."
+  consent_note: "If your child's school sent you a link, use it: it explains the study and how to opt out, and opens the online form for sharing screen time with the school already filled in. Need the information in another language, an easier-to-read version or on paper? Contact the team and we will send you what works for you."
 
 for_young_people:
   heading: "Information for young people"
@@ -108,7 +109,7 @@ for_young_people:
   intro: |
     MyPhone/MyBrain is a research project about phones, digital life, brains and growing up. We want to understand how different young people use technology and how this links with learning, attention and wellbeing.
 
-    Taking part is your choice. We will explain the study before you decide. You can say no, ask questions or stop at any time. You can choose whether to donate phone data.
+    Taking part is your choice. We will explain the study before you decide. You can say no, ask questions or stop at any time. You can choose whether to share your screen time: at 16 or 17 you decide for yourself; if you are younger, your parent or carer says yes first.
   myphone_heading: "MyPhone"
   myphone_items:
     - "You will learn about the information digital platforms collect about your activity."

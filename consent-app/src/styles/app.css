@@ -2476,6 +2476,22 @@
 }
 
 /* Welcome: about folded in */
+/* Opting out of the workshop: its own section at the foot of the welcome screen, and the three opt-out pages (src/steps/OptOut.tsx). */
+.mpmb-welcome__optout {
+  margin-top: 2.25rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--mpb-line);
+}
+.mpmb-welcome__optout p {
+  margin: 0.5rem 0 1rem;
+}
+.mpmb-optout .mpmb-step__body > .mpmb-actions {
+  margin: 1.5rem 0 1.25rem;
+}
+.mpmb-optout .mpmb-step__body > p + .mpmb-list {
+  margin-top: 0.25rem;
+}
+
 .mpmb-welcome__about {
   margin-top: 2rem;
   padding: 1.25rem 1.35rem;

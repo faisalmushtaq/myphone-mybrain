@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { parentQuestionsForm } from '../config/questions';
-import { childAssentForm, parentConsentForm } from '../config/statements';
+import { parentMoreForm, parentQuestionsForm } from '../config/questions';
+import { childAssentForm, parentConsentForm, statementsFor } from '../config/statements';
 import { study } from '../config/study';
 import { relationships } from '../config/fields';
 import { OTHER_SCHOOL_ID, schools } from '../config/schools';
 import { platforms } from '../config/walkthroughs';
 import { formatIsoDate, formatParts, formatTimestamp } from '../lib/dates';
-import { phoneUseApplies } from '../model/journey';
+import { childAge, parentInvolved, parentMoreApplies, phoneSourceOf } from '../model/journey';
 import { imageStore } from '../lib/imageStore';
 import type { SignatureRecord, StepId } from '../model/types';
 import { useStore } from '../state/context';
@@ -63,8 +63,12 @@ function mask(value: string, keep = 2): string {
 export function ConsentSummary({ onChange, detailed = false }: Props) {
   const { state } = useStore();
   const [reveal, setReveal] = useState(false);
-  const { identity, guardian, consent, assent, donation, survey } = state;
+  const { identity, guardian, consent, assent, donation, survey, more } = state;
   const answered = parentQuestionsForm.questions.filter((q) => survey.responses[q.id]).length;
+  const answeredMore = parentMoreForm.questions.filter((q) => more.responses[q.id]).length;
+  const withParent = parentInvolved(state);
+  const source = phoneSourceOf(state);
+  const asked = statementsFor(parentConsentForm, childAge(state), study.selfConsentAge);
   const schoolName = identity.schoolId === OTHER_SCHOOL_ID ? identity.schoolOther : schools.find((s) => s.id === identity.schoolId)?.name ?? '';
   const relationship = guardian.relationship === 'other' ? guardian.relationshipOther : relationships.find((r) => r.id === guardian.relationship)?.label ?? '';
   const childName = identity.firstName.trim() || 'the young person';
@@ -101,8 +105,8 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
         </dl>,
       )}
 
-      {section(
-        'Parent or guardian',
+      {withParent && section(
+        'Parent or carer',
         guardianStep,
         'identity',
         <>
@@ -121,13 +125,13 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
         </>,
       )}
 
-      {section(
-        'Parent or guardian permission',
+      {withParent && section(
+        'Parent or carer permission',
         'parent-consent',
         'record',
         <>
           <ul className="mpmb-summary__statements" role="list">
-            {parentConsentForm.statements.map((s) => (
+            {asked.map((s) => (
               <li key={s.id}>
                 <span>{s.label}</span>
                 <Response response={consent.responses[s.id]?.response} />
@@ -136,7 +140,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
           </ul>
           <dl className="mpmb-summary__list">
             <Row label="Signed by" value={consent.typedName} />
-            <Row label="Signature" value={<Signature signature={consent.signature} who={consent.typedName || 'the parent or guardian'} />} />
+            <Row label="Signature" value={<Signature signature={consent.signature} who={consent.typedName || 'the parent or carer'} />} />
             <Row label="Date" value={consent.confirmedDate ? formatIsoDate(consent.confirmedDate) : ''} />
             {detailed && <Row label="Recorded" value={consent.completedAt ? formatTimestamp(consent.completedAt) : ''} />}
             {detailed && <Row label="Form version" value={`${consent.formId} ${consent.formVersion}`} />}
@@ -146,8 +150,9 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
       )}
 
       {study.parentQuestions &&
+        withParent &&
         section(
-          'Parent or guardian’s quick questions',
+          'Parent or carer’s quick questions',
           'parent-questions',
           'research',
           <p className="mpmb-summary__note">
@@ -155,14 +160,14 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
           </p>,
         )}
 
-      {section(
+      {source === 'child' && section(
         `${childName}’s agreement`,
         assent.status === 'deferred' ? null : 'child-assent',
         'record',
         assent.status === 'deferred' ? (
-          <p className="mpmb-summary__note">
-            {assent.deferredBy === 'young' ? `${childName} would like to decide later. The team will ask again, for example at school.` : 'To be collected separately, for example at school.'}{phoneUseApplies(state) ? '' : ' The screen-time part will wait until then.'}
-          </p>
+          <p className="mpmb-summary__note">{assent.deferredBy === 'young' ? `${childName} would like to decide later. Nothing has been shared from their phone.` : `${childName} wasn’t there, so nothing has been shared from their phone.`}</p>
+        ) : assent.status === 'declined' ? (
+          <p className="mpmb-summary__note">{childName} said no to sharing their screen time. That is fine.</p>
         ) : assent.status === 'not-started' ? (
           <p className="mpmb-summary__note">Not completed yet.</p>
         ) : (
@@ -186,19 +191,32 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
         ),
       )}
 
+      {parentMoreApplies(state) &&
+        section(
+          'More questions',
+          'parent-more',
+          'research',
+          <p className="mpmb-summary__note">
+            {more.status === 'not-started' ? 'Not answered yet.' : more.status === 'skipped' && !answeredMore ? 'Skipped — these questions are optional.' : `${answeredMore} of ${parentMoreForm.questions.length} answered.`} The answers are kept with {childName}’s code and are not shown again on this phone.
+          </p>,
+        )}
+
       {section(
         'Screen time and apps',
-        donation.status === 'not-consented' || donation.status === 'deferred' ? null : 'phone-use',
+        source === 'parent' || (source === 'child' && assent.status === 'completed') ? 'phone-use' : null,
         'research',
-        donation.status === 'not-consented' ? (
-          <p className="mpmb-summary__note">Not shared — you chose not to share screen-time information. You can change this later by contacting the team.</p>
-        ) : donation.status === 'deferred' ? (
-          <p className="mpmb-summary__note">Waiting until {childName} has given their agreement.</p>
+        source === 'none' ? (
+          <p className="mpmb-summary__note">{consent.responses['phone-use']?.response === 'declined' ? 'Not shared: you chose not to share screen-time screenshots.' : 'Not shared: you chose to answer more questions instead.'} You can change this later by contacting the team.</p>
+        ) : source === 'child' && assent.status !== 'completed' ? (
+          <p className="mpmb-summary__note">Not shared from {childName}’s phone.</p>
+        ) : source === null ? (
+          <p className="mpmb-summary__note">Not decided yet.</p>
         ) : donation.status === 'skipped' ? (
           <p className="mpmb-summary__note">Skipped for now. The team can send a link to add it later.</p>
         ) : (
           <>
             <dl className="mpmb-summary__list">
+              <Row label="From" value={source === 'parent' ? 'The parent or carer’s phone (Family Sharing or Family Link)' : `${childName}’s phone`} />
               <Row label="Phone" value={platforms.find((p) => p.id === donation.platform)?.name ?? ''} />
               <Row label="Screenshots" value={donation.images.length ? `${donation.images.filter((i) => i.status === 'sent').length} sent${donation.images.some((i) => i.status !== 'sent') ? `, ${donation.images.filter((i) => i.status !== 'sent').length} not yet sent` : ''}` : ''} />
             </dl>

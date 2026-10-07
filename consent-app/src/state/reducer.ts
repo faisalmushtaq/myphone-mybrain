@@ -1,6 +1,5 @@
-import { parentQuestionsForm } from '../config/questions';
+import { parentMoreForm, parentQuestionsForm } from '../config/questions';
 import { childAssentForm, parentConsentForm } from '../config/statements';
-import { study } from '../config/study';
 import type { PlatformId } from '../config/walkthroughs';
 import { todayIso } from '../lib/dates';
 import { imageStore } from '../lib/imageStore';
@@ -12,6 +11,7 @@ import type {
   DonationStatus,
   GuardianIdentity,
   ParticipantIdentity,
+  PhoneSource,
   PrototypeFlags,
   Route,
   SessionInfo,
@@ -20,6 +20,7 @@ import type {
   StatementResponse,
   StepId,
   SubmissionState,
+  SurveyRecord,
   SurveyStatus,
 } from '../model/types';
 
@@ -57,6 +58,8 @@ export function initialState(): AppState {
     },
     donation: { platform: null, images: [], status: 'not-started' },
     survey: { formId: parentQuestionsForm.id, formVersion: parentQuestionsForm.version, status: 'not-started', responses: {}, startedAt: null, completedAt: null },
+    phoneSource: null,
+    more: { formId: parentMoreForm.id, formVersion: parentMoreForm.version, status: 'not-started', responses: {}, startedAt: null, completedAt: null },
     submission: { referenceCode: null, participantId: null, consentStage: 'idle', consentError: null, consentSentAt: null, consentVersion: 0, sentSnapshot: null, donationStage: 'idle', donationError: null, donationsSent: 0, declinedSentAt: null },
     session: null,
     // Draft-wording markers are part of the preview only, never of a production build.
@@ -100,14 +103,20 @@ export type Action =
   | { type: 'update-image'; id: string; patch: Partial<DonationImage> }
   | { type: 'remove-image'; id: string }
   /** Uploads the server has accepted and linked to the record. */
-  | { type: 'answer-question'; questionId: string; version: string; value: string }
-  | { type: 'skip-question'; questionId: string }
-  | { type: 'survey-status'; status: SurveyStatus }
+  /** The parent's questions: the quick ones, or the longer ones ('more'). */
+  | { type: 'answer-question'; questionId: string; version: string; value: string; form?: QuestionsForm }
+  | { type: 'skip-question'; questionId: string; form?: QuestionsForm }
+  | { type: 'survey-status'; status: SurveyStatus; form?: QuestionsForm }
+  | { type: 'set-phone-source'; source: PhoneSource }
   | { type: 'images-sent'; ids: string[] }
   | { type: 'donation-status'; status: DonationStatus }
   | { type: 'submission'; patch: Partial<SubmissionState> }
   | { type: 'session'; session: SessionInfo | null }
   | { type: 'prototype'; patch: Partial<PrototypeFlags> };
+
+/** Which of the parent's question forms an action is about. */
+export type QuestionsForm = 'quick' | 'more';
+const surveyKey = (form: QuestionsForm | undefined): 'survey' | 'more' => (form === 'more' ? 'more' : 'survey');
 
 /** Move to `target`, showing a handover screen first if the device must change hands. */
 function moveTo(state: AppState, target: StepId): AppState {
@@ -127,11 +136,6 @@ function nextAfterChange(state: AppState): StepId | null {
     if (!isStepComplete(journey[i], state)) return journey[i];
   }
   return journey[to];
-}
-
-function deferDonation(state: AppState): AppState['donation'] {
-  // A parent's "no" to phone-use takes precedence over "waiting for the young person".
-  return state.donation.status === 'not-consented' ? state.donation : { ...state.donation, status: 'deferred' };
 }
 
 /** Changing a consent statement after signing invalidates the signature. */
@@ -182,12 +186,10 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'set-child-present': {
       const next = { ...state, childPresent: action.present };
       if (!action.present) {
-        // The young person's agreement is collected separately. The parent may carry on with the screen-time part (config).
+        // Nothing is shared from the young person's phone without them; the parent answers the longer questions instead.
         next.assent = { ...state.assent, status: 'deferred', deferredBy: 'parent', responses: {}, signature: null, completedAt: null };
-        next.donation = study.screenshotsWaitForAssent ? deferDonation(state) : state.donation.status === 'deferred' ? { ...state.donation, status: 'not-started' } : state.donation;
       } else if (state.assent.status === 'deferred') {
         next.assent = { ...state.assent, status: 'not-started', deferredBy: null };
-        next.donation = state.donation.status === 'deferred' ? { ...state.donation, status: state.donation.images.length ? 'in-progress' : 'not-started' } : state.donation;
       }
       return next;
     }
@@ -251,8 +253,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'assent-status': {
       const completedAt = action.status === 'completed' || action.status === 'declined' ? new Date().toISOString() : null;
       const assent = { ...state.assent, status: action.status, deferredBy: action.status === 'deferred' ? (action.deferredBy ?? 'young') : null, completedAt };
-      const donation = action.status === 'deferred' && study.screenshotsWaitForAssent ? deferDonation(state) : state.donation;
-      return { ...state, assent, donation };
+      return { ...state, assent };
     }
     case 'set-platform':
       return { ...state, donation: { ...state.donation, platform: action.platform, status: state.donation.status === 'not-started' ? 'in-progress' : state.donation.status } };
@@ -267,18 +268,26 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, donation: { ...state.donation, images, status } };
     }
     case 'answer-question': {
+      const key = surveyKey(action.form);
+      const form: SurveyRecord = state[key];
       const now = new Date().toISOString();
-      const responses = { ...state.survey.responses, [action.questionId]: { questionId: action.questionId, version: action.version, value: action.value, answeredAt: now } };
-      return { ...state, survey: { ...state.survey, responses, status: state.survey.status === 'completed' ? 'completed' : 'in-progress', startedAt: state.survey.startedAt ?? now } };
+      const responses = { ...form.responses, [action.questionId]: { questionId: action.questionId, version: action.version, value: action.value, answeredAt: now } };
+      return { ...state, [key]: { ...form, responses, status: form.status === 'completed' ? 'completed' : 'in-progress', startedAt: form.startedAt ?? now } };
     }
     case 'skip-question': {
-      const { [action.questionId]: _skipped, ...responses } = state.survey.responses;
-      return { ...state, survey: { ...state.survey, responses, startedAt: state.survey.startedAt ?? new Date().toISOString() } };
+      const key = surveyKey(action.form);
+      const form: SurveyRecord = state[key];
+      const { [action.questionId]: _skipped, ...responses } = form.responses;
+      return { ...state, [key]: { ...form, responses, startedAt: form.startedAt ?? new Date().toISOString() } };
     }
     case 'survey-status': {
+      const key = surveyKey(action.form);
+      const form: SurveyRecord = state[key];
       const done = action.status === 'completed' || action.status === 'skipped';
-      return { ...state, survey: { ...state.survey, status: action.status, completedAt: done ? new Date().toISOString() : state.survey.completedAt } };
+      return { ...state, [key]: { ...form, status: action.status, completedAt: done ? new Date().toISOString() : form.completedAt } };
     }
+    case 'set-phone-source':
+      return { ...state, phoneSource: action.source };
     case 'images-sent':
       return { ...state, donation: { ...state.donation, images: state.donation.images.map((img) => (action.ids.includes(img.id) ? { ...img, status: 'sent', progress: 1, error: null } : img)) } };
     case 'donation-status':

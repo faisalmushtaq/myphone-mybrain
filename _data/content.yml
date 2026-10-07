@@ -60,11 +60,11 @@ steps:
 
   - number: "02"
     title: "Share information"
-    body: "Parents, carers and pupils receive clear information before anything happens. A parent or carer must give permission, and the young person must agree too."
+    body: "Parents, carers and pupils receive clear information before anything happens. A parent or carer can opt their child out of the workshop by email; sharing phone data is a separate choice families opt in to online."
 
   - number: "03"
     title: "Run the session"
-    body: "Each visit is a two-hour workshop. In MyBrain, pupils learn how the brain works and can wear a lightweight EEG headset during a short rest and a simple computer task. In MyPhone, if they and their family agree, they share screenshots of their phone's screen-time page. Young people choose which parts they are happy to do."
+    body: "Each visit is a two-hour workshop. In MyBrain, pupils learn how the brain works and can wear a lightweight EEG headset during a short rest and a simple computer task. In MyPhone, families who opt in share screenshots of the phone's screen-time page online. Young people choose which parts they are happy to do."
 
   - number: "04"
     title: "Learn from the research"

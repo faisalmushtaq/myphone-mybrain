@@ -12,7 +12,7 @@ People are listed in `_data/people.yml`, partners and funders in `_data/partners
 
 ### A page for each school
 
-Each school taking part has its own page for parents and carers, at a short address such as `myphonemybrain.com/dua/` (Dixons Unity Academy) or `myphonemybrain.com/gsal/` (The Grammar School at Leeds), to send to parents. It has the school's name on it, and its button opens the online permission form with that school already chosen; parents can still change it in the form. Links typed in capitals (`/GSAL`) also work.
+Each school taking part has its own page for parents and carers, at a short address such as `myphonemybrain.com/dua/` (Dixons Unity Academy) or `myphonemybrain.com/gsal/` (The Grammar School at Leeds), to send to parents. It has the school's name on it, explains the workshop (opt-out, by email: `consent-app/docs/opt-outs.md`), and its button opens the online form for sharing screen time (opt-in) with that school already chosen; parents can still change it in the form. A second button explains how to opt out. Links typed in capitals (`/GSAL`) also work.
 
 To add a school, add one line to `_data/schools.json`:
 

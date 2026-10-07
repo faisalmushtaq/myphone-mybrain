@@ -2,10 +2,11 @@ import { useCallback, useRef } from 'react';
 import { getApi } from '../api';
 import { ApiError, type ClientInfo, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult } from '../api/types';
 import { childAssentForm, parentConsentForm } from '../config/statements';
+import { assentApplies, childAge, decidesAlone, parentMoreApplies, phoneSourceApplies, phoneSourceOf, youngAlone } from '../model/journey';
 import { study } from '../config/study';
 import { announce } from '../lib/announce';
 import { validateAssent, validateChildDetails, validateConsent, validateGuardian } from '../lib/validation';
-import type { AppState, DonationImage, SessionInfo, StepId } from '../model/types';
+import type { AppState, DonationImage, GuardianIdentity, SessionInfo, StepId } from '../model/types';
 import { useStore } from './context';
 
 export function friendlyError(error: unknown, what: 'permission' | 'screenshots'): string {
@@ -42,27 +43,55 @@ export function snapshotOf(state: AppState): string {
     consent: state.consent,
     assent: { ...state.assent, responses: assentResponses },
     survey: state.survey,
+    phoneSource: state.phoneSource,
+    more: state.more,
   });
 }
 
-/** The first step that still needs attention before the permission can be sent, or null. */
+/**
+ * The first step that still needs attention before the record can be sent,
+ * or null. A 16- or 17-year-old on their own sends nothing until they have
+ * agreed to share; otherwise the parent's details and permission (and, on
+ * the parent route, where the screen time comes from) come first, then the
+ * young person's answer whenever they are asked for one.
+ */
 export function firstIncomplete(state: AppState): StepId | null {
   if (validateChildDetails(state.identity).length) return 'child-details';
+  if (youngAlone(state)) return state.assent.status === 'completed' && !validateAssent(state.assent).length ? null : 'child-assent';
   if (validateGuardian(state.guardian).length) return state.route === 'parent' ? 'child-details' : 'parent-details';
-  if (state.assent.status === 'declined') return null;
-  if (validateConsent(state.consent, parentConsentForm).length || !state.consent.completedAt) return 'parent-consent';
-  if (state.assent.status === 'not-started') return 'child-assent';
-  if (state.assent.status === 'completed' && validateAssent(state.assent).length) return 'child-assent';
+  if (validateConsent(state.consent, parentConsentForm, undefined, childAge(state)).length || !state.consent.completedAt) return 'parent-consent';
+  if (phoneSourceApplies(state) && !state.phoneSource) return 'phone-source';
+  if (assentApplies(state)) {
+    if (state.assent.status === 'not-started') return 'child-assent';
+    if (state.assent.status === 'completed' && validateAssent(state.assent).length) return 'child-assent';
+  }
   return null;
 }
 
-function buildConsentPayload(state: AppState): ConsentPayload {
+const blankGuardian: GuardianIdentity = { fullName: '', relationship: '', relationshipOther: '', hasParentalResponsibility: false, email: '', phone: '', postcode: '' };
+
+/**
+ * The record as sent. A young person deciding alone sends no parent details
+ * and no permission record. From 16 the parent is not asked about the
+ * screen time, so a "phone-use" answer left from an earlier date of birth is
+ * dropped. The longer questions go only when they were asked.
+ */
+export function buildConsentPayload(state: AppState): ConsentPayload {
   const base = { referenceCode: state.submission.referenceCode, studyId: study.studyId, siteId: study.siteId, route: state.route ?? ('parent' as const), client: clientInfo() };
-  if (state.assent.status === 'declined') {
-    // Only what the team needs to avoid asking again. No permission record, date of birth or contact details.
-    return { ...base, kind: 'declined', identity: { ...state.identity, dateOfBirth: { day: '', month: '', year: '' } }, guardian: { ...state.guardian, phone: '', postcode: '', email: '' }, consent: null, assent: state.assent, survey: null };
-  }
-  return { ...base, kind: 'consent', identity: state.identity, guardian: state.guardian, consent: state.consent, assent: state.assent, survey: state.survey };
+  const alone = youngAlone(state);
+  const { 'phone-use': _dropped, ...overSixteen } = state.consent.responses;
+  const consent = alone ? null : decidesAlone(state) ? { ...state.consent, responses: overSixteen } : state.consent;
+  return {
+    ...base,
+    kind: 'consent',
+    identity: state.identity,
+    guardian: alone ? blankGuardian : state.guardian,
+    consent,
+    assent: state.assent,
+    survey: alone ? null : state.survey,
+    phoneSource: phoneSourceOf(state),
+    more: parentMoreApplies(state) ? state.more : null,
+  };
 }
 
 /**
@@ -119,7 +148,7 @@ export function useSync() {
           consentSentAt: result.receivedAt,
           consentVersion: result.version,
           sentSnapshot: snapshot,
-          declinedSentAt: payload.kind === 'declined' ? result.receivedAt : s.submission.declinedSentAt,
+          declinedSentAt: s.submission.declinedSentAt,
         },
       });
       announce(amending ? 'Changes saved.' : 'Permission saved.');
@@ -149,12 +178,12 @@ export function useSync() {
     dispatch({ type: 'submission', patch: { donationStage: 'sending', donationError: null } });
     announce('Sending your screenshots.');
     try {
-      // A young person who signed in the app agrees to share by sending; otherwise their agreement is collected separately.
+      // A young person sending from their own phone agrees to share by sending; a parent sending from their family view needs no agreement from them.
       const payload: DonationPayload = {
         referenceCode: consent.referenceCode,
         platform: s.donation.platform,
         uploads: uploads.map((i) => ({ uploadId: i.uploadId as string, redacted: i.redacted, cropped: i.cropped, acknowledgedWarning: i.acknowledged })),
-        agreement: s.assent.status === 'completed' ? { statementId: 'phone-use', version: statement?.version ?? childAssentForm.version, response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' } : null,
+        agreement: phoneSourceOf(s) === 'child' && s.assent.status === 'completed' ? { statementId: 'phone-use', version: statement?.version ?? childAssentForm.version, response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' } : null,
         client: clientInfo(),
       };
       const result = await withSession((session) => getApi().submitDonation(session, payload));

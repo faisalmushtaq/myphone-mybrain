@@ -6,6 +6,10 @@ const now = new Date().toISOString();
 const signature = { method: 'drawn' as const, imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=', typedName: null, strokeCount: 2, pointerType: 'touch', capturedAt: now };
 const r = (statementId: string, response: 'agreed' | 'declined', via: 'individual' | 'group' | 'signature' | 'action', version = '0.3-draft') => ({ statementId, version, response, respondedAt: now, via });
 
+/** A date of birth that makes someone `age` today. */
+const dobFor = (age: number) => ({ day: '1', month: '1', year: String(new Date().getFullYear() - age) });
+
+/** An under-16 on their own route, whose parent said yes: the screen time comes from the young person's phone, with their signed agreement. */
 function valid(): ConsentPayload {
   return {
     kind: 'consent',
@@ -13,19 +17,18 @@ function valid(): ConsentPayload {
     studyId: 'MPMB',
     siteId: 'LEEDS-BRADFORD',
     route: 'young',
-    identity: { firstName: 'Kai', lastName: 'Patel', dateOfBirth: { day: '14', month: '3', year: '2013' }, schoolId: 'BRD-001', schoolOther: '', yearGroup: 'Year 8' },
+    identity: { firstName: 'Kai', lastName: 'Patel', dateOfBirth: dobFor(13), schoolId: 'BRD-001', schoolOther: '', yearGroup: 'Year 8' },
     guardian: { fullName: 'Priya Patel', relationship: 'mother', relationshipOther: '', hasParentalResponsibility: true, email: '', phone: '', postcode: '' },
     consent: {
       formId: 'mpmb-parent-consent',
-      formVersion: '0.5-draft',
-      informationVersion: '0.3-draft',
+      formVersion: '0.6-draft',
+      informationVersion: '0.4-draft',
       responses: {
-        'read-information': r('read-information', 'agreed', 'group'),
-        'take-part': r('take-part', 'agreed', 'group'),
-        'understand-withdraw': r('understand-withdraw', 'agreed', 'group'),
+        'read-information': r('read-information', 'agreed', 'group', '0.4-draft'),
+        answers: r('answers', 'agreed', 'group', '0.1-draft'),
+        'understand-withdraw': r('understand-withdraw', 'agreed', 'group', '0.4-draft'),
         'records-checked': r('records-checked', 'agreed', 'group'),
-        'phone-use': r('phone-use', 'agreed', 'individual', '0.4-draft'),
-        'link-records': r('link-records', 'declined', 'individual', '0.4-draft'),
+        'phone-use': r('phone-use', 'agreed', 'individual', '0.5-draft'),
         recontact: r('recontact', 'declined', 'individual'),
       },
       typedName: 'Priya Patel',
@@ -36,10 +39,10 @@ function valid(): ConsentPayload {
     },
     assent: {
       formId: 'mpmb-child-assent',
-      formVersion: '0.4-draft',
+      formVersion: '0.5-draft',
       status: 'completed',
       deferredBy: null,
-      responses: { understand: r('understand', 'agreed', 'signature'), 'can-stop': r('can-stop', 'agreed', 'signature'), 'take-part': r('take-part', 'agreed', 'signature') },
+      responses: { understand: r('understand', 'agreed', 'signature', '0.4-draft'), 'can-stop': r('can-stop', 'agreed', 'signature'), 'take-part': r('take-part', 'agreed', 'signature', '0.4-draft') },
       signature,
       handoverConfirmedAt: now,
       startedAt: now,
@@ -53,16 +56,20 @@ function valid(): ConsentPayload {
       startedAt: now,
       completedAt: now,
     },
+    phoneSource: 'child',
+    more: null,
     client: { userAgent: 'test', submittedAt: now, timezoneOffset: 0 },
   };
 }
+
+const notAsked = (): ConsentPayload['assent'] => ({ formId: 'mpmb-child-assent', formVersion: '0.5-draft', status: 'not-started', deferredBy: null, responses: {}, signature: null, handoverConfirmedAt: null, startedAt: null, completedAt: null });
 
 function validDonation(): DonationPayload {
   return {
     referenceCode: 'MPMB-AB2C-D3E',
     platform: 'ios',
     uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: true, cropped: false, acknowledgedWarning: false }],
-    agreement: r('phone-use', 'agreed', 'action', '0.4-draft'),
+    agreement: r('phone-use', 'agreed', 'action', '0.5-draft'),
     client: { userAgent: 'test', submittedAt: now, timezoneOffset: 0 },
   };
 }
@@ -96,10 +103,16 @@ test('a typed-in school name needs at least three letters', () => {
   assert.deepEqual(validateConsentPayload(p), []);
 });
 
-test('rejects a missing required statement', () => {
+test('rejects a missing required statement, and the statements no longer asked', () => {
   const p = valid();
-  delete p.consent!.responses['take-part'];
-  assert.ok(validateConsentPayload(p).some((m) => m.includes('"take-part"')));
+  delete p.consent!.responses.answers;
+  assert.ok(validateConsentPayload(p).some((m) => m.includes('"answers"')));
+  // Since 7 October 2026 the workshop and record linkage are opt-out: neither is asked on the form.
+  for (const gone of ['take-part', 'link-records']) {
+    const q = valid();
+    q.consent!.responses[gone] = r(gone, 'agreed', 'group', '0.4-draft');
+    assert.ok(validateConsentPayload(q).some((m) => m.includes(`unknown statement "${gone}"`)), gone);
+  }
 });
 
 test('rejects an old statement version', () => {
@@ -120,7 +133,7 @@ test('rejects an empty drawn signature', () => {
   assert.ok(validateConsentPayload(p).some((m) => m.includes('empty')));
 });
 
-test('the parent’s questions are optional, checked against the form, and never sent with a declined record', () => {
+test('the parent’s questions are optional and checked against the form', () => {
   const p = valid();
   p.survey = null;
   assert.deepEqual(validateConsentPayload(p), []);
@@ -142,18 +155,69 @@ test('the parent’s questions are optional, checked against the form, and never
   assert.deepEqual(validateConsentPayload(t), []);
 });
 
-test('declined record carries no permission record and no date of birth', () => {
-  const p = valid();
+test('there is no "declined" record any more: a young person’s no is part of the parent’s record', () => {
+  const p = valid() as unknown as Record<string, unknown>;
   p.kind = 'declined';
-  p.assent.status = 'declined';
-  p.assent.responses = { 'take-part': r('take-part', 'declined', 'individual') };
-  p.assent.signature = null;
-  assert.ok(validateConsentPayload(p).some((m) => m.includes('must not carry a permission')));
-  assert.ok(validateConsentPayload(p).some((m) => m.includes('must not carry the questions')));
+  assert.ok(validateConsentPayload(p).some((m) => m.includes('Unknown submission kind')));
+  const q = valid();
+  q.assent = { ...q.assent, status: 'declined', signature: null, completedAt: now, responses: { 'take-part': r('take-part', 'declined', 'individual', '0.4-draft') } };
+  assert.deepEqual(validateConsentPayload(q), []);
+  q.assent.responses = {};
+  assert.ok(validateConsentPayload(q).some((m) => m.includes('must record the young person’s no')));
+});
+
+test('16 or 17 on their own: no parent, no permission record, their own signed agreement', () => {
+  const p = valid();
+  p.identity.dateOfBirth = dobFor(16);
+  p.guardian = { fullName: '', relationship: '', relationshipOther: '', hasParentalResponsibility: false, email: '', phone: '', postcode: '' };
   p.consent = null;
   p.survey = null;
-  p.identity.dateOfBirth = { day: '', month: '', year: '' };
   assert.deepEqual(validateConsentPayload(p), []);
+  assert.ok(validateConsentPayload({ ...p, guardian: { ...p.guardian, fullName: 'Priya Patel' } }).some((m) => m.includes('no parent or carer details')));
+  assert.ok(validateConsentPayload({ ...p, consent: valid().consent }).some((m) => m.includes('no permission record')));
+  assert.ok(validateConsentPayload({ ...p, survey: valid().survey }).some((m) => m.includes('no questions')));
+  assert.ok(validateConsentPayload({ ...p, assent: { ...p.assent, status: 'deferred', deferredBy: 'young', signature: null } }).some((m) => m.includes('only once they have agreed')));
+  // Under 16 the same record needs the parent.
+  assert.ok(validateConsentPayload({ ...p, identity: { ...p.identity, dateOfBirth: dobFor(15) } }).some((m) => m.includes('permission record is missing')));
+});
+
+test('the parent of a 16- or 17-year-old is not asked about the screenshots: the young person decides', () => {
+  const p = valid();
+  p.route = 'parent';
+  p.identity.dateOfBirth = dobFor(17);
+  delete p.consent!.responses['phone-use'];
+  assert.deepEqual(validateConsentPayload(p), []);
+  const q = valid();
+  q.route = 'parent';
+  q.identity.dateOfBirth = dobFor(17);
+  assert.ok(validateConsentPayload(q).some((m) => m.includes('"phone-use" is not asked')));
+});
+
+test('under 16 on the parent’s route: the screen time comes from where the parent chose', () => {
+  const p = valid();
+  p.route = 'parent';
+  p.phoneSource = 'parent';
+  p.assent = notAsked();
+  assert.deepEqual(validateConsentPayload(p), [], 'from the parent’s own phone, no agreement is asked of the young person');
+  assert.ok(validateConsentPayload({ ...p, phoneSource: null }).some((m) => m.includes('Where the screen time comes from is missing')));
+  assert.ok(validateConsentPayload({ ...p, phoneSource: 'child' }).some((m) => m.includes('agreement was not completed')));
+  assert.deepEqual(validateConsentPayload({ ...p, phoneSource: 'child', assent: valid().assent }), []);
+  // On the young person's own route it is their phone, whatever is claimed.
+  assert.ok(validateConsentPayload({ ...valid(), phoneSource: 'parent' }).some((m) => m.includes('does not match')));
+});
+
+test('after the parent’s no there is no screen time, and the longer questions are checked against their form', () => {
+  const p = valid();
+  p.route = 'parent';
+  p.consent!.responses['phone-use'] = r('phone-use', 'declined', 'individual', '0.5-draft');
+  p.phoneSource = 'none';
+  p.assent = notAsked();
+  p.more = { formId: 'mpmb-parent-phone-use', formVersion: '0.1-draft', status: 'completed', responses: { 'school-day-time': { questionId: 'school-day-time', version: '0.1-draft', value: '2-3', answeredAt: now }, 'more-notes': { questionId: 'more-notes', version: '0.1-draft', value: 'Late nights.', answeredAt: now } }, startedAt: now, completedAt: now };
+  assert.deepEqual(validateConsentPayload(p), []);
+  assert.ok(validateConsentPayload({ ...p, phoneSource: 'parent' }).some((m) => m.includes('does not match')));
+  assert.ok(validateConsentPayload({ ...p, more: { ...p.more, formVersion: '0.0-draft' } }).some((m) => m.includes('longer questions form')));
+  assert.ok(validateConsentPayload({ ...p, more: { ...p.more, responses: { concern: { questionId: 'concern', version: '0.1-draft', value: 'somewhat', answeredAt: now } } } }).some((m) => m.includes('Unknown question')));
+  assert.ok(validateConsentPayload({ ...p, more: { ...p.more, responses: { 'school-day-time': { questionId: 'school-day-time', version: '0.1-draft', value: 'all day', answeredAt: now } } } }).some((m) => m.includes('Malformed answer')));
 });
 
 test('rejects unknown statements and bad shapes', () => {
@@ -170,7 +234,7 @@ test('accepts a screenshot record', () => {
 
 test('an agreement record, when present, must be by action at the current version', () => {
   const d = validDonation();
-  d.agreement = r('phone-use', 'agreed', 'individual', '0.4-draft');
+  d.agreement = r('phone-use', 'agreed', 'individual', '0.5-draft');
   assert.ok(validateDonationPayload(d).some((m) => m.includes('malformed')));
   d.agreement = r('phone-use', 'agreed', 'action', '0.1-draft');
   assert.ok(validateDonationPayload(d).some((m) => m.includes('version')));
@@ -178,7 +242,7 @@ test('an agreement record, when present, must be by action at the current versio
   assert.ok(validateDonationPayload(d).some((m) => m.includes('malformed')));
 });
 
-test('screenshots are accepted without the young person’s in-app agreement (it may be collected on paper)', () => {
+test('screenshots from the parent’s own phone come without an agreement from the young person', () => {
   const d = validDonation();
   d.agreement = null;
   assert.deepEqual(validateDonationPayload(d), []);

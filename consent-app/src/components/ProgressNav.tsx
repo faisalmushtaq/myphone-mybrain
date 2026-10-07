@@ -7,7 +7,7 @@ import { Button } from './ui/Button';
 import { Icon } from './ui/Icon';
 
 function actorLabel(actor: Actor, childName: string): { text: string; icon: string } {
-  if (actor === 'parent') return { text: 'Parent or guardian section', icon: 'parent' };
+  if (actor === 'parent') return { text: 'Parent or carer section', icon: 'parent' };
   if (actor === 'young') return { text: childName ? `${childName}’s section` : 'Young person’s section', icon: 'young' };
   return { text: 'Whoever has the phone', icon: 'phone' };
 }

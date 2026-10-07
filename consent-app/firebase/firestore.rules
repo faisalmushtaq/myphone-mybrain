@@ -27,6 +27,7 @@ rules_version = '2';
 // The schools:
 // schoolUploadAccess/  a hash of each school's upload password
 // schoolUploads/       the UPN lists schools send, as read (identifying)
+// optOuts/             opt-outs from the workshop parents emailed, as the team logged them (identifying)
 //
 // enquiries/        messages from the website's contact and school forms
 // ratelimits/       counters for the enquiry function and the lab code lookup
@@ -115,6 +116,10 @@ service cloud.firestore {
     }
     match /schoolUploadAccess/{slug} {
       allow read, write: if false;
+    }
+    match /optOuts/{optOutId} {
+      allow read: if hasRole('coordinator');
+      allow write: if false;
     }
 
     // Website enquiries: coordinators read them; the enquiry function writes them.

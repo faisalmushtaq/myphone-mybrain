@@ -4,7 +4,7 @@ import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { Icon } from '../components/ui/Icon';
-import { phoneUseApplies } from '../model/journey';
+import { assentApplies, phoneUseApplies } from '../model/journey';
 import { useStore } from '../state/context';
 import { useSync } from '../state/useSync';
 
@@ -18,7 +18,7 @@ export function Check() {
   const { dirty, submission } = useSync();
   const childName = state.identity.firstName.trim() || 'the young person';
   const sent = submission.consentStage === 'sent' && !dirty;
-  const canAddImages = phoneUseApplies(state) && state.assent.status !== 'not-started';
+  const canAddImages = phoneUseApplies(state);
   const sentImages = state.donation.images.filter((i) => i.status === 'sent').length;
 
   return (
@@ -34,7 +34,7 @@ export function Check() {
     >
       <SaveStatus />
 
-      {state.assent.status === 'not-started' && (
+      {assentApplies(state) && state.assent.status === 'not-started' && (
         <Callout tone="warning" role="status">
           <p>{childName}’s agreement has not been completed yet. Choose “Change” next to their section to complete it.</p>
         </Callout>
@@ -48,7 +48,7 @@ export function Check() {
           <Icon name="check" size={16} /> Permission and agreement
         </span>
         <span className="mpmb-legend__item mpmb-legend__item--research">
-          <Icon name="image" size={16} /> Screen time and apps
+          <Icon name="image" size={16} /> Answers and screen time
         </span>
       </div>
 

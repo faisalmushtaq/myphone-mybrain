@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { study } from '../config/study';
-import { stepDefs } from '../model/journey';
+import { decidesAlone, stepDefs } from '../model/journey';
 import { useStore } from '../state/context';
 import { ParentLinkPanel } from './ParentLink';
 import { Button } from './ui/Button';
@@ -39,21 +39,25 @@ export function HandoverScreen() {
       </div>
       <p className="mpmb-kicker mpmb-kicker--onhandover">Pass the phone</p>
       <h1 className="mpmb-h1 mpmb-handover__title" id="mpmb-handover-title" tabIndex={-1} ref={headingRef}>
-        {toParent ? 'Please ask your parent or guardian to complete the next part.' : `Please pass this to ${childName}.`}
+        {toParent ? 'Please ask your parent or carer to complete the next part.' : `Please pass this to ${childName}.`}
       </h1>
 
       {toParent ? (
         <div className="mpmb-handover__body">
           {phase === 'details' || handover.nextStep === 'parent-details' ? (
             <p>
-              <strong>For the parent or guardian:</strong> {childName} has started the MyPhone/MyBrain form. The next part asks for your details and your permission. It takes about three minutes.
+              <strong>For the parent or carer:</strong> {childName} has started the MyPhone/MyBrain form about phone use. The next part asks for your details, your permission and a few quick questions. It takes about five minutes.
+            </p>
+          ) : handover.nextStep === 'parent-more' ? (
+            <p>
+              <strong>For the parent or carer:</strong> {childName}’s screen time won’t be shared from this form, so the next part has some more questions for you about {childName}’s phone use. About three minutes.
             </p>
           ) : (
             <p>
-              <strong>For the parent or guardian:</strong> the next part is your section — the information and your permission for {childName} to take part.
+              <strong>For the parent or carer:</strong> the next part is your section: the information, your permission for sharing {childName}’s screen time, and a few quick questions.
             </p>
           )}
-          <p>You will be asked to tick each permission separately and to sign with your finger.</p>
+          {handover.nextStep !== 'parent-more' && <p>You will be asked to answer each permission separately and to sign with your finger.</p>}
           {state.route === 'young' && !noParent && (
             <p className="mpmb-handover__note">
               <strong>For {childName}:</strong> not with your parent or carer now? Please don’t fill in their part for them: tap “My parent or carer isn’t here”.
@@ -65,13 +69,18 @@ export function HandoverScreen() {
         <div className="mpmb-handover__body">
           {firstTime ? (
             <>
-              <p>
-                <strong>For {childName}:</strong> your parent or guardian has given their permission. Because you are under 18, research rules need their permission as well as yours — but your
-                answer still counts, and you can say no even though they said yes.
-              </p>
+              {decidesAlone(state) ? (
+                <p>
+                  <strong>For {childName}:</strong> at 16 or over, you decide for yourself whether to share your screen time. Your parent or carer has answered their questions; this part is yours.
+                </p>
+              ) : (
+                <p>
+                  <strong>For {childName}:</strong> your parent or carer has said it is okay with them for you to share your screen time. It is still your choice: you can say no even though they said yes.
+                </p>
+              )}
               <p>Signing your name means yes. Saying no won’t change anything at school.</p>
               <p className="mpmb-handover__note">
-                <strong>For the parent or guardian:</strong> please let {childName} read and answer this part themselves.
+                <strong>For the parent or carer:</strong> please let {childName} read and answer this part themselves.
               </p>
             </>
           ) : (
@@ -84,7 +93,7 @@ export function HandoverScreen() {
 
       <div className="mpmb-handover__actions">
         <Button variant="primary" arrow onClick={() => dispatch({ type: 'confirm-handover' })}>
-          {toParent ? 'I’m the parent or guardian — continue' : `I’m ${childName} — continue`}
+          {toParent ? 'I’m the parent or carer — continue' : `I’m ${childName} — continue`}
         </Button>
         {toParent && state.route === 'young' && !noParent && (
           <Button variant="ghost" onClick={() => setNoParent(true)}>
@@ -103,11 +112,7 @@ export function HandoverScreen() {
             >
               {childName} isn’t here right now
             </Button>
-            <p className="mpmb-handover__note">
-              {study.screenshotsWaitForAssent
-                ? `If ${childName} isn’t with you, we will ask for their agreement separately, for example at school. The phone-use part will wait until then.`
-                : `If ${childName} isn’t with you, you can carry on and complete the rest yourself — including the screenshots, if you have their phone. We will ask ${childName} for their own agreement separately, for example at school.`}
-            </p>
+            <p className="mpmb-handover__note">If {childName} isn’t with you, nothing is shared from their phone: we ask you some more questions about their phone use instead.</p>
           </>
         )}
         <Button variant="link" className="mpmb-btn--onhandover" onClick={() => dispatch({ type: 'cancel-handover' })}>

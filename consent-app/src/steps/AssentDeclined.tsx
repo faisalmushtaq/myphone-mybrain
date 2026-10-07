@@ -1,20 +1,19 @@
 import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
-import { Callout } from '../components/ui/Callout';
+import { parentInvolved } from '../model/journey';
 import { useStore } from '../state/context';
 import { clearState } from '../state/persistence';
-import { useSync } from '../state/useSync';
 
-/** A calm ending when the young person does not want to take part. */
+/**
+ * A calm answer when the young person does not want to share their screen
+ * time. With a parent or carer there, the form carries on to them (their
+ * permission and answers still count, and they are asked a few more
+ * questions instead); a 16- or 17-year-old on their own has sent nothing, so
+ * finishing clears the device.
+ */
 export function AssentDeclined() {
   const { state, dispatch } = useStore();
-  const { sendConsent, submission } = useSync();
-  const childName = state.identity.firstName.trim() || 'you';
-
-  const tellTeam = async () => {
-    const result = await sendConsent();
-    if (result) dispatch({ type: 'go-to', stepId: 'done', returnTo: null });
-  };
+  const withParent = parentInvolved(state);
 
   const finishWithoutSending = () => {
     clearState();
@@ -25,35 +24,22 @@ export function AssentDeclined() {
     <StepShell
       kicker="No problem"
       title="Thanks for telling us."
-      intro={<p>Taking part is a choice, and choosing not to is completely fine. Nothing else will happen, and nobody will ask why.</p>}
+      intro={<p>Sharing your screen time is a choice, and choosing not to is completely fine. Nobody will ask why, and it won’t change anything at school.</p>}
       hideContinue
       hideBack
       secondaryAction={
-        <>
-          <Button variant="primary" arrow loading={submission.consentStage === 'sending'} onClick={() => void tellTeam()}>
-            Let the team know
+        withParent ? (
+          <Button variant="primary" arrow onClick={() => dispatch({ type: 'next' })}>
+            Continue
           </Button>
-          <Button variant="secondary" onClick={finishWithoutSending}>
-            Finish without sending anything
+        ) : (
+          <Button variant="primary" onClick={finishWithoutSending}>
+            Finish
           </Button>
-        </>
+        )
       }
     >
-      <p>
-        <strong>Let the team know</strong> tells the research team that {childName === 'you' ? 'you do' : `${childName} does`} not want to take part, so nobody asks again. Only your name, your school and your parent or
-        guardian’s name are sent — no date of birth and no permission form.
-      </p>
-      <p>
-        <strong>Finish without sending anything</strong> clears everything from this device and sends nothing at all.
-      </p>
-      {submission.consentStage === 'failed' && (
-        <Callout tone="warning" role="alert">
-          <p>{submission.consentError}</p>
-          <Button variant="secondary" onClick={() => void tellTeam()}>
-            Try again
-          </Button>
-        </Callout>
-      )}
+      <p>{withParent ? 'Nothing from your phone will be shared. Next, please hand the phone back to your parent or carer: there are a few more questions for them.' : 'Nothing has been sent. Finish clears everything you typed from this device.'}</p>
       <Button
         variant="link"
         onClick={() => {

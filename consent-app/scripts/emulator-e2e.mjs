@@ -112,7 +112,8 @@ async function inner() {
 
   try {
     await page.goto(`http://127.0.0.1:${PORT}/index.html`);
-    await page.getByRole('heading', { name: /Take part in MyPhone/ }).waitFor();
+    await page.getByRole('heading', { name: /Share screen time with MyPhone/ }).waitFor();
+    ok('the form says the workshop is separate and offers the opt-out to parents', (await page.getByText(/The workshop at school is separate/).count()) === 1 && (await page.getByRole('button', { name: 'Opt out of the workshop' }).count()) === 1);
     await page.getByRole('button', { name: /I’m the young person/ }).click();
     await page.getByLabel('Your first name').fill('Kai');
     await page.getByLabel('Your last name').fill('Patel');
@@ -120,15 +121,16 @@ async function inner() {
     await page.getByLabel('Your school', { exact: true }).selectOption('DUA');
     await page.getByLabel('Your year group').selectOption('Year 8');
     await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('button', { name: /I’m the parent or guardian/ }).click();
+    await page.getByRole('button', { name: /I’m the parent or carer/ }).click();
     await page.getByLabel('Your full name', { exact: true }).fill('Priya Patel');
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     await page.getByLabel(/parental responsibility for/).check();
     await page.getByLabel('Your email address').fill('priya@example.com');
     await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('heading', { name: /Your permission for Kai/ }).waitFor();
+    await page.getByRole('heading', { name: /Your permission: Kai’s phone use/ }).waitFor();
+    ok('the parent is not asked about the workshop or record linkage, only about the screen time and future contact', (await page.locator('#stmt-link-records-agreed').count()) === 0 && (await page.getByText(/agree to my child taking part/).count()) === 0 && (await page.locator('#stmt-phone-use-agreed').count()) === 1);
     await page.getByLabel(/I confirm all of the above/).check();
-    for (const [id, v] of [['phone-use', 'agreed'], ['link-records', 'declined'], ['recontact', 'declined']]) await page.locator(`#stmt-${id}-${v}`).check();
+    for (const [id, v] of [['phone-use', 'agreed'], ['recontact', 'declined']]) await page.locator(`#stmt-${id}-${v}`).check();
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.35, 0.3], [0.55, 0.7], [0.8, 0.4]]);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
@@ -140,7 +142,7 @@ async function inner() {
     await page.getByRole('textbox').fill('Mostly YouTube, often late at night.');
     await page.getByRole('button', { name: 'Finish', exact: true }).click();
     await page.getByRole('button', { name: /I’m Kai/ }).click();
-    await page.getByRole('heading', { name: /Do you want to take part/ }).waitFor();
+    await page.getByRole('heading', { name: /Do you want to share your screen time/ }).waitFor();
     await draw(page.locator('#assent-signature'), [[0.2, 0.6], [0.5, 0.35], [0.8, 0.6]]);
     await page.getByRole('button', { name: 'Sign and continue' }).click();
 
@@ -167,7 +169,7 @@ async function inner() {
     ok('browser uploaded both images and submitDonation accepted them', await page.getByText(/2 sent/).count() > 0);
 
     // 3. A change on the check page is saved as an amendment (new records, nothing overwritten).
-    await page.getByRole('button', { name: /Change parent or guardian$/i }).click();
+    await page.getByRole('button', { name: /Change parent or carer$/i }).click();
     await page.getByRole('heading', { name: /Your details/ }).waitFor();
     await page.getByRole('button', { name: /Add a phone number or home postcode/ }).click();
     await page.getByLabel('Your phone number').fill('07700 900123');
@@ -175,7 +177,7 @@ async function inner() {
     await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
     await page.locator('.mpmb-save', { hasText: 'Changes saved' }).waitFor({ timeout: 60000 });
     await page.getByRole('button', { name: /Everything is right/ }).click();
-    await page.getByRole('heading', { name: /Thank you for taking part/ }).waitFor({ timeout: 30000 });
+    await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
     ok('thank-you page shows the same reference', (await page.locator('.mpmb-done__ref strong').innerText()).trim() === code);
     ok('no browser errors', errors.length === 0, errors.join(' | '));
 
@@ -188,7 +190,7 @@ async function inner() {
     const consents = await db.collection('consents').where('participantId', '==', submission.participantId).get();
     const consent = (await db.collection('consents').doc(submission.consentId).get()).data();
     ok('two consent records, the second superseding the first', consents.size === 2 && consent?.version === 2 && consent?.supersedes === firstConsentId);
-    ok('consent record complete', consent?.responses?.['link-records']?.response === 'declined' && consent?.responses?.['take-part']?.via === 'group' && consent?.signature?.image?.path?.startsWith('signatures/'));
+    ok('consent record complete: the parent’s yes to the screenshots, by the young person’s phone', consent?.responses?.['phone-use']?.response === 'agreed' && consent?.responses?.answers?.via === 'group' && !consent?.responses?.['link-records'] && !consent?.responses?.['take-part'] && consent?.signature?.image?.path?.startsWith('signatures/') && submission.phoneSource === 'child' && submission.selfConsent === false);
     ok('consent record has server receipt time', consent?.receivedAt && consent?.createdAt);
     const assent = (await db.collection('assents').doc(submission.assentId).get()).data();
     ok('assent record signed, screenshot agreement by action', assent?.status === 'completed' && assent?.responses?.['take-part']?.via === 'signature' && assent?.responses?.['phone-use']?.via === 'action');
@@ -233,7 +235,7 @@ async function inner() {
     const description = JSON.parse(await readExport('schools/donations/dataset_description.json'));
     ok('export ran and counted the records', exportRes.status === 200 && manifest.counts?.participants === 1 && manifest.counts?.consents === 2 && manifest.counts?.sessions === 1 && manifest.counts?.screenshots === 2 && manifest.counts?.signatures === 4 && manifest.counts?.enquiries === 1, JSON.stringify(manifest.counts));
     ok('BIDS dataset is de-identified and labelled sub-00001', description.BIDSVersion && participantsTsv.startsWith('participant_id\tage\t') && participantsTsv.includes('sub-00001\t13\tYear 8\tDUA') && !participantsTsv.includes('Patel') && phenotypeTsv.includes('sub-00001\tsomewhat') && !phenotypeTsv.includes('Patel') && !behTsv.includes('Patel'));
-    ok('identifying folder holds the key and the statements', keyTsv.includes('sub-00001\t') && keyTsv.includes('Kai\tPatel') && statementsTsv.includes('sub-00001\t2\tlink-records\t0.4-draft\tdeclined'));
+    ok('identifying folder holds the key and the statements', keyTsv.includes('sub-00001\t') && keyTsv.includes('Kai\tPatel') && statementsTsv.includes('sub-00001\t2\trecontact\t0.3-draft\tdeclined') && statementsTsv.includes('sub-00001\t2\tphone-use\t0.5-draft\tagreed'));
     ok('screenshots sit under sourcedata and signatures under identifying, named by label and session', exportedNames.filter((n) => n.startsWith('schools/donations/sourcedata/sub-00001/ses-01/sub-00001_ses-01_task-screentime_run-0')).length === 2 && exportedNames.filter((n) => n.startsWith('schools/identifying/signatures/sub-00001/sub-00001_')).length === 4 && exportedNames.includes('schools/donations/sub-00001/sub-00001_sessions.tsv') && exportedNames.includes('schools/donations/README') && exportedNames.includes('schools/README.md') && exportedNames.includes('manifest.json') && exportedNames.every((n) => n === 'README.md' || n === 'manifest.json' || n.startsWith('schools/') || n.startsWith('social-media-break/')));
     const rerun = await (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' })).json();
     ok('a second run copies nothing new and keeps the mirror as it is', rerun.counts?.filesCopiedThisRun === 0 && rerun.files?.length === manifest.files?.length);
@@ -277,12 +279,12 @@ async function inner() {
       }
     };
     const client = { userAgent: 'rules-check', submittedAt: new Date().toISOString(), timezoneOffset: 0 };
-    const agreement = { statementId: 'phone-use', version: '0.4-draft', response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' };
+    const agreement = { statementId: 'phone-use', version: '0.5-draft', response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' };
     ok('another session cannot add screenshots to this reference', await stranger(() => httpsCallable(fns, 'submitDonation')({ referenceCode: code, platform: 'ios', uploads: [{ uploadId: '123e4567-e89b-12d3-a456-426614174000', redacted: false, cropped: false, acknowledgedWarning: false }], agreement, client })));
-    // A parent completing everything while the young person is not there: the screenshot is held pending the young person's agreement.
+    // A parent who can see the young person's screen time on their own phone (Family Link): their permission is enough, and the young person is not asked.
     await page.getByRole('button', { name: /Finish and clear/ }).click();
-    await page.getByRole('heading', { name: /Take part in MyPhone/ }).waitFor();
-    await page.getByRole('button', { name: /I’m a parent or guardian/ }).click();
+    await page.getByRole('heading', { name: /Share screen time with MyPhone/ }).waitFor();
+    await page.getByRole('button', { name: /I’m a parent or carer/ }).click();
     await page.getByLabel('First name', { exact: true }).fill('Amira');
     await page.getByLabel('Last name', { exact: true }).fill('Khan');
     await page.getByLabel('Date of birth', { exact: true }).fill('2012-09-02');
@@ -292,16 +294,21 @@ async function inner() {
     await page.getByLabel(/parental responsibility for/).check();
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByLabel(/I confirm all of the above/).check();
-    for (const [id, v] of [['phone-use', 'agreed'], ['link-records', 'agreed'], ['recontact', 'declined']]) await page.locator(`#stmt-${id}-${v}`).check();
+    for (const [id, v] of [['phone-use', 'agreed'], ['recontact', 'declined']]) await page.locator(`#stmt-${id}-${v}`).check();
     await page.getByRole('button', { name: /I can’t draw my signature/ }).click();
     await page.getByLabel(/Type your full name as your signature/).fill('Sara Khan');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
-    await page.getByRole('button', { name: /isn’t here/ }).click();
-    await page.getByRole('heading', { name: /Share the screen time/ }).waitFor();
+    await page.getByRole('heading', { name: /Where can Amira’s screen time come from/ }).waitFor();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText('Choose where the screen time can come from.').first().waitFor();
+    await page.locator('#phone-source-parent').check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: /Share Amira’s screen time from your phone/ }).waitFor();
     await page.locator('.mpmb-save', { hasText: 'Permission saved' }).waitFor({ timeout: 60000 });
     const code2 = (await page.locator('.mpmb-save strong').innerText()).trim();
     await page.getByRole('radio', { name: 'Android' }).check();
+    ok('the instructions are for Google Family Link on the parent’s own phone', (await page.getByText(/How to find Amira’s screen time in Google Family Link/).count()) === 1);
     await input.setInputFiles([{ name: 'c.png', mimeType: 'image/png', buffer: await png('Today') }]);
     await page.waitForFunction(() => document.querySelectorAll('.mpmb-upload').length === 1);
     await page.getByRole('button', { name: /Send this screenshot/ }).click();
@@ -309,8 +316,10 @@ async function inner() {
     const sub2 = (await db.collection('submissions').doc(code2).get()).data();
     const assent2 = (await db.collection('assents').doc(sub2.assentId).get()).data();
     const donation2 = (await db.collection('donations').doc(sub2.donationIds[0]).get()).data();
-    ok('parent shared with the young person absent: agreement deferred, donation records no in-app agreement', assent2?.status === 'deferred' && assent2?.deferredBy === 'parent' && !assent2?.responses?.['phone-use'] && donation2?.agreement === null && donation2?.youngPersonAgreedInApp === false && donation2?.assentStatusAtSend === 'deferred' && donation2?.images.length === 1);
+    ok('from the parent’s own phone: no agreement asked of the young person, the screenshot recorded as from the parent’s phone', sub2?.phoneSource === 'parent' && assent2?.status === 'not-started' && donation2?.agreement === null && donation2?.from === 'parent-phone' && donation2?.youngPersonAgreedInApp === false && donation2?.images.length === 1);
     ok('no questions record when they were skipped without an answer', sub2?.surveyId && (await db.collection('surveys').doc(sub2.surveyId).get()).data()?.status === 'skipped');
+    await page.getByRole('button', { name: /Everything is right/ }).click();
+    await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
 
     // The social media break study: participant ID, consent, a cleaned TikTok export and a screenshot, then the export.
     const JSZip = admin('jszip');
@@ -327,6 +336,92 @@ async function inner() {
     const rawZip = new JSZip();
     rawZip.file('user_data_tiktok.json', JSON.stringify(tiktokExport));
     const tiktokZip = await rawZip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+
+    // A parent who says no to the screenshots: the quick questions, then the longer ones instead; nothing is asked of the young person.
+    const yearsAgo = (n, md = '05-20') => `${new Date().getFullYear() - n}-${md}`;
+    await page.evaluate(() => window.sessionStorage.clear());
+    await page.goto(`http://127.0.0.1:${PORT}/index.html?who=parent&school=dua`);
+    await page.getByLabel('First name', { exact: true }).fill('Lily');
+    await page.getByLabel('Last name', { exact: true }).fill('Brown');
+    await page.getByLabel('Date of birth', { exact: true }).fill(yearsAgo(14));
+    await page.getByLabel('Year group').selectOption('Year 9');
+    await page.getByLabel('Your full name', { exact: true }).fill('Grace Brown');
+    await page.getByLabel('Your relationship to the young person').selectOption('mother');
+    await page.getByLabel(/parental responsibility for/).check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: /Your permission: Lily’s phone use/ }).waitFor();
+    await page.getByLabel(/I confirm all of the above/).check();
+    for (const [id, v] of [['phone-use', 'declined'], ['recontact', 'agreed']]) await page.locator(`#stmt-${id}-${v}`).check();
+    await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.6]]);
+    await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
+    await page.getByRole('button', { name: 'Skip these questions' }).click();
+    await page.getByRole('heading', { name: /Some more questions about Lily’s phone use/ }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Time and apps · Question 1 of 11' }).waitFor();
+    await page.getByRole('button', { name: '12', exact: true }).click();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of 11' }).waitFor();
+    await page.getByRole('button', { name: '3 to 4 hours', exact: true }).click();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 3 of 11' }).waitFor();
+    await page.getByRole('button', { name: 'Skip these questions' }).click();
+    await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
+    await page.locator('.mpmb-save', { hasText: 'Changes saved' }).waitFor({ timeout: 60000 });
+    const noCode = (await page.locator('.mpmb-save strong').innerText()).trim();
+    const no = (await db.collection('submissions').doc(noCode).get()).data();
+    const noConsent = no?.consentId ? (await db.collection('consents').doc(no.consentId).get()).data() : null;
+    const noMore = no?.moreSurveyId ? (await db.collection('surveys').doc(no.moreSurveyId).get()).data() : null;
+    const noAssent = no?.assentId ? (await db.collection('assents').doc(no.assentId).get()).data() : null;
+    ok('after the parent’s no: no screen time, no agreement asked of the young person, and the longer answers kept', no?.phoneSource === 'none' && no?.selfConsent === false && noConsent?.responses?.['phone-use']?.response === 'declined' && noAssent?.status === 'not-started' && noMore?.formId === 'mpmb-parent-phone-use' && noMore?.responses?.['own-phone-age']?.value === '12' && noMore?.responses?.['school-day-time']?.value === '3-4' && !JSON.stringify(noMore).includes('Brown'), JSON.stringify({ phoneSource: no?.phoneSource, more: noMore?.responses }));
+    await page.getByRole('button', { name: /Everything is right/ }).click();
+    await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
+
+    // A 16-year-old on their own: no parent at all, their own agreement, then their screenshots.
+    await page.getByRole('button', { name: 'Finish and clear this device' }).click();
+    await page.getByRole('heading', { name: /Share screen time with MyPhone/ }).waitFor();
+    ok('after “Finish and clear this device” the next person starts at the welcome screen, not where the parent’s link went', !page.url().includes('who=') && (await page.getByLabel('First name', { exact: true }).count()) === 0, page.url());
+    await page.goto(`http://127.0.0.1:${PORT}/index.html?who=young`);
+    await page.getByRole('heading', { name: 'Before you start.' }).waitFor();
+    await page.getByRole('button', { name: 'Start', exact: true }).click();
+    await page.getByLabel('Your first name').fill('Noor');
+    await page.getByLabel('Your last name').fill('Ahmed');
+    await page.getByLabel('Your date of birth', { exact: true }).fill(yearsAgo(16, '01-15'));
+    await page.getByLabel('Your school', { exact: true }).selectOption('GSAL');
+    await page.getByLabel('Your year group').selectOption('Year 12');
+    ok('at 16 the young person is told no parent is needed', (await page.getByText(/You are 16 or over, so you can decide for yourself/).count()) === 1);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: /Do you want to share your screen time/ }).waitFor();
+    ok('no parent steps, and no “decide later” on their own', (await page.getByText(/At 16 or over, you decide for yourself/).count()) === 1 && (await page.getByRole('button', { name: 'I’d like to decide later' }).count()) === 0);
+    await draw(page.locator('#assent-signature'), [[0.2, 0.6], [0.5, 0.35], [0.8, 0.6]]);
+    await page.getByRole('button', { name: 'Sign and continue' }).click();
+    await page.getByRole('heading', { name: /Share your screen time/ }).waitFor();
+    await page.locator('.mpmb-save', { hasText: 'Saved.' }).waitFor({ timeout: 60000 });
+    const aloneCode = (await page.locator('.mpmb-save strong').innerText()).trim();
+    await page.getByRole('radio', { name: 'Android' }).check();
+    await page.locator('input[type=file]').first().setInputFiles([{ name: 'n.png', mimeType: 'image/png', buffer: await png('Digital Wellbeing') }]);
+    await page.waitForFunction(() => document.querySelectorAll('.mpmb-upload').length === 1);
+    await page.getByRole('button', { name: /Send this screenshot/ }).click();
+    await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor({ timeout: 90000 });
+    const alone = (await db.collection('submissions').doc(aloneCode).get()).data();
+    const aloneParticipant = alone ? (await db.collection('participants').doc(alone.participantId).get()).data() : null;
+    ok('16 on their own: no parent, no permission record, their own agreement, and their screenshot accepted', alone?.selfConsent === true && alone?.consentId === null && alone?.phoneSource === 'child' && alone?.imageCount === 1 && aloneParticipant?.guardian === null && aloneParticipant?.selfConsent === true, JSON.stringify({ selfConsent: alone?.selfConsent, consentId: alone?.consentId, imageCount: alone?.imageCount }));
+    ok('the screenshot record says it came from the young person’s own phone', (await db.collection('donations').doc(alone?.donationIds?.[0] ?? 'x').get()).data()?.from === 'young-person-phone');
+    await page.getByRole('button', { name: /Everything is right/ }).click();
+    await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
+    await page.getByRole('button', { name: 'Finish and clear this device' }).click();
+
+    // Opting out: two warnings, then how to email the team, with the school already in the email; the form records nothing.
+    await page.goto(`http://127.0.0.1:${PORT}/index.html?optout=1&school=dua`);
+    await page.getByRole('heading', { name: 'Before you opt out.' }).waitFor();
+    ok('the first warning says what the young person would miss, and that the phone part needs no opt-out', (await page.getByText(/will not take part in the MyPhone\/MyBrain workshop/).count()) === 1 && (await page.getByText(/Only worried about the phone part/).count()) === 1);
+    await page.getByRole('button', { name: 'I still want to opt out' }).click();
+    await page.getByRole('heading', { name: 'Are you sure?' }).waitFor();
+    await page.getByRole('button', { name: 'Yes, opt my child out' }).click();
+    await page.getByRole('heading', { name: 'How to opt out.' }).waitFor();
+    const mailto = (await page.getByRole('link', { name: 'Write the email' }).getAttribute('href')) ?? '';
+    ok('then how to email the team, with the school already in the email', mailto.startsWith('mailto:brainpop@leeds.ac.uk?subject=Opt%20out') && decodeURIComponent(mailto).includes('Their school: Dixons Unity Academy'), mailto.slice(0, 80));
+    ok('the opt-out pages record nothing', (await db.collection('optOuts').get()).size === 0);
+    await page.getByRole('button', { name: 'Back to the start' }).click();
+    await page.getByRole('heading', { name: /Share screen time with MyPhone/ }).waitFor();
+    ok('no browser errors on the other routes and the opt-out pages', errors.length === 0, errors.join(' | '));
 
     // The team adds lab times through the staff service: two for first visits, two for the end of the break, and one too late for either.
     const refused = async (fn, code) => {
@@ -796,6 +891,27 @@ async function inner() {
     ok('no browser errors on the staff and school pages beyond the two refusals tried on purpose', errors.length === 2 && errors.some((e) => /status of 403/.test(e)) && errors.some((e) => /status of 400/.test(e)), errors.join(' | '));
 
     // Everything new reaches the export: MyStory by phase, the visits and contacts, the school's file and the UPN match.
+    // The team logs an opt-out email on the staff page; the export flags the pupil on the school's list.
+    await page.goto(`http://127.0.0.1:${PORT}/tools.html?tool=staff`);
+    // The key is remembered in this tab, so the page signs itself in; sign in by hand only if it does not.
+    const signedIn = await page.locator('.mpmb-tools__tab').first().waitFor({ timeout: 20000 }).then(() => true, () => false);
+    if (!signedIn) {
+      await page.getByLabel('Staff key').fill('emulator-staff-key');
+      await page.getByRole('button', { name: 'Sign in' }).click();
+    }
+    await page.getByRole('button', { name: 'Opt-outs', exact: true }).waitFor({ timeout: 30000 });
+    await page.getByRole('button', { name: 'Opt-outs', exact: true }).click();
+    await page.getByLabel('Young person’s first name').fill('Ola');
+    await page.getByLabel('Last name', { exact: true }).fill('Nowak');
+    await page.getByLabel('School', { exact: true }).selectOption('DUA');
+    await page.getByLabel('Parent or carer’s name').fill('Ewa Nowak');
+    await page.getByRole('button', { name: 'Log the opt-out' }).click();
+    await page.getByText(/Logged: Ola Nowak is opted out/).waitFor({ timeout: 30000 });
+    const loggedOptOuts = (await db.collection('optOuts').get()).docs.map((d) => d.data());
+    ok('the opt-out is logged with the school, the date and who sent it', loggedOptOuts.length === 1 && loggedOptOuts[0].schoolId === 'DUA' && loggedOptOuts[0].parentName === 'Ewa Nowak' && loggedOptOuts[0].status === 'active' && /^\d{4}-\d{2}-\d{2}$/.test(loggedOptOuts[0].receivedOn));
+    ok('the staff page lists it', (await page.locator('.mpmb-tools__row', { hasText: 'Ola Nowak' }).count()) === 1 && (await page.getByText(/Opted out \(1\)/).count()) === 1);
+    await toolsSnap('opt-outs');
+
     const finalManifest = await (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' })).json();
     const midTsv = await readExport('social-media-break/donations/phenotype/mystory_mid.tsv');
     const postTsv = await readExport('social-media-break/donations/phenotype/mystory_post.tsv');
@@ -805,8 +921,13 @@ async function inner() {
     const labPeople = await readExport('social-media-break/donations/participants.tsv');
     const matchesTsv = await readExport('schools/upn-uploads/upn_matches.tsv');
     const unmatchedTsv = await readExport('schools/upn-uploads/upn_unmatched.tsv');
+    const optOutsTsv = await readExport('schools/identifying/opt_outs.tsv');
+    const familiesTsv = await readExport('schools/donations/participants.tsv');
+    const phoneUseTsv = await readExport('schools/donations/phenotype/parent_phone_use.tsv');
     ok('MyStory is exported by phase, the triangle over three columns', midTsv.split('\n')[0].includes('pull_habit\tpull_people_and_connection\tpull_boredom_or_stress\tpull_status') && midTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && midTsv.includes('\tThe bus\t') && midTsv.includes('\tnot-sure\t') && postTsv.includes('\tQuiet evenings\t') && preTsv.includes('sub-MP2670FF90A5F2\tses-pre\t') && preTsv.includes('\tLate nights\t') && finalManifest.counts?.labStories === 3, JSON.stringify(finalManifest.counts));
     ok('the visits and contact details are exported to identifying/, the visit date to the research table', visitsTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\t1\t') && visitsTsv.includes('\tmoved\t') && visitsTsv.includes('day-before-email:not-configured') && contactsTsv.includes('jane@example.com\t+447700900123\ttrue') && labPeople.includes(`\t${v1a.toISOString().slice(0, 10)}\tbooked\t`) && !labPeople.includes('jane@'));
+    ok('the opt-out is flagged on the school’s list and listed in identifying/ with the UPN it names', unmatchedTsv.split('\n').some((l) => l.startsWith('DUA\tA123456789013\tOla\tNowak') && l.includes('\ttrue\t')) && optOutsTsv.includes('\tactive\t') && optOutsTsv.includes('\tOla\tNowak\t') && optOutsTsv.includes('\tEwa Nowak\t') && optOutsTsv.includes('\tA123456789013\tname-only'), optOutsTsv.split('\n')[1]);
+    ok('the research table says who decided, where the screen time came from, and the longer answers have their own table', familiesTsv.split('\n')[0].includes('\tself_consent\tphone_source\t') && familiesTsv.includes('\ttrue\tchild\tcompleted\t') && familiesTsv.includes('\tfalse\tnone\tnot-started\t') && phoneUseTsv.split('\n')[0].startsWith('participant_id\town_phone_age\tschool_day_time') && phoneUseTsv.includes('\t12\t3-4\t'), familiesTsv);
     ok('the school’s file and what was read sit in schools/upn-uploads/, and the UPN is matched to the family’s record', finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/\d{4}-\d{2}-\d{2}_[0-9a-f]{8}_Year 8\.csv$/.test(n)) && finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/.*_pupils\.tsv$/.test(n)) && matchesTsv.includes('\tKai\tPatel\t2013-03-14\t') && matchesTsv.includes('\tA123456789012\tname-and-dob\t') && unmatchedTsv.includes('DUA\tA123456789013\tOla\tNowak') && finalManifest.counts?.upnUploads === 1 && finalManifest.counts?.upnMatched === 1, JSON.stringify(finalManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {
