@@ -8,8 +8,10 @@ import { childAssentForm, parentConsentForm, parentMoreForm, parentQuestionsForm
  * Two payloads arrive at different moments (see src/api/types.ts in the app):
  *   - the record (validateConsentPayload): the parent's permission and
  *     answers, and the young person's agreement when they are asked for it,
- *     sent as soon as it is complete, and again as an amendment when
- *     something is changed. Since 7 October 2026 the workshop is opt-out (by
+ *     sent from the moment the parent signs (or a 16- or 17-year-old on
+ *     their own agrees) and again as answers are added or changed, so what
+ *     a family gives counts even if they stop part-way (decided 7 October
+ *     2026). Since 7 October 2026 the workshop is opt-out (by
  *     email) and this form is the opt-in for screen time: 16- and
  *     17-year-olds decide alone (no parent, no permission record); for
  *     under-16s the parent's yes comes first, and the screen time comes from
@@ -62,7 +64,8 @@ export interface ConsentPayload {
   siteId: string;
   route: 'parent' | 'young';
   identity: { firstName: string; lastName: string; dateOfBirth: { day: string; month: string; year: string }; schoolId: string; schoolOther: string; yearGroup: string };
-  guardian: { fullName: string; relationship: string; relationshipOther: string; hasParentalResponsibility: boolean; email: string; phone: string; postcode: string };
+  /** The home address and postcode are required (7 October 2026); email and phone are optional. No parental-responsibility tick: only a parent or carer fills it in. */
+  guardian: { fullName: string; relationship: string; relationshipOther: string; address: string; postcode: string; email: string; phone: string };
   consent: {
     formId: string;
     formVersion: string;
@@ -109,7 +112,7 @@ export const UUID = /^[0-9a-f-]{36}$/;
 export const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const RELATIONSHIPS = ['mother', 'father', 'step-parent', 'grandparent', 'foster-carer', 'legal-guardian', 'other'];
 const PLATFORMS = ['ios', 'android', 'other'];
-export const limits = { name: 100, email: 254, phone: 20, postcode: 10, school: 150, relationship: 60 };
+export const limits = { name: 100, email: 254, phone: 20, postcode: 10, address: 200, school: 150, relationship: 60 };
 
 export const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 export const str = (v: unknown, max: number) => typeof v === 'string' && v.length <= max;
@@ -180,6 +183,13 @@ export function validateClient(cl: unknown, problems: string[]): void {
   if (!isObj(cl) || !str(cl.userAgent, 400) || !validTime(cl.submittedAt) || typeof cl.timezoneOffset !== 'number') problems.push('Client information is malformed.');
 }
 
+/** More than one answer: values from the list, each once, joined by ";"; "I don't know" stands alone. */
+function validMulti(value: unknown, options: string[]): boolean {
+  if (typeof value !== 'string' || value.length > 500) return false;
+  const parts = value.split(';');
+  return parts.length > 0 && parts.every((p) => options.includes(p)) && new Set(parts).size === parts.length && (parts.length === 1 || !parts.includes('unsure'));
+}
+
 /** One of the parent's question forms: the right form and version, known questions, answers from the list (or short text), valid times. */
 function validateSurvey(sv: unknown, form: ServedQuestionForm, what: string, problems: string[]): void {
   if (!isObj(sv)) {
@@ -201,7 +211,7 @@ function validateSurvey(sv: unknown, form: ServedQuestionForm, what: string, pro
         problems.push(`Malformed answer for "${key}".`);
         continue;
       }
-      const valueOk = q.type === 'text' ? typeof r.value === 'string' && !blank(r.value) && r.value.length <= q.maxLength : q.options.includes(String(r.value));
+      const valueOk = q.type === 'text' ? typeof r.value === 'string' && !blank(r.value) && r.value.length <= q.maxLength : q.type === 'multi' ? validMulti(r.value, q.options) : q.options.includes(String(r.value));
       if (r.questionId !== key || !valueOk || !validTime(r.answeredAt)) problems.push(`Malformed answer for "${key}".`);
       else if (r.version !== q.version) problems.push(`Question "${key}" was shown as version ${String(r.version)} but the current version is ${q.version}.`);
     }
@@ -251,21 +261,21 @@ export function validateConsentPayload(input: unknown): string[] {
   const g = p.guardian;
   if (!isObj(g)) problems.push('Parent or carer details are missing.');
   else if (alone) {
-    if (!blank(String(g.fullName ?? '')) || !blank(String(g.email ?? '')) || !blank(String(g.phone ?? '')) || !blank(String(g.postcode ?? ''))) problems.push('A young person deciding alone sends no parent or carer details.');
+    if (!blank(String(g.fullName ?? '')) || !blank(String(g.email ?? '')) || !blank(String(g.phone ?? '')) || !blank(String(g.postcode ?? '')) || !blank(String(g.address ?? ''))) problems.push('A young person deciding alone sends no parent or carer details.');
   } else {
     if (!str(g.fullName, limits.name) || blank(g.fullName as string)) problems.push('The parent or carer’s name is missing.');
     if (typeof g.relationship !== 'string' || !RELATIONSHIPS.includes(g.relationship)) problems.push('The relationship is not one of the allowed values.');
     if (g.relationship === 'other' && (!str(g.relationshipOther, limits.relationship) || blank(g.relationshipOther as string))) problems.push('The relationship description is missing.');
-    if (g.hasParentalResponsibility !== true) problems.push('Parental responsibility was not confirmed.');
+    if (!str(g.address, limits.address) || blank(g.address as string)) problems.push('The home address is missing.');
     if (!str(g.email, limits.email)) problems.push('The email address is malformed.');
     else if (!blank(g.email as string) && !EMAIL.test((g.email as string).trim())) problems.push('The email address is not valid.');
     if (!str(g.phone, limits.phone) || (!blank(g.phone as string) && !PHONE.test((g.phone as string).trim()))) problems.push('The phone number is not valid.');
-    if (!str(g.postcode, limits.postcode) || (!blank(g.postcode as string) && !UK_POSTCODE.test((g.postcode as string).trim()))) problems.push('The postcode is not valid.');
+    if (!str(g.postcode, limits.postcode) || blank(g.postcode as string)) problems.push('The postcode is missing.');
+    else if (!UK_POSTCODE.test((g.postcode as string).trim())) problems.push('The postcode is not valid.');
   }
 
   // The parent's permission: none when deciding alone; otherwise the statements asked at this age, signed.
   const c = p.consent;
-  let phoneAnswer: string | undefined;
   if (alone) {
     if (c !== null && c !== undefined) problems.push('A young person deciding alone sends no permission record.');
   } else if (!isObj(c)) problems.push('The permission record is missing.');
@@ -283,20 +293,16 @@ export function validateConsentPayload(input: unknown): string[] {
       if (s.kind === 'required' && r?.response !== 'agreed') problems.push(`Required statement "${s.id}" was not agreed.`);
       if (s.kind === 'optional' && !r) problems.push(`Optional statement "${s.id}" was not answered.`);
     }
-    phoneAnswer = responses['phone-use']?.response;
     if (!str(c.typedName, limits.name) || blank(c.typedName as string)) problems.push('The signer’s name is missing.');
     validateSignature(c.signature, 'Permission', problems);
     if (typeof c.confirmedDate !== 'string' || !ISO_DATE.test(c.confirmedDate) || Date.parse(c.confirmedDate) > Date.now() + 24 * 3600 * 1000) problems.push('The confirmed date is not valid.');
     if (!validTime(c.completedAt)) problems.push('The permission record has no completion time.');
   }
 
-  // Where the screen time comes from, as the answers say: 16 or over, their own phone; under 16, nowhere after the parent's no; the young person's phone on their own route; otherwise the parent's choice.
-  let source: PhoneSource | null = null;
-  if (selfConsent) source = 'child';
-  else if (phoneAnswer === 'declined') source = 'none';
-  else if (phoneAnswer === 'agreed') source = p.route === 'young' ? 'child' : p.phoneSource === 'parent' || p.phoneSource === 'child' || p.phoneSource === 'none' ? p.phoneSource : null;
-  if (!source && isObj(c) && !alone) problems.push('Where the screen time comes from is missing.');
-  else if (source && p.phoneSource !== source) problems.push('Where the screen time comes from does not match the answers.');
+  // Where the screen time comes from: 16 or over, their own phone; under 16, the parent's answer on the "where from" step (since 7 October 2026 the permission has no screenshots question), which is null until it is given: the record is saved from the moment the parent signs.
+  const source: PhoneSource | null = selfConsent ? 'child' : p.phoneSource === 'parent' || p.phoneSource === 'child' || p.phoneSource === 'none' ? p.phoneSource : null;
+  // The parent's own phone is offered only on the parent's route: on the young person's, it is their phone or none.
+  if ((p.phoneSource ?? null) !== source || (p.route === 'young' && source === 'parent')) problems.push('Where the screen time comes from does not match the answers.');
 
   // The young person's agreement: asked whenever the screenshots are to come from their phone.
   const a = p.assent;
@@ -306,8 +312,8 @@ export function validateConsentPayload(input: unknown): string[] {
     if (!['not-started', 'completed', 'deferred', 'declined'].includes(String(a.status))) problems.push('Unknown agreement status.');
     validateResponses(a.responses, childAssentForm, problems, 'Agreement');
     const responses = isObj(a.responses) ? (a.responses as Record<string, StatementRecord>) : {};
+    // Otherwise the record is saved from the moment the parent signs, before the young person answers (or is asked).
     if (alone && a.status !== 'completed') problems.push('A young person deciding alone sends their record only once they have agreed.');
-    if (source === 'child' && a.status === 'not-started') problems.push('The young person’s agreement was not completed, put off or declined.');
     if (a.status === 'completed') {
       for (const sid of childAssentForm.signed) {
         if (responses[sid]?.response !== 'agreed' || responses[sid]?.via !== 'signature') problems.push(`Agreement statement "${sid}" was not signed.`);

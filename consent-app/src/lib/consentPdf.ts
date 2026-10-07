@@ -242,9 +242,10 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
     w.heading('Parent or carer');
     w.row('Name', guardianName);
     w.row('Relationship', relationship);
+    w.row('Address', guardian.address);
+    w.row('Postcode', guardian.postcode.toUpperCase());
     w.row('Email', guardian.email);
     w.row('Phone', guardian.phone);
-    w.row('Postcode', guardian.postcode.toUpperCase());
 
     w.heading('Parent or carer’s permission');
     for (const s of statementsFor(parentConsentForm, childAge(state), study.selfConsentAge)) w.statement(s.text, consent.responses[s.id]?.response);
@@ -284,7 +285,7 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
   }
 
   w.heading('Screen time and apps');
-  if (source === 'none') w.paragraph(consent.responses['phone-use']?.response === 'declined' ? 'Not shared: you chose not to share screen-time screenshots. You can change this later by contacting the team.' : 'Not shared: you chose to answer more questions instead.');
+  if (source === 'none') w.paragraph('Not shared: you chose to answer more questions instead. You can change this later by contacting the team.');
   else if (source === 'child' && assent.status === 'deferred') w.paragraph(`Not shared from ${childName}’s phone yet. Please ask ${childName} to do their part as soon as possible: go to ${finishLink(reference)} and enter ${childName}’s date of birth.`);
   else if (source === 'child' && assent.status !== 'completed') w.paragraph(`Not shared from ${childName}’s phone.`);
   else if (donation.status === 'skipped' || sent === 0) w.paragraph(`No screenshots were added yet. Please add them as soon as you can: go to ${finishLink(reference)} and enter ${childName}’s date of birth.`);
@@ -296,7 +297,6 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
 
   w.heading('Changing your mind');
   w.paragraph(`You can change your mind at any time, about the screenshots or the answers, by emailing ${study.contact.email}. Quote your reference if you have it. Nobody will ask why. The workshop at school is separate: to opt a young person out of it, a parent or carer emails the same address.`);
-  if (study.contact.concerns.email) w.paragraph(`If you have a concern about how the study is being run and would rather not raise it with the research team, contact ${study.contact.concerns.name} at ${study.contact.concerns.email}, who are independent of the study.`);
   w.note(`Produced on ${formatTimestamp(new Date().toISOString())} by the MyPhone/MyBrain consent form from the answers on this device. ${study.contact.team}.`);
   w.footer(reference);
 

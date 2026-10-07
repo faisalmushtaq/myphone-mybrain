@@ -40,11 +40,12 @@ export interface GuardianIdentity {
   fullName: string;
   relationship: RelationshipId | '';
   relationshipOther: string;
-  hasParentalResponsibility: boolean;
+  /** Home address and postcode: required (decided 7 October 2026), for linking the young person's records. */
+  address: string;
+  postcode: string;
   /** Optional contact details. Nothing is ever emailed to families; they download their copy of the record instead. */
   email: string;
   phone: string;
-  postcode: string;
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -238,7 +239,7 @@ export interface ResumeState {
   canAddScreenshots: boolean;
   imageCount: number;
   maxImages: number;
-  reason: 'declined' | 'no-screen-time' | 'full' | null;
+  reason: 'declined' | 'no-screen-time' | 'unfinished' | 'full' | null;
 }
 
 export interface PrototypeFlags {
@@ -271,6 +272,8 @@ export interface AppState {
   more: SurveyRecord;
   /** Set when carrying on later with a record sent earlier (the reference and the date of birth found it). */
   resume: ResumeState | null;
+  /** The one last prompt to share the screen time, before finishing without it, has been shown (src/steps/Check.tsx). */
+  sharePrompted: boolean;
   submission: SubmissionState;
   session: SessionInfo | null;
   prototype: PrototypeFlags;

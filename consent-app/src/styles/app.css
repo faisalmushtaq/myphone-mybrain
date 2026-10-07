@@ -142,9 +142,11 @@
 .mpmb-h1:focus {
   outline: none;
 }
-.mpmb-app .mpmb-h1:focus-visible {
-  outline: 3px solid var(--mpb-teal);
-  outline-offset: 6px;
+/* Headings (and the break study's sections) that the page moves focus to with tabindex="-1", for screen readers, are not controls: no focus box, whatever the browser's focus-visible guess on a desktop. */
+.mpmb-app :is(h1, h2, h3, h4)[tabindex='-1']:focus,
+.mpmb-app :is(h1, h2, h3, h4)[tabindex='-1']:focus-visible,
+.mpmb-app .mpmb-lab [tabindex='-1']:focus-visible {
+  outline: none;
   box-shadow: none !important;
 }
 .mpmb-h2 {
@@ -176,6 +178,11 @@
   font-size: 1.1rem;
   line-height: 1.5;
   color: var(--mpb-body);
+  margin-top: 0.9rem;
+}
+/* A heading followed straight by text or a callout: the paragraph reset (.mpmb-app p) would otherwise take the gap away. */
+.mpmb-app .mpmb-h1 + p,
+.mpmb-app .mpmb-h1 + .mpmb-callout {
   margin-top: 0.9rem;
 }
 .mpmb-hint {
@@ -1838,8 +1845,18 @@
   color: var(--mpb-ink);
   margin-bottom: 1rem;
 }
+/* The site's paragraph and list resets (.mpmb-app p, .mpmb-app ol) outrank single classes, so the thank-you page's spacing is set at the same strength. */
+.mpmb-app .mpmb-done__ref {
+  margin: 0.9rem 0 0;
+}
+.mpmb-app .mpmb-done > .mpmb-card,
+.mpmb-app .mpmb-done > .mpmb-done__why {
+  margin-top: 1.5rem;
+}
+.mpmb-app .mpmb-next-steps {
+  margin: 0 0 1.5rem;
+}
 .mpmb-done__ref {
-  margin-top: 1rem;
   font-family: var(--f-mono);
   font-size: 0.9rem;
   color: var(--mpb-teal);
@@ -2219,8 +2236,7 @@
 }
 
 /* Required statements under one tick */
-.mpmb-required .mpmb-h3,
-.mpmb-choices .mpmb-h3 {
+.mpmb-required .mpmb-h3 {
   margin-bottom: 0.6rem;
 }
 .mpmb-required__group {
@@ -2252,122 +2268,6 @@
 }
 .mpmb-required__group .mpmb-check {
   background: #fff;
-}
-
-/* Optional permissions as rows */
-.mpmb-permissions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-.mpmb-permission {
-  border: 1px solid var(--mpb-line);
-  border-left: 5px solid var(--mpb-teal);
-  background: var(--mpb-paper);
-}
-.mpmb-permission.is-agreed {
-  background: #eef7f9;
-}
-.mpmb-permission.is-declined {
-  border-left-color: var(--mpb-muted);
-}
-.mpmb-permission.has-error {
-  border-color: var(--mpb-pink);
-  border-left-color: var(--mpb-pink);
-}
-.mpmb-permission__fieldset {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.5rem 1rem;
-  align-items: center;
-  padding: 0.85rem 1rem;
-}
-.mpmb-app .mpmb-permission__legend {
-  display: contents;
-}
-.mpmb-permission__label {
-  grid-column: 1;
-  font-family: var(--f-mono);
-  font-size: 0.8rem;
-  letter-spacing: 0.03em;
-  color: var(--mpb-teal);
-}
-.mpmb-permission__text {
-  grid-column: 1;
-  display: block;
-  color: var(--mpb-ink);
-  line-height: 1.4;
-}
-/* The site's legend rules shrink these; the statement someone says Yes or No to must be easy to read. */
-.mpmb-app .mpmb-permission__legend .mpmb-permission__label {
-  font-size: 0.85rem;
-  margin-left: 0;
-}
-.mpmb-app .mpmb-permission__legend .mpmb-permission__text {
-  font-size: 1.05rem;
-  font-weight: 400;
-  margin-left: 0;
-  letter-spacing: 0;
-}
-.mpmb-permission__choice {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  display: flex;
-  gap: 0.4rem;
-}
-.mpmb-permission .mpmb-error {
-  grid-column: 1 / -1;
-}
-.mpmb-app .mpmb-permission__option {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 48px;
-  min-width: 5.2rem;
-  padding: 0.4rem 0.8rem;
-  border: 2px solid var(--mpb-border);
-  background: #fff;
-  font-weight: 700;
-  color: var(--mpb-ink);
-  cursor: pointer;
-}
-.mpmb-app .mpmb-permission__option.is-selected {
-  border-color: var(--mpb-teal);
-  background: var(--mpb-mist);
-}
-.mpmb-app .mpmb-permission__option .mpmb-choice__dot {
-  width: 20px;
-  height: 20px;
-}
-.mpmb-app .mpmb-permission__option.is-selected .mpmb-choice__dot::after {
-  content: '';
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--mpb-teal);
-}
-.mpmb-permission__more {
-  grid-column: 1 / -1;
-  border-top: 0;
-  padding-top: 0;
-}
-.mpmb-permission__more .mpmb-disclosure__summary {
-  min-height: 36px;
-  font-size: 0.92rem;
-  font-weight: 500;
-}
-@media (max-width: 519px) {
-  .mpmb-permission__fieldset {
-    grid-template-columns: 1fr;
-  }
-  .mpmb-permission__choice {
-    grid-column: 1;
-    grid-row: auto;
-  }
-  .mpmb-app .mpmb-permission__option {
-    flex: 1;
-    justify-content: center;
-  }
 }
 
 /* Sign section spacing on the combined screen */
@@ -2644,6 +2544,36 @@
 .mpmb-app .mpmb-quiz__option.is-selected .mpmb-quiz__dot {
   border-color: var(--mpmb-teal, #006b73);
   box-shadow: inset 0 0 0 5px var(--mpmb-teal, #006b73);
+}
+/* Short answers such as ages: a grid of small buttons; the longer ones keep a full row. */
+.mpmb-app .mpmb-quiz__options--compact {
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+}
+.mpmb-app .mpmb-quiz__options--compact .mpmb-quiz__option {
+  justify-content: center;
+  padding: 0.6rem 0.5rem;
+  text-align: center;
+}
+.mpmb-app .mpmb-quiz__options--compact .mpmb-quiz__dot {
+  display: none;
+}
+.mpmb-app .mpmb-quiz__options--compact .mpmb-quiz__option--wide {
+  grid-column: 1 / -1;
+}
+/* More than one answer: square tick boxes, and a Next button. */
+.mpmb-app .mpmb-quiz__box {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--mpmb-border, #5f8588);
+  background: #fff;
+}
+.mpmb-app .mpmb-quiz__option.is-selected .mpmb-quiz__box {
+  border-color: var(--mpmb-teal, #006b73);
+  background: var(--mpmb-teal, #006b73) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z'/%3E%3C/svg%3E") center / 18px no-repeat;
+}
+.mpmb-app .mpmb-quiz__next {
+  margin-top: 1rem;
 }
 .mpmb-app .mpmb-quiz__nav {
   display: flex;

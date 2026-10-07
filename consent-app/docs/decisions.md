@@ -23,9 +23,19 @@ they are all in, the ethics forms get **one master update**;
 | The draft markers and the preview controls come off the live site now. | Deploy workflow (`MPMB_PROTOTYPE` defaults to false) |
 | Families can still complete the form **after the workshop**, if they didn't at the time: the team chases them. But nothing says so: the parent letter says only that "in the coming weeks your child will take part in…" (no dates), and the letter and the site ask for the form **as soon as they get it**, with no "you can do it later". The form stays open, and a family that stopped part-way (the young person wasn't there or wanted to decide later, or no screenshots were sent) **carries on later** with the reference from their thank-you page and the young person's date of birth, on any device: the young person adds their answer and screenshots, or the family adds screenshots, to the same record. | `src/steps/Resume.tsx` (`?finish=<reference>`, or "Carry on with your reference" on the first page); `resumeRecord` in `firebase/functions/src/resume.ts`; the thank-you page's link (`CarryOnLink`); `added_later_on` in `participants.tsv`, `added_later` in the sessions files |
 
+| The parent's **home address and postcode are required** (records will be linked: that is part of the opt-out, so the form never offers to leave it blank); email and phone are optional. **No parental-responsibility tick**: only a parent or carer fills the form in. | `src/components/GuardianFields.tsx`, `src/config/fields.ts`, `validateGuardian` (`src/lib/validation.ts`); the server (`validate.ts`) |
+| The permission has **no choices** ("Your choices" is gone): no screenshots question (the parent's yes or no is their answer to "Can we have {child}'s screen time?", now on both routes) and no recontact question. | `src/config/statements.ts` (`mpmb-parent-consent 0.7-draft`), `src/steps/ParentConsent.tsx`, `src/steps/PhoneSource.tsx` |
+| **Everything is saved from the moment the parent signs**, even if the family never reaches the end or presses "Everything is right": answers are saved as they are given, and all of it can be used. | `SyncManager` (`src/App.tsx`), `firstIncomplete` (`src/state/useSync.ts`); `submitConsent` (`firebase/functions/src/index.ts`): versions only for changes to the record, one answers record per question form |
+| **One last prompt** before finishing without the screen time, when it could still come. | `lastCall` (`src/model/journey.ts`), `src/steps/Check.tsx` |
+| The age at their own smartphone goes down to **Under 5**, year by year, with **"I can't remember / I don't know"**; **more than one app** can be chosen as the ones used most. | `parentMoreForm` (`mpmb-parent-phone-use 0.2-draft`); multi-answer questions in `src/steps/ParentQuestions.tsx`, `validate.ts` and the export's data dictionary |
+| **No separate route for concerns or complaints** anywhere (the "independent of the study" paragraph is gone from the form, the thank-you page, the PDF and the site). | `src/config/copy.ts` (information `0.5-draft`), `src/steps/Done.tsx`, `src/lib/consentPdf.ts`, `_includes/documents_safeguards.html` |
+
 For the master ethics update: opting out by email only (the approved
-documents describe a slip), and sharing an under-16's screen time from the
-parent's family view without asking the young person.
+documents describe a slip); sharing an under-16's screen time from the
+parent's family view without asking the young person; the address being
+required and no parental-responsibility tick; no recontact question; keeping
+what a family gave after signing even if they stopped part-way; and no
+separate complaints route.
 
 ### The social media break study (adults)
 
@@ -38,6 +48,7 @@ parent's family view without asking the young person.
 | MyStory runs on this site's own form, after **every weekly check-in**. Before and after the break it is told **at the lab visits**, on a lab computer, from the staff page's links. The prompts stay as drafts until MySelf's arrive. | `src/lab/mystory.ts`, the staff page |
 | Ages **18 to 21** (it was 18 to 24), checked from the date of birth at sign-up: anyone older is refused; someone who turns 22 during the study carries on. The optional Yes/No for record linkage stays. | `labStudy.maxAge` in `src/lab/config.ts`; `src/lab/steps/ParticipantId.tsx`; `tooOldToJoin` in `lab.ts`; the information sheet's "Why have I been invited?" (version 2.1) |
 | Participants must give a **mobile number**, at sign-up with their four details (not part of the ID): the team needs it to contact them. Text reminders are on unless they untick them when booking. | `src/lab/steps/ParticipantId.tsx`, `submitLabConsent` (`lab.ts`), `src/lab/steps/LabBook.tsx`, `booking.ts`; `docs/booking.md` (costs) |
+| The first page has **two equal ways in**: "New to the study" (Start) and "Already started?" (Continue), which finds the record with the participant ID or the same four details, on any device, without asking for the mobile number again. | `src/lab/steps/LabWelcome.tsx`, `carryOn` in `src/lab/steps/ParticipantId.tsx` |
 | Participants can **come back later to reschedule**, signing in with their **participant ID** (as well as the four details or the emailed link). Changing times keeps the email address on file; a new address is possible, and then the old one is told. | `src/lab/steps/ParticipantId.tsx` ("Use my participant ID instead"), `src/lab/steps/LabBook.tsx`; `bookLabSlot` (`email: null` keeps the address; `addressChangedEmail`), `docs/booking.md` |
 
 ### Other

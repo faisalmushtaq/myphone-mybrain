@@ -1,10 +1,9 @@
-import { useState } from 'react';
 import { guardianFields, relationships } from '../config/fields';
 import { study } from '../config/study';
 import { limits } from '../lib/validation';
 import type { GuardianIdentity } from '../model/types';
 import { Callout } from './ui/Callout';
-import { CheckboxField, SelectField, TextField } from './ui/Field';
+import { SelectField, TextField } from './ui/Field';
 
 interface Props {
   guardian: GuardianIdentity;
@@ -14,16 +13,14 @@ interface Props {
 }
 
 /**
- * The parent/guardian's own details. Used on the combined details screen
- * (parent route) and on the parent-details screen (young person route).
- * Phone and postcode are optional and start folded away to keep the screen short.
+ * The parent or carer's own details. Used on the combined details screen
+ * (parent route) and on the parent-details screen (young person route). The
+ * home address and postcode are required (decided 7 October 2026, for
+ * linking the young person's records); email and phone are optional. There
+ * is no parental-responsibility tick: only a parent or carer fills this in.
  */
 export function GuardianFields({ guardian, update, errors: errs, childName }: Props) {
-  const [showOptional, setShowOptional] = useState(Boolean(guardian.phone || guardian.postcode || errs['guardian-phone'] || errs['guardian-postcode']));
   const needsCareNote = guardian.relationship === 'foster-carer';
-  const unsureNote = guardian.relationship === 'step-parent' || guardian.relationship === 'grandparent' || guardian.relationship === 'other';
-  // Open when something is already there (coming back to change it), or when one of the fields is in error.
-  const optionalOpen = showOptional || Boolean(guardian.phone || guardian.postcode) || Boolean(errs['guardian-phone'] || errs['guardian-postcode']);
 
   return (
     <div className="mpmb-fields">
@@ -48,38 +45,27 @@ export function GuardianFields({ guardian, update, errors: errs, childName }: Pr
           </p>
         </Callout>
       )}
-      {unsureNote && (
-        <Callout tone="info" role="status">
-          <p>If you are not sure whether you hold parental responsibility for {childName}, please check with the team before continuing. It only takes a quick email.</p>
-        </Callout>
-      )}
-      <CheckboxField
-        id="guardian-responsibility"
-        checked={guardian.hasParentalResponsibility}
-        onChange={(checked) => update({ hasParentalResponsibility: checked })}
-        label={<>I hold parental responsibility for {childName}.</>}
-        hint="Usually the child’s mother, a father named on the birth certificate, an adoptive parent, or someone with a court order giving them parental responsibility. Not sure? Ask the team first."
-        error={errs['guardian-responsibility']}
-        emphasis
+      <TextField id="guardian-address" label={guardianFields.address.label} hint={guardianFields.address.hint} required autoComplete="street-address" maxLength={limits.address} value={guardian.address} onChange={(e) => update({ address: e.target.value })} error={errs['guardian-address']} />
+      <TextField
+        id="guardian-postcode"
+        label={guardianFields.postcode.label}
+        hint={guardianFields.postcode.hint}
+        required
+        autoComplete="postal-code"
+        autoCapitalize="characters"
+        maxLength={limits.postcode}
+        width="short"
+        className="mpmb-input--upper"
+        value={guardian.postcode}
+        onChange={(e) => update({ postcode: e.target.value })}
+        error={errs['guardian-postcode']}
       />
       {guardianFields.email.enabled && (
         <TextField id="guardian-email" type="email" inputMode="email" label={guardianFields.email.label} hint={guardianFields.email.hint} required={guardianFields.email.required} autoComplete="email" maxLength={limits.email} value={guardian.email} onChange={(e) => update({ email: e.target.value })} error={errs['guardian-email']} />
       )}
-      {(guardianFields.phone.enabled || guardianFields.postcode.enabled) &&
-        (optionalOpen ? (
-          <>
-            {guardianFields.phone.enabled && (
-              <TextField id="guardian-phone" type="tel" inputMode="tel" label={guardianFields.phone.label} hint={guardianFields.phone.hint} required={guardianFields.phone.required} autoComplete="tel" maxLength={limits.phone} width="half" value={guardian.phone} onChange={(e) => update({ phone: e.target.value })} error={errs['guardian-phone']} />
-            )}
-            {guardianFields.postcode.enabled && (
-              <TextField id="guardian-postcode" label={guardianFields.postcode.label} hint={guardianFields.postcode.hint} required={guardianFields.postcode.required} autoComplete="postal-code" maxLength={limits.postcode} width="short" className="mpmb-input--upper" value={guardian.postcode} onChange={(e) => update({ postcode: e.target.value })} error={errs['guardian-postcode']} />
-            )}
-          </>
-        ) : (
-          <button type="button" className="mpmb-textlink" onClick={() => setShowOptional(true)}>
-            + Add a phone number or home postcode (optional)
-          </button>
-        ))}
+      {guardianFields.phone.enabled && (
+        <TextField id="guardian-phone" type="tel" inputMode="tel" label={guardianFields.phone.label} hint={guardianFields.phone.hint} required={guardianFields.phone.required} autoComplete="tel" maxLength={limits.phone} width="half" value={guardian.phone} onChange={(e) => update({ phone: e.target.value })} error={errs['guardian-phone']} />
+      )}
     </div>
   );
 }

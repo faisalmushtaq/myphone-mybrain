@@ -43,8 +43,8 @@ export interface ResumeSummary {
   canAgree: boolean;
   /** Screenshots can be added: from the parent's phone, or from the young person's once they have agreed. */
   canAddScreenshots: boolean;
-  /** Why nothing can be added, when nothing can. */
-  reason: 'declined' | 'no-screen-time' | 'full' | null;
+  /** Why nothing can be added, when nothing can: 'unfinished' is a record saved before the parent said whether to share the screen time. */
+  reason: 'declined' | 'no-screen-time' | 'unfinished' | 'full' | null;
 }
 
 /** A reference as typed: upper case, spaces gone, the dashes put back. */
@@ -58,7 +58,9 @@ export function normaliseReference(input: unknown): string | null {
 /**
  * What a family coming back can add, from the server's own records. Records
  * made before 7 October 2026 have no phoneSource: their screenshots came
- * from the young person's phone, when the parent had said yes.
+ * from the young person's phone, when the parent had said yes. Since then a
+ * record is saved from the moment the parent signs, so one with no
+ * phoneSource may also be a record left before that question was answered.
  */
 export function resumeSummary(code: string, submission: DocumentData, participant: DocumentData | undefined, assent: DocumentData | undefined, parentAnswer: string | undefined): ResumeSummary {
   const recorded = (submission.phoneSource ?? null) as PhoneSource | null;
@@ -68,7 +70,7 @@ export function resumeSummary(code: string, submission: DocumentData, participan
   const room = imageCount < study.maxImages;
   const canAgree = source === 'child' && (status === 'deferred' || status === 'not-started');
   const canAddScreenshots = room && (source === 'parent' || (source === 'child' && status === 'completed'));
-  const reason = canAgree || canAddScreenshots ? null : source !== 'parent' && source !== 'child' ? 'no-screen-time' : status === 'declined' ? 'declined' : 'full';
+  const reason = canAgree || canAddScreenshots ? null : source === null ? 'unfinished' : source === 'none' ? 'no-screen-time' : status === 'declined' ? 'declined' : 'full';
   return {
     referenceCode: code,
     firstName: typeof participant?.firstName === 'string' ? participant.firstName : '',

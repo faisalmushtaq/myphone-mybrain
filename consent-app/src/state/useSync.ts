@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import { getApi } from '../api';
 import { ApiError, type ClientInfo, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult } from '../api/types';
 import { childAssentForm, parentConsentForm } from '../config/statements';
-import { assentApplies, childAge, decidesAlone, parentMoreApplies, phoneSourceApplies, phoneSourceOf, youngAlone } from '../model/journey';
+import { childAge, parentMoreApplies, phoneSourceOf, youngAlone } from '../model/journey';
 import { study } from '../config/study';
 import { announce } from '../lib/announce';
 import { validateAssent, validateChildDetails, validateConsent, validateGuardian } from '../lib/validation';
@@ -31,29 +31,12 @@ function clientInfo(): ClientInfo {
 }
 
 /**
- * What the last consent send covered. The young person's screenshot
- * agreement travels with the donation, so it is left out here; otherwise
- * every screenshot send would look like a change to the permission record.
- */
-export function snapshotOf(state: AppState): string {
-  const { 'phone-use': _phone, ...assentResponses } = state.assent.responses;
-  return JSON.stringify({
-    identity: state.identity,
-    guardian: state.guardian,
-    consent: state.consent,
-    assent: { ...state.assent, responses: assentResponses },
-    survey: state.survey,
-    phoneSource: state.phoneSource,
-    more: state.more,
-  });
-}
-
-/**
- * The first step that still needs attention before the record can be sent,
- * or null. A 16- or 17-year-old on their own sends nothing until they have
- * agreed to share; otherwise the parent's details and permission (and, on
- * the parent route, where the screen time comes from) come first, then the
- * young person's answer whenever they are asked for one.
+ * The first step that must be done before the record can be saved, or null
+ * once it can. Decided 7 October 2026: everything a family gives after the
+ * parent signs is kept and used, even if they stop part-way, so the record
+ * is saved from the moment the parent signs (with the young person's and
+ * the parent's details), then again as answers come in. A 16- or
+ * 17-year-old on their own sends nothing until they have agreed to share.
  */
 export function firstIncomplete(state: AppState): StepId | null {
   // Carrying on later: the record is on the server; only the young person's answer may still be needed.
@@ -62,34 +45,30 @@ export function firstIncomplete(state: AppState): StepId | null {
   if (youngAlone(state)) return state.assent.status === 'completed' && !validateAssent(state.assent).length ? null : 'child-assent';
   if (validateGuardian(state.guardian).length) return state.route === 'parent' ? 'child-details' : 'parent-details';
   if (validateConsent(state.consent, parentConsentForm, undefined, childAge(state)).length || !state.consent.completedAt) return 'parent-consent';
-  if (phoneSourceApplies(state) && !state.phoneSource) return 'phone-source';
-  if (assentApplies(state)) {
-    if (state.assent.status === 'not-started') return 'child-assent';
-    if (state.assent.status === 'completed' && validateAssent(state.assent).length) return 'child-assent';
-  }
+  if (state.assent.status === 'completed' && validateAssent(state.assent).length) return 'child-assent';
   return null;
 }
 
-const blankGuardian: GuardianIdentity = { fullName: '', relationship: '', relationshipOther: '', hasParentalResponsibility: false, email: '', phone: '', postcode: '' };
+const blankGuardian: GuardianIdentity = { fullName: '', relationship: '', relationshipOther: '', address: '', postcode: '', email: '', phone: '' };
 
 /**
  * The record as sent. A young person deciding alone sends no parent details
- * and no permission record. From 16 the parent is not asked about the
- * screen time, so a "phone-use" answer left from an earlier date of birth is
- * dropped. The longer questions go only when they were asked.
+ * and no permission record. Until the young person answers, nothing of
+ * theirs is sent (a signature drawn but not confirmed stays on the device).
+ * The longer questions go only when they are asked.
  */
 export function buildConsentPayload(state: AppState): ConsentPayload {
   const base = { referenceCode: state.submission.referenceCode, studyId: study.studyId, siteId: study.siteId, route: state.route ?? ('parent' as const), client: clientInfo() };
   const alone = youngAlone(state);
-  const { 'phone-use': _dropped, ...overSixteen } = state.consent.responses;
-  const consent = alone ? null : decidesAlone(state) ? { ...state.consent, responses: overSixteen } : state.consent;
+  // Not answered yet: the bare record (no ticks, no unconfirmed signature, no times), the same at every save until the young person answers.
+  const assent = state.assent.status === 'not-started' ? { ...state.assent, responses: {}, signature: null, handoverConfirmedAt: null, startedAt: null } : state.assent;
   return {
     ...base,
     kind: 'consent',
     identity: state.identity,
     guardian: alone ? blankGuardian : state.guardian,
-    consent,
-    assent: state.assent,
+    consent: alone ? null : state.consent,
+    assent,
     survey: alone ? null : state.survey,
     phoneSource: phoneSourceOf(state),
     more: parentMoreApplies(state) ? state.more : null,
@@ -97,9 +76,21 @@ export function buildConsentPayload(state: AppState): ConsentPayload {
 }
 
 /**
- * Sends the permission and agreement (first time or as an amendment) and the
- * screenshots. Components call these; the SyncManager in App.tsx calls
- * sendConsent automatically when the agreement step is finished.
+ * What a save covers: the record as it would be sent, without the moment of
+ * sending. The young person's agreement to share by sending travels with the
+ * screenshots, so it is left out; otherwise every screenshot send would look
+ * like a change to the record.
+ */
+export function snapshotOf(state: AppState): string {
+  const { referenceCode: _reference, client: _client, ...record } = buildConsentPayload(state);
+  const { 'phone-use': _bySending, ...assentResponses } = record.assent.responses;
+  return JSON.stringify({ ...record, assent: { ...record.assent, responses: assentResponses } });
+}
+
+/**
+ * Sends the record (from the moment the parent signs, then again as answers
+ * come in) and the screenshots. Components call these; the SyncManager in
+ * App.tsx calls sendConsent automatically.
  */
 export function useSync() {
   const { state, dispatch } = useStore();
@@ -165,7 +156,8 @@ export function useSync() {
     consentInFlight.current = true;
     const amending = s.submission.referenceCode !== null;
     dispatch({ type: 'submission', patch: { consentStage: 'sending', consentError: null } });
-    announce(amending ? 'Saving your changes.' : 'Saving your permission.');
+    // Later saves happen quietly as answers come in; only the first is announced.
+    if (!amending) announce(youngAlone(s) ? 'Saving.' : 'Saving your permission.');
     try {
       const payload = buildConsentPayload(s);
       const result = await withSession((session) => getApi().submitConsent(session, payload));
@@ -182,7 +174,7 @@ export function useSync() {
           declinedSentAt: s.submission.declinedSentAt,
         },
       });
-      announce(amending ? 'Changes saved.' : 'Permission saved.');
+      if (!amending) announce(youngAlone(s) ? 'Saved.' : 'Permission saved.');
       return result;
     } catch (error) {
       const message = friendlyError(error, 'permission');
@@ -240,7 +232,8 @@ export function useSync() {
   }, [dispatch, sendConsent, withSession]);
 
   // Carrying on later sends answers, never amendments, so nothing is ever waiting to be re-sent.
-  const dirty = !state.resume && state.submission.sentSnapshot !== null && state.submission.sentSnapshot !== snapshotOf(state);
+  const snapshot = state.resume ? null : snapshotOf(state);
+  const dirty = snapshot !== null && state.submission.sentSnapshot !== null && state.submission.sentSnapshot !== snapshot;
 
-  return { sendConsent, sendDonation, dirty, submission: state.submission };
+  return { sendConsent, sendDonation, dirty, snapshot, submission: state.submission };
 }

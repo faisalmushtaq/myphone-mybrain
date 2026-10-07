@@ -39,7 +39,8 @@ export const childAssentForm = {
 export const informationVersion: string = generated.informationVersion;
 
 /** The parent's question forms (src/config/questions.ts in the app). */
-export type ServedQuestion = { id: string; version: string; type: 'choice'; options: string[] } | { id: string; version: string; type: 'text'; maxLength: number };
+/** 'multi': more than one answer, the values joined by ";" ('unsure' stands alone). */
+export type ServedQuestion = { id: string; version: string; type: 'choice' | 'multi'; options: string[] } | { id: string; version: string; type: 'text'; maxLength: number };
 export interface ServedQuestionForm {
   id: string;
   version: string;
@@ -50,10 +51,10 @@ type GeneratedQuestion = { id: string; version: string; type: string; text: stri
 const questionForm = (f: { id: string; version: string; questions: readonly GeneratedQuestion[] }): ServedQuestionForm => ({
   id: f.id,
   version: f.version,
-  questions: f.questions.map((q): ServedQuestion => (q.type === 'choice' ? { id: q.id, version: q.version, type: 'choice', options: (q.options ?? []).map((o) => o.value) } : { id: q.id, version: q.version, type: 'text', maxLength: Number(q.maxLength) })),
+  questions: f.questions.map((q): ServedQuestion => (q.type === 'choice' || q.type === 'multi' ? { id: q.id, version: q.version, type: q.type === 'multi' ? 'multi' : 'choice', options: (q.options ?? []).map((o) => o.value) } : { id: q.id, version: q.version, type: 'text', maxLength: Number(q.maxLength) })),
 });
 const wordingOf = (f: { questions: readonly GeneratedQuestion[] }): Record<string, { text: string; labels?: Record<string, string> }> =>
-  Object.fromEntries(f.questions.map((q) => [q.id, { text: q.text, labels: q.type === 'choice' ? Object.fromEntries((q.options ?? []).map((o) => [o.value, o.label])) : undefined }]));
+  Object.fromEntries(f.questions.map((q) => [q.id, { text: q.text, labels: q.type === 'choice' || q.type === 'multi' ? Object.fromEntries((q.options ?? []).map((o) => [o.value, o.label])) : undefined }]));
 
 /** The quick questions every parent or carer is asked. */
 export const parentQuestionsForm = questionForm(generated.parentQuestionsForm as unknown as { id: string; version: string; questions: GeneratedQuestion[] });

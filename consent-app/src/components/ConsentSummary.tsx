@@ -113,11 +113,12 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
           <dl className="mpmb-summary__list">
             <Row label="Name" value={guardian.fullName} />
             <Row label="Relationship" value={relationship} />
+            <Row label="Address" value={show(guardian.address)} />
+            <Row label="Postcode" value={show(guardian.postcode.toUpperCase())} />
             <Row label="Email" value={show(guardian.email)} />
             <Row label="Phone" value={show(guardian.phone)} />
-            <Row label="Postcode" value={show(guardian.postcode.toUpperCase())} />
           </dl>
-          {!detailed && (guardian.email || guardian.phone || guardian.postcode) && (
+          {!detailed && (guardian.address || guardian.email || guardian.phone || guardian.postcode) && (
             <Button variant="link" onClick={() => setReveal((r) => !r)} aria-pressed={reveal}>
               {reveal ? 'Hide contact details' : 'Show contact details'}
             </Button>
@@ -206,7 +207,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
         source === 'parent' || (source === 'child' && assent.status === 'completed') ? 'phone-use' : null,
         'research',
         source === 'none' ? (
-          <p className="mpmb-summary__note">{consent.responses['phone-use']?.response === 'declined' ? 'Not shared: you chose not to share screen-time screenshots.' : 'Not shared: you chose to answer more questions instead.'} You can change this later by contacting the team.</p>
+          <p className="mpmb-summary__note">Not shared: you chose to answer more questions instead. You can change this later by contacting the team.</p>
         ) : source === 'child' && assent.status !== 'completed' ? (
           <p className="mpmb-summary__note">Not shared from {childName}’s phone.</p>
         ) : source === null ? (

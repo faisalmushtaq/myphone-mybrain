@@ -18,18 +18,16 @@ function valid(): ConsentPayload {
     siteId: 'LEEDS-BRADFORD',
     route: 'young',
     identity: { firstName: 'Kai', lastName: 'Patel', dateOfBirth: dobFor(13), schoolId: 'BRD-001', schoolOther: '', yearGroup: 'Year 8' },
-    guardian: { fullName: 'Priya Patel', relationship: 'mother', relationshipOther: '', hasParentalResponsibility: true, email: '', phone: '', postcode: '' },
+    guardian: { fullName: 'Priya Patel', relationship: 'mother', relationshipOther: '', address: '1 Long Lane, Leeds', postcode: 'LS6 1AB', email: '', phone: '' },
     consent: {
       formId: 'mpmb-parent-consent',
-      formVersion: '0.6-draft',
-      informationVersion: '0.4-draft',
+      formVersion: '0.7-draft',
+      informationVersion: '0.5-draft',
       responses: {
         'read-information': r('read-information', 'agreed', 'group', '0.4-draft'),
         answers: r('answers', 'agreed', 'group', '0.1-draft'),
         'understand-withdraw': r('understand-withdraw', 'agreed', 'group', '0.4-draft'),
         'records-checked': r('records-checked', 'agreed', 'group'),
-        'phone-use': r('phone-use', 'agreed', 'individual', '0.5-draft'),
-        recontact: r('recontact', 'declined', 'individual'),
       },
       typedName: 'Priya Patel',
       signature,
@@ -94,6 +92,14 @@ test('an email address is optional, but must be valid when given', () => {
   assert.ok(validateConsentPayload(p).some((m) => m.includes('not valid')));
 });
 
+test('the parent’s home address and postcode are required; email and phone are optional', () => {
+  const p = valid();
+  assert.ok(validateConsentPayload({ ...p, guardian: { ...p.guardian, address: ' ' } }).includes('The home address is missing.'));
+  assert.ok(validateConsentPayload({ ...p, guardian: { ...p.guardian, postcode: '' } }).includes('The postcode is missing.'));
+  assert.ok(validateConsentPayload({ ...p, guardian: { ...p.guardian, postcode: 'LS2' } }).includes('The postcode is not valid.'));
+  assert.deepEqual(validateConsentPayload({ ...p, guardian: { ...p.guardian, email: '', phone: '' } }), [], 'no email or phone is fine');
+});
+
 test('a typed-in school name needs at least three letters', () => {
   const p = valid();
   p.identity.schoolId = 'other';
@@ -107,8 +113,8 @@ test('rejects a missing required statement, and the statements no longer asked',
   const p = valid();
   delete p.consent!.responses.answers;
   assert.ok(validateConsentPayload(p).some((m) => m.includes('"answers"')));
-  // Since 7 October 2026 the workshop and record linkage are opt-out: neither is asked on the form.
-  for (const gone of ['take-part', 'link-records']) {
+  // Since 7 October 2026 the workshop and record linkage are opt-out, the parent's yes to the screen time is their answer to where it comes from, and future contact is not asked: none of these is a statement on the form.
+  for (const gone of ['take-part', 'link-records', 'phone-use', 'recontact']) {
     const q = valid();
     q.consent!.responses[gone] = r(gone, 'agreed', 'group', '0.4-draft');
     assert.ok(validateConsentPayload(q).some((m) => m.includes(`unknown statement "${gone}"`)), gone);
@@ -117,7 +123,7 @@ test('rejects a missing required statement, and the statements no longer asked',
 
 test('rejects an old statement version', () => {
   const p = valid();
-  p.consent!.responses['phone-use'].version = '0.1-draft';
+  p.consent!.responses['records-checked'].version = '0.1-draft';
   assert.ok(validateConsentPayload(p).some((m) => m.includes('version')));
 });
 
@@ -169,7 +175,7 @@ test('there is no "declined" record any more: a young person’s no is part of t
 test('16 or 17 on their own: no parent, no permission record, their own signed agreement', () => {
   const p = valid();
   p.identity.dateOfBirth = dobFor(16);
-  p.guardian = { fullName: '', relationship: '', relationshipOther: '', hasParentalResponsibility: false, email: '', phone: '', postcode: '' };
+  p.guardian = { fullName: '', relationship: '', relationshipOther: '', address: '', postcode: '', email: '', phone: '' };
   p.consent = null;
   p.survey = null;
   assert.deepEqual(validateConsentPayload(p), []);
@@ -181,40 +187,48 @@ test('16 or 17 on their own: no parent, no permission record, their own signed a
   assert.ok(validateConsentPayload({ ...p, identity: { ...p.identity, dateOfBirth: dobFor(15) } }).some((m) => m.includes('permission record is missing')));
 });
 
-test('the parent of a 16- or 17-year-old is not asked about the screenshots: the young person decides', () => {
+test('the parent of a 16- or 17-year-old is not asked about the screenshots: the young person decides, from their own phone', () => {
   const p = valid();
   p.route = 'parent';
   p.identity.dateOfBirth = dobFor(17);
-  delete p.consent!.responses['phone-use'];
   assert.deepEqual(validateConsentPayload(p), []);
-  const q = valid();
-  q.route = 'parent';
-  q.identity.dateOfBirth = dobFor(17);
-  assert.ok(validateConsentPayload(q).some((m) => m.includes('"phone-use" is not asked')));
+  assert.ok(validateConsentPayload({ ...p, phoneSource: 'parent' }).some((m) => m.includes('does not match')));
+  assert.ok(validateConsentPayload({ ...p, phoneSource: null }).some((m) => m.includes('does not match')));
 });
 
-test('under 16 on the parent’s route: the screen time comes from where the parent chose', () => {
+test('under 16: the screen time comes from where the parent chose, and the record is saved from the moment they sign', () => {
   const p = valid();
   p.route = 'parent';
   p.phoneSource = 'parent';
   p.assent = notAsked();
   assert.deepEqual(validateConsentPayload(p), [], 'from the parent’s own phone, no agreement is asked of the young person');
-  assert.ok(validateConsentPayload({ ...p, phoneSource: null }).some((m) => m.includes('Where the screen time comes from is missing')));
-  assert.ok(validateConsentPayload({ ...p, phoneSource: 'child' }).some((m) => m.includes('agreement was not completed')));
+  assert.deepEqual(validateConsentPayload({ ...p, phoneSource: null, survey: { ...p.survey!, status: 'in-progress', completedAt: null } }), [], 'signed, part-way through the questions, before saying where the screen time comes from');
+  assert.deepEqual(validateConsentPayload({ ...p, phoneSource: 'child' }), [], 'from the young person’s phone, before they have answered');
   assert.deepEqual(validateConsentPayload({ ...p, phoneSource: 'child', assent: valid().assent }), []);
-  // On the young person's own route it is their phone, whatever is claimed.
+  assert.ok(validateConsentPayload({ ...p, phoneSource: 'somewhere' as never }).some((m) => m.includes('does not match')));
+  // On the young person's own route it is their phone, or none.
   assert.ok(validateConsentPayload({ ...valid(), phoneSource: 'parent' }).some((m) => m.includes('does not match')));
+  assert.deepEqual(validateConsentPayload({ ...valid(), phoneSource: 'none', assent: notAsked() }), []);
 });
 
-test('after the parent’s no there is no screen time, and the longer questions are checked against their form', () => {
+test('when the parent says no to sharing, there is no screen time, and the longer questions are checked against their form', () => {
   const p = valid();
   p.route = 'parent';
-  p.consent!.responses['phone-use'] = r('phone-use', 'declined', 'individual', '0.5-draft');
   p.phoneSource = 'none';
   p.assent = notAsked();
-  p.more = { formId: 'mpmb-parent-phone-use', formVersion: '0.1-draft', status: 'completed', responses: { 'school-day-time': { questionId: 'school-day-time', version: '0.1-draft', value: '2-3', answeredAt: now }, 'more-notes': { questionId: 'more-notes', version: '0.1-draft', value: 'Late nights.', answeredAt: now } }, startedAt: now, completedAt: now };
+  p.more = { formId: 'mpmb-parent-phone-use', formVersion: '0.2-draft', status: 'completed', responses: { 'school-day-time': { questionId: 'school-day-time', version: '0.1-draft', value: '2-3', answeredAt: now }, 'more-notes': { questionId: 'more-notes', version: '0.1-draft', value: 'Late nights.', answeredAt: now } }, startedAt: now, completedAt: now };
   assert.deepEqual(validateConsentPayload(p), []);
-  assert.ok(validateConsentPayload({ ...p, phoneSource: 'parent' }).some((m) => m.includes('does not match')));
+  assert.deepEqual(validateConsentPayload({ ...p, more: { ...p.more, status: 'in-progress', completedAt: null } }), [], 'part-way through the longer questions');
+  // The age at their own smartphone, year by year from under 5, or not remembered.
+  const age = (value: string) => validateConsentPayload({ ...p, more: { ...p.more!, responses: { 'own-phone-age': { questionId: 'own-phone-age', version: '0.2-draft', value, answeredAt: now } } } });
+  for (const value of ['under-5', '7', '14', '15-plus', 'none', 'unsure']) assert.deepEqual(age(value), [], value);
+  assert.ok(age('under-9').some((m) => m.includes('Malformed answer')), 'the old bands are not offered any more');
+  // More than one app, joined by ";": each from the list, once; "I don't know" on its own.
+  const apps = (value: string) => validateConsentPayload({ ...p, more: { ...p.more!, responses: { 'top-app': { questionId: 'top-app', version: '0.2-draft', value, answeredAt: now } } } });
+  assert.deepEqual(apps('tiktok'), []);
+  assert.deepEqual(apps('tiktok;youtube;games'), []);
+  assert.deepEqual(apps('unsure'), []);
+  for (const bad of ['tiktok;tiktok', 'tiktok;myspace', 'tiktok;unsure', '', 'tiktok;']) assert.ok(apps(bad).some((m) => m.includes('Malformed answer')), bad);
   assert.ok(validateConsentPayload({ ...p, more: { ...p.more, formVersion: '0.0-draft' } }).some((m) => m.includes('longer questions form')));
   assert.ok(validateConsentPayload({ ...p, more: { ...p.more, responses: { concern: { questionId: 'concern', version: '0.1-draft', value: 'somewhat', answeredAt: now } } } }).some((m) => m.includes('Unknown question')));
   assert.ok(validateConsentPayload({ ...p, more: { ...p.more, responses: { 'school-day-time': { questionId: 'school-day-time', version: '0.1-draft', value: 'all day', answeredAt: now } } } }).some((m) => m.includes('Malformed answer')));

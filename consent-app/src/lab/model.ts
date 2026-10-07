@@ -139,6 +139,8 @@ export interface LabState {
   confirmedCode: string | null;
   /** Whether the ID came from a link or this device (confirmed with one press), rather than from the four details. */
   returning: boolean;
+  /** First page: the person chose "Already started?", so their details (or ID) find their record and no mobile number is asked again. */
+  carryOn: boolean;
   consent: LabConsentRecord;
   /** iPhone or Android, chosen on the screenshots step so the right steps show and the screenshots are labelled. */
   phone: LabPhone | null;

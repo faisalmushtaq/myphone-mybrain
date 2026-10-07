@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { PermissionRows } from '../components/PermissionRows';
 import { SignaturePad } from '../components/SignaturePad';
 import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
@@ -37,7 +36,6 @@ export function ParentConsent() {
   const age = childAge(state);
   const asked = statementsFor(parentConsentForm, age, study.selfConsentAge);
   const required = asked.filter((s) => s.kind === 'required');
-  const optional = asked.filter((s) => s.kind === 'optional');
   const allRequiredAgreed = required.every((s) => consent.responses[s.id]?.response === 'agreed');
   const grouped = study.groupRequiredStatements;
 
@@ -53,7 +51,7 @@ export function ParentConsent() {
     <StepShell
       kicker="Parent or carer"
       title={<>Your permission: {childName}’s phone use.</>}
-      intro={<p>Read the short summary, confirm the statements, answer the choices, and sign. About three minutes. This is separate from the workshop at school.</p>}
+      intro={<p>Read the short summary, confirm the statements and sign. About two minutes. This is separate from the workshop at school.</p>}
       errors={errors}
       onContinue={next}
       continueLabel="Confirm and sign"
@@ -122,14 +120,7 @@ export function ParentConsent() {
         )}
       </section>
 
-      <section className="mpmb-choices" aria-labelledby="choices-heading">
-        <h2 className="mpmb-h3" id="choices-heading">
-          Your choices
-        </h2>
-        <p className="mpmb-hint">Each of these is separate. You can say no to any of them.</p>
-        {decidesAlone(state) && <p className="mpmb-hint">{childName} is 16 or over, so they decide for themselves about sharing their screen time: we ask them after your part.</p>}
-        <PermissionRows statements={optional} responses={consent.responses} errors={errs} onRespond={(s, response) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, response })} />
-      </section>
+      {decidesAlone(state) && <p className="mpmb-hint">{childName} is 16 or over, so they decide for themselves about sharing their screen time: we ask them after your part.</p>}
 
       <section className="mpmb-sign" aria-labelledby="sign-heading">
         <h2 className="mpmb-h3" id="sign-heading">
@@ -181,7 +172,7 @@ export function ParentConsent() {
             )}
           </div>
           <Disclosure summary="What happens with this record">
-            <p>Your choices, name, signature and the version of the information you read are stored as the record of your permission. The time you confirm is also recorded. You can change your mind at any time by contacting the team.</p>
+            <p>Your name, signature and the version of the information you read are stored as the record of your permission. The time you confirm is also recorded. You can change your mind at any time by contacting the team.</p>
           </Disclosure>
         </div>
       </section>

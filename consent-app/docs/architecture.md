@@ -11,9 +11,9 @@ what the live site uses). Since 7 October 2026 the form is the **opt-in for
 screen time** (the workshop at school is opt-out, by email: `docs/journey.md`,
 `docs/opt-outs.md`). Two things are sent, at different moments: the record
 (the parent's permission and answers, and the young person's agreement when
-they are asked) as soon as it is complete (and again as an amendment when
-something is changed), and the screenshots when their send button is
-pressed.
+they are asked) from the moment the parent signs, and again shortly after
+each answer or change (decided 7 October 2026: everything given after
+signing is kept), and the screenshots when their send button is pressed.
 
 ```
 consent-app/
@@ -142,7 +142,7 @@ store, joined only by a study identifier.
 ```
 startSession()                              → { sessionId, csrfToken, expiresAt }
 submitConsent(session, payload)             → { referenceCode, participantId, receivedAt, version }
-                                              payload.referenceCode set → an amendment (version 2, 3…)
+                                              payload.referenceCode set → a later save (a new version only when the details, permission or agreement changed)
 requestUploadSlot(sessionId, {type, size})  → { uploadId, url, method, headers, expiresAt }
 uploadImage(slot, blob, onProgress)         → void            (direct-to-storage)
 deleteUpload(sessionId, uploadId)           → void
@@ -228,12 +228,13 @@ compliance claims.
      access; names, DOB, postcode, guardian contact details),
   2. writes the **consent record** with the form version, statement versions,
      responses, signature PNG, server timestamp, client-declared date and
-     user-agent — append-only, never edited; an amendment is a new record
-     pointing at the one it supersedes,
+     user-agent — append-only, never edited; a change is a new record
+     pointing at the one it supersedes (an unchanged one is kept as it is),
   3. writes the **assent record** in the same way,
   4. issues (or keeps) the family's reference code.
-  It is called as soon as the young person has signed, so participation is on
-  record before the screenshots.
+  It is called the moment the parent signs (or a 16- or 17-year-old on their
+  own agrees), and again as answers come in, so whatever a family gives is on
+  record even if they stop part-way.
 * `submitDonation` links accepted uploads to the participant's study id in
   the research store, together with the young person's agreement to share
   (recorded by the act of sending) and the quality result for each image.

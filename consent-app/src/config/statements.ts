@@ -56,7 +56,8 @@ export interface StatementForm {
 
 export const parentConsentForm: StatementForm = {
   id: 'mpmb-parent-consent',
-  version: '0.6-draft', // PLACEHOLDER — ethics-approved version identifier
+  // 0.7: no optional choices (7 October 2026). Sharing the screen time is the parent's answer on the "where from" step; recontact is gone.
+  version: '0.7-draft', // PLACEHOLDER — ethics-approved version identifier
   title: 'Parent or carer permission',
   statements: [
     {
@@ -89,27 +90,6 @@ export const parentConsentForm: StatementForm = {
       kind: 'required',
       label: 'Checks on the study',
       text: 'I understand that authorised people from the University of Leeds, or from bodies that regulate research, may look at study records to check the study is being run properly.',
-      draft: true,
-    },
-    {
-      id: 'phone-use',
-      version: '0.5-draft',
-      kind: 'optional',
-      label: 'Screen-time and app-use screenshots',
-      text: 'The research team may collect and analyse screenshots of my child’s screen-time summary showing which apps they use and how long they spend on each.',
-      more:
-        'This is a screenshot of the phone’s Screen Time or Digital Wellbeing screen, including the list of apps. We ask for the apps as well as the total because how a phone is used matters as much as how long. It does not show messages, photos or what was posted. If you can see your child’s screen time on your own phone (Apple Family Sharing or Google Family Link), you can send it from there; otherwise your child can send it from their phone, if they want to. Parts of an image can be hidden before it is shared, and images are stored with a code rather than a name. If you say no, we ask you a few more questions about your child’s phone use instead.',
-      affects: 'phone-use',
-      underSelfConsentAge: true,
-      draft: true,
-    },
-    {
-      id: 'recontact',
-      version: '0.3-draft',
-      kind: 'optional',
-      label: 'Contact about future research',
-      text: 'The team may contact us about future research connected to MyPhone/MyBrain.',
-      more: 'Saying yes does not commit you to anything. You would receive information and could decide at the time.',
       draft: true,
     },
   ],

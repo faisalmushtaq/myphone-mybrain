@@ -71,9 +71,14 @@ export function ParticipantId() {
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
   const parts = state.codeParts;
   const firstPage = state.flow === 'baseline';
+  // First page, "Already started?": the details (or the ID) find the record; nobody is signed up from here, and the mobile number given at sign-up is not asked again.
+  const carryingOn = firstPage && state.carryOn;
+  const signingUp = firstPage && !state.carryOn;
   // An ID this device remembers, or one a link carried: confirmed with one press.
   const known = state.returning && Boolean(state.code);
-  const text = words[state.flow];
+  const text = carryingOn
+    ? { kicker: 'Welcome back', title: 'Carry on where you left off.', lead: 'Enter the same details you gave at the start, or your participant ID (it is in our emails). You carry on from where you stopped, on any device.', leadKnown: 'Press Continue if this is your participant ID: you carry on from where you stopped.' }
+    : words[state.flow];
   const dob = isoDateOf(parts.dateOfBirth);
   const age = dob ? ageFrom(dob) : null;
 
@@ -87,9 +92,9 @@ export function ParticipantId() {
     else if (age !== null && age > 110) found.push({ field: 'lab-dob', message: 'Check the year of your date of birth.' });
     if (!parts.postcode.trim()) found.push({ field: 'lab-postcode', message: 'Enter your postcode.' });
     else if (!isUkPostcode(parts.postcode)) found.push({ field: 'lab-postcode', message: 'Enter a full UK postcode, such as LS2 9JT.' });
-    // The first page also asks for a mobile number (decided 7 October 2026): not part of the ID, but the team needs it to contact people.
-    if (firstPage && !state.booking.mobile.trim()) found.push({ field: 'lab-mobile-start', message: 'Enter your mobile number, so the team can contact you.' });
-    else if (firstPage && !ukMobile(state.booking.mobile)) found.push({ field: 'lab-mobile-start', message: 'Enter a UK mobile number, such as 07700 900123.' });
+    // Signing up also asks for a mobile number (decided 7 October 2026): not part of the ID, but the team needs it to contact people.
+    if (signingUp && !state.booking.mobile.trim()) found.push({ field: 'lab-mobile-start', message: 'Enter your mobile number, so the team can contact you.' });
+    else if (signingUp && !ukMobile(state.booking.mobile)) found.push({ field: 'lab-mobile-start', message: 'Enter a UK mobile number, such as 07700 900123.' });
     return found;
   };
 
@@ -124,7 +129,7 @@ export function ParticipantId() {
           if (known) dispatch({ type: 'code', code: '', returning: false });
           return;
         }
-        if (!firstPage) {
+        if (!signingUp) {
           setNotFound({ kind: 'details' });
           return;
         }
@@ -192,7 +197,26 @@ export function ParticipantId() {
       {notFound?.kind === 'details' && (
         <Callout tone="important" role="alert">
           <p>
-            <strong>We could not find anyone who signed up with these details.</strong> Check they are exactly as you gave them at the start: the same spelling of your first and last name, your date of birth, and the postcode you gave then, even if you have moved since. If you have not signed up yet, <a href={labPages.baseline.path}>start on the first page</a>. Stuck? Contact {contact}.
+            <strong>We could not find anyone who signed up with these details.</strong> Check they are exactly as you gave them at the start: the same spelling of your first and last name, your date of birth, and the postcode you gave then, even if you have moved since.{' '}
+            {carryingOn ? (
+              <>
+                Not signed up yet?{' '}
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    setNotFound(null);
+                    dispatch({ type: 'carry-on', on: false });
+                  }}
+                >
+                  Sign up with these details
+                </Button>
+              </>
+            ) : (
+              <>
+                If you have not signed up yet, <a href={labPages.baseline.path}>start on the first page</a>.
+              </>
+            )}{' '}
+            Stuck? Contact {contact}.
           </p>
         </Callout>
       )}
@@ -200,11 +224,11 @@ export function ParticipantId() {
         <Callout tone="important" role="alert">
           {byId ? (
             <p>
-              We could not find anyone with participant ID <strong className="mpmb-mono">{notFound.id}</strong>. Check it against the emails we sent you, or use your details instead{firstPage ? ', which is also how you sign up' : ''}. Stuck? Contact {contact}.
+              We could not find anyone with participant ID <strong className="mpmb-mono">{notFound.id}</strong>. Check it against the emails we sent you, or use your details instead{signingUp ? ', which is also how you sign up' : ''}. Stuck? Contact {contact}.
             </p>
           ) : (
             <p>
-              We have no consent on file for participant ID <strong className="mpmb-mono">{notFound.id}</strong>. Enter your details below instead{firstPage ? ' to sign up' : ''}. Stuck? Contact {contact}.
+              We have no consent on file for participant ID <strong className="mpmb-mono">{notFound.id}</strong>. Enter your details below instead{signingUp ? ' to sign up' : ''}. Stuck? Contact {contact}.
             </p>
           )}
         </Callout>
@@ -244,7 +268,7 @@ export function ParticipantId() {
       ) : (
         <div className="mpmb-fields">
           <p className="mpmb-hint mpmb-id-switch">
-            {firstPage ? 'Already taking part and have your participant ID?' : 'Have your participant ID? It is in our emails.'}{' '}
+            {signingUp ? 'Already taking part and have your participant ID?' : 'Have your participant ID? It is in our emails.'}{' '}
             <Button variant="link" onClick={() => switchTo(true)}>
               Use my participant ID instead
             </Button>
@@ -255,7 +279,7 @@ export function ParticipantId() {
           <TextField
             id="lab-postcode"
             label="Postcode"
-            hint={firstPage ? 'Where you live now, such as LS2 9JT.' : 'The postcode you gave at the start, even if you have moved since.'}
+            hint={signingUp ? 'Where you live now, such as LS2 9JT.' : 'The postcode you gave at the start, even if you have moved since.'}
             required
             autoComplete="postal-code"
             autoCapitalize="characters"
@@ -267,7 +291,7 @@ export function ParticipantId() {
             onBlur={() => parts.postcode && dispatch({ type: 'code-parts', parts: { postcode: formatPostcode(parts.postcode) } })}
             error={errs['lab-postcode']}
           />
-          {firstPage && (
+          {signingUp && (
             <TextField
               id="lab-mobile-start"
               label="Mobile number"
@@ -283,7 +307,16 @@ export function ParticipantId() {
               error={errs['lab-mobile-start']}
             />
           )}
-          <p className="mpmb-hint">{firstPage ? 'Use exactly the same details whenever you come back, and in the questionnaire, so everything matches up. Started already? Enter the same details and you will carry on where you left off.' : 'Your details are only used to find your record.'}</p>
+          {signingUp ? (
+            <p className="mpmb-hint">
+              Use exactly the same details whenever you come back, and in the questionnaire, so everything matches up.{' '}
+              <Button variant="link" onClick={() => dispatch({ type: 'carry-on', on: true })}>
+                Already started? Carry on where you left off
+              </Button>
+            </p>
+          ) : (
+            <p className="mpmb-hint">{carryingOn ? 'Use exactly the details you gave at the start: the postcode then, even if you have moved since.' : 'Your details are only used to find your record.'}</p>
+          )}
         </div>
       )}
     </LabShell>

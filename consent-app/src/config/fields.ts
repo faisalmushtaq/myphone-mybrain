@@ -29,6 +29,21 @@ export const childFields = {
 export const guardianFields = {
   fullName: { enabled: true, required: true, label: 'Your full name', autocomplete: 'name' },
   relationship: { enabled: true, required: true, label: 'Your relationship to the young person' },
+  /** Required with the postcode (decided 7 October 2026): the home address, for linking the young person's records. */
+  address: {
+    enabled: true,
+    required: true,
+    label: 'Your home address',
+    hint: 'House number or name, street, and town.',
+    autocomplete: 'street-address',
+  },
+  postcode: {
+    enabled: true,
+    required: true,
+    label: 'Postcode',
+    hint: 'For example LS2 9JT.',
+    autocomplete: 'postal-code',
+  },
   /** Optional. Nothing is emailed to families; this is only for contact about the study. */
   email: {
     enabled: true,
@@ -43,13 +58,6 @@ export const guardianFields = {
     label: 'Your phone number',
     hint: 'Only if you are happy for us to call or text about the study.',
     autocomplete: 'tel',
-  },
-  postcode: {
-    enabled: true,
-    required: false,
-    label: 'Home postcode',
-    hint: 'This helps us match your child’s records correctly if you later agree to link with health or school records. Leave it blank if you prefer.',
-    autocomplete: 'postal-code',
   },
 } satisfies Record<string, FieldConfig>;
 

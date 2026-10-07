@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parentConsentForm, statementsFor } from '../config/statements';
+import { parentConsentForm } from '../config/statements';
 import { study } from '../config/study';
 import { initialState, reducer, type Action } from '../state/reducer';
 import { buildConsentPayload, firstIncomplete } from '../state/useSync';
-import { buildJourney, decidesAlone, parentMoreApplies, phoneSourceOf } from './journey';
+import { buildJourney, decidesAlone, lastCall, parentMoreApplies, phoneSourceOf } from './journey';
 import type { AppState } from './types';
 
 /** A date of birth that makes someone `age` today. */
@@ -15,17 +15,15 @@ const signature = { method: 'typed' as const, imageDataUrl: null, typedName: 'Sa
 function family(route: 'parent' | 'young', age: number): AppState {
   let s = reducer(initialState(), { type: 'set-route', route });
   s = reducer(s, { type: 'update-identity', patch: { firstName: 'Kai', lastName: 'Patel', dateOfBirth: dobFor(age), schoolId: 'DUA', yearGroup: 'Year 9' } });
-  s = reducer(s, { type: 'update-guardian', patch: { fullName: 'Sam Patel', relationship: 'mother', hasParentalResponsibility: true } });
+  s = reducer(s, { type: 'update-guardian', patch: { fullName: 'Sam Patel', relationship: 'mother', address: '1 Long Lane, Leeds', postcode: 'LS6 1AB' } });
   return s;
 }
 
 const apply = (s: AppState, ...actions: Action[]) => actions.reduce(reducer, s);
 
-/** The parent's permission, signed, with their answer about the screenshots (none from 16). */
-function permission(s: AppState, phone: 'agreed' | 'declined' | null): AppState {
-  let next = apply(s, { type: 'consent-required-group', agreed: true }, { type: 'consent-response', statementId: 'recontact', version: '0.3-draft', response: 'declined' });
-  if (phone) next = reducer(next, { type: 'consent-response', statementId: 'phone-use', version: '0.5-draft', response: phone });
-  return apply(next, { type: 'consent-typed-name', name: 'Sam Patel' }, { type: 'consent-signature', signature }, { type: 'consent-complete', informationVersion: '0.4-draft' });
+/** The parent's permission, signed. Since 7 October 2026 it has no screenshots question: the parent's yes or no is their answer to where the screen time comes from. */
+function permission(s: AppState): AppState {
+  return apply(s, { type: 'consent-required-group', agreed: true }, { type: 'consent-typed-name', name: 'Sam Patel' }, { type: 'consent-signature', signature }, { type: 'consent-complete', informationVersion: '0.4-draft' });
 }
 
 describe('the family form after 7 October 2026: who decides, and where the screen time comes from', () => {
@@ -33,11 +31,8 @@ describe('the family form after 7 October 2026: who decides, and where the scree
     expect(study.selfConsentAge).toBe(16);
     expect(decidesAlone(family('young', 16))).toBe(true);
     expect(decidesAlone(family('young', 15))).toBe(false);
-    // The parent is not asked about an over-16's screenshots.
-    expect(statementsFor(parentConsentForm, 16, 16).map((s) => s.id)).not.toContain('phone-use');
-    expect(statementsFor(parentConsentForm, 15, 16).map((s) => s.id)).toContain('phone-use');
-    expect(parentConsentForm.statements.map((s) => s.id)).not.toContain('take-part');
-    expect(parentConsentForm.statements.map((s) => s.id)).not.toContain('link-records');
+    // The permission asks nothing about the workshop, record linkage, the screenshots or future contact.
+    for (const gone of ['take-part', 'link-records', 'phone-use', 'recontact']) expect(parentConsentForm.statements.map((s) => s.id)).not.toContain(gone);
   });
 
   it('a 16-year-old on their own: their agreement, their screenshots, nothing from a parent', () => {
@@ -59,18 +54,31 @@ describe('the family form after 7 October 2026: who decides, and where the scree
     expect(firstIncomplete(no)).toBe('child-assent');
   });
 
-  it('a parent who says no to the screenshots answers the longer questions instead', () => {
-    const s = permission(family('parent', 13), 'declined');
+  it('the record can be saved from the moment the parent signs, before anything else is answered', () => {
+    const s = family('parent', 13);
+    expect(firstIncomplete(s)).toBe('parent-consent');
+    const signed = permission(s);
+    expect(firstIncomplete(signed)).toBeNull();
+    const payload = buildConsentPayload(signed);
+    expect(payload.phoneSource).toBeNull();
+    expect(payload.assent.status).toBe('not-started');
+    expect(payload.survey?.status).toBe('not-started');
+    // Part-way through the questions, the answers so far go with it.
+    const partWay = reducer(signed, { type: 'answer-question', questionId: 'concern', version: '0.1-draft', value: 'somewhat', form: 'quick' });
+    expect(buildConsentPayload(partWay).survey).toMatchObject({ status: 'in-progress', responses: { concern: { value: 'somewhat' } } });
+  });
+
+  it('a parent who says no to sharing the screen time answers the longer questions instead', () => {
+    const s = reducer(permission(family('parent', 13)), { type: 'set-phone-source', source: 'none' });
     expect(phoneSourceOf(s)).toBe('none');
-    expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'parent-more', 'check', 'done']);
+    expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'parent-more', 'check', 'done']);
     expect(firstIncomplete(s)).toBeNull();
     expect(buildConsentPayload(s).more).not.toBeNull();
   });
 
   it('a parent who says yes chooses where the screen time comes from', () => {
-    const s = permission(family('parent', 13), 'agreed');
+    const s = permission(family('parent', 13));
     expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'check', 'done']);
-    expect(firstIncomplete(s)).toBe('phone-source');
     // From the parent's own phone: no agreement asked of the young person; the longer questions only if the screenshots are skipped.
     const fromParent = reducer(s, { type: 'set-phone-source', source: 'parent' });
     expect(buildJourney(fromParent)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'phone-use', 'check', 'done']);
@@ -79,7 +87,10 @@ describe('the family form after 7 October 2026: who decides, and where the scree
     // From the young person's phone: their agreement first; a no, or not being there, brings the longer questions.
     const fromChild = reducer(s, { type: 'set-phone-source', source: 'child' });
     expect(buildJourney(fromChild)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'child-assent', 'check', 'done']);
-    expect(firstIncomplete(fromChild)).toBe('child-assent');
+    expect(firstIncomplete(fromChild)).toBeNull();
+    // A signature drawn but not confirmed stays on the device: nothing of the young person's is sent before they answer.
+    const drawing = reducer(fromChild, { type: 'assent-signature', signature });
+    expect(buildConsentPayload(drawing).assent).toMatchObject({ status: 'not-started', signature: null, responses: {} });
     expect(buildJourney(reducer(fromChild, { type: 'assent-decline' }))).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'child-assent', 'assent-declined', 'parent-more', 'check', 'done']);
     const away = reducer(fromChild, { type: 'set-child-present', present: false });
     expect(parentMoreApplies(away)).toBe(true);
@@ -89,26 +100,43 @@ describe('the family form after 7 October 2026: who decides, and where the scree
     expect(buildJourney(reducer(s, { type: 'set-phone-source', source: 'none' }))).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'parent-more', 'check', 'done']);
   });
 
-  it('a young person under 16 hands over to their parent first, then shares from their own phone', () => {
+  it('a young person under 16 hands over to their parent first, who says whether it comes from the young person’s phone', () => {
     const s = family('young', 14);
-    expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-details', 'parent-consent', 'parent-questions', 'check', 'done']);
-    const yes = permission(s, 'agreed');
+    expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-details', 'parent-consent', 'parent-questions', 'phone-source', 'check', 'done']);
+    const yes = reducer(permission(s), { type: 'set-phone-source', source: 'child' });
     expect(phoneSourceOf(yes)).toBe('child');
-    expect(buildJourney(yes)).toEqual(['welcome', 'child-details', 'parent-details', 'parent-consent', 'parent-questions', 'child-assent', 'check', 'done']);
+    expect(buildJourney(yes)).toEqual(['welcome', 'child-details', 'parent-details', 'parent-consent', 'parent-questions', 'phone-source', 'child-assent', 'check', 'done']);
   });
 
   it('a parent of a 16- or 17-year-old: their answers, then the young person decides for themselves', () => {
-    const s = permission(family('parent', 17), null);
+    const s = permission(family('parent', 17));
     expect(phoneSourceOf(s)).toBe('child');
     expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'child-assent', 'check', 'done']);
-    expect(firstIncomplete(s)).toBe('child-assent');
-    // A phone-use answer left from an earlier date of birth is not sent.
-    const stale = reducer(s, { type: 'consent-response', statementId: 'phone-use', version: '0.5-draft', response: 'agreed' });
-    expect(Object.keys(buildConsentPayload(stale).consent?.responses ?? {})).not.toContain('phone-use');
+    expect(firstIncomplete(s)).toBeNull();
+    expect(buildConsentPayload(s).phoneSource).toBe('child');
+  });
+
+  it('one last prompt to share the screen time before finishing, only when it could still come', () => {
+    const signed = permission(family('parent', 13));
+    // Screenshots that can be added now (here from the parent's own phone, skipped).
+    const skipped = apply(signed, { type: 'set-phone-source', source: 'parent' }, { type: 'donation-status', status: 'skipped' });
+    expect(lastCall(skipped)).toBe('add');
+    expect(lastCall(reducer(skipped, { type: 'share-prompted' }))).toBeNull();
+    // The young person was not there when they were asked.
+    const away = apply(signed, { type: 'set-phone-source', source: 'child' }, { type: 'set-child-present', present: false });
+    expect(lastCall(away)).toBe('here');
+    // The parent said no: perhaps after all.
+    expect(lastCall(reducer(signed, { type: 'set-phone-source', source: 'none' }))).toBe('after-all');
+    // Never after the young person's own no, or when they chose to decide later.
+    const fromChild = reducer(signed, { type: 'set-phone-source', source: 'child' });
+    expect(lastCall(reducer(fromChild, { type: 'assent-decline' }))).toBeNull();
+    expect(lastCall(reducer(fromChild, { type: 'assent-status', status: 'deferred', deferredBy: 'young' }))).toBeNull();
+    // A 16-year-old on their own who agreed but added nothing yet.
+    expect(lastCall(apply(family('young', 16), { type: 'assent-signature', signature }, { type: 'assent-sign' }))).toBe('add');
   });
 
   it('the longer questions are their own record, answered and skipped like the quick ones', () => {
-    let s = permission(family('parent', 12), 'declined');
+    let s = reducer(permission(family('parent', 12)), { type: 'set-phone-source', source: 'none' });
     s = apply(s, { type: 'answer-question', questionId: 'school-day-time', version: '0.1-draft', value: '2-3', form: 'more' }, { type: 'survey-status', status: 'completed', form: 'more' });
     expect(s.more.responses['school-day-time']?.value).toBe('2-3');
     expect(s.survey.responses['school-day-time']).toBeUndefined();

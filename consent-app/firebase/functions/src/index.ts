@@ -1,10 +1,10 @@
 import { initializeApp } from 'firebase-admin/app';
-import { FieldValue, getFirestore, type DocumentData, type DocumentReference, type Firestore } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore, type DocumentData, type DocumentReference, type DocumentSnapshot, type Firestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
-import { randomInt } from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 import { study } from './forms.js';
 import { checkImage, cleanImage, RejectedUpload, type CleanImage } from './images.js';
 import type { Quality } from './quality.js';
@@ -44,15 +44,34 @@ async function unusedReferenceCode(db: Firestore): Promise<string> {
   throw new HttpsError('internal', 'Could not allocate a reference. Please try again.');
 }
 
+/** The same JSON for the same content, whatever order the keys arrive in. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>;
+    return `{${Object.keys(obj)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${canonical(obj[k])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+const digest = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex');
+
 /**
  * Records the family's form: the parent's permission and answers, and the
  * young person's agreement when they were asked for it (a 16- or 17-year-old
  * deciding alone sends no parent details and no permission record). Called
- * as soon as the record is complete, so a family that stops part-way still
- * counts; called again with the reference code when something is changed.
- * Amendments append new permission, agreement and answer records (each
- * pointing at the one it supersedes) and update the identifying details;
- * nothing is overwritten or deleted.
+ * from the moment the parent signs (decided 7 October 2026: whatever a
+ * family gives after signing is kept and used, even if they stop part-way),
+ * and again with the reference code as answers are added or changed.
+ *
+ * A change to the details, the permission or the agreement is a new version:
+ * the permission or agreement that changed gets a new record pointing at the
+ * one it supersedes (an unchanged one is kept, not copied), and the
+ * identifying details are updated. Answers are saved as they are given: each
+ * question form has one answers record, which the latest answers replace.
+ * Nothing else is overwritten or deleted.
  */
 export const submitConsent = onCall(callOptions, async (request) => {
   const uid = request.auth?.uid;
@@ -67,10 +86,9 @@ export const submitConsent = onCall(callOptions, async (request) => {
   const db = getFirestore();
   const receivedAt = new Date();
 
-  // New record, or an amendment to one this same session already sent.
+  // New record, or a later save of one this same session already sent.
   let code: string;
   let participantRef: DocumentReference;
-  let version: number;
   let previous: DocumentData | null = null;
   if (payload.referenceCode) {
     const snap = await db.collection('submissions').doc(payload.referenceCode).get();
@@ -78,61 +96,82 @@ export const submitConsent = onCall(callOptions, async (request) => {
     if (!previous || previous.sessionUid !== uid) throw new HttpsError('failed-precondition', 'That reference does not belong to this session.');
     code = payload.referenceCode;
     participantRef = db.collection('participants').doc(previous.participantId as string);
-    version = Number(previous.version ?? 1) + 1;
   } else {
     code = await unusedReferenceCode(db);
     participantRef = db.collection('participants').doc();
-    version = 1;
   }
   const participantId = participantRef.id;
-  const amendment = version > 1;
+
+  // What changed since the last save. The young person's agreement to share by sending travels with the screenshots (and is added to the agreement record there), so it is not a change here.
+  const { 'phone-use': _bySending, ...assentResponses } = payload.assent.responses;
+  const hashes = {
+    details: digest({ route: payload.route, identity: payload.identity, guardian: payload.guardian, phoneSource: payload.phoneSource }),
+    consent: digest(payload.consent),
+    assent: digest({ ...payload.assent, responses: assentResponses }),
+  };
+  const before = (previous?.hashes ?? null) as Record<string, string> | null;
+  const same = (part: keyof typeof hashes) => before !== null && before[part] === hashes[part];
+  const keepConsent = payload.consent !== null && same('consent') && typeof previous?.consentId === 'string';
+  const keepAssent = same('assent') && typeof previous?.assentId === 'string';
+  const changed = previous === null || !same('details') || !same('consent') || !same('assent');
+  const version = previous === null ? 1 : Number(previous.version ?? 1) + (changed ? 1 : 0);
+  const amendment = previous !== null;
+
   const dob = parseDate(payload.identity.dateOfBirth);
-  // Who decided about the screen time, and where it comes from (decided 7 October 2026: 16 or over alone; under 16 the parent first).
+  // Who decided about the screen time, and where it comes from (decided 7 October 2026: 16 or over alone; under 16 the parent first; null until the parent has said).
   const selfConsent = selfConsentOf(payload);
   const alone = selfConsent && payload.route === 'young';
   const phoneSource = payload.phoneSource;
-  const consentRef = payload.consent ? db.collection('consents').doc() : null;
-  const assentRef = db.collection('assents').doc();
+  const consentRef = payload.consent ? (keepConsent ? db.collection('consents').doc(String(previous!.consentId)) : db.collection('consents').doc()) : null;
+  const assentRef = keepAssent ? db.collection('assents').doc(String(previous!.assentId)) : db.collection('assents').doc();
+  const newConsent = consentRef !== null && !keepConsent;
+  const newAssent = !keepAssent;
 
   // Signature images go to Storage first; if anything fails, nothing is recorded.
-  const consentSignature = consentRef && payload.consent?.signature?.method === 'drawn' && payload.consent.signature.imageDataUrl ? await storeSignature(participantId, consentRef.id, payload.consent.signature.imageDataUrl) : null;
-  const assentSignature = payload.assent.signature?.method === 'drawn' && payload.assent.signature.imageDataUrl ? await storeSignature(participantId, assentRef.id, payload.assent.signature.imageDataUrl) : null;
+  const consentSignature = newConsent && payload.consent?.signature?.method === 'drawn' && payload.consent.signature.imageDataUrl ? await storeSignature(participantId, consentRef!.id, payload.consent.signature.imageDataUrl) : null;
+  const assentSignature = newAssent && payload.assent.signature?.method === 'drawn' && payload.assent.signature.imageDataUrl ? await storeSignature(participantId, assentRef.id, payload.assent.signature.imageDataUrl) : null;
+
+  // The answers records to replace, if this record has them already.
+  const answersBefore = async (id: unknown) => (typeof id === 'string' ? await db.collection('surveys').doc(id).get() : null);
+  const [surveyBefore, moreBefore] = await Promise.all([answersBefore(previous?.surveyId), answersBefore(previous?.moreSurveyId)]);
 
   const batch = db.batch();
   const common = { studyId: payload.studyId, siteId: payload.siteId, schoolId: payload.identity.schoolId, participantId, referenceCode: code, receivedAt, sessionUid: uid, version };
   const email = payload.guardian.email.trim().toLowerCase();
 
-  // 1. Identifying details (restricted collection). An amendment updates in place.
-  batch.set(
-    participantRef,
-    {
-      ...common,
-      kind: payload.kind,
-      firstName: payload.identity.firstName.trim(),
-      lastName: payload.identity.lastName.trim(),
-      dateOfBirth: dob ? dob.toISOString().slice(0, 10) : null,
-      schoolOther: payload.identity.schoolOther.trim() || null,
-      yearGroup: payload.identity.yearGroup || null,
-      selfConsent,
-      phoneSource,
-      guardian: alone
-        ? null
-        : {
-            fullName: payload.guardian.fullName.trim(),
-            relationship: payload.guardian.relationship,
-            relationshipOther: payload.guardian.relationshipOther.trim() || null,
-            hasParentalResponsibility: payload.guardian.hasParentalResponsibility,
-            email: email || null,
-            phone: payload.guardian.phone.trim() || null,
-            postcode: payload.guardian.postcode.trim().toUpperCase() || null,
-          },
-      ...(amendment ? { updatedAt: FieldValue.serverTimestamp() } : { createdAt: FieldValue.serverTimestamp() }),
-    },
-    { merge: amendment },
-  );
+  // 1. Identifying details (restricted collection). A change updates them in place.
+  if (changed) {
+    batch.set(
+      participantRef,
+      {
+        ...common,
+        kind: payload.kind,
+        firstName: payload.identity.firstName.trim(),
+        lastName: payload.identity.lastName.trim(),
+        dateOfBirth: dob ? dob.toISOString().slice(0, 10) : null,
+        schoolOther: payload.identity.schoolOther.trim() || null,
+        yearGroup: payload.identity.yearGroup || null,
+        selfConsent,
+        phoneSource,
+        guardian: alone
+          ? null
+          : {
+              fullName: payload.guardian.fullName.trim(),
+              relationship: payload.guardian.relationship,
+              relationshipOther: payload.guardian.relationshipOther.trim() || null,
+              email: email || null,
+              phone: payload.guardian.phone.trim() || null,
+              address: payload.guardian.address.trim(),
+              postcode: payload.guardian.postcode.trim().toUpperCase(),
+            },
+        ...(amendment ? { updatedAt: FieldValue.serverTimestamp() } : { createdAt: FieldValue.serverTimestamp() }),
+      },
+      { merge: amendment },
+    );
+  }
 
-  // 2. Permission record (append-only; an amendment is a new record pointing at the last).
-  if (consentRef && payload.consent) {
+  // 2. Permission record (append-only; a changed one is a new record pointing at the last).
+  if (newConsent && consentRef && payload.consent) {
     batch.set(consentRef, {
       ...common,
       formId: payload.consent.formId,
@@ -151,47 +190,53 @@ export const submitConsent = onCall(callOptions, async (request) => {
     });
   }
 
-  // 3. Agreement record (append-only, same rule).
-  batch.set(assentRef, {
-    ...common,
-    formId: payload.assent.formId,
-    formVersion: payload.assent.formVersion,
-    status: payload.assent.status,
-    deferredBy: payload.assent.deferredBy,
-    responses: payload.assent.responses,
-    signature: signatureRecord(payload.assent.signature, assentSignature),
-    handoverConfirmedAt: payload.assent.handoverConfirmedAt,
-    startedAt: payload.assent.startedAt,
-    completedAt: payload.assent.completedAt,
-    supersedes: (previous?.assentId as string | null | undefined) ?? null,
-    // Flag for follow-up if the young person "agreed" within seconds of the parent signing.
-    quickAgreementFlag:
-      payload.assent.status === 'completed' && payload.assent.handoverConfirmedAt && payload.assent.completedAt
-        ? Date.parse(payload.assent.completedAt) - Date.parse(payload.assent.handoverConfirmedAt) < 15_000
-        : false,
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  // 3. Agreement record (append-only, same rule). Until the young person answers, it says so ('not-started').
+  if (newAssent) {
+    batch.set(assentRef, {
+      ...common,
+      formId: payload.assent.formId,
+      formVersion: payload.assent.formVersion,
+      status: payload.assent.status,
+      deferredBy: payload.assent.deferredBy,
+      responses: payload.assent.responses,
+      signature: signatureRecord(payload.assent.signature, assentSignature),
+      handoverConfirmedAt: payload.assent.handoverConfirmedAt,
+      startedAt: payload.assent.startedAt,
+      completedAt: payload.assent.completedAt,
+      supersedes: (previous?.assentId as string | null | undefined) ?? null,
+      // Flag for follow-up if the young person "agreed" within seconds of the parent signing.
+      quickAgreementFlag:
+        payload.assent.status === 'completed' && payload.assent.handoverConfirmedAt && payload.assent.completedAt
+          ? Date.parse(payload.assent.completedAt) - Date.parse(payload.assent.handoverConfirmedAt) < 15_000
+          : false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
 
-  // 3b. The parent's questions, quick and longer: research data, labelled by participant id only (no names, no reference).
-  const surveyDoc = (record: ConsentPayload['survey'], supersedes: unknown) => ({
-    studyId: payload.studyId,
-    siteId: payload.siteId,
-    participantId,
-    formId: record!.formId,
-    formVersion: record!.formVersion,
-    status: record!.status,
-    responses: record!.responses,
-    startedAt: record!.startedAt,
-    completedAt: record!.completedAt,
-    version,
-    supersedes: (supersedes as string | null | undefined) ?? null,
-    receivedAt,
-    createdAt: FieldValue.serverTimestamp(),
-  });
-  const surveyRef = payload.survey && payload.survey.status !== 'not-started' ? db.collection('surveys').doc() : null;
-  if (surveyRef) batch.set(surveyRef, surveyDoc(payload.survey, previous?.surveyId));
-  const moreRef = payload.more && payload.more.status !== 'not-started' ? db.collection('surveys').doc() : null;
-  if (moreRef) batch.set(moreRef, surveyDoc(payload.more, previous?.moreSurveyId));
+  // 3b. The parent's questions, quick and longer: research data, labelled by participant id only (no names, no reference). One record per form, replaced by the latest answers.
+  const saveAnswers = (record: ConsentPayload['survey'], earlier: DocumentSnapshot | null): string | null => {
+    if (!record || record.status === 'not-started') return earlier?.exists ? earlier.id : null;
+    const ref = earlier?.exists ? earlier.ref : db.collection('surveys').doc();
+    batch.set(ref, {
+      studyId: payload.studyId,
+      siteId: payload.siteId,
+      participantId,
+      formId: record.formId,
+      formVersion: record.formVersion,
+      status: record.status,
+      responses: record.responses,
+      startedAt: record.startedAt,
+      completedAt: record.completedAt,
+      version,
+      supersedes: null,
+      receivedAt,
+      createdAt: earlier?.exists ? (earlier.get('createdAt') ?? receivedAt) : FieldValue.serverTimestamp(),
+      ...(earlier?.exists ? { updatedAt: FieldValue.serverTimestamp() } : {}),
+    });
+    return ref.id;
+  };
+  const surveyId = saveAnswers(payload.survey, surveyBefore);
+  const moreSurveyId = saveAnswers(payload.more, moreBefore);
 
   // 4. Submission index: one row per reference, pointing at the current records and listing every version.
   const submissionRef = db.collection('submissions').doc(code);
@@ -201,19 +246,21 @@ export const submitConsent = onCall(callOptions, async (request) => {
     route: payload.route,
     consentId: consentRef?.id ?? null,
     assentId: assentRef.id,
-    surveyId: surveyRef?.id ?? (previous?.surveyId as string | null | undefined) ?? null,
-    moreSurveyId: moreRef?.id ?? (previous?.moreSurveyId as string | null | undefined) ?? null,
+    surveyId,
+    moreSurveyId,
     selfConsent,
     phoneSource,
+    hashes,
     userAgent: payload.client.userAgent.slice(0, 200),
-    versions: FieldValue.arrayUnion({ version, kind: payload.kind, consentId: consentRef?.id ?? null, assentId: assentRef.id, surveyId: surveyRef?.id ?? null, moreSurveyId: moreRef?.id ?? null, receivedAt }),
+    answersSavedAt: receivedAt,
+    ...(changed ? { versions: FieldValue.arrayUnion({ version, kind: payload.kind, consentId: consentRef?.id ?? null, assentId: assentRef.id, receivedAt }) } : {}),
     ...(amendment ? { updatedAt: FieldValue.serverTimestamp() } : { donationIds: [], imageCount: 0, createdAt: FieldValue.serverTimestamp() }),
   };
   batch.set(submissionRef, submission, { merge: amendment });
 
   // Nothing is emailed to families: the thank-you page offers a copy of the record to download.
   await batch.commit();
-  logger.info(amendment ? 'Permission record amended' : 'Permission record created', { referenceCode: code, participantId, version, selfConsent, phoneSource });
+  logger.info(!amendment ? 'Permission record created' : changed ? 'Permission record amended' : 'Answers saved', { referenceCode: code, participantId, version, selfConsent, phoneSource });
   return { referenceCode: code, participantId, receivedAt: receivedAt.toISOString(), version };
 });
 
@@ -288,12 +335,13 @@ export const submitDonation = onCall(callOptions, async (request) => {
   if (!submission || !mayAddTo(submission, uid)) throw new HttpsError('failed-precondition', 'That reference does not belong to this session.');
   const later = submission.sessionUid !== uid;
   if (submission.kind !== 'consent' || (!submission.consentId && !submission.selfConsent)) throw new HttpsError('failed-precondition', 'Screenshots cannot be added to this record.');
-  // null for records made before 7 October 2026, when the young person's agreement could also be given on paper.
+  // The parent's yes to sharing an under-16's screen time is their answer to where it comes from (none until they give it: the record is saved from the moment they sign).
+  // Records made before 7 October 2026 have no phoneSource: the parent's yes was a statement on the permission, and the young person's agreement could also be given on paper.
   const source = (submission.phoneSource ?? null) as 'parent' | 'child' | 'none' | null;
   if (source === 'none') throw new HttpsError('failed-precondition', 'This record does not include screen time.');
-  if (!submission.selfConsent) {
+  if (!submission.selfConsent && source === null) {
     const consent = (await db.collection('consents').doc(submission.consentId as string).get()).data();
-    if (consent?.responses?.['phone-use']?.response !== 'agreed') throw new HttpsError('failed-precondition', 'The parent or carer has not agreed to screen-time screenshots.');
+    if (consent?.responses?.['phone-use']?.response !== 'agreed') throw new HttpsError('failed-precondition', 'The parent or carer has not said yes to sharing the screen time.');
   }
   const assentRef = db.collection('assents').doc(submission.assentId as string);
   const assent = (await assentRef.get()).data();

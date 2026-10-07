@@ -35,6 +35,12 @@ interface MockLab {
   contact?: { email: string | null; mobile: string | null; smsReminders: boolean } | null;
 }
 
+/** The parts of a saved record that make a new version when they change (the young person's agreement to share by sending travels with the screenshots). */
+function recordPart(p: ConsentPayload): string {
+  const { 'phone-use': _bySending, ...assent } = p.assent.responses;
+  return JSON.stringify([p.route, p.identity, p.guardian, p.phoneSource, p.consent, { ...p.assent, responses: assent }]);
+}
+
 interface MockSubmission {
   sessionId: string;
   participantId: string;
@@ -140,8 +146,11 @@ export class MockConsentApi implements ConsentApi {
     if (payload.referenceCode) {
       const existing = this.submissions.get(payload.referenceCode);
       if (!existing || existing.sessionId !== session.sessionId) throw new ApiError('validation', 'That reference does not belong to this session.');
-      existing.version += 1;
-      existing.consents.push(payload);
+      // As the server: a change to the details, permission or agreement is a new version; new answers alone replace the last save.
+      if (recordPart(payload) !== recordPart(existing.consents[existing.consents.length - 1])) {
+        existing.version += 1;
+        existing.consents.push(payload);
+      } else existing.consents[existing.consents.length - 1] = payload;
       this.persist();
       return { referenceCode: payload.referenceCode, participantId: existing.participantId, receivedAt, version: existing.version };
     }
@@ -161,7 +170,7 @@ export class MockConsentApi implements ConsentApi {
     const room = imageCount < 6;
     const canAgree = source === 'child' && (status === 'deferred' || status === 'not-started');
     const canAddScreenshots = room && (source === 'parent' || (source === 'child' && status === 'completed'));
-    const reason = canAgree || canAddScreenshots ? null : source !== 'parent' && source !== 'child' ? 'no-screen-time' : status === 'declined' ? 'declined' : 'full';
+    const reason = canAgree || canAddScreenshots ? null : source === null ? 'unfinished' : source === 'none' ? 'no-screen-time' : status === 'declined' ? 'declined' : 'full';
     return { referenceCode: code, firstName: last.identity.firstName.trim(), selfConsent: false, phoneSource: source, assentStatus: status, imageCount, maxImages: 6, canAgree, canAddScreenshots, reason };
   }
 

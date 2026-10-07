@@ -28,6 +28,15 @@ interface QuestionBase {
 export interface ChoiceQuestion extends QuestionBase {
   type: 'choice';
   options: QuestionOption[];
+  /** Short answers (such as ages) laid out in a grid of small buttons; longer ones keep a full row. */
+  compact?: boolean;
+}
+
+/** More than one answer can be chosen; the value is the chosen values joined by ";". "I don't know" ('unsure') stands alone. */
+export interface MultiQuestion extends QuestionBase {
+  type: 'multi';
+  hint: string;
+  options: QuestionOption[];
 }
 
 export interface TextQuestion extends QuestionBase {
@@ -36,7 +45,10 @@ export interface TextQuestion extends QuestionBase {
   maxLength: number;
 }
 
-export type Question = ChoiceQuestion | TextQuestion;
+export type Question = ChoiceQuestion | MultiQuestion | TextQuestion;
+
+/** The values chosen for a question that takes more than one answer. */
+export const multiValues = (value: string | undefined): string[] => (value ? value.split(';').filter(Boolean) : []);
 
 export const parentQuestionsForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-perceptions',
@@ -118,38 +130,42 @@ const hours = [
  * home). Every question can be skipped. PLACEHOLDER wording, to be replaced
  * with the team's own (validated) items. Keep in step with the server, which
  * reads this file at build time.
+ *
+ * 0.2 (7 October 2026): the age at their own smartphone goes down to "Under
+ * 5", year by year, with "I can't remember / I don't know"; more than one
+ * app can be chosen.
  */
 export const parentMoreForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-phone-use',
-  version: '0.1-draft',
+  version: '0.2-draft',
   draft: true,
   questions: [
     {
       id: 'own-phone-age',
-      version: '0.1-draft',
+      version: '0.2-draft',
       type: 'choice',
       topic: 'Time and apps',
       label: 'Age at own smartphone',
       text: 'How old was {child} when they got their own smartphone?',
+      compact: true,
       options: [
-        { value: 'under-9', label: 'Under 9' },
-        { value: '9-10', label: '9 or 10' },
-        { value: '11', label: '11' },
-        { value: '12', label: '12' },
-        { value: '13-plus', label: '13 or older' },
+        { value: 'under-5', label: 'Under 5' },
+        ...['5', '6', '7', '8', '9', '10', '11', '12', '13', '14'].map((age) => ({ value: age, label: age })),
+        { value: '15-plus', label: '15 or older' },
         { value: 'none', label: 'They don’t have their own' },
-        dontKnow,
+        { value: 'unsure', label: 'I can’t remember / I don’t know' },
       ],
     },
     { id: 'school-day-time', version: '0.1-draft', type: 'choice', topic: 'Time and apps', label: 'Time on a school day', text: 'On a school day, roughly how long is {child} on their phone, outside school hours?', options: hours },
     { id: 'weekend-time', version: '0.1-draft', type: 'choice', topic: 'Time and apps', label: 'Time on a weekend day', text: 'On a weekend day, roughly how long is {child} on their phone?', options: hours },
     {
       id: 'top-app',
-      version: '0.1-draft',
-      type: 'choice',
+      version: '0.2-draft',
+      type: 'multi',
       topic: 'Time and apps',
-      label: 'App used most',
-      text: 'Which app does {child} spend most time on?',
+      label: 'Apps used most',
+      text: 'Which apps does {child} spend most time on?',
+      hint: 'Choose all that apply.',
       options: [
         { value: 'tiktok', label: 'TikTok' },
         { value: 'youtube', label: 'YouTube' },

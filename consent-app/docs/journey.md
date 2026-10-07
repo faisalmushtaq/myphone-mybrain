@@ -20,12 +20,25 @@ Decided by the study lead (`decisions.md`):
 * **16 and 17:** the young person decides alone (`study.selfConsentAge`): no
   parent steps at all on their own route; on the parent's route the parent
   answers their questions and the young person decides about their screen time.
-* **Under 16:** the parent says yes or no to the screenshots first. After a
-  yes, on the parent's route, the parent chooses **where the screen time comes
-  from** (`phone-source`): their own phone, if they can see it with Apple
-  Family Sharing or Google Family Link (the parent's permission is enough; the
-  young person is not asked); the young person's phone, if the young person
-  agrees; or neither. On the young person's route it is their phone.
+* **Under 16:** after signing, the parent answers **"Can we have {child}'s
+  screen time?"** (`phone-source`), on both routes; this is their yes or no,
+  and the permission itself has no screenshots question (and no choices at
+  all: the "recontact" question is gone too). Yes from their own phone, if
+  they can see it with Apple Family Sharing or Google Family Link (parent's
+  route only: the parent's permission is enough; the young person is not
+  asked); yes from the young person's phone, if the young person agrees; or
+  no.
+* **The parent's details:** name, relationship, **home address and postcode
+  (required)**, email and phone (optional). No parental-responsibility tick:
+  only a parent or carer fills the form in.
+* **Saved from the moment the parent signs** (or a 16- or 17-year-old on
+  their own agrees), and again shortly after every answer or change, on
+  whichever step: everything given after signing is kept and used, even if
+  the family stops part-way and never reaches the check page.
+* **One last prompt** before finishing without the screen time, when it could
+  still come (screenshots that can be added now, a young person who was not
+  there, or a parent who said no): once, and "finish without" is always one
+  press. Never after the young person's own no, or their "decide later".
 * Whenever the screen time is not coming through the form (the parent said
   no or chose neither, could not send it, or the young person said no, was not
   there, put it off or skipped it), the parent answers **longer questions**
@@ -35,9 +48,8 @@ Decided by the study lead (`decisions.md`):
 | Route | Steps (`buildJourney`) |
 | --- | --- |
 | Young person, 16 or 17 | details → their agreement → screenshots → check → done (a no ends with nothing sent) |
-| Young person, under 16 | details → *handover* → parent's details → permission → quick questions → *handover* → agreement → screenshots → check → done; after the parent's no, or the young person's no or "later": → *handover* → longer questions → check |
-| Parent, under 16, yes | details → permission → quick questions → where from → (own phone: screenshots) or (child's phone: *handover* → agreement → screenshots) or (neither: longer questions) → check → done |
-| Parent, under 16, no | details → permission → quick questions → longer questions → check → done |
+| Young person, under 16 | details → *handover* → parent's details → permission → quick questions → screen time? (the young person's phone, or no) → *handover* → agreement → screenshots → check → done; after the parent's no, or the young person's no or "later": → *handover* → longer questions → check |
+| Parent, under 16 | details → permission → quick questions → screen time? → (yes, my phone: screenshots) or (yes, the child's phone: *handover* → agreement → screenshots) or (no: longer questions) → check → done |
 | Parent, 16 or 17 | details → permission (no screenshots question) → quick questions → *handover* → agreement → screenshots → check → done; not there, no or later: longer questions |
 | Opting out | welcome → "Opt out of the workshop" (or `?optout=1`, from the school pages) → warning → second warning → how to email the team (a ready-made email, the school filled in). Nothing is sent. |
 
@@ -75,9 +87,13 @@ device", "Start again" or the privacy clear the next person on the device
 starts at the welcome screen and chooses for themselves. `?school=` stays: it
 only fills in the school.
 
-The record is sent (`submitConsent`) as soon as it is complete and the family
-reaches the screenshots, the longer questions or the check page; changes after
-that go once, as an amendment, from the check page. There is no "declined"
+The record is saved (`submitConsent`) the moment the parent signs, then again
+about a second after each answer or change, and straight away when the page
+is hidden (the app switched or the tab closed): the SyncManager in
+`src/App.tsx`. A change to the details, the permission or the agreement is a
+new version on the server; answers fill one record per question form. "Everything
+is right — finish" saves anything still waiting before the thank-you page,
+so "Finish and clear this device" can never lose it. There is no "declined"
 record any more: a young person's no is part of the parent's record, and a 16-
 or 17-year-old's no on their own sends nothing. The server works out who
 decided and where the screen time comes from from the record itself, refuses

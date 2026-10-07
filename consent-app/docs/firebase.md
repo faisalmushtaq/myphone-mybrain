@@ -10,10 +10,12 @@ Browser (GitHub Pages)                    Firebase project (europe-west2)
 signInAnonymously ───────────────────────▶ Authentication (anonymous uid = session)
 
 httpsCallable('submitConsent') ──────────▶ Cloud Function submitConsent
-  as soon as the young person has            validates everything again
-  signed, declined or deferred;              new record → reference code, participant id
-  again with the reference code              amendment → new consent/assent records that
-  when something is changed                    point at the ones they supersede
+  the moment the parent signs (or a          validates everything again
+  16- or 17-year-old on their own            new record → reference code, participant id
+  agrees); again with the reference          a change to the record → a new version: a new
+  code after each answer or change             consent/assent record only for the one that
+                                               changed, pointing at the one it supersedes
+                                             answers only → the answers records, replaced
                                              writes participants · consents · assents ·
                                                surveys · submissions in one batch
 
@@ -119,17 +121,28 @@ answered, that a completed agreement carries a signature and the three signed
 statements, that the parent's quick questions (if present) use known question
 ids, current versions and listed answers, that a declined submission carries
 no permission record and no questions, and that the signature is a real PNG
-under 200 KB. A payload with a reference code is
-an amendment: the reference must exist and belong to the same anonymous
-session, the participant document is updated, new consent and assent records
-are written pointing at the ones they supersede, and the submission's version
-goes up. Any failure means nothing is recorded.
+under 200 KB. Since 7 October 2026 the record is saved from the moment the
+parent signs, so where the screen time comes from may still be empty (null)
+and the young person's agreement not started; a multi-answer question's value
+is its answers joined by ";". A payload with a reference code is a later save:
+the reference must exist and belong to the same anonymous session. The
+submission keeps a hash of each part (`hashes`: details, consent, assent);
+when the details, the permission or the agreement changed, the version goes
+up, the participant document is updated, and a new consent or assent record
+is written for the part that changed, pointing at the one it supersedes (an
+unchanged one is kept, not copied, and its signature is not stored again).
+The answers to each question form live in one `surveys` record, which every
+save replaces with the latest answers (`version` is the record's version at
+that save; `answersSavedAt` on the submission). Any failure means nothing is
+recorded.
 
 **`submitDonation`** checks the reference belongs to the caller's session
 (the one that made the record, or one that came back with `resumeRecord`),
-then reads the server's own copy of the records: the parent's current
-permission record must say yes to screenshots (unless a 16- or 17-year-old
-decided alone), the young person must not have said no, and when the
+then reads the server's own copy of the records: the parent must have said
+yes to sharing the screen time, from their phone or the young person's
+(`phoneSource`; for records made before 7 October 2026, the yes on their
+permission record), unless a 16- or 17-year-old decided alone; the young
+person must not have said no, and when the
 screenshots come from the young person's phone they must have agreed in the
 app. From the parent's own phone (Family Sharing, Family Link) the parent's
 yes is enough. Screenshots sent by a session that came back later are marked
@@ -445,9 +458,10 @@ withdrawal is not final there until it is emptied.
 * **Audit trail.** Every record carries server `receivedAt`, the session uid,
   the form and information versions, and per-statement versions, times and
   the method of agreement. Consent and assent records are never updated in
-  place: an amendment is a new record pointing at the one it supersedes, and
-  the submission lists every version. Withdrawals should be appended in the
-  same way.
+  place: a change is a new record pointing at the one it supersedes, and
+  the submission lists every version. The parent's answers are research data,
+  saved as they are given: one record per question form, replaced by the
+  latest answers. Withdrawals should be appended in the same way.
 * **Backups.** Enable Firestore scheduled backups (daily, 7-day retention is a
   reasonable start) and Storage object versioning.
 * **Team emails.** Enquiry notifications go out through the team's Gmail

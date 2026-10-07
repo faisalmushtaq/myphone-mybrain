@@ -71,26 +71,22 @@ export function parentInvolved(state: AppState): boolean {
 
 /**
  * Where the young person's screen time comes from, once that is known:
- *   16 or over: their own phone, by their own choice;
- *   under 16, after the parent's yes: the young person's phone on their own
- *   route (they are holding it), otherwise what the parent chose (null until
- *   then); after the parent's no: nowhere.
+ * 16 or over, their own phone, by their own choice; under 16, the parent's
+ * answer on the "where from" step (null until then), which is also their
+ * yes or no to sharing it (since 7 October 2026 the permission itself has no
+ * screenshots question).
  */
 export function phoneSourceOf(state: AppState): PhoneSource | null {
   // Carrying on later: as the record that was sent says.
   if (state.resume) return state.resume.phoneSource;
   if (decidesAlone(state)) return 'child';
-  const answer = state.consent.responses['phone-use']?.response;
-  if (answer === 'declined') return 'none';
-  if (answer !== 'agreed') return null;
-  if (state.route === 'young') return 'child';
   return state.phoneSource;
 }
 
-/** Whether the parent chooses where an under-16's screen time comes from (parent route, after a yes). */
+/** Whether the parent says where an under-16's screen time comes from (or that it won't): on both routes, after their permission. */
 export function phoneSourceApplies(state: AppState): boolean {
   if (state.resume) return false;
-  return state.route === 'parent' && !decidesAlone(state) && state.consent.responses['phone-use']?.response === 'agreed';
+  return !decidesAlone(state);
 }
 
 /** Whether the young person's own agreement is asked: whenever the screenshots are to come from their phone, unless it was put off (not there, or deciding later). */
@@ -121,6 +117,22 @@ export function parentMoreApplies(state: AppState): boolean {
   if (source === 'parent') return state.donation.status === 'skipped';
   if (source === 'child') return state.assent.status === 'declined' || state.assent.status === 'deferred' || state.donation.status === 'skipped';
   return false;
+}
+
+/**
+ * The one last prompt before finishing without the screen time (decided 7
+ * October 2026), when it could still come: screenshots that can be added
+ * now; a young person who was not there when they were asked; or a parent
+ * who said no, who may share it after all. Not after the young person's own
+ * no, and not when they chose to decide later.
+ */
+export function lastCall(state: AppState): 'add' | 'here' | 'after-all' | null {
+  if (state.sharePrompted || state.donation.images.some((i) => i.status === 'sent')) return null;
+  if (phoneUseApplies(state)) return 'add';
+  const source = phoneSourceOf(state);
+  if (source === 'child' && state.assent.status === 'deferred' && state.assent.deferredBy === 'parent') return 'here';
+  if (source === 'none' && parentInvolved(state)) return 'after-all';
+  return null;
 }
 
 /**

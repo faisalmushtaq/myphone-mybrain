@@ -302,10 +302,10 @@ export function participantsKey(snap: Snapshot): Row[] {
       guardian_name: d.guardian?.fullName,
       relationship: d.guardian?.relationship,
       relationship_other: d.guardian?.relationshipOther,
-      has_parental_responsibility: d.guardian?.hasParentalResponsibility,
+      address: d.guardian?.address ?? null,
+      postcode: d.guardian?.postcode,
       email: d.guardian?.email,
       phone: d.guardian?.phone,
-      postcode: d.guardian?.postcode,
       version: d.version,
       received_at: d.receivedAt,
       created_at: d.createdAt,
@@ -443,8 +443,8 @@ export function phoneUseDictionary(): Record<string, unknown> {
   };
   for (const q of parentMoreForm.questions) {
     const wording = moreQuestionWording[q.id];
-    const entry: Record<string, unknown> = { Description: `${moreQuestionTopics[q.id] ? `${moreQuestionTopics[q.id]}: ` : ''}${(wording?.text ?? q.id).replace(/\{child\}/g, 'the young person')}` };
-    if (q.type === 'choice') entry.Levels = Object.fromEntries(q.options.map((o) => [o, wording?.labels?.[o] ?? o]));
+    const entry: Record<string, unknown> = { Description: `${moreQuestionTopics[q.id] ? `${moreQuestionTopics[q.id]}: ` : ''}${(wording?.text ?? q.id).replace(/\{child\}/g, 'the young person')}${q.type === 'multi' ? ' More than one answer can be given: the values are separated by semicolons.' : ''}` };
+    if (q.type !== 'text') entry.Levels = Object.fromEntries(q.options.map((o) => [o, wording?.labels?.[o] ?? o]));
     out[snake(q.id)] = entry;
   }
   out.status = { Description: 'Whether the questions were answered', Levels: { completed: 'All reached and answered or skipped individually', 'in-progress': 'Partly answered', skipped: 'Skipped as a whole' } };
@@ -460,8 +460,8 @@ export function phenotypeDictionary(): Record<string, unknown> {
   };
   for (const q of parentQuestionsForm.questions) {
     const wording = questionWording[q.id];
-    const entry: Record<string, unknown> = { Description: (wording?.text ?? q.id).replace(/\{child\}/g, 'the young person') };
-    if (q.type === 'choice') entry.Levels = Object.fromEntries(q.options.map((o) => [o, wording?.labels?.[o] ?? o]));
+    const entry: Record<string, unknown> = { Description: `${(wording?.text ?? q.id).replace(/\{child\}/g, 'the young person')}${q.type === 'multi' ? ' More than one answer can be given: the values are separated by semicolons.' : ''}` };
+    if (q.type !== 'text') entry.Levels = Object.fromEntries(q.options.map((o) => [o, wording?.labels?.[o] ?? o]));
     out[snake(q.id)] = entry;
   }
   out.status = { Description: 'Whether the questions were answered', Levels: { completed: 'All reached and answered or skipped individually', 'in-progress': 'Partly answered', skipped: 'Skipped as a whole' } };

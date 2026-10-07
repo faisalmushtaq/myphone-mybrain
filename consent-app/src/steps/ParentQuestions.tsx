@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Draft } from '../components/ui/Draft';
-import { parentMoreForm, parentQuestionsForm } from '../config/questions';
+import { multiValues, parentMoreForm, parentQuestionsForm } from '../config/questions';
 import { announce } from '../lib/announce';
 import { useStore } from '../state/context';
 
@@ -22,8 +22,9 @@ export function ParentMore() {
  * ones (time and apps, night-time and sleep, effects) when the screen time
  * itself is not coming. Every question can be skipped, and so can the lot.
  * Tapping an answer moves to the next question; the last answer moves on to
- * the next step. Coming back here shows how many were answered, with a way
- * to answer again, rather than putting the answers back on screen.
+ * the next step. A question that takes more than one answer has tick boxes
+ * and a Next button. Coming back here shows how many were answered, with a
+ * way to answer again, rather than putting the answers back on screen.
  */
 function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   const { state, dispatch } = useStore();
@@ -44,6 +45,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   const asking = !finished || reviewing;
   const q = questions[index];
   const chosen = selecting ?? survey.responses[q.id]?.value ?? null;
+  const ticked = q.type === 'multi' ? multiValues(survey.responses[q.id]?.value) : [];
   const last = index === total - 1;
   const text = (t: string) => t.replace(/\{child\}/g, childName);
 
@@ -79,6 +81,13 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
       setSelecting(null);
       advance();
     }, 260);
+  };
+  /** More than one answer: each tap adds or removes one; "I don't know" stands alone. */
+  const toggle = (value: string) => {
+    const next = ticked.includes(value) ? ticked.filter((v) => v !== value) : value === 'unsure' ? ['unsure'] : [...ticked.filter((v) => v !== 'unsure'), value];
+    const ordered = q.type === 'multi' ? q.options.map((o) => o.value).filter((v) => next.includes(v)) : next;
+    if (ordered.length) dispatch({ type: 'answer-question', questionId: q.id, version: q.version, value: ordered.join(';'), form });
+    else dispatch({ type: 'skip-question', questionId: q.id, form });
   };
   const skipQuestion = () => {
     dispatch({ type: 'skip-question', questionId: q.id, form });
@@ -145,14 +154,33 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
           {text(q.text)}
         </h2>
         {q.type === 'choice' ? (
-          <div className="mpmb-quiz__options" role="group" aria-labelledby="mpmb-quiz-question">
+          <div className={`mpmb-quiz__options${q.compact ? ' mpmb-quiz__options--compact' : ''}`} role="group" aria-labelledby="mpmb-quiz-question">
             {q.options.map((o) => (
-              <button key={o.value} type="button" className={`mpmb-quiz__option${chosen === o.value ? ' is-selected' : ''}`} aria-pressed={chosen === o.value} onClick={() => choose(o.value)}>
+              <button key={o.value} type="button" className={`mpmb-quiz__option${chosen === o.value ? ' is-selected' : ''}${q.compact && o.label.length > 12 ? ' mpmb-quiz__option--wide' : ''}`} aria-pressed={chosen === o.value} onClick={() => choose(o.value)}>
                 <span className="mpmb-quiz__dot" aria-hidden="true" />
                 {o.label}
               </button>
             ))}
           </div>
+        ) : q.type === 'multi' ? (
+          <>
+            <p className="mpmb-hint" id="mpmb-quiz-multi-hint">
+              {q.hint}
+            </p>
+            <div className="mpmb-quiz__options" role="group" aria-labelledby="mpmb-quiz-question" aria-describedby="mpmb-quiz-multi-hint">
+              {q.options.map((o) => (
+                <button key={o.value} type="button" className={`mpmb-quiz__option mpmb-quiz__option--tick${ticked.includes(o.value) ? ' is-selected' : ''}`} aria-pressed={ticked.includes(o.value)} onClick={() => toggle(o.value)}>
+                  <span className="mpmb-quiz__box" aria-hidden="true" />
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <div className="mpmb-quiz__next">
+              <Button variant="primary" arrow onClick={advance}>
+                {last ? 'Finish' : 'Next'}
+              </Button>
+            </div>
+          </>
         ) : (
           <div className="mpmb-field">
             <p className="mpmb-hint" id="mpmb-quiz-text-hint">

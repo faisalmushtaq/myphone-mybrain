@@ -184,12 +184,6 @@ export function Done() {
         <p>
           You can change your mind at any time, about the screenshots or the answers, by emailing <a href={`mailto:${study.contact.email}`}>{study.contact.email}</a>. Quote your reference if you have it. Nobody will ask why.
         </p>
-        {study.contact.concerns.email && (
-          <p>
-            If you have a concern about how the study is being run and would rather not raise it with the research team, contact {study.contact.concerns.name} at{' '}
-            <a href={`mailto:${study.contact.concerns.email}`}>{study.contact.concerns.email}</a>, who are independent of the study.
-          </p>
-        )}
       </div>
 
       <Disclosure summary="See what was recorded">

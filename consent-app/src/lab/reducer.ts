@@ -13,6 +13,7 @@ export type LabAction =
   | { type: 'back' }
   | { type: 'code-parts'; parts: Partial<CodeParts> }
   | { type: 'code'; code: string; returning: boolean }
+  | { type: 'carry-on'; on: boolean }
   | { type: 'confirm-code'; code: string; returning: boolean; lookup: LabLookupResult }
   | { type: 'consent-response'; statementId: string; version: string; agreed: boolean }
   | { type: 'consent-typed-name'; name: string }
@@ -61,6 +62,7 @@ export function initialLabState(flow: LabFlow = 'baseline', phase: LabPhase = la
     confirmedCode: null,
     // Set when the ID comes from a link or this device's memory: confirmed with one press instead of the four details.
     returning: false,
+    carryOn: false,
     consent: initialConsent(),
     phone: null,
     phase,
@@ -154,6 +156,8 @@ export function labReducer(state: LabState, action: LabAction): LabState {
       return { ...state, codeParts: { ...state.codeParts, ...action.parts }, codeConfirmed: false };
     case 'code':
       return { ...state, code: action.code, returning: action.returning, codeConfirmed: false };
+    case 'carry-on':
+      return { ...state, carryOn: action.on };
     case 'confirm-code': {
       // A different person on this device: their consent, files and progress are not this one's.
       const base = state.confirmedCode && state.confirmedCode !== action.code ? { ...initialLabState(state.flow, state.phase), session: state.session, codeParts: state.codeParts, stepId: state.stepId, booking: { ...initialLabState(state.flow).booking, email: state.booking.email, mobile: state.booking.mobile, smsReminders: state.booking.smsReminders } } : state;

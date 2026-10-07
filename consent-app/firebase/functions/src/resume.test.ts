@@ -39,6 +39,9 @@ test('what a family coming back can add, from the records', () => {
   // Records from before 7 October 2026 have no phoneSource: the parent's answer decides.
   assert.equal(resumeSummary('MPMB-ABCD-EF2', base, kai, { status: 'deferred' }, 'agreed').canAgree, true);
   assert.equal(resumeSummary('MPMB-ABCD-EF2', base, kai, { status: 'deferred' }, 'declined').reason, 'no-screen-time');
+  // Saved when the parent signed, but left before they said whether to share it: nothing to add here.
+  const unfinished = resumeSummary('MPMB-ABCD-EF2', { ...base, phoneSource: null }, kai, { status: 'not-started' }, undefined);
+  assert.deepEqual([unfinished.canAgree, unfinished.canAddScreenshots, unfinished.reason], [false, false, 'unfinished']);
 });
 
 test('the young person’s answer given later: a signed yes, or a no', () => {

@@ -88,28 +88,43 @@ function useHistorySync() {
 }
 
 /**
- * Sends the record as soon as everything it needs is in and the family
- * reaches the screenshots, the longer questions or the check page (and sends
- * changes made later), so a family that stops part-way still counts.
- * Failures are left for the person to retry from the status line; nothing
- * loops.
+ * Saves the record in the background: first the moment the parent signs (or
+ * a 16- or 17-year-old on their own agrees), then again shortly after each
+ * answer or change, on whichever step it is made (decided 7 October 2026:
+ * everything a family gives after signing is kept and used, even if they
+ * stop part-way). Leaving the page or switching apps saves straight away.
+ * A failed save is tried again when something else changes, and the status
+ * line offers a retry; nothing loops.
  */
 function SyncManager() {
   const { state } = useStore();
-  const { sendConsent, dirty } = useSync();
+  const { sendConsent, dirty, snapshot } = useSync();
   const { stepId } = state;
   const { consentStage } = state.submission;
-  const ready = state.resume
+  const failedOn = useRef<string | null>(null);
+  if (consentStage === 'failed' && failedOn.current === null) failedOn.current = snapshot ?? '';
+  if (consentStage !== 'failed') failedOn.current = null;
+  const ready = firstIncomplete(state) === null;
+  const due = state.resume
     ? // Carrying on later: a yes goes on the way to the screenshots; a no goes when they press Finish (src/steps/AssentDeclined.tsx), so it can still be changed until then.
-      state.resume.canAgree && stepId === 'phone-use' && firstIncomplete(state) === null
-    : (stepId === 'phone-use' || stepId === 'parent-more' || stepId === 'check') && firstIncomplete(state) === null;
-  // Changes after the first send go as one amendment from the check page, not one per answer.
-  const due = ready && (consentStage === 'idle' || (consentStage === 'sent' && dirty && stepId === 'check'));
+      state.resume.canAgree && stepId === 'phone-use' && ready && consentStage === 'idle'
+    : ready && (consentStage === 'idle' || (consentStage === 'sent' && dirty) || (consentStage === 'failed' && snapshot !== failedOn.current));
+  const dueRef = useRef(due);
+  dueRef.current = due;
+
   useEffect(() => {
     if (!due) return;
-    const timer = window.setTimeout(() => void sendConsent(), 400);
+    const timer = window.setTimeout(() => void sendConsent(), consentStage === 'idle' ? 300 : 1200);
     return () => window.clearTimeout(timer);
-  }, [due, sendConsent]);
+  }, [due, snapshot, consentStage, sendConsent]);
+
+  useEffect(() => {
+    const flush = () => {
+      if (document.visibilityState === 'hidden' && dueRef.current) void sendConsent();
+    };
+    document.addEventListener('visibilitychange', flush);
+    return () => document.removeEventListener('visibilitychange', flush);
+  }, [sendConsent]);
   return null;
 }
 

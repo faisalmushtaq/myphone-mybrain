@@ -79,7 +79,9 @@ export function Resume() {
                 ? `${name} said no to sharing their screen time, so nothing more is needed from this record. If they have changed their mind, email ${study.contact.email} quoting reference ${found.referenceCode}.`
                 : found.reason === 'full'
                   ? `We have all the screenshots we can take for this record (reference ${found.referenceCode}). Thank you.`
-                  : `This record does not include screen time: the parent or carer said no to sharing it, or chose the questions instead. To change that, email ${study.contact.email} quoting reference ${found.referenceCode}.`}
+                  : found.reason === 'unfinished'
+                    ? `This record was saved before the parent or carer said whether to share ${name}’s screen time. To add it, email ${study.contact.email} quoting reference ${found.referenceCode}, and the team will help.`
+                    : `This record does not include screen time: the parent or carer said no to sharing it, or chose the questions instead. To change that, email ${study.contact.email} quoting reference ${found.referenceCode}.`}
             </p>
           </Callout>
         </StepShell>

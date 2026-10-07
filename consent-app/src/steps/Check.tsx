@@ -1,34 +1,110 @@
+import { useEffect, useRef, useState } from 'react';
 import { ConsentSummary } from '../components/ConsentSummary';
 import { SaveStatus } from '../components/SaveStatus';
 import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { Icon } from '../components/ui/Icon';
-import { assentApplies, phoneUseApplies } from '../model/journey';
+import { assentApplies, lastCall, parentInvolved, phoneUseApplies } from '../model/journey';
 import { useStore } from '../state/context';
-import { useSync } from '../state/useSync';
+import { firstIncomplete, useSync } from '../state/useSync';
 
 /**
- * Everything that has been sent, with the chance to change it. Changes are
- * saved as amendments; the original record is kept. Sent screenshots cannot
- * be removed here (the team can do that on request), but more can be added.
+ * Everything that has been saved (as the family went along), with the
+ * chance to change it. Changes are saved too; a change to the permission or
+ * the agreement keeps the original. Sent screenshots cannot be removed here
+ * (the team can do that on request), but more can be added.
  */
 export function Check() {
   const { state, dispatch } = useStore();
-  const { dirty, submission } = useSync();
+  const { sendConsent, dirty, submission } = useSync();
   const childName = state.identity.firstName.trim() || 'the young person';
   const sent = submission.consentStage === 'sent' && !dirty;
   const canAddImages = phoneUseApplies(state);
   const sentImages = state.donation.images.filter((i) => i.status === 'sent').length;
+  const prompt = lastCall(state);
+  // The prompt being shown, kept from the moment Finish was pressed (it is marked as shown then, so lastCall no longer offers it).
+  const [asking, setAsking] = useState<NonNullable<ReturnType<typeof lastCall>> | null>(null);
+  const [finishing, setFinishing] = useState(false);
+  const saving = submission.consentStage === 'sending' || finishing;
+  const promptRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    if (asking) promptRef.current?.focus();
+  }, [asking]);
+
+  // Anything not yet saved goes first, so "Finish and clear this device" on the next page can never lose it.
+  const done = async () => {
+    if (saving) return;
+    // Something the record needs was undone (for example the permission changed and not signed again): go back to it.
+    const missing = firstIncomplete(state);
+    if (missing) {
+      dispatch({ type: 'go-to', stepId: missing, returnTo: 'check' });
+      return;
+    }
+    if (submission.consentStage !== 'sent' || dirty) {
+      setFinishing(true);
+      const saved = await sendConsent();
+      setFinishing(false);
+      if (!saved) return;
+    }
+    dispatch({ type: 'go-to', stepId: 'done', returnTo: null });
+  };
+  const finish = () => {
+    if (!prompt) return void done();
+    dispatch({ type: 'share-prompted' });
+    setAsking(prompt);
+    window.scrollTo({ top: 0 });
+  };
+
+  if (asking) {
+    const own = !parentInvolved(state);
+    const why = `The screenshots are the most useful part of the study: they show how long ${own ? 'you spend' : `${childName} spends`} on ${own ? 'your' : 'their'} phone, and on which apps. It takes about two minutes.`;
+    const copy =
+      asking === 'here'
+        ? { title: `Is ${childName} with you now?`, body: `${childName} can still say whether to share their screen time: now, if they are with you, or later with the link on the next page. ${why}`, yes: `Yes, ${childName} is here`, no: 'Finish: they will do it later' }
+        : asking === 'after-all'
+          ? { title: `Would you share ${childName}’s screen time after all?`, body: `${why} If not, that is completely fine: your answers are saved.`, yes: 'Yes, share it', no: 'No, finish' }
+          : { title: own ? 'Add your screen time before you finish?' : `Add ${childName}’s screen time before you finish?`, body: `No screenshots have been added yet. ${why}`, yes: 'Add the screenshots now', no: 'Finish without them' };
+    const yes = () => {
+      setAsking(null);
+      if (asking === 'here') {
+        dispatch({ type: 'set-child-present', present: true });
+        dispatch({ type: 'go-to', stepId: 'child-assent', returnTo: 'check' });
+      } else dispatch({ type: 'go-to', stepId: asking === 'after-all' ? 'phone-source' : 'phone-use', returnTo: 'check' });
+    };
+    return (
+      <div className="mpmb-step mpmb-step--normal mpmb-lastcall">
+        <header className="mpmb-step__header">
+          <p className="mpmb-kicker">Before you finish</p>
+          <h1 className="mpmb-h1" tabIndex={-1} ref={promptRef}>
+            {copy.title}
+          </h1>
+          <div className="mpmb-lead">
+            <p>{copy.body}</p>
+          </div>
+        </header>
+        <div className="mpmb-actions">
+          <Button variant="primary" arrow onClick={yes}>
+            {copy.yes}
+          </Button>
+          <Button variant="secondary" loading={saving} onClick={() => void done()}>
+            {copy.no}
+          </Button>
+        </div>
+        {submission.consentStage === 'failed' && <SaveStatus />}
+      </div>
+    );
+  }
 
   return (
     <StepShell
       kicker="Check"
       title="Check what you’ve sent."
-      intro={<p>This is the record the research team holds. If anything is wrong, use “Change”; the correction is saved as an update and the original is kept.</p>}
-      onContinue={() => dispatch({ type: 'go-to', stepId: 'done', returnTo: null })}
+      intro={<p>This is what the research team holds: it was saved as you went along. If anything is wrong, use “Change”; the change is saved too, and a changed permission or agreement keeps the original.</p>}
+      onContinue={finish}
       continueLabel="Everything is right — finish"
-      continueLoading={submission.consentStage === 'sending'}
+      continueLoading={saving}
       hideBack
       width="wide"
     >

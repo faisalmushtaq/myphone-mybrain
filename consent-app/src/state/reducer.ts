@@ -35,7 +35,7 @@ export function initialState(): AppState {
     childPresent: null,
     returnTo: null,
     identity: { firstName: '', lastName: '', dateOfBirth: { day: '', month: '', year: '' }, schoolId: '', schoolOther: '', yearGroup: '' },
-    guardian: { fullName: '', relationship: '', relationshipOther: '', hasParentalResponsibility: false, email: '', phone: '', postcode: '' },
+    guardian: { fullName: '', relationship: '', relationshipOther: '', address: '', postcode: '', email: '', phone: '' },
     consent: {
       formId: parentConsentForm.id,
       formVersion: parentConsentForm.version,
@@ -63,6 +63,7 @@ export function initialState(): AppState {
     phoneSource: null,
     more: { formId: parentMoreForm.id, formVersion: parentMoreForm.version, status: 'not-started', responses: {}, startedAt: null, completedAt: null },
     resume: null,
+    sharePrompted: false,
     submission: { referenceCode: null, participantId: null, consentStage: 'idle', consentError: null, consentSentAt: null, consentVersion: 0, sentSnapshot: null, donationStage: 'idle', donationError: null, donationsSent: 0, declinedSentAt: null },
     session: null,
     // Draft-wording markers are part of the preview only, never of a production build.
@@ -113,6 +114,8 @@ export type Action =
   | { type: 'skip-question'; questionId: string; form?: QuestionsForm }
   | { type: 'survey-status'; status: SurveyStatus; form?: QuestionsForm }
   | { type: 'set-phone-source'; source: PhoneSource }
+  /** The last prompt to share the screen time before finishing was shown. */
+  | { type: 'share-prompted' }
   | { type: 'images-sent'; ids: string[] }
   | { type: 'donation-status'; status: DonationStatus }
   | { type: 'submission'; patch: Partial<SubmissionState> }
@@ -235,13 +238,7 @@ export function reducer(state: AppState, action: Action): AppState {
     }
     case 'consent-response': {
       const responses = { ...state.consent.responses, [action.statementId]: record(action.statementId, action.version, action.response, 'individual') };
-      const donation =
-        action.statementId === 'phone-use' && action.response === 'declined'
-          ? { ...state.donation, status: 'not-consented' as DonationStatus }
-          : action.statementId === 'phone-use' && state.donation.status === 'not-consented'
-            ? { ...state.donation, status: 'not-started' as DonationStatus }
-            : state.donation;
-      return { ...state, consent: withConsentResponses(state, responses), donation };
+      return { ...state, consent: withConsentResponses(state, responses) };
     }
     case 'consent-required-group': {
       const responses = { ...state.consent.responses };
@@ -270,7 +267,7 @@ export function reducer(state: AppState, action: Action): AppState {
         if (s.coveredBySignature) responses[s.id] = record(s.id, s.version, 'agreed', 'signature');
       }
       const assent = { ...state.assent, responses, status: 'completed' as AssentStatus, deferredBy: null, completedAt: new Date().toISOString() };
-      const donation = (state.donation.status === 'deferred' || state.donation.status === 'not-consented') && state.consent.responses['phone-use']?.response !== 'declined' ? { ...state.donation, status: 'not-started' as DonationStatus } : state.donation;
+      const donation = (state.donation.status === 'deferred' || state.donation.status === 'not-consented') && state.phoneSource !== 'none' ? { ...state.donation, status: 'not-started' as DonationStatus } : state.donation;
       return { ...state, assent, donation };
     }
     case 'assent-decline': {
@@ -320,6 +317,8 @@ export function reducer(state: AppState, action: Action): AppState {
     }
     case 'set-phone-source':
       return { ...state, phoneSource: action.source };
+    case 'share-prompted':
+      return { ...state, sharePrompted: true };
     case 'images-sent':
       return { ...state, donation: { ...state.donation, images: state.donation.images.map((img) => (action.ids.includes(img.id) ? { ...img, status: 'sent', progress: 1, error: null } : img)) } };
     case 'donation-status':

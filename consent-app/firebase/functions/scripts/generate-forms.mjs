@@ -42,8 +42,8 @@ const questionForm = (f) => ({
   id: f.id,
   version: f.version,
   questions: f.questions.map((q) =>
-    q.type === 'choice'
-      ? { id: q.id, version: q.version, type: 'choice', label: q.label, topic: q.topic ?? null, text: q.text, options: q.options.map((o) => ({ value: o.value, label: o.label })) }
+    q.type === 'choice' || q.type === 'multi'
+      ? { id: q.id, version: q.version, type: q.type, label: q.label, topic: q.topic ?? null, text: q.text, options: q.options.map((o) => ({ value: o.value, label: o.label })) }
       : { id: q.id, version: q.version, type: 'text', label: q.label, topic: q.topic ?? null, text: q.text, maxLength: q.maxLength },
   ),
 });

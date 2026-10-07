@@ -68,8 +68,9 @@ export const aboutStudy = {
  * Version of the information shown to parents. It is stamped on the
  * permission record so the team knows exactly which text was read.
  * PLACEHOLDER — replace with the approved sheet's version and date.
+ * 0.5: no separate route for concerns or complaints (7 October 2026).
  */
-export const parentInformationVersion = { version: '0.4-draft', date: '2026-10-07' };
+export const parentInformationVersion = { version: '0.5-draft', date: '2026-10-07' };
 
 /** The information for parents and carers, shown before their permission. */
 export const parentInformation: InfoSection[] = [
@@ -123,7 +124,6 @@ export const parentInformation: InfoSection[] = [
     summary: 'The MyPhone/MyBrain team at the University of Leeds.',
     detail: [
       'Email brainpop@leeds.ac.uk with any question about the study. We aim to reply within five working days.',
-      'If you have a concern or complaint about how the study is being run and would rather not raise it with the research team, you can contact the Faculty Research Ethics Committee at the University of Leeds (contact details to be confirmed), who are independent of the study.',
     ],
     draft: true,
   },

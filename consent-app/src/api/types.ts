@@ -352,7 +352,7 @@ export interface ResumeSummary {
   /** Screenshots can be added: from the parent's phone, or from the young person's once they have agreed. */
   canAddScreenshots: boolean;
   /** Why nothing can be added, when nothing can. */
-  reason: 'declined' | 'no-screen-time' | 'full' | null;
+  reason: 'declined' | 'no-screen-time' | 'unfinished' | 'full' | null;
 }
 
 export interface ResumeLookupPayload {

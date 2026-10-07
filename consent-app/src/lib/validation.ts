@@ -22,7 +22,7 @@ const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
 const PHONE = /^\+?[\d\s()-]{7,20}$/;
 
 /** Maximum lengths, enforced here and as maxLength on the inputs. The server enforces them too. */
-export const limits = { name: 100, email: 254, phone: 20, postcode: 10, school: 150, schoolMin: 3, relationship: 60 } as const;
+export const limits = { name: 100, email: 254, phone: 20, postcode: 10, address: 200, school: 150, schoolMin: 3, relationship: 60 } as const;
 
 function blank(value: string): boolean {
   return value.trim().length === 0;
@@ -99,11 +99,15 @@ export function validateGuardian(guardian: GuardianIdentity): FieldError[] {
       errors.push({ field: 'guardian-relationship-other', message: 'Tell us your relationship to the young person.' });
     }
   }
-  if (!guardian.hasParentalResponsibility) {
-    errors.push({
-      field: 'guardian-responsibility',
-      message: 'Tick the box to confirm you have parental responsibility. If you do not, please ask someone who does to complete this part.',
-    });
+  if (guardianFields.address.enabled && guardianFields.address.required && blank(guardian.address)) {
+    errors.push({ field: 'guardian-address', message: 'Enter your home address.' });
+  }
+  if (guardianFields.postcode.enabled) {
+    if (blank(guardian.postcode)) {
+      if (guardianFields.postcode.required) errors.push({ field: 'guardian-postcode', message: 'Enter your postcode.' });
+    } else if (!UK_POSTCODE.test(guardian.postcode.trim())) {
+      errors.push({ field: 'guardian-postcode', message: 'Enter a full UK postcode, for example LS2 9JT.' });
+    }
   }
   if (guardianFields.email.enabled) {
     if (blank(guardian.email)) {
@@ -114,13 +118,6 @@ export function validateGuardian(guardian: GuardianIdentity): FieldError[] {
   }
   if (guardianFields.phone.enabled && !blank(guardian.phone) && !PHONE.test(guardian.phone.trim())) {
     errors.push({ field: 'guardian-phone', message: 'Enter a phone number using numbers only, for example 07700 900123.' });
-  }
-  if (guardianFields.postcode.enabled) {
-    if (blank(guardian.postcode)) {
-      if (guardianFields.postcode.required) errors.push({ field: 'guardian-postcode', message: 'Enter your home postcode.' });
-    } else if (!UK_POSTCODE.test(guardian.postcode.trim())) {
-      errors.push({ field: 'guardian-postcode', message: 'Enter a full UK postcode, for example LS2 9JT.' });
-    }
   }
   return errors;
 }
