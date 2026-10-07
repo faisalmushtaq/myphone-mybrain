@@ -4,6 +4,8 @@ description: "MyPhone/MyBrain is a University of Leeds research project about ho
 email: "brainpop@leeds.ac.uk"
 # The contact and school forms post here (the enquiry Cloud Function in consent-app/firebase). Empty = fall back to an email draft.
 enquiry_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/enquiry"
+# Anonymous usage counts (assets/js/usage.js → the usage Cloud Function): sent only from the live site. Empty = nothing is sent.
+usage_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/usage"
 
 baseurl: ""
 url: "https://myphonemybrain.com"

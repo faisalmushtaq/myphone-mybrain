@@ -4,6 +4,7 @@ title: "Class lists for schools | MyPhone/MyBrain"
 description: "For staff at schools taking part in MyPhone/MyBrain: send the class lists the research team asked for."
 permalink: /schools/upload/
 noindex: true
+usage: false
 ---
 
 <div id="mpmb-tools" class="mpmb-app-mount" data-tool="school-upload">

@@ -38,6 +38,13 @@ required and no parental-responsibility tick; no recontact question; keeping
 what a family gave after signing even if they stopped part-way; and no
 separate complaints route.
 
+### Website use and the year group (7 October 2026)
+
+| Decision | Where |
+| --- | --- |
+| The **year group is required** in the family form (it was optional). | `childFields.yearGroup` in `src/config/fields.ts` |
+| **Count how the website is used**, to find sticking points: for every page, how long it is actively read, how far down, how long each section is read, and the links followed; for the family form and the break study, how far people get, how long each step takes, where they stop, which fields they are asked to fix, and failed saves. **Our own, anonymous counter**, not Google Analytics: no cookies or other storage on the device (so no cookie banner), no IP addresses, names, answers, participant IDs or reference codes, nothing from browsers that ask not to be tracked, records deleted after a year, and "Don't count my visits" on the privacy page. The staff page's **"Website use"** tab shows it. | `assets/js/usage.js`, `src/lib/usage.ts`, `firebase/functions/src/usage.ts`, `src/tools/staff/Usage.tsx`, `_includes/data_privacy.html` |
+
 ### One place for the details (7 October 2026)
 
 | Decision | Where |

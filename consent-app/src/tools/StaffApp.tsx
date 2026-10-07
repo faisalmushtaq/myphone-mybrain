@@ -8,15 +8,17 @@ import { OptOuts } from './staff/OptOuts';
 import { Participants } from './staff/Participants';
 import { Schools } from './staff/Schools';
 import { Times } from './staff/Times';
+import { Usage } from './staff/Usage';
 
 const KEY_STORE = 'mpmb-staff-key';
-type Tab = 'times' | 'bookings' | 'participants' | 'schools' | 'opt-outs';
+type Tab = 'times' | 'bookings' | 'participants' | 'schools' | 'opt-outs' | 'usage';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'times', label: 'Lab times' },
   { id: 'bookings', label: 'Bookings' },
   { id: 'participants', label: 'Participants' },
   { id: 'schools', label: 'School uploads' },
   { id: 'opt-outs', label: 'Opt-outs' },
+  { id: 'usage', label: 'Website use' },
 ];
 
 function readKey(): string {
@@ -155,6 +157,7 @@ export function StaffApp() {
         {tab === 'participants' && <Participants staff={staff} />}
         {tab === 'schools' && <Schools staff={staff} />}
         {tab === 'opt-outs' && <OptOuts staff={staff} />}
+        {tab === 'usage' && <Usage staff={staff} />}
       </div>
     </div>
   );

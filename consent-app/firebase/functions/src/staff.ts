@@ -12,6 +12,7 @@ import { countFailure, schoolBySlug, setSchoolPassword } from './schoolUpload.js
 import { readSecret } from './secrets.js';
 import { sendSms, smsReady, ukMobile } from './sms.js';
 import { isObj } from './validate.js';
+import { usageSummary } from './usage.js';
 
 /**
  * The research team's page (myphonemybrain.com/break/staff/), behind the
@@ -37,6 +38,7 @@ import { isObj } from './validate.js';
  *   add-opt-out     log one opt-out email (the export flags the young person everywhere)
  *   cancel-opt-out  undo one, for a parent who changes their mind (kept, marked cancelled)
  *   test-message    send a test email and text, to check they arrive
+ *   usage           how people use the website: pages, parts read, form steps reached, where they stop and what they get stuck on
  */
 
 const REGION = 'europe-west2';
@@ -470,6 +472,8 @@ export const staffApi = onCall(callOptions, async (request) => {
       });
     }
 
+    case 'usage':
+      return usageSummary(db, Number(data.days ?? 30), now);
     case 'test-message': {
       const email = typeof data.email === 'string' && data.email.trim() ? data.email.trim() : null;
       const mobile = typeof data.mobile === 'string' && data.mobile.trim() ? data.mobile.trim() : null;

@@ -23,7 +23,7 @@ export const childFields = {
     hint: 'Tap to choose the date.',
   },
   school: { enabled: true, required: true, label: 'School' },
-  yearGroup: { enabled: true, required: false, label: 'Year group' },
+  yearGroup: { enabled: true, required: true, label: 'Year group' },
 } satisfies Record<string, FieldConfig>;
 
 export const guardianFields = {

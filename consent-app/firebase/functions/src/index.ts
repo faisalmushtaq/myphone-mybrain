@@ -21,6 +21,7 @@ export { bookLabSlot, cancelLabBooking, labBookingOptions, labMessages, labMessa
 export { submitLabStory } from './story.js';
 export { schoolUpload } from './schoolUpload.js';
 export { staffApi } from './staff.js';
+export { purgeUsage, usage } from './usage.js';
 
 initializeApp();
 

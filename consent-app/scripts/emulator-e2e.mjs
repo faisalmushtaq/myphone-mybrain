@@ -76,6 +76,11 @@ async function inner() {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const page = await context.newPage();
+  await page.addInitScript(() => {
+    window.__usageCalls = [];
+    const record = (m) => (...args) => window.__usageCalls.push([m, ...args]);
+    window.mpmbUsage = { app: record('app'), variant: record('variant'), part: record('part'), event: record('event') };
+  });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -121,6 +126,9 @@ async function inner() {
     await page.getByLabel('Your last name').fill('Patel');
     await page.getByLabel('Your date of birth', { exact: true }).fill('2013-03-14');
     await page.getByLabel('Your school', { exact: true }).selectOption('DUA');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText('Choose the year group.').first().waitFor();
+    ok('the year group is required, and not marked optional', !(await page.locator('label[for="child-year-group"]').textContent()).includes('optional'));
     await page.getByLabel('Your year group').selectOption('Year 8');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('button', { name: /I’m the parent or carer/ }).click();
@@ -140,6 +148,14 @@ async function inner() {
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.35, 0.3], [0.55, 0.7], [0.8, 0.4]]);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
+    const usageCalls = await page.evaluate(() => window.__usageCalls);
+    ok(
+      'the form tells the usage counter its steps and the fields it asked to be fixed, and nothing anyone typed',
+      usageCalls.some(([m, v]) => m === 'app' && v === 'family') &&
+        ['welcome', 'child-details', 'parent-consent'].every((step) => usageCalls.some(([m, v]) => m === 'part' && v === step)) &&
+        usageCalls.some(([m, type, data]) => m === 'event' && type === 'errors' && data.fields.includes('child-year-group')) &&
+        !/Kai|Patel|Priya|LS6/i.test(JSON.stringify(usageCalls)),
+    );
 
     // 1. The record is saved the moment the parent signs (decided 7 October 2026), before anything else is answered, and the answers as they come in.
     const recordOf = async (firstName) => {
@@ -260,6 +276,19 @@ async function inner() {
     const badEnquiry = await fetch(enquiryUrl, { method: 'POST', headers: enquiryHeaders, body: '{}' });
     ok('website enquiry without details is refused', badEnquiry.status === 400);
 
+    // The anonymous usage counter: a page view arrives as a text/plain beacon from the site, and nothing else gets in.
+    const usageUrl = `http://127.0.0.1:5001/${PROJECT}/europe-west2/usage`;
+    const beacon = { v: 1, view: 'e2etestview00001', seq: 0, final: true, page: '/information/', query: { who: 'parent', code: 'MP0123456789AB' }, ref: 'ext:www.google.com', device: 'phone', app: null, variant: null, active: 75, scroll: 80, parts: { about: 20, share: 15, 'taking-part': 40 }, order: ['about', 'share', 'taking-part'], events: [{ t: 30, type: 'click', part: 'share', to: '/take-part/consent/?who=parent', label: 'Share screen time online →' }] };
+    const beaconHeaders = { 'Content-Type': 'text/plain;charset=UTF-8', Origin: 'https://myphonemybrain.com' };
+    const sentBeacon = await fetch(usageUrl, { method: 'POST', headers: beaconHeaders, body: JSON.stringify(beacon) });
+    const strangerBeacon = await fetch(usageUrl, { method: 'POST', headers: { ...beaconHeaders, Origin: 'https://elsewhere.example' }, body: JSON.stringify({ ...beacon, view: 'e2etestview00002' }) });
+    const junkBeacon = await fetch(usageUrl, { method: 'POST', headers: beaconHeaders, body: '{"v":1,"view":"x"}' });
+    const storedView = (await db.collection('usage').doc('e2etestview00001').get()).data();
+    ok(
+      'the usage counter stores a page view sent as a beacon (no codes, no address), and refuses other sites and junk',
+      sentBeacon.status === 204 && strangerBeacon.status === 403 && junkBeacon.status === 400 && storedView?.page === '/information/' && storedView?.events?.length === 1 && JSON.stringify(storedView?.query) === '{"who":"parent"}' && !JSON.stringify(storedView).includes('MP0123') && !(await db.collection('usage').doc('e2etestview00002').get()).exists,
+    );
+
     // Hourly export: a BIDS dataset for researchers and a separate identifying folder, in the private exports bucket.
     const exportRes = await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' });
     const manifest = await exportRes.json();
@@ -329,6 +358,7 @@ async function inner() {
     await page.getByLabel('Last name', { exact: true }).fill('Khan');
     await page.getByLabel('Date of birth', { exact: true }).fill('2012-09-02');
     await page.getByLabel('School', { exact: true }).selectOption('DUA');
+    await page.getByLabel('Year group').selectOption('Year 9');
     await page.getByLabel('Your full name', { exact: true }).fill('Sara Khan');
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     await page.getByLabel('Your home address').fill('22 Park Road, Bradford');
@@ -369,6 +399,7 @@ async function inner() {
     await page.getByLabel('Last name', { exact: true }).fill('Clarke');
     await page.getByLabel('Date of birth', { exact: true }).fill('2013-03-14');
     await page.getByLabel('School', { exact: true }).selectOption('GSAL');
+    await page.getByLabel('Year group').selectOption('Year 9');
     await page.getByLabel('Your full name', { exact: true }).fill('Jo Clarke');
     await page.getByLabel('Your relationship to the young person').selectOption('father');
     await page.getByLabel('Your home address').fill('5 Mill Street, Leeds');
@@ -557,6 +588,10 @@ async function inner() {
     };
     const staffCall = (data) => httpsCallable(fns, 'staffApi')({ staffKey: 'emulator-staff-key', ...data });
     ok('the staff service refuses a wrong key', await refused(() => httpsCallable(fns, 'staffApi')({ staffKey: 'a guess', action: 'overview' }), 'permission-denied'));
+    const usageSummary = (await staffCall({ action: 'usage', days: 7 })).data;
+    const infoUsage = usageSummary.pages.find((p) => p.page === '/information/');
+    ok('the staff page sums up how the website is used: parts read in order, links followed', usageSummary.views >= 1 && infoUsage?.parts.map((p) => p.part).join() === 'about,share,taking-part' && infoUsage?.clicks[0]?.count === 1 && infoUsage?.sources[0]?.ref === 'ext:www.google.com');
+    ok('a client cannot read the usage records', await denied(() => getDoc(doc(webDb, 'usage', 'e2etestview00001'))));
     const DAY = 86400000;
     const nineUtc = (days) => {
       const d = new Date(Date.now() + days * DAY);
@@ -1066,6 +1101,12 @@ async function inner() {
     ok('the opt-out is logged with the school, the date and who sent it', loggedOptOuts.length === 1 && loggedOptOuts[0].schoolId === 'DUA' && loggedOptOuts[0].parentName === 'Ewa Nowak' && loggedOptOuts[0].status === 'active' && /^\d{4}-\d{2}-\d{2}$/.test(loggedOptOuts[0].receivedOn));
     ok('the staff page lists it', (await page.locator('.mpmb-tools__row', { hasText: 'Ola Nowak' }).count()) === 1 && (await page.getByText(/Opted out \(1\)/).count()) === 1);
     await toolsSnap('opt-outs');
+    await page.getByRole('button', { name: 'Website use', exact: true }).click();
+    await page.getByRole('heading', { name: 'The online forms' }).waitFor({ timeout: 30000 });
+    ok('the staff page’s “Website use” tab shows how each page is read', (await page.locator('.mpmb-usage__card summary', { hasText: '/information/' }).count()) === 1);
+    await page.locator('.mpmb-usage__card summary', { hasText: '/information/' }).click();
+    ok('…with the parts read, in order, and the links followed', (await page.locator('.mpmb-usage__table tbody th').allInnerTexts()).join('|') === 'about|share|taking part' && (await page.getByText('Share screen time online →').count()) === 1);
+    await toolsSnap('website-use');
 
     const finalManifest = await (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' })).json();
     const midTsv = await readExport('social-media-break/donations/phenotype/mystory_mid.tsv');

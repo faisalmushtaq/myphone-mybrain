@@ -597,3 +597,10 @@ fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin
   .track-record__title { max-width: 11ch; margin: 0; font-size: 1.7rem; line-height: 1.05; }
   .track-record__note { flex-basis: 100%; margin: 0; }
 }
+/* The privacy page's "Don't count my visits" switch (assets/js/usage.js): a link-like button inside the details list. */
+.privacy-usage-toggle { padding: 0; border: 0; background: none; color: var(--mpb-teal); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: .18em; cursor: pointer; }
+.privacy-usage-toggle[hidden] { display: none; }
+/* Links always look like links (asked for on 7 October 2026): underlined wherever they sit in text, on light or dark backgrounds. Buttons, the menus and whole-card links keep their own look. */
+main :is(p, li, dd, dt, td, th, figcaption, blockquote, h3, h4) a:not(.btn):not([class*="card"]) { text-decoration-line: underline; text-underline-offset: .18em; }
+.contact-card a:not(.btn) { color: var(--mpb-yellow); font-weight: 700; }
+.privacy-facts a { color: var(--mpb-teal); font-weight: 700; }

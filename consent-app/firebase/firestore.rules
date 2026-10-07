@@ -127,6 +127,11 @@ service cloud.firestore {
       allow read: if hasRole('coordinator');
       allow write: if false;
     }
+    // How the website is used (no names, codes or addresses): the usage function writes it; the staff page reads summaries through the staff service.
+    match /usage/{viewId} {
+      allow read: if hasRole('coordinator');
+      allow write: if false;
+    }
     match /ratelimits/{key} {
       allow read, write: if false;
     }

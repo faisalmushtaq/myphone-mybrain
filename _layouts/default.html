@@ -39,5 +39,6 @@
   </main>
   {% include footer.html %}
   <script src="{{ '/assets/js/form.js' | relative_url }}"></script>
+  {% unless page.usage == false %}<script src="{{ '/assets/js/usage.js' | relative_url }}" data-endpoint="{{ site.usage_endpoint }}" defer></script>{% endunless %}
 </body>
 </html>

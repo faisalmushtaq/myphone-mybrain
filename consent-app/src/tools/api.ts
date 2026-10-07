@@ -116,6 +116,38 @@ export interface SchoolRow {
   uploads: { uploadId: string; receivedAt: string | null; fileName: string; pupils: number; valid: number; problems: number; uploader: { name?: string; role?: string; email?: string } | null }[];
 }
 
+/** How the website is used (firebase/functions/src/usage.ts → summariseUsage). */
+export interface UsagePart {
+  part: string;
+  reached: number;
+  share: number;
+  medianSeconds: number | null;
+  lastHere: number;
+  errorViews: number;
+  errors: { field: string; count: number }[];
+}
+export interface UsagePage {
+  page: string;
+  app: 'family' | 'break' | null;
+  variant: string | null;
+  views: number;
+  finished: number | null;
+  medianActive: number | null;
+  medianScroll: number | null;
+  saveFailures: number;
+  parts: UsagePart[];
+  clicks: { to: string; label: string; count: number }[];
+  sources: { ref: string; count: number }[];
+}
+export interface UsageSummary {
+  from: string;
+  to: string;
+  views: number;
+  devices: Record<string, number>;
+  byDay: { day: string; views: number }[];
+  pages: UsagePage[];
+}
+
 /** Copies text, falling back to selecting it for the person to copy. */
 export async function copyText(text: string): Promise<boolean> {
   try {

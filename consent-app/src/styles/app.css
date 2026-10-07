@@ -3529,3 +3529,72 @@
 .mpmb-app .mpmb-tools ul:not(.mpmb-tools__list) li {
   margin-bottom: 0.2rem;
 }
+
+/* The staff page's "Website use" tab (src/tools/staff/Usage.tsx). */
+.mpmb-usage__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.mpmb-usage__card > summary {
+  cursor: pointer;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.mpmb-usage__scroll {
+  overflow-x: auto;
+}
+.mpmb-usage__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+.mpmb-usage__table th,
+.mpmb-usage__table td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--mpb-line);
+  text-align: left;
+  vertical-align: top;
+}
+.mpmb-usage__table thead th {
+  color: var(--mpb-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.mpmb-usage__table tbody th {
+  font-weight: 700;
+}
+.mpmb-usage__bar {
+  display: inline-block;
+  width: 4.5rem;
+  height: 0.6rem;
+  margin-right: 0.4rem;
+  background: var(--mpb-line);
+  vertical-align: middle;
+}
+.mpmb-usage__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--mpb-teal);
+}
+.mpmb-usage__flag {
+  background: var(--mpb-error-bg);
+  font-weight: 700;
+}
+.mpmb-usage__days {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 4rem;
+  border-bottom: 1px solid var(--mpb-line);
+}
+.mpmb-usage__days > span {
+  flex: 1 1 0;
+  min-width: 2px;
+  background: var(--mpb-teal);
+}
+.mpmb-usage__subhead {
+  margin: 0.25rem 0 0;
+  font-size: 1rem;
+}

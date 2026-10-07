@@ -56,6 +56,7 @@ with a role claim.
 | `firebase/functions/src/quality.ts` | Image quality and safety checks: flatness, Cloud Vision SafeSearch and text detection, the verdict rules |
 | `firebase/functions/src/forms.ts` | The statement ids, versions and wording the server accepts, for both studies, derived at build time from the app's `src/config` and `src/lab` by `scripts/generate-forms.mjs`, so they cannot drift; also the cleaner's file allow-list |
 | `firebase/functions/src/enquiry.ts`, `mail.ts` | The website's contact and school forms: validation, storage in `enquiries/`, and the email to the team sent over SMTP |
+| `firebase/functions/src/usage.ts` | How the website is used, counted anonymously: the `usage` endpoint the site's pages send to (`assets/js/usage.js`, with the forms' steps from `src/lib/usage.ts`), the daily `purgeUsage` (records go after a year), and the summary on the staff page's "Website use" tab |
 | `firebase/functions/src/export.ts`, `exportLab.ts` | The hourly export: one folder per study in the private exports bucket (`schools/`, `social-media-break/`), each with the website's dataset `donations/` in BIDS layout (the lab study's archives unpacked into per-task tables) and a separate `identifying/` folder (see "Getting the data out") |
 | `firebase/scripts/setup-exports.sh`, `mac-sync-install.sh` | One-off set-up of the export bucket and read-only key, and the Mac job that mirrors it into OneDrive |
 | `firebase/functions/src/*.test.ts` | Unit tests (`npm test` in `firebase/functions`) |
@@ -74,6 +75,7 @@ with a role claim.
 | `donations/{donationId}` | one document per send: `participantId`, platform, the young person's `agreement` record when they signed in the app (null otherwise), `youngPersonAgreedInApp`, `assentStatusAtSend` (their agreement may instead be on paper), `needsReview`, and for each image its Storage path, dimensions, size, SHA-256, whether it was redacted or cropped, and its `quality` result (verdict, reasons, terms found, SafeSearch likelihoods, flatness, whether Vision ran, whether the family confirmed a warning). **No names.** | `researcher`, `coordinator` |
 | `submissions/{referenceCode}` | one row per family: kind, route, `selfConsent`, `phoneSource`, the *current* `consentId` (null when a 16- or 17-year-old decided alone), `assentId`, `surveyId` and `moreSurveyId`, `version`, `versions[]` (one entry per send with the record ids and time), `donationIds[]`, `imageCount`, session uid, user agent | `coordinator` |
 | `optOuts/{id}` | opt-outs from the workshop that parents emailed, as the team logged them on the staff page: the young person's names, school, year group or class, date of birth if given, the parent's name, the day the email arrived, whether it came after the workshop, notes, `status` (`active`, or `cancelled` when a parent opts back in) | `coordinator` |
+| `usage/{view}` | one page view, counted anonymously (`usage.ts`): the page, a few known switches from its address (`who`, `school`, `finish` as "yes", …), where it came from (a page of this site, or another site's name), phone, tablet or computer, seconds actively read, how far down it was scrolled, seconds on each part (a section, or a form's step) and their order, links followed, the field ids a form asked to be fixed, failed saves, the day. The view is a random number made for that page load. **No names, answers, codes, IP addresses or browser details**; deleted after a year | `coordinator` (the staff page shows summaries) |
 | `enquiries/{id}` | messages from the website's contact and school forms, with whether the team was emailed (`notified`: sent, failed or not-configured). Families are never emailed; they download their copy of the record instead | `coordinator` |
 
 The social media break study (adults; `src/lab/` in the app, `lab.ts` in the functions) keeps its own collections, keyed by the participant ID (for example `MP2670FF90A5F2`: `MP` and 12 hexadecimal digits of a SHA-256 hash of the participant's first name, last name, date of birth and postcode, built the same way by the survey platform; see `docs/participant-id.md`), so the donated data, the questionnaires and the laboratory data meet without a name:
@@ -473,6 +475,17 @@ withdrawal is not final there until it is emptied.
   in the University's Microsoft 365. The DPIA should name both, and the
   OneDrive library should be restricted, unsynced except for the one Mac,
   and emptied of deleted files when a family withdraws.
+* **Website use.** The site counts, anonymously, which pages and parts of
+  pages are read and for how long, which links are followed, and where
+  people stop or are asked to fix a field in the forms (`usage/`, above),
+  to find where people get stuck. Nothing is stored on the device (except
+  "don't count my visits" when someone chooses it on the privacy page), no
+  IP address is kept (the rate limit hashes it, in memory only), no names,
+  answers, participant IDs or reference codes are sent, browsers that send
+  Global Privacy Control or Do Not Track send nothing, and records go after
+  a year. The privacy page says so. Name it in the DPIA and the University's
+  record of processing, and check it against the rules on storage and access
+  technologies (PECR as amended by the Data (Use and Access) Act 2025).
 * **Copies for families.** Nothing is emailed to families. The thank-you
   page builds a PDF of the record on the device, from what was recorded,
   for the family to download and keep; no personal data leaves the server

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { usage } from '../../lib/usage';
 import type { FieldError } from '../../lib/validation';
 
 interface Props {
@@ -19,7 +20,11 @@ export function ErrorSummary({ errors, title = 'Please check these', focusKey = 
   const ref = useRef<HTMLDivElement>(null);
   const count = errors.length;
   useEffect(() => {
-    if (focusKey > 0 && count > 0) ref.current?.focus();
+    if (focusKey > 0 && count > 0) {
+      ref.current?.focus();
+      // Counted (field ids only) so the team can see which questions people get stuck on.
+      usage.errors(errors.map((e) => e.field));
+    }
     // Only when Continue is pressed: fixing a field must never scroll the page back up.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusKey]);

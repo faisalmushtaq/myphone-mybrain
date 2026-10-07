@@ -4,6 +4,7 @@ import { ProgressNav } from './components/ProgressNav';
 import { PrototypePanel } from './components/PrototypePanel';
 import { buildJourney } from './model/journey';
 import { firstIncomplete } from './state/useSync';
+import { usage } from './lib/usage';
 import type { StepId } from './model/types';
 import { StoreProvider, useStore } from './state/context';
 import { useSync } from './state/useSync';
@@ -113,6 +114,10 @@ function SyncManager() {
   dueRef.current = due;
 
   useEffect(() => {
+    if (consentStage === 'failed') usage.saveFailed();
+  }, [consentStage]);
+
+  useEffect(() => {
     if (!due) return;
     const timer = window.setTimeout(() => void sendConsent(), consentStage === 'idle' ? 300 : 1200);
     return () => window.clearTimeout(timer);
@@ -128,9 +133,21 @@ function SyncManager() {
   return null;
 }
 
+/** Tells the anonymous usage counter which step is on screen and which way through the form this is (src/lib/usage.ts). */
+function useUsage() {
+  const { state } = useStore();
+  const key = state.handover ? `${state.stepId}>handover` : state.stepId;
+  useEffect(() => usage.app('family'), []);
+  useEffect(() => usage.part(key), [key]);
+  useEffect(() => {
+    if (state.route) usage.variant(state.route);
+  }, [state.route]);
+}
+
 function Shell() {
   const { state } = useStore();
   useHistorySync();
+  useUsage();
   const Step = steps[state.stepId];
   const showProgress = state.stepId !== 'welcome' && state.stepId !== 'done' && state.stepId !== 'opt-out' && state.stepId !== 'resume' && !state.resume;
   const showHandover = state.handover !== null;

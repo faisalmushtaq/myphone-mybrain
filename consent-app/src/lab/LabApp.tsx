@@ -2,6 +2,7 @@ import { useEffect, type ComponentType } from 'react';
 import type { LabPhase } from '../api/types';
 import { labPages, PARTICIPANT_CODE, normaliseParticipantCode } from './config';
 import { labStepTitles, type LabFlow, type LabStepId } from './model';
+import { usage } from '../lib/usage';
 import { labJourney } from './reducer';
 import { LabStoreProvider, useLab } from './store';
 import { LabBook } from './steps/LabBook';
@@ -39,6 +40,10 @@ function Frame() {
   const Step = steps[state.stepId];
   const journey = labJourney(state);
   const index = journey.indexOf(state.stepId);
+
+  // The anonymous usage counter: which step of the break study is on screen (src/lib/usage.ts).
+  useEffect(() => usage.app('break'), []);
+  useEffect(() => usage.part(state.stepId), [state.stepId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
