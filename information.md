@@ -13,6 +13,20 @@ page_intro: "You’re reading this because your child’s school is taking part 
 <!-- The participant information sheet approved with the ethics application (SoPREC 4202), on the web, brought up to date with the consent process decided on 7 October 2026: the workshop and linking are opt-out by email, screen time is opt-in online. consent-app/docs/content-placeholders.md lists what differs from the approved documents, for the master ethics update. -->
 <section class="section participant-info-section info-sheet">
   <div class="container narrow-content">
+    <h2 id="about">About the study.</h2>
+    <p class="section-subheading">We are researchers from the University of Leeds. We are visiting your child’s school to run a two-hour neuroscience workshop, during normal school hours, as part of a research study.</p>
+    <div class="prose">
+      <p>MyPhone/MyBrain looks at how young people’s phones and digital lives relate to brain development, attention, learning and wellbeing as they grow up. In the workshop, young people learn how the brain works and how scientists study it, and can take part in a short, safe brain recording, a simple computer task and some questionnaires.</p>
+      <p><strong>What we need from you:</strong> a few minutes online. You answer a few questions about your child’s phone habits and, if you are happy to, share screenshots of their screen time, which show which apps they use and for how long. It is the most useful thing you can do for the study. You don’t need to do anything for your child to take part in the workshop.</p>
+    </div>
+
+    <div class="participant-next-step" id="share">
+      <h3>Share your child’s screen time.</h3>
+      <p>Online, in about five minutes. Please do it as soon as you can.</p>
+      <a class="btn btn-primary" href="{{ '/take-part/consent/?who=parent' | relative_url }}">Share screen time online &nbsp;→</a>
+      <a class="text-link" href="{{ '/take-part/consent/?finish' | relative_url }}">Started already? Finish with your reference &nbsp;→</a>
+    </div>
+
     <nav class="info-sheet__contents" aria-label="On this page">
       <p>On this page</p>
       <ol>
@@ -22,26 +36,12 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <li><a href="#screen-time">Screen time and phone habits</a></li>
         <li><a href="#linking">Linking with records</a></li>
         <li><a href="#information">Your child’s information</a></li>
+        <li><a href="#more">More about the study</a></li>
         <li><a href="#changing-your-mind">Changing your mind</a></li>
         <li><a href="#opting-out">Opting out</a></li>
         <li><a href="#questions">Questions and approval</a></li>
       </ol>
     </nav>
-
-    <h2 id="about">About the study.</h2>
-    <p class="section-subheading">We are researchers from the University of Leeds. We are visiting your child’s school to run a two-hour neuroscience workshop, during normal school hours, as part of a research study.</p>
-    <div class="prose">
-      <p>MyPhone/MyBrain looks at how young people’s phones and digital lives relate to brain development, attention, learning and wellbeing as they grow up. In the workshop, young people learn how the brain works and how scientists study it, and can take part in a short, safe brain recording, a simple computer task and some questionnaires.</p>
-      <p>Your child’s school has agreed to take part for up to three school years, so that we can see how things change as young people grow up. Each year is a fresh choice, and you can opt your child out at any time.</p>
-      <p>The study is funded by the Huo Family Foundation and led by Professor Faisal Mushtaq at the University of Leeds, working with Born in Bradford and the Centre for Applied Education Research. There is a <a href="{{ '/young-people/' | relative_url }}">version of this information for young people</a>.</p>
-    </div>
-
-    <div class="participant-next-step" id="share">
-      <h3>Share your child’s screen time.</h3>
-      <p>Online, in about five minutes: you answer a few questions about your child’s phone use and choose whether to share their screen time. Please do it as soon as you can. You don’t need to do anything for your child to take part in the workshop.</p>
-      <a class="btn btn-primary" href="{{ '/take-part/consent/?who=parent' | relative_url }}">Share screen time online &nbsp;→</a>
-      <a class="text-link" href="{{ '/take-part/consent/?finish' | relative_url }}">Started already? Finish with your reference &nbsp;→</a>
-    </div>
 
     <h2 id="taking-part">How taking part works.</h2>
     <p class="section-subheading">There are two separate choices: the workshop at school, which is opt-out, and which your child can still say no to on the day; and your answers about their screen time and phone habits, which are opt-in.</p>
@@ -142,6 +142,13 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <li><strong>Never sold:</strong> we do not sell data or give it to social media or other commercial companies.</li>
         <li><strong>The law:</strong> the University of Leeds is the data controller. It uses the information because research is a task in the public interest (UK GDPR Article 6(1)(e)) and, for sensitive information such as health records and information about wellbeing, because the processing is for research in the public interest (Article 9(2)(j)). The University’s research participant privacy notice explains your rights; ask us if you would like a copy. More on our <a href="{{ '/privacy/' | relative_url }}">data and privacy</a> page.</li>
       </ul>
+    </div>
+
+    <h2 id="more">More about the study.</h2>
+    <p class="section-subheading">Who runs it, who funds it, and how long it lasts.</p>
+    <div class="prose">
+      <p>Your child’s school has agreed to take part for up to three school years, so that we can see how things change as young people grow up. Each year is a fresh choice, and you can opt your child out at any time.</p>
+      <p>The study is funded by the Huo Family Foundation and led by Professor Faisal Mushtaq at the University of Leeds, working with Born in Bradford and the Centre for Applied Education Research. There is a <a href="{{ '/young-people/' | relative_url }}">version of this information for young people</a>.</p>
     </div>
 
     <h2 id="changing-your-mind">Changing your mind.</h2>
