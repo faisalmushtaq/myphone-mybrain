@@ -42,7 +42,7 @@ separate complaints route.
 
 | Decision | Where |
 | --- | --- |
-| The **year group is required** in the family form (it was optional). | `childFields.yearGroup` in `src/config/fields.ts` |
+| The **year group is required** in the family form (it was optional), and **filled in from the date of birth** (England's school years: the age on 31 August before the school year starts; Year 7 are 11 then). It can be changed by hand, and a changed date of birth does not overwrite a year group chosen by hand. | `childFields.yearGroup` in `src/config/fields.ts`; `schoolYearFor` in `src/lib/dates.ts`; `src/steps/ChildDetails.tsx` |
 | **Count how the website is used**, to find sticking points: for every page, how long it is actively read, how far down, how long each section is read, and the links followed; for the family form and the break study, how far people get, how long each step takes, where they stop, which fields they are asked to fix, and failed saves. **Our own, anonymous counter**, not Google Analytics: no cookies or other storage on the device (so no cookie banner), no IP addresses, names, answers, participant IDs or reference codes, nothing from browsers that ask not to be tracked, records deleted after a year, and "Don't count my visits" on the privacy page. The staff page's **"Website use"** tab shows it. | `assets/js/usage.js`, `src/lib/usage.ts`, `firebase/functions/src/usage.ts`, `src/tools/staff/Usage.tsx`, `_includes/data_privacy.html` |
 
 ### One place for the details (7 October 2026)

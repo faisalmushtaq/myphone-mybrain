@@ -13,6 +13,7 @@ const duration = (s: number | null) => {
   return whole < 60 ? `${whole} s` : `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 };
 const percent = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : '–');
+const visits = (n: number) => `${n} visit${n === 1 ? '' : 's'}`;
 /** "child-details>handover" → "child details (handing over)". */
 const partLabel = (p: string) => p.replace('>handover', ' (handing over)').replace(/[-_]/g, ' ');
 const FORM_NAMES: Record<string, string> = { family: 'Family form', break: 'Break study' };
@@ -32,7 +33,7 @@ function FormFunnel({ page }: { page: UsagePage }) {
     <section className="mpmb-card mpmb-usage__card" aria-label={title}>
       <h3 className="mpmb-h3">{title}</h3>
       <p className="mpmb-hint">
-        <span className="mpmb-mono">{page.page}</span> · {page.views} visits · {page.finished ?? 0} reached the end ({percent(page.finished ?? 0, page.views)}) · typical visit {duration(page.medianActive)}
+        <span className="mpmb-mono">{page.page}</span> · {visits(page.views)} · {page.finished ?? 0} reached the end ({percent(page.finished ?? 0, page.views)}) · typical visit {duration(page.medianActive)}
         {page.saveFailures ? ` · ${page.saveFailures} failed saves` : ''}
       </p>
       <div className="mpmb-usage__scroll">
@@ -70,7 +71,7 @@ function PageDetails({ page }: { page: UsagePage }) {
   return (
     <details className="mpmb-card mpmb-usage__card">
       <summary>
-        <span className="mpmb-mono">{page.page}</span> · {page.views} visits · typical read {duration(page.medianActive)} · typically scrolled {page.medianScroll ?? 0}% down
+        <span className="mpmb-mono">{page.page}</span> · {visits(page.views)} · typical read {duration(page.medianActive)} · typically scrolled {page.medianScroll ?? 0}% down
       </summary>
       {sections.length > 0 && (
         <div className="mpmb-usage__scroll">
@@ -172,7 +173,7 @@ export function Usage({ staff }: { staff: Staff }) {
       {summary && (
         <>
           <p>
-            <strong>{summary.views}</strong> visits from {summary.from} to {summary.to}: {Object.entries(summary.devices)
+            <strong>{visits(summary.views)}</strong> from {summary.from} to {summary.to}: {Object.entries(summary.devices)
               .map(([d, n]) => `${percent(n, summary.views)} ${d}`)
               .join(', ')}
             .

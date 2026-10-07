@@ -4,7 +4,7 @@ import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { DateField, SelectField, TextField } from '../components/ui/Field';
-import { dateOfBirthRange } from '../lib/dates';
+import { dateOfBirthRange, schoolYearFor } from '../lib/dates';
 import { Icon } from '../components/ui/Icon';
 import { childFields, yearGroups } from '../config/fields';
 import { OTHER_SCHOOL_ID, schoolFromLink, schools } from '../config/schools';
@@ -49,6 +49,14 @@ export function ChildDetails() {
     if (!found.length) dispatch({ type: 'next' });
   };
 
+  // The year group follows the date of birth, unless a different one was chosen by hand.
+  const updateDateOfBirth = (dateOfBirth: typeof identity.dateOfBirth) => {
+    const suggested = schoolYearFor(dateOfBirth);
+    const chosenByHand = identity.yearGroup !== '' && identity.yearGroup !== schoolYearFor(identity.dateOfBirth);
+    updateIdentity(suggested && !chosenByHand ? { dateOfBirth, yearGroup: suggested } : { dateOfBirth });
+  };
+  const yearHint = identity.yearGroup && identity.yearGroup === schoolYearFor(identity.dateOfBirth) ? `From ${young ? 'your' : 'the'} date of birth. Change it if it’s not right.` : undefined;
+
   const schoolOptions = [...schools.map((s) => ({ value: s.id, label: s.name })), { value: OTHER_SCHOOL_ID, label: 'My school is not in the list' }];
   // Chosen already by the school's own link: say so, and that it can be changed.
   const linked = schoolFromLink();
@@ -83,14 +91,14 @@ export function ChildDetails() {
           </div>
         )}
         {childFields.dateOfBirth.enabled && (
-          <DateField id="child-dob" label={young ? 'Your date of birth' : childFields.dateOfBirth.label} hint={childFields.dateOfBirth.hint} value={identity.dateOfBirth} onChange={(dateOfBirth) => updateIdentity({ dateOfBirth })} error={errs['child-dob']} autofill={young ? 'self' : 'off'} min={dobRange.min} max={dobRange.max} />
+          <DateField id="child-dob" label={young ? 'Your date of birth' : childFields.dateOfBirth.label} hint={childFields.dateOfBirth.hint} value={identity.dateOfBirth} onChange={updateDateOfBirth} error={errs['child-dob']} autofill={young ? 'self' : 'off'} min={dobRange.min} max={dobRange.max} />
         )}
         <div className="mpmb-fields__row">
           {childFields.school.enabled && (
             <SelectField id="child-school" label={young ? 'Your school' : childFields.school.label} required={childFields.school.required} hint={schoolHint} options={schoolOptions} placeholder="Choose a school" value={identity.schoolId} onChange={(e) => updateIdentity({ schoolId: e.target.value })} error={errs['child-school']} />
           )}
           {childFields.yearGroup.enabled && (
-            <SelectField id="child-year-group" label={young ? 'Your year group' : childFields.yearGroup.label} required={childFields.yearGroup.required} options={yearGroups.map((y) => ({ value: y, label: y }))} placeholder="Choose" value={identity.yearGroup} onChange={(e) => updateIdentity({ yearGroup: e.target.value })} error={errs['child-year-group']} />
+            <SelectField id="child-year-group" label={young ? 'Your year group' : childFields.yearGroup.label} required={childFields.yearGroup.required} hint={yearHint} options={yearGroups.map((y) => ({ value: y, label: y }))} placeholder="Choose" value={identity.yearGroup} onChange={(e) => updateIdentity({ yearGroup: e.target.value })} error={errs['child-year-group']} />
           )}
         </div>
         {identity.schoolId === OTHER_SCHOOL_ID && (

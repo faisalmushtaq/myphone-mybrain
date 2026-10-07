@@ -126,6 +126,13 @@ async function inner() {
     await page.getByLabel('Your last name').fill('Patel');
     await page.getByLabel('Your date of birth', { exact: true }).fill('2013-03-14');
     await page.getByLabel('Your school', { exact: true }).selectOption('DUA');
+    // England's school years: the year group is set by age on 31 August, before the school year starts on 1 September.
+    const today = new Date();
+    const startYear = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
+    // Born 14 March 2013: by 31 August they have had that year's birthday.
+    const expectedYear = `Year ${startYear - 2013 - 4}`;
+    ok('the year group is filled in from the date of birth, and says so', (await page.getByLabel('Your year group').inputValue()) === expectedYear && (await page.getByText('From your date of birth. Change it if it’s not right.').count()) === 1);
+    await page.getByLabel('Your year group').selectOption('');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByText('Choose the year group.').first().waitFor();
     ok('the year group is required, and not marked optional', !(await page.locator('label[for="child-year-group"]').textContent()).includes('optional'));

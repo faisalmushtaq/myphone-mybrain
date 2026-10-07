@@ -33,6 +33,22 @@ export function ageOn(dob: Date, today = new Date()): number {
   return age;
 }
 
+/**
+ * The school year group in England for a date of birth: the year group is
+ * set by a pupil's age on 31 August, just before the school year starts on
+ * 1 September (Year 7 are 11 then, Year 13 are 17). Fills in the year group
+ * from the date of birth; the person can still change it. Null outside
+ * Years 7 to 13.
+ */
+export function schoolYearFor(parts: DateParts, today = new Date()): string | null {
+  const dob = partsToDate(parts);
+  if (!dob) return null;
+  // Before September, the school year is the one that started last September.
+  const startYear = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
+  const year = ageOn(dob, new Date(Date.UTC(startYear, 7, 31))) - 4;
+  return year >= 7 && year <= 13 ? `Year ${year}` : null;
+}
+
 /** Today's date as YYYY-MM-DD in the device's local time zone. */
 export function todayIso(): string {
   const now = new Date();
