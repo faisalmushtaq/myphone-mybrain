@@ -5,7 +5,7 @@ description: "The information sheet for parents, carers and young people at scho
 permalink: /information/
 title_main: "Information sheet"
 title_accent: "for parents and carers."
-page_intro: "MyPhone/MyBrain at your child’s school, in one place: what happens, how taking part and opting out work, and what happens to your child’s information. Please read it with your child if you can."
+page_intro: "You’re reading this because your child’s school is taking part in MyPhone/MyBrain, a University of Leeds study to understand the impact of smartphones on our brain health and wellbeing. Here is what happens, how taking part and opting out work, and what happens to your child’s information. Please read it with your child if you can."
 ---
 
 {% include page_hero.html %}
