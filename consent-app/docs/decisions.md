@@ -5,6 +5,10 @@ each is implemented. Newest first.
 
 ## 7 October 2026
 
+**Ethics:** no piecemeal approvals while the changes are being made. Once
+they are all in, the ethics forms get **one master update**;
+`content-placeholders.md` is the list of what it needs to cover.
+
 ### The young people's study (schools)
 
 | Decision | Where |
@@ -19,9 +23,9 @@ each is implemented. Newest first.
 | The draft markers and the preview controls come off the live site now. | Deploy workflow (`MPMB_PROTOTYPE` defaults to false) |
 | Families can complete the form **after the workshop** too, if they didn't at the time. The form stays open, and a family that stopped part-way (the young person wasn't there or wanted to decide later, or no screenshots were sent) **carries on later** with the reference from their thank-you page and the young person's date of birth, on any device: the young person adds their answer and screenshots, or the family adds screenshots, to the same record. | `src/steps/Resume.tsx` (`?finish=<reference>`, or "Carry on with your reference" on the first page); `resumeRecord` in `firebase/functions/src/resume.ts`; the thank-you page's link (`CarryOnLink`); `added_later_on` in `participants.tsv`, `added_later` in the sessions files |
 
-To confirm with the ethics committee: opting out by email only (the
-approved documents describe a slip), and sharing an under-16's screen time
-from the parent's family view without asking the young person.
+For the master ethics update: opting out by email only (the approved
+documents describe a slip), and sharing an under-16's screen time from the
+parent's family view without asking the young person.
 
 ### The social media break study (adults)
 

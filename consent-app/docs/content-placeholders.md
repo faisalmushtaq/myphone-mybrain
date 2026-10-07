@@ -7,6 +7,9 @@ legal team. Text flagged `draft: true` in the configuration files shows a
 small "Draft wording" marker in the interface (switchable from the Prototype
 controls panel).
 
+This is also the checklist for the **master update of the ethics forms**, done
+once all the changes are made (`decisions.md`, 7 October 2026).
+
 | What | Where in the code | Replace with |
 |---|---|---|
 | Parent/carer statements (`0.6-draft`, since the workshop became opt-out on 7 October 2026: four required, including that their answers may be used; two optional, the screenshots (asked only for under-16s) and recontact) | `src/config/statements.ts` → `parentConsentForm` | Ethics-approved wording for the opt-in form, with the approved version identifier |
