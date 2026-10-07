@@ -72,14 +72,14 @@ steps:
 
 # What a two-hour workshop looks like (/participation/ and /schools/): from the approved information sheets and a school's own account of a session.
 session_timeline:
-  intro: "Two hours, in a classroom at school, run by our researchers with our equipment. Every part is a choice: young people can say no to any part, or stop at any time."
+  intro: "Two hours, in a classroom at school, run by our researchers with our equipment, and already tested in 8 schools with more than 1,000 students. Every part is a choice: young people can say no to any part, or stop at any time."
   stages:
     - title: "How the brain works"
       kind: "Talk"
       body: "A short, interactive introduction from neuroscientists: how the brain works, and how scientists study what it is doing."
     - title: "A live demonstration"
       kind: "Demonstration"
-      body: "A researcher fits an EEG headset on a volunteer and the brain’s electrical signals appear live on screen. Clench your jaw and every line jumps."
+      body: "A researcher fits a lightweight EEG headset on a volunteer and the brain’s electrical signals appear live on screen. Clench your jaw and every line jumps."
     - title: "Fitting the headsets"
       kind: "Hands-on"
       body: "Pupils who want to take part fit lightweight EEG headsets on each other, with the researchers’ help. Hair never needs to be cut or shaved."
@@ -107,12 +107,12 @@ school_voice:
     - "I learnt how focusing on tasks change the brain waves - this can be helpful with studying and trying to focus."
     - "The EEG session was interesting and fun to do, like how all of the monitors went off when clenching the jaw."
 
-# How many schools, workshops and young people the team has worked with so far. Shown on the schools page only once filled in with real figures (leave a value empty to hide that number).
+# How many schools, workshops and students the workshop has been tested with so far, shown on the schools page (leave a value empty to hide that number).
 track_record:
   as_of: ""
-  schools: ""
+  schools: "8"
   sessions: ""
-  students: ""
+  students: "1,000+"
 
 signup:
   title: "Join the study with your school"

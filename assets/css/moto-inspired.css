@@ -588,3 +588,8 @@ fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin
 .school-voices figcaption { margin-top: 1rem; color: #365d62; font-size: .95rem; }
 .session-timeline > .session-stage:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .gatsby-compass { max-width: none; }
+@media (min-width: 760px) {
+  .track-record { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 3.5rem; }
+  .track-record__title { max-width: 11ch; margin: 0; font-size: 1.7rem; line-height: 1.05; }
+  .track-record__note { flex-basis: 100%; margin: 0; }
+}

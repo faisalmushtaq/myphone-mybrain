@@ -120,7 +120,7 @@ for_young_people:
   mybrain_heading: "MyBrain"
   mybrain_items:
     - "You will take part in a science workshop at school."
-    - "You may wear an EEG headset, which records activity from the surface of your head."
+    - "You may wear a lightweight EEG headset, which records activity from the surface of your head."
     - "You may sit quietly for a short time and complete simple computer tasks."
     - "Researchers will help you with the equipment."
     - "EEG does not hurt. It does not put anything into your brain. It cannot read your thoughts."
@@ -143,7 +143,7 @@ coproduction:
 inclusion:
   heading: "Designed to include more pupils"
   body: |
-    We have tested MyBrain workshops in schools and adapted them to support a wide range of pupils. This includes different hair types, religious head coverings, privacy needs and comfort during headset fitting. Pupils can still take part in the learning activities when high-quality EEG data cannot be collected.
+    We have tested MyBrain workshops in 8 schools, with more than 1,000 students, and adapted them to support a wide range of pupils. This includes different hair types, religious head coverings, privacy needs and comfort during headset fitting. Pupils can still take part in the learning activities when high-quality EEG data cannot be collected.
 
 impact:
   heading: "What the project will create"

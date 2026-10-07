@@ -46,7 +46,7 @@ separate complaints route.
 | Make **real neuroscience** the schools page's lead: hands-on, beyond the usual curriculum, a chance to inspire pupils; with pupils' own words from Notre Dame Catholic Sixth Form College and a link to the college's story. | `_includes/for_schools.html`; `school_voice` in `_data/content.yml` |
 | The curriculum card says the workshop was **designed with teachers from KS3 to KS5**. "Digital data awareness" is gone: it is not a confirmed part of the sessions. | `for_schools.benefits` in `_data/audience.yml` |
 | The **Gatsby Benchmarks** (4, 5 and 7) use the team's own copy, and the benchmarks' official names. | `for_schools.gatsby_benchmarks` in `_data/audience.yml` |
-| The figures for schools, workshops and young people reached appear only once real figures are given. | `track_record` in `_data/content.yml` |
+| The workshop **has been tested in 8 schools with more than 1,000 students**: shown on the schools page, and said on the home, session and study pages. The headset is always a **lightweight headset**. | `track_record` in `_data/content.yml`; `_includes/home_summary.html`; `session_timeline.intro`; `inclusion` in `_data/audience.yml` |
 
 ### The social media break study (adults)
 

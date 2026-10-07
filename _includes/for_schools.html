@@ -15,7 +15,7 @@
       <div class="neuro-usp__text">
         <p class="section-kicker">Why schools take part</p>
         <h3>Real neuroscience, in your classroom.</h3>
-        <p>Most pupils only meet brain science in a textbook. In a MyPhone/MyBrain workshop they learn how the brain works from working neuroscientists, fit EEG headsets on each other, watch their own brain’s signals appear live on screen, and use them in real experiments.</p>
+        <p>Most pupils only meet brain science in a textbook. In a MyPhone/MyBrain workshop they learn how the brain works from working neuroscientists, fit lightweight EEG headsets on each other, watch their own brain’s signals appear live on screen, and use them in real experiments.</p>
         <p>It is an opportunity well outside the usual curriculum: hands-on research with real equipment, a real study to be part of, and researchers who can talk about university and science careers. A chance to inspire pupils about science, whatever they go on to do.</p>
         <a class="text-link" href="{{ '/participation/#gallery' | relative_url }}">What a session looks like &nbsp;→</a>
       </div>
@@ -31,11 +31,11 @@
     {% capture tr_schools %}{{ tr.schools }}{% endcapture %}{% capture tr_sessions %}{{ tr.sessions }}{% endcapture %}{% capture tr_students %}{{ tr.students }}{% endcapture %}
     {% if tr_schools != "" or tr_sessions != "" or tr_students != "" %}
     <div class="track-record reveal">
-      <h3 class="track-record__title">Our work with schools so far</h3>
+      <h3 class="track-record__title">Already tested in schools</h3>
       <dl>
-        {% if tr_schools != "" %}<div><dt>Schools and colleges</dt><dd>{{ tr_schools }}</dd></div>{% endif %}
+        {% if tr_schools != "" %}<div><dt>Schools</dt><dd>{{ tr_schools }}</dd></div>{% endif %}
         {% if tr_sessions != "" %}<div><dt>Workshops</dt><dd>{{ tr_sessions }}</dd></div>{% endif %}
-        {% if tr_students != "" %}<div><dt>Young people</dt><dd>{{ tr_students }}</dd></div>{% endif %}
+        {% if tr_students != "" %}<div><dt>Students</dt><dd>{{ tr_students }}</dd></div>{% endif %}
       </dl>
       {% if tr.as_of != "" %}<p class="track-record__note">As of {{ tr.as_of }}.</p>{% endif %}
     </div>
