@@ -69,8 +69,16 @@ export const aboutStudy = {
  * permission record so the team knows exactly which text was read.
  * PLACEHOLDER — replace with the approved sheet's version and date.
  * 0.5: no separate route for concerns or complaints (7 October 2026).
+ * 0.6: a lightweight headset, as in the approved information sheet, not a "soft cap" (7 October 2026).
  */
-export const parentInformationVersion = { version: '0.5-draft', date: '2026-10-07' };
+export const parentInformationVersion = { version: '0.6-draft', date: '2026-10-07' };
+
+/**
+ * Earlier versions the server still accepts, so a family who read one of them
+ * and signed before an update reached the site can still save. List only
+ * recent ones; the version a family saw is stored with their permission.
+ */
+export const earlierInformationVersions: string[] = ['0.5-draft'];
 
 /** The information for parents and carers, shown before their permission. */
 export const parentInformation: InfoSection[] = [
@@ -90,7 +98,7 @@ export const parentInformation: InfoSection[] = [
     title: 'The workshop at school',
     summary: 'Separate from this form: every young person in the classes taking part is invited, unless a parent or carer opts them out by email.',
     detail: [
-      'In the workshop, young people wear a soft cap that records brain activity (EEG) while they do simple tasks on a computer. It doesn’t hurt, and they can stop at any time.',
+      'In the workshop, young people wear a lightweight headset that records brain activity (EEG) while they do simple tasks on a computer. It doesn’t hurt, and they can stop at any time.',
       'As part of the same study, information about young people who take part may be linked, through Connected West Yorkshire, with records already held about them (NHS health records and education records such as attendance and results), using a code rather than a name and only with the approvals in place.',
       'To opt your child out of the workshop, and so out of the linking, a parent or carer emails the team: see “Opt out of the workshop” at the start of this form. This form does not change anything about the workshop.',
     ],

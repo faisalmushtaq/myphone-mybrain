@@ -19,6 +19,14 @@ on:
     branches: [main]
     paths:
       - "consent-app/firebase/**"
+      # The functions' copy of the forms (functions/src/generated/forms.ts) is made from these at deploy time, so a
+      # change to any of them (a wording version, a question, a school) must redeploy the functions too.
+      - "consent-app/src/config/**"
+      - "consent-app/src/lab/config.ts"
+      - "consent-app/src/lab/cleaner.ts"
+      - "consent-app/src/lab/booking.ts"
+      - "consent-app/src/lab/mystory.ts"
+      - "_data/schools.json"
       - ".github/workflows/firebase-deploy.yml"
   workflow_dispatch:
     inputs:

@@ -10,10 +10,46 @@
       </div>
     </div>
 
-    <figure class="section-photo-banner section-photo-banner--short reveal">
-      <img src="{{ '/assets/images/silhouettes/study.jpg' | relative_url }}"
-           alt="Simple silhouettes of pupils and researchers taking part in an EEG and digital-life study session"
-           loading="lazy">
+    <!-- The project's strongest offer to a school: real neuroscience, hands on, beyond the usual curriculum. -->
+    <div class="neuro-usp reveal">
+      <div class="neuro-usp__text">
+        <p class="section-kicker">Why schools take part</p>
+        <h3>Real neuroscience, in your classroom.</h3>
+        <p>Most pupils only meet brain science in a textbook. In a MyPhone/MyBrain workshop they learn how the brain works from working neuroscientists, fit EEG headsets on each other, watch their own brain’s signals appear live on screen, and use them in real experiments.</p>
+        <p>It is an opportunity well outside the usual curriculum: hands-on research with real equipment, a real study to be part of, and researchers who can talk about university and science careers. A chance to inspire pupils about science, whatever they go on to do.</p>
+        <a class="text-link" href="{{ '/participation/#gallery' | relative_url }}">What a session looks like &nbsp;→</a>
+      </div>
+      <figure class="neuro-usp__photo">
+        <img src="{{ '/assets/images/session/eeg-signals.jpg' | relative_url }}" width="683" height="540"
+             alt="Fourteen coloured lines of brain signals, one for each sensor on an EEG headset"
+             loading="lazy">
+        <figcaption>What pupils see: their brain’s signals, live, from the 14 sensors of a headset.</figcaption>
+      </figure>
+    </div>
+
+    {% assign tr = site.data.content.track_record %}
+    {% capture tr_schools %}{{ tr.schools }}{% endcapture %}{% capture tr_sessions %}{{ tr.sessions }}{% endcapture %}{% capture tr_students %}{{ tr.students }}{% endcapture %}
+    {% if tr_schools != "" or tr_sessions != "" or tr_students != "" %}
+    <div class="track-record reveal">
+      <h3 class="track-record__title">Our work with schools so far</h3>
+      <dl>
+        {% if tr_schools != "" %}<div><dt>Schools and colleges</dt><dd>{{ tr_schools }}</dd></div>{% endif %}
+        {% if tr_sessions != "" %}<div><dt>Workshops</dt><dd>{{ tr_sessions }}</dd></div>{% endif %}
+        {% if tr_students != "" %}<div><dt>Young people</dt><dd>{{ tr_students }}</dd></div>{% endif %}
+      </dl>
+      {% if tr.as_of != "" %}<p class="track-record__note">As of {{ tr.as_of }}.</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% assign voice = site.data.content.school_voice %}
+    <figure class="school-voices reveal">
+      <h3>In pupils’ own words</h3>
+      <div class="school-voices__quotes">
+        {% for quote in voice.quotes %}
+        <blockquote><p>“{{ quote }}”</p></blockquote>
+        {% endfor %}
+      </div>
+      <figcaption>{{ voice.who }}, {{ voice.school }}, after their workshop. <a class="text-link" href="{{ voice.url }}" rel="noopener">{{ voice.link_text }} &nbsp;→</a></figcaption>
     </figure>
 
     <div class="benefit-grid reveal">
@@ -51,7 +87,7 @@
           <li>{{ step }}</li>
           {% endfor %}
         </ol>
-        <p class="school-landing__note">{{ site.data.audience.for_schools.session_note }} <a href="{{ '/participation/' | relative_url }}">More about a session</a>.</p>
+        <p class="school-landing__note">{{ site.data.audience.for_schools.session_note }} <a href="{{ '/participation/#gallery' | relative_url }}">What a session looks like, step by step</a>.</p>
       </div>
 
       <div class="info-panel info-panel-alt reveal" id="safeguarding">

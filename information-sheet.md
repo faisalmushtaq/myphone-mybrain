@@ -82,7 +82,7 @@ page_intro: "MyPhone/MyBrain at your child’s school, in one place: what happen
       </div>
       <div class="info-panel info-panel-alt">
         <h3>What EEG is</h3>
-        <p>EEG stands for electroencephalography (eh-lek-tro-en-seh-fuh-loh-gra-fee). Small sensors in a soft cap sit on the scalp and record the brain’s natural electrical activity. Nothing is sent into the brain: EEG only listens.</p>
+        <p>EEG stands for electroencephalography (eh-lek-tro-en-seh-fuh-loh-gra-fee). A lightweight headset with small sensors sits on the scalp and records the brain’s natural electrical activity. Nothing is sent into the brain: EEG only listens.</p>
         <p>EEG cannot read thoughts, feelings or personality, and the study does not diagnose anything. It is a research tool, not a medical test, and nobody receives individual results.</p>
       </div>
     </div>

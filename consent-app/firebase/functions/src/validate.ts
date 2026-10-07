@@ -1,4 +1,4 @@
-import { childAssentForm, parentConsentForm, parentMoreForm, parentQuestionsForm, informationVersion, REFERENCE_CODE, study, type ServedQuestionForm } from './forms.js';
+import { childAssentForm, earlierInformationVersions, parentConsentForm, parentMoreForm, parentQuestionsForm, informationVersion, REFERENCE_CODE, study, type ServedQuestionForm } from './forms.js';
 
 /**
  * Server-side validation. Mirrors the browser rules in src/lib/validation.ts
@@ -281,7 +281,8 @@ export function validateConsentPayload(input: unknown): string[] {
   } else if (!isObj(c)) problems.push('The permission record is missing.');
   else {
     if (c.formId !== parentConsentForm.id || c.formVersion !== parentConsentForm.version) problems.push(`The permission form must be ${parentConsentForm.id} ${parentConsentForm.version}.`);
-    if (c.informationVersion !== informationVersion) problems.push(`The information shown must be version ${informationVersion}.`);
+    // The current information, or a recent earlier version for a family who signed before an update reached them.
+    if (c.informationVersion !== informationVersion && !earlierInformationVersions.includes(String(c.informationVersion))) problems.push(`The information shown must be version ${informationVersion}.`);
     validateResponses(c.responses, parentConsentForm, problems, 'Permission');
     const responses = isObj(c.responses) ? (c.responses as Record<string, StatementRecord>) : {};
     for (const s of parentConsentForm.statements) {

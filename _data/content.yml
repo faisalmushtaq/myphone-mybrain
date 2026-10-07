@@ -70,6 +70,50 @@ steps:
     title: "Learn from the research"
     body: "With the right consent and approvals, we may link research data to education and health records through Connected West Yorkshire. Some young people may be invited again later. Schools receive updates about group findings."
 
+# What a two-hour workshop looks like (/participation/ and /schools/): from the approved information sheets and a school's own account of a session.
+session_timeline:
+  intro: "Two hours, in a classroom at school, run by our researchers with our equipment. Every part is a choice: young people can say no to any part, or stop at any time."
+  stages:
+    - title: "How the brain works"
+      kind: "Talk"
+      body: "A short, interactive introduction from neuroscientists: how the brain works, and how scientists study what it is doing."
+    - title: "A live demonstration"
+      kind: "Demonstration"
+      body: "A researcher fits an EEG headset on a volunteer and the brain’s electrical signals appear live on screen. Clench your jaw and every line jumps."
+    - title: "Fitting the headsets"
+      kind: "Hands-on"
+      body: "Pupils who want to take part fit lightweight EEG headsets on each other, with the researchers’ help. Hair never needs to be cut or shaved."
+    - title: "Seeing their own signals"
+      kind: "Viewing the signal"
+      body: "Each pupil watches their own brain’s signals on a laptop, and sees how they change when they relax or concentrate."
+    - title: "The recording and the tasks"
+      kind: "Tasks"
+      body: "A few quiet minutes with eyes open and closed, then simple computer tasks about attention and self-control, such as pressing a key for some pictures and holding back for others."
+    - title: "Questionnaires"
+      kind: "About 10 minutes"
+      body: "Short questionnaires about their background, wellbeing and everyday life, including how they use their phone."
+    - title: "Ask the researchers"
+      kind: "Careers"
+      body: "Time to ask the team anything: about the brain, about research, and about how they got into science."
+
+# A school's own account of a session, with its students' words (published by the college).
+school_voice:
+  school: "Notre Dame Catholic Sixth Form College, Leeds"
+  who: "Lower Sixth A-level Psychology students"
+  url: "https://www.notredamecoll.ac.uk/news/citizen-neuroscience-project"
+  link_text: "Read Notre Dame’s story about their session"
+  quotes:
+    - "An informative workshop, I got to see my own brain signals. I am considering a career in psychology so this tool might be something I use again in the future."
+    - "I learnt how focusing on tasks change the brain waves - this can be helpful with studying and trying to focus."
+    - "The EEG session was interesting and fun to do, like how all of the monitors went off when clenching the jaw."
+
+# How many schools, workshops and young people the team has worked with so far. Shown on the schools page only once filled in with real figures (leave a value empty to hide that number).
+track_record:
+  as_of: ""
+  schools: ""
+  sessions: ""
+  students: ""
+
 signup:
   title: "Join the study with your school"
   intro: |

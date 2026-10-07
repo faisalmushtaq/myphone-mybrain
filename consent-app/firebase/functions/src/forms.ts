@@ -37,6 +37,8 @@ export const childAssentForm = {
 };
 
 export const informationVersion: string = generated.informationVersion;
+/** Earlier versions of the information still accepted, for families who signed before an update reached them. */
+export const earlierInformationVersions: readonly string[] = (generated as { earlierInformationVersions?: readonly string[] }).earlierInformationVersions ?? [];
 
 /** The parent's question forms (src/config/questions.ts in the app). */
 /** 'multi': more than one answer, the values joined by ";" ('unsure' stands alone). */

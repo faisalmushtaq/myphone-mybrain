@@ -19,33 +19,33 @@ signpost:
 
 for_schools:
   heading: "Information for schools"
-  subheading: "A practical partnership that brings brain science and digital literacy into school."
+  subheading: "A practical partnership that brings real neuroscience into school."
   body: |
     MyPhone/MyBrain works with schools in Bradford and Leeds. We plan the sessions with you, so they fit your timetable, safeguarding arrangements and communication with families.
 
     Our team brings the equipment and runs the sessions. Before you decide whether to take part, we will explain what is involved and answer your questions.
   benefits:
     - heading: "Learning linked to the curriculum"
-      body: "Pupils explore brain science, measurement, data and research through hands-on activities."
-    - heading: "Digital data awareness"
-      body: "Pupils learn how digital platforms collect data and how researchers can use data responsibly."
+      body: "Designed with teachers from Key Stage 3 to Key Stage 5. Pupils explore brain science, measurement, data and research through hands-on activities that link to science, psychology, computing and PSHE."
+    - heading: "Beyond the usual curriculum"
+      body: "Real neuroscience that pupils rarely get to do at school, with researchers who can talk about university, research and science careers."
     - heading: "A study designed for pupils"
       body: "Young people, parents and teachers have helped shape the project. We have adapted the EEG session for different hair types, religious head coverings and comfort needs."
     - heading: "Useful evidence for the future"
       body: "Your school helps build better evidence about a topic that matters to young people, families and schools."
   gatsby_benchmarks:
-    intro: "Taking part may help your school show work towards three Gatsby Benchmarks in its careers programme."
+    intro: "MyPhone/MyBrain can help schools evidence three Gatsby Benchmarks:"
     benchmarks:
       - number: "4"
-        label: "Linking subjects to careers"
-        body: "Science, psychology, computing and data activities show how school subjects link to research and STEM careers."
+        label: "Linking curriculum learning to careers"
+        body: "Through curriculum-linked science, psychology, computing and data activities."
       - number: "5"
-        label: "Meeting people at work"
-        body: "Pupils meet university researchers, research software engineers and data specialists during the session."
+        label: "Encounters with employers and employees"
+        body: "Through meaningful encounters with researchers, research software engineers and data specialists."
       - number: "7"
-        label: "Meeting higher education"
-        body: "Pupils see how a university research project works in practice."
-    compass_note: "Schools can record participation through their usual Compass or Compass+ process."
+        label: "Encounters with further and higher education"
+        body: "Through direct engagement with university-led research and higher education pathways."
+    compass_note: "Schools can record participation within their careers programme using their usual Compass/Compass+ processes."
 
   what_schools_need: |
     - **Up to three school years.** We visit again each year, and each year your school decides whether to carry on.
@@ -55,10 +55,11 @@ for_schools:
 
   session_steps:
     - "Pupils learn how the brain works and how scientists study brain activity."
-    - "A live demonstration of EEG (electroencephalography)."
-    - "Pupils who agree wear a lightweight headset that records the brain's natural electrical activity: a short recording while they sit quietly, then a simple computer task."
-    - "Brief questionnaires about their background, wellbeing and behaviour."
-    - "If they and their family agree, screenshots of their phone's screen-time page: which apps they used and for how long."
+    - "A live demonstration of EEG (electroencephalography): the brain's signals appear on screen as it happens."
+    - "Pupils who agree fit lightweight headsets on each other, with our help, and see their own brain's signals."
+    - "A short recording while they sit quietly, then simple computer tasks about attention and self-control."
+    - "Brief questionnaires about their background, wellbeing and behaviour, and time to ask the researchers about science and careers."
+    - "Separately, and only if the family opts in online, screenshots of the phone's screen-time page: which apps were used and for how long."
   session_note: "Our team brings all the equipment and staff. Every part is a choice: pupils can say no to any part, or stop at any time."
 
   safeguarding:
@@ -112,7 +113,6 @@ for_young_people:
     Taking part is your choice. We will explain the study before you decide. You can say no, ask questions or stop at any time. You can choose whether to share your screen time: at 16 or 17 you decide for yourself; if you are younger, your parent or carer says yes first.
   myphone_heading: "MyPhone"
   myphone_items:
-    - "You will learn about the information digital platforms collect about your activity."
     - "You can choose to send screenshots of your phone's Screen Time page. They show which apps you use and for how long."
     - "They don't show your messages, photos or what you watch, and you can cover up anything first. You can say no."
     - "You may complete short surveys about technology, digital habits and wellbeing."

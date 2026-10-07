@@ -70,7 +70,7 @@ export function OptOut() {
           {heading('Before you opt out.')}
           <div className="mpmb-step__body">
             <p className="mpmb-lead">If you opt your child out, they will not take part in the MyPhone/MyBrain workshop when it comes to their school.</p>
-            <p>In the workshop, young people wear a soft cap that records brain activity (EEG) while they do simple tasks on a computer. It doesn’t hurt, two researchers are there throughout, and your child can still say no or stop at any time on the day.</p>
+            <p>In the workshop, young people wear a lightweight headset that records brain activity (EEG) while they do simple tasks on a computer. It doesn’t hurt, two researchers are there throughout, and your child can still say no or stop at any time on the day.</p>
             <p>Opting out also means that nothing about your child is linked with health or school records for the study.</p>
             <Callout tone="info">
               <p>

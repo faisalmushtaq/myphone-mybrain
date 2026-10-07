@@ -1,44 +1,48 @@
-{% assign session_photo = site.static_files | where: "path", "/assets/images/session-classroom.jpg" | first %}
-<section id="gallery" class="section section-light">
+{% assign timeline = site.data.content.session_timeline %}
+{% assign voice = site.data.content.school_voice %}
+<!-- What a two-hour workshop looks like, stage by stage, with photos that show no one (photos of young people need their consent first). -->
+<section id="gallery" class="section section-light session-look">
   <div class="container">
     <div class="reveal section-heading">
-      <h2>What it actually looks like</h2>
-      {% if session_photo %}<p class="section-subheading">Real sessions from our pilot work in schools.</p>{% endif %}
+      <h2>What a session looks like</h2>
+      <p class="section-subheading">{{ timeline.intro }}</p>
     </div>
 
-    <div class="video-accessibility-note reveal">
-      <h3>A captioned video is being prepared.</h3>
-      <p>We will publish the session video here with captions and a written transcript, so everyone can use the information in a way that works for them.</p>
+    <ol class="session-timeline reveal" role="list">
+      {% for stage in timeline.stages %}
+      <li class="session-stage">
+        <span class="session-stage__number" aria-hidden="true">{{ forloop.index }}</span>
+        <div>
+          <p class="session-stage__kind">{{ stage.kind }}</p>
+          <h3>{{ stage.title }}</h3>
+          <p>{{ stage.body }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+
+    <div class="session-photos reveal">
+      <figure class="session-photo">
+        <img src="{{ '/assets/images/session/classroom-setup.jpg' | relative_url }}" width="590" height="752"
+             alt="A school classroom set up for a workshop, with laptops on the desks showing the recording software"
+             loading="lazy">
+        <figcaption>A classroom ready for a workshop.</figcaption>
+      </figure>
+      <figure class="session-photo session-photo--wide">
+        <img src="{{ '/assets/images/session/eeg-signals.jpg' | relative_url }}" width="683" height="540"
+             alt="Fourteen coloured lines of brain signals, one for each sensor on the headset, with a burst of activity in the middle"
+             loading="lazy">
+        <figcaption>Brain signals from the 14 sensors of one headset, as pupils see them on screen.</figcaption>
+      </figure>
     </div>
 
-    {% if session_photo %}
-    <div class="photo-grid reveal">
-      <figure class="photo-item photo-item--wide">
-        <img src="{{ '/assets/images/session-classroom.jpg' | relative_url }}"
-             alt="A researcher presenting to a classroom full of students on laptops during a MyBrain session"
-             loading="lazy">
-      </figure>
-      <figure class="photo-item">
-        <img src="{{ '/assets/images/session-brainwaves.jpg' | relative_url }}"
-             alt="A student wearing an EEG headset while a researcher points to live brain wave data on a display screen"
-             loading="lazy">
-      </figure>
-      <figure class="photo-item">
-        <img src="{{ '/assets/images/session-eeg-fitting.jpg' | relative_url }}"
-             alt="A researcher carefully fitting an EEG headset onto a smiling student"
-             loading="lazy">
-      </figure>
-      <figure class="photo-item">
-        <img src="{{ '/assets/images/session-eeg-setup.jpg' | relative_url }}"
-             alt="A student examining the EEG headset equipment at a school desk with a laptop"
-             loading="lazy">
-      </figure>
-      <figure class="photo-item">
-        <img src="{{ '/assets/images/session-eeg-fun.jpg' | relative_url }}"
-             alt="Students and a researcher laughing together while trying on the EEG headset"
-             loading="lazy">
-      </figure>
-    </div>
+    {% if voice %}
+    <figure class="school-voice reveal">
+      <blockquote>
+        <p>“{{ voice.quotes[0] }}”</p>
+      </blockquote>
+      <figcaption>{{ voice.who }}, {{ voice.school }}. <a class="text-link" href="{{ voice.url }}" rel="noopener">{{ voice.link_text }} &nbsp;→</a></figcaption>
+    </figure>
     {% endif %}
   </div>
 </section>

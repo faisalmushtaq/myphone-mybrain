@@ -51,6 +51,8 @@ const generated = {
   parentConsentForm: form(statements.parentConsentForm),
   childAssentForm: form(statements.childAssentForm),
   informationVersion: copy.parentInformationVersion.version,
+  // Earlier versions still accepted, for families who signed before an update.
+  earlierInformationVersions: copy.earlierInformationVersions ?? [],
   parentQuestionsForm: questionForm(questions.parentQuestionsForm),
   // The longer questions, when the young person's screen time is not coming through the form.
   parentMoreForm: questionForm(questions.parentMoreForm),

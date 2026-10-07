@@ -38,6 +38,16 @@ required and no parental-responsibility tick; no recontact question; keeping
 what a family gave after signing even if they stopped part-way; and no
 separate complaints route.
 
+### The website for schools (teacher feedback, 7 October 2026)
+
+| Decision | Where |
+| --- | --- |
+| Show **what a session looks like**, stage by stage (the talk, the live demonstration, fitting the headsets, seeing their own signals, the tasks, the questionnaires, questions about careers), with photos. | `session_timeline` in `_data/content.yml`; `_includes/gallery.html` (/participation/) |
+| Make **real neuroscience** the schools page's lead: hands-on, beyond the usual curriculum, a chance to inspire pupils; with pupils' own words from Notre Dame Catholic Sixth Form College and a link to the college's story. | `_includes/for_schools.html`; `school_voice` in `_data/content.yml` |
+| The curriculum card says the workshop was **designed with teachers from KS3 to KS5**. "Digital data awareness" is gone: it is not a confirmed part of the sessions. | `for_schools.benefits` in `_data/audience.yml` |
+| The **Gatsby Benchmarks** (4, 5 and 7) use the team's own copy, and the benchmarks' official names. | `for_schools.gatsby_benchmarks` in `_data/audience.yml` |
+| The figures for schools, workshops and young people reached appear only once real figures are given. | `track_record` in `_data/content.yml` |
+
 ### The social media break study (adults)
 
 | Decision | Where |

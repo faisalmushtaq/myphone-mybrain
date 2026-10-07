@@ -129,8 +129,8 @@ p { max-width: 70ch; }
 .participant-info-section .narrow-content > .participant-later-visits + .participant-info-grid { margin-top: 1rem; }
 .participant-next-step h3 { margin-bottom: .75rem; }
 .participant-next-step .text-link, .participant-info-grid .text-link { display: inline-block; margin-top: 1.1rem; }
-/* A participant page's headings get room before their lead paragraph. */
-.participant-info-section .section-subheading { margin-top: .9rem; }
+/* A heading's lead paragraph sits clear of it, on every page (the base stylesheet leaves only 0.4rem). */
+.section-subheading { margin-top: .9rem; }
 /* The information sheet (/information-sheet/): contents, the three choices, and a clear break between topics. */
 .info-sheet [id] { scroll-margin-top: calc(var(--nav-h) + 1rem); }
 .info-sheet__contents { padding: 1.1rem 1.25rem; border-left: 4px solid var(--mpb-yellow); background: #fff; }
@@ -544,3 +544,47 @@ fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin
 .form-failure__status { margin: .75rem 0 0 !important; font-weight: 700; }
 .enquiry-follow-up p + h3 { margin-top: 1.25rem; }
 .school-landing__note a, .parents-actions__note a, .participant-shortcut a { text-decoration: underline; text-underline-offset: .18em; }
+
+/* What a session looks like (/participation/): the stages of a workshop, photos, and a school's words. */
+.session-timeline { display: grid; gap: .85rem; margin: 0; padding: 0; list-style: none; }
+@media (min-width: 900px) { .session-timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.session-stage { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr); gap: 1rem; align-items: start; padding: 1.15rem 1.25rem; background: #fff; border: 1px solid var(--mpb-line); border-left: 5px solid var(--mpb-yellow); box-shadow: var(--shadow-sm); }
+.session-stage__number { width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border-radius: 50%; background: var(--mpb-teal); color: #fff; font-family: var(--f-mono); font-weight: 700; }
+.session-stage__kind { margin: 0 0 .25rem; color: var(--mpb-pink); font-family: var(--f-mono); font-size: .7rem; letter-spacing: .05em; text-transform: uppercase; }
+.session-stage h3 { margin: 0 0 .4rem; color: var(--mpb-teal); font-size: clamp(1.25rem, 2.2vw, 1.5rem); line-height: 1.1; }
+.session-stage p:last-child { margin: 0; color: #365d62; line-height: 1.5; }
+.session-photos { display: grid; gap: 1rem; margin-top: clamp(1.75rem, 4vw, 2.5rem); }
+@media (min-width: 760px) { .session-photos { grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr); align-items: start; } }
+.session-photo, .neuro-usp__photo { margin: 0; background: #fff; border: 1px solid var(--mpb-line); }
+.session-photo img, .neuro-usp__photo img { display: block; width: 100%; height: auto; }
+.session-photo figcaption, .neuro-usp__photo figcaption { padding: .65rem .85rem; color: #365d62; font-size: .9rem; line-height: 1.4; }
+.school-voice { margin: clamp(1.75rem, 4vw, 2.5rem) 0 0; padding: clamp(1.5rem, 4vw, 2.25rem); background: var(--mpb-teal); }
+.school-voice blockquote { margin: 0; }
+.school-voice blockquote p { max-width: 42ch; margin: 0; color: #fff; font-family: var(--f-serif); font-size: clamp(1.35rem, 3vw, 1.9rem); line-height: 1.2; letter-spacing: -.02em; }
+.school-voice figcaption { margin-top: 1rem; color: rgba(255,255,255,.88); font-size: .95rem; }
+.school-voice .text-link, .neuro-usp .text-link { color: var(--mpb-yellow); }
+
+/* The schools page: the neuroscience offer, the figures (once filled in) and pupils' words. */
+.neuro-usp { display: grid; gap: clamp(1.25rem, 3vw, 2.5rem); margin-top: clamp(2rem, 5vw, 3rem); padding: clamp(1.5rem, 4vw, 2.5rem); background: var(--mpb-teal); }
+@media (min-width: 860px) { .neuro-usp { grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); align-items: center; } }
+.neuro-usp .section-kicker { color: var(--mpb-yellow); }
+.neuro-usp h3 { margin: .6rem 0 1rem; color: #fff; font-size: clamp(2rem, 4vw, 3rem); line-height: 1; }
+.neuro-usp p { color: rgba(255,255,255,.92); }
+.neuro-usp__text p + p { margin-top: .9rem; }
+.neuro-usp .text-link { display: inline-block; margin-top: 1.1rem; }
+.track-record { margin-top: 1.25rem; padding: 1.25rem 1.5rem; background: #fff; border: 1px solid var(--mpb-line); border-top: 5px solid var(--mpb-yellow); }
+.track-record__title { margin: 0 0 .9rem; color: var(--mpb-teal); font-size: 1.35rem; }
+.track-record dl { display: flex; flex-wrap: wrap; gap: 1rem 2.75rem; margin: 0; }
+.track-record dl > div { display: flex; flex-direction: column-reverse; }
+.track-record dd { margin: 0; color: var(--mpb-teal); font-family: var(--f-serif); font-size: clamp(2.2rem, 5vw, 3.2rem); line-height: 1; }
+.track-record dt { margin-top: .35rem; color: #365d62; font-size: .95rem; }
+.track-record__note { margin: .8rem 0 0; color: #5b7b7f; font-size: .85rem; }
+.school-voices { margin: clamp(2rem, 5vw, 3rem) 0 0; }
+.school-voices h3 { margin: 0 0 1rem; color: var(--mpb-teal); font-size: clamp(1.6rem, 3vw, 2.2rem); }
+.school-voices__quotes { display: grid; gap: 1rem; }
+@media (min-width: 860px) { .school-voices__quotes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.school-voices blockquote { margin: 0; padding: 1.25rem 1.35rem; background: #fff; border: 1px solid var(--mpb-line); border-left: 5px solid var(--mpb-yellow); }
+.school-voices blockquote p { margin: 0; color: var(--mpb-ink); font-size: 1.02rem; line-height: 1.5; }
+.school-voices figcaption { margin-top: 1rem; color: #365d62; font-size: .95rem; }
+.session-timeline > .session-stage:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.gatsby-compass { max-width: none; }
