@@ -1,6 +1,7 @@
 import { PARTICIPANT_CODE } from './config';
+import type { LabPhase } from '../api/types';
 import { labFlowPhase, type LabFlow, type LabState } from './model';
-import { initialLabState } from './reducer';
+import { emptyStory, initialLabState } from './reducer';
 
 /**
  * Progress is kept in localStorage, not sessionStorage, because this process
@@ -12,11 +13,14 @@ import { initialLabState } from './reducer';
  * Each of the study's pages keeps its own progress, and the confirmed
  * participant ID is also remembered on its own, so the check-in and
  * after-break pages can recognise the person without asking for the four
- * details again. Progress saved under the old participant-code scheme (codes
+ * details again; so are the email address and mobile number given when
+ * booking a lab visit, for the next booking. Progress saved under the old participant-code scheme (codes
  * such as JA101CD) is dropped: those codes are no longer used.
  */
-const KEYS: Record<LabFlow, string> = { baseline: 'mpmb-lab:v1', checkin: 'mpmb-lab-checkin:v1', after: 'mpmb-lab-after:v1' };
+const KEYS: Record<LabFlow, string> = { baseline: 'mpmb-lab:v1', checkin: 'mpmb-lab-checkin:v1', after: 'mpmb-lab-after:v1', book: 'mpmb-lab-book:v1', story: 'mpmb-lab-story:v1' };
 const CODE_KEY = 'mpmb-lab-code:v1';
+/** The email address and mobile number given when booking, so the next booking on this device is filled in. */
+const CONTACT_KEY = 'mpmb-lab-contact:v1';
 const MAX_AGE_MS = 60 * 24 * 60 * 60 * 1000;
 /** A check-in sent more than this long ago is finished: the page opens ready for the next one. */
 const CHECKIN_FRESH_MS = 6 * 60 * 60 * 1000;
@@ -59,14 +63,35 @@ function rememberCode(code: string): void {
   }
 }
 
-/** A new page's starting point: the remembered code filled in, ready to confirm with one press. */
-export function startingLabState(flow: LabFlow): LabState {
-  const base = initialLabState(flow);
-  const code = flow === 'baseline' ? null : rememberedCode();
-  return code ? { ...base, code, returning: true } : base;
+function rememberedContact(): { email: string; mobile: string; smsReminders: boolean } | null {
+  try {
+    const raw = storage()?.getItem(CONTACT_KEY);
+    const parsed = raw ? (JSON.parse(raw) as { email?: unknown; mobile?: unknown; smsReminders?: unknown; savedAt?: string }) : null;
+    if (!parsed || !fresh(parsed.savedAt)) return null;
+    return { email: typeof parsed.email === 'string' ? parsed.email : '', mobile: typeof parsed.mobile === 'string' ? parsed.mobile : '', smsReminders: parsed.smsReminders === true };
+  } catch {
+    return null;
+  }
 }
 
-export function loadLabState(flow: LabFlow): LabState | null {
+function rememberContact(c: { email: string; mobile: string; smsReminders: boolean }): void {
+  try {
+    storage()?.setItem(CONTACT_KEY, JSON.stringify({ ...c, savedAt: new Date().toISOString() }));
+  } catch {
+    /* storage full or blocked */
+  }
+}
+
+/** A new page's starting point: the remembered code filled in, ready to confirm with one press, and the contact details from the last booking. */
+export function startingLabState(flow: LabFlow, phase?: LabPhase): LabState {
+  const base = initialLabState(flow, phase);
+  const code = flow === 'baseline' ? null : rememberedCode();
+  const contact = rememberedContact();
+  const withContact = contact ? { ...base, booking: { ...base.booking, ...contact } } : base;
+  return code ? { ...withContact, code, returning: true } : withContact;
+}
+
+export function loadLabState(flow: LabFlow, phase: LabPhase = labFlowPhase[flow]): LabState | null {
   const store = storage();
   if (!store) return null;
   const key = KEYS[flow];
@@ -81,8 +106,9 @@ export function loadLabState(flow: LabFlow): LabState | null {
       store.removeItem(key);
       return null;
     }
-    const base = initialLabState(flow);
+    const base = initialLabState(flow, phase);
     const { savedAt: _ignored, ...rest } = parsed;
+    const contact = rememberedContact();
     // A check-in sent a while ago is done: open ready for the next one, keeping only the code.
     if (flow === 'checkin' && parsed.checkIn?.sentAt && Date.now() - Date.parse(parsed.checkIn.sentAt) > CHECKIN_FRESH_MS) {
       return { ...base, session: parsed.session ?? null, code: parsed.code ?? '', returning: Boolean(parsed.code), checkIn: { ...base.checkIn, count: parsed.checkIn.count ?? 0 }, restored: true };
@@ -92,7 +118,11 @@ export function loadLabState(flow: LabFlow): LabState | null {
       ...rest,
       // The page decides the flow and the phase; saved progress from before they existed is read in as the first page's.
       flow,
-      phase: labFlowPhase[flow],
+      phase,
+      // What the server said about bookings is asked again on every visit; the contact details are kept.
+      booking: { ...base.booking, email: parsed.booking?.email ?? contact?.email ?? '', mobile: parsed.booking?.mobile ?? contact?.mobile ?? '', smsReminders: parsed.booking?.smsReminders ?? contact?.smsReminders ?? false },
+      // A story half-written for another phase's questions is not this page's.
+      story: parsed.story && parsed.phase === phase ? { ...emptyStory(), ...parsed.story } : emptyStory(),
       // Only the four details the ID is built from.
       codeParts: {
         firstName: parsed.codeParts?.firstName ?? '',
@@ -126,8 +156,9 @@ export function saveLabState(state: LabState): void {
   timer = window.setTimeout(() => {
     try {
       const { restored: _r, ...rest } = state;
-      store.setItem(KEYS[state.flow], JSON.stringify({ ...rest, savedAt: new Date().toISOString() }));
+      store.setItem(KEYS[state.flow], JSON.stringify({ ...rest, booking: { ...rest.booking, options: null }, savedAt: new Date().toISOString() }));
       if (state.codeConfirmed && state.code) rememberCode(state.code);
+      if (state.booking.confirmed) rememberContact({ email: state.booking.email, mobile: state.booking.mobile, smsReminders: state.booking.smsReminders });
     } catch {
       /* storage full or blocked: carry on without saving */
     }
@@ -138,5 +169,5 @@ export function saveLabState(state: LabState): void {
 export function clearLabState(): void {
   const store = storage();
   if (!store) return;
-  for (const key of [...Object.values(KEYS), CODE_KEY]) store.removeItem(key);
+  for (const key of [...Object.values(KEYS), CODE_KEY, CONTACT_KEY]) store.removeItem(key);
 }

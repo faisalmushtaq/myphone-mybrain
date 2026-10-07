@@ -4,7 +4,7 @@ import { connectAuthEmulator, getAuth, signInAnonymously, type Auth, type User }
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, deleteObject, getStorage, ref, uploadBytesResumable, type FirebaseStorage } from 'firebase/storage';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabStoryPayload, type LabStoryResult, type UploadMeta, type UploadSlot } from './types';
 
 /**
  * Firebase implementation of the API boundary.
@@ -49,9 +49,13 @@ function mapError(error: unknown): ApiError {
       case 'failed-precondition':
       case 'unauthorized':
         return new ApiError('validation', error.message.replace(/^Firebase: /, ''));
-      case 'unauthenticated':
       case 'permission-denied':
+        // The staff page's wrong key says so; storage's refusals mean the session ran out.
+        return code === 'permission-denied' && error.code.startsWith('functions/') ? new ApiError('validation', error.message.replace(/^Firebase: /, '')) : new ApiError('expired', 'Your session has expired.');
+      case 'unauthenticated':
         return new ApiError('expired', 'Your session has expired.');
+      case 'not-found':
+        return error.code.startsWith('functions/') && error.message !== 'not-found' && error.message !== 'NOT FOUND' ? new ApiError('validation', error.message.replace(/^Firebase: /, '')) : new ApiError('server', error.message);
       case 'unavailable':
       case 'deadline-exceeded':
       case 'retry-limit-exceeded':
@@ -202,6 +206,26 @@ export class FirebaseConsentApi implements ConsentApi {
 
   updateLabPlatforms(session: SessionInfo, payload: { participantCode: string; notUsed: LabPlatform[] }): Promise<{ notUsed: LabPlatform[] }> {
     return this.call<{ participantCode: string; notUsed: LabPlatform[] }, { notUsed: LabPlatform[] }>(session, 'updateLabPlatforms', payload);
+  }
+
+  labBookingOptions(session: SessionInfo, participantCode: string): Promise<LabBookingOptions> {
+    return this.call<{ participantCode: string }, LabBookingOptions>(session, 'labBookingOptions', { participantCode });
+  }
+
+  bookLabSlot(session: SessionInfo, payload: LabBookPayload): Promise<LabBookResult> {
+    return this.call<LabBookPayload, LabBookResult>(session, 'bookLabSlot', payload);
+  }
+
+  cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingId: string }): Promise<{ bookingId: string; email: DeliveryOutcome }> {
+    return this.call<{ participantCode: string; bookingId: string }, { bookingId: string; email: DeliveryOutcome }>(session, 'cancelLabBooking', payload);
+  }
+
+  submitLabStory(session: SessionInfo, payload: LabStoryPayload): Promise<LabStoryResult> {
+    return this.call<LabStoryPayload, LabStoryResult>(session, 'submitLabStory', payload);
+  }
+
+  callTool<Res>(session: SessionInfo, name: 'staffApi' | 'schoolUpload', payload: Record<string, unknown>): Promise<Res> {
+    return this.call<Record<string, unknown>, Res>(session, name, payload);
   }
 }
 

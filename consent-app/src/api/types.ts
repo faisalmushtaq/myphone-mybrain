@@ -154,6 +154,104 @@ export interface LabLookupResult {
   lastCheckInAt: string | null;
   /** Apps the participant has said they do not use, so no data is expected from them. */
   platformsNotUsed?: LabPlatform[];
+  /** The lab visits standing (booked or done). */
+  visits?: { visit: LabVisit; start: string; status: string }[];
+  /** MyStory stories sent, by phase. */
+  stories?: Record<LabPhase, number>;
+}
+
+/* ── Lab visits (src/lab/booking.ts) ───────────────────────────────────── */
+
+export type LabVisit = 1 | 2;
+
+export interface LabPlace {
+  name: string;
+  address: string;
+  directions: string;
+}
+
+export interface LabSlot {
+  slotId: string;
+  start: string;
+  end: string;
+  /** The visit this time is for, or null for either. */
+  visit: LabVisit | null;
+  place: LabPlace;
+  spaces: number;
+}
+
+export interface LabBooking {
+  bookingId: string;
+  visit: LabVisit;
+  start: string;
+  end: string;
+  place: LabPlace;
+  status: 'booked' | 'attended' | 'missed' | 'cancelled';
+  /** Whether it can still be changed or cancelled online. */
+  canChange: boolean;
+  /** The calendar file for it. */
+  ics: string;
+}
+
+export interface LabBookingOptions {
+  consent: boolean;
+  /** What has still to arrive before a first visit can be booked, in plain words. */
+  missing: string[];
+  bookings: LabBooking[];
+  /** The visit to book next, if any, and the UK dates it can be on. */
+  next: LabVisit | null;
+  window: { from: string; to: string } | null;
+  slots: LabSlot[];
+  /** For a visit that can still be moved: the times it could move to. */
+  changing: Partial<Record<LabVisit, LabSlot[]>>;
+  /** Whether text reminders are set up. */
+  smsAvailable: boolean;
+  rules: { minNoticeHours: number; changeUntilHours: number };
+}
+
+export interface LabBookPayload {
+  participantCode: string;
+  slotId: string;
+  visit: LabVisit;
+  email: string;
+  mobile: string | null;
+  smsReminders: boolean;
+  /** The booking this one replaces (a change of time). */
+  replaces: string | null;
+  client: ClientInfo;
+}
+
+export type DeliveryOutcome = 'sent' | 'failed' | 'not-configured' | 'no-contact' | 'not-wanted' | 'invalid-number' | string;
+
+export interface LabBookResult {
+  booking: LabBooking;
+  email: DeliveryOutcome;
+  sms: DeliveryOutcome;
+}
+
+/* ── MyStory (src/lab/mystory.ts) ──────────────────────────────────────── */
+
+export type StoryAnswer = { a: number; b: number; c: number } | number | string | string[];
+
+export interface LabStoryPayload {
+  participantCode: string;
+  phase: LabPhase;
+  structureId: string;
+  structureVersion: string;
+  promptId: string;
+  title: string;
+  story: string;
+  /** Each signifier's answer: a triangle's three shares, a slider's 0 to 100, a choice; 'na' for not sure. */
+  answers: Record<string, StoryAnswer>;
+  /** The page the story was told on. */
+  source: 'baseline' | 'checkin' | 'after' | 'story' | 'book';
+  checkInId: string | null;
+  client: ClientInfo;
+}
+
+export interface LabStoryResult {
+  storyId: string;
+  receivedAt: string;
 }
 
 export interface LabUploadMeta {
@@ -226,4 +324,11 @@ export interface ConsentApi {
   submitLabCheckIn(session: SessionInfo, payload: LabCheckInPayload): Promise<LabCheckInResult>;
   /** Records which apps the participant does not use (the whole list each time). */
   updateLabPlatforms(session: SessionInfo, payload: { participantCode: string; notUsed: LabPlatform[] }): Promise<{ notUsed: LabPlatform[] }>;
+  /** The lab visits: where someone stands, their bookings, and the open times. */
+  labBookingOptions(session: SessionInfo, participantCode: string): Promise<LabBookingOptions>;
+  bookLabSlot(session: SessionInfo, payload: LabBookPayload): Promise<LabBookResult>;
+  cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingId: string }): Promise<{ bookingId: string; email: DeliveryOutcome }>;
+  submitLabStory(session: SessionInfo, payload: LabStoryPayload): Promise<LabStoryResult>;
+  /** The staff page and the schools' upload page: one callable each, with an action (firebase/functions/src/staff.ts, schoolUpload.ts). */
+  callTool<Res>(session: SessionInfo, name: 'staffApi' | 'schoolUpload', payload: Record<string, unknown>): Promise<Res>;
 }

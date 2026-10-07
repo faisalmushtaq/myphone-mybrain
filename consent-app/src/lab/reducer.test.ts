@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LabLookupResult, LabPlatform } from '../api/types';
-import { initialLabState, labJourney, labReducer, nextFilesStep, platformStatuses, platformsToDo, resumeStep } from './reducer';
+import { initialLabState, labJourney, labReducer, nextFilesStep, platformStatuses, platformsToDo, readyToBook, resumeStep } from './reducer';
 
 const found = (pre: [number, number], post: [number, number] = [0, 0], prePlatforms: LabPlatform[] = pre[0] ? ['tiktok'] : [], notUsed: LabPlatform[] = []): LabLookupResult => ({
   exists: true,
@@ -19,7 +19,10 @@ describe('the three pages', () => {
     expect(initialLabState('checkin').phase).toBe('mid');
     expect(initialLabState('after').phase).toBe('post');
     expect(labJourney(initialLabState('after'))).toEqual(['participant-id', 'reminder', 'screenshots', 'guide', 'clean', 'send', 'done']);
-    expect(labJourney(initialLabState('checkin'))).toEqual(['participant-id', 'checkin', 'done']);
+    expect(labJourney(initialLabState('checkin'))).toEqual(['participant-id', 'checkin', 'mystory', 'done']);
+    expect(labJourney(initialLabState('book'))).toEqual(['participant-id', 'book']);
+    expect(labJourney(initialLabState('story', 'post'))).toEqual(['participant-id', 'mystory']);
+    expect(initialLabState('story', 'post').phase).toBe('post');
     // Every page asks for the four details unless a link or this device supplies the ID.
     expect(initialLabState('after').returning).toBe(false);
     expect(initialLabState('baseline').returning).toBe(false);
@@ -85,5 +88,37 @@ describe('the three pages', () => {
     expect(s.progress?.phases.post).toEqual({ archives: 0, screenshots: 1, platforms: [] });
     expect(s.progress?.phases.pre).toEqual({ archives: 1, screenshots: 2, platforms: ['tiktok'] });
     expect(nextFilesStep(s)).toBe('guide');
+  });
+
+  it('the first visit can be booked once the screenshots and one app’s data from before the break are in', () => {
+    const requires = { screenshots: 1, archives: 1 };
+    const confirm = (pre: [number, number]) => labReducer(initialLabState('baseline'), { type: 'confirm-code', code: 'MP2670FF90A5F2', returning: true, lookup: found(pre) });
+    expect(readyToBook(confirm([0, 2]), requires)).toBe(false);
+    expect(readyToBook(confirm([1, 0]), requires)).toBe(false);
+    expect(readyToBook(confirm([1, 1]), requires)).toBe(true);
+    // The check-in and after-break pages know from the lookup too.
+    expect(readyToBook(labReducer(initialLabState('checkin'), { type: 'confirm-code', code: 'MP2670FF90A5F2', returning: true, lookup: found([1, 1]) }), requires)).toBe(true);
+    expect(resumeStep({ ...initialLabState('book'), codeConfirmed: true })).toBe('book');
+    expect(resumeStep({ ...initialLabState('story', 'pre'), codeConfirmed: true })).toBe('mystory');
+  });
+
+  it('a story keeps its answers until sent, then starts afresh; "not sure" is an answer, clearing one removes it', () => {
+    let s = labReducer(initialLabState('checkin'), { type: 'story-field', patch: { promptId: 'pull', title: 'Bus', story: 'Reached for my phone.' } });
+    s = labReducer(s, { type: 'story-answer', id: 'pull', value: { a: 0.5, b: 0.3, c: 0.2 } });
+    s = labReducer(s, { type: 'story-answer', id: 'hard', value: 'na' });
+    s = labReducer(s, { type: 'story-answer', id: 'where', value: 'home' });
+    s = labReducer(s, { type: 'story-answer', id: 'where', value: null });
+    expect(s.story.answers).toEqual({ pull: { a: 0.5, b: 0.3, c: 0.2 }, hard: 'na' });
+    s = labReducer(s, { type: 'story-sent', storyId: 'st1', title: 'Bus', receivedAt: '2026-10-20T10:00:00.000Z' });
+    expect(s.story).toEqual({ promptId: '', title: '', story: '', answers: {}, sent: [{ storyId: 'st1', title: 'Bus', receivedAt: '2026-10-20T10:00:00.000Z' }] });
+    expect(labReducer(s, { type: 'checkin-new' }).story.sent).toEqual([]);
+  });
+
+  it('booking contact details survive a change of participant on the device, the rest does not', () => {
+    let s = labReducer(initialLabState('book'), { type: 'booking-contact', patch: { email: 'jane@example.com', mobile: '07700 900123', smsReminders: true } });
+    s = labReducer(s, { type: 'confirm-code', code: 'MP2670FF90A5F2', returning: true, lookup: found([1, 1]) });
+    s = labReducer(s, { type: 'confirm-code', code: 'MP33CE17327FF2', returning: true, lookup: found([1, 1]) });
+    expect(s.booking.email).toBe('jane@example.com');
+    expect(s.booking.options).toBeNull();
   });
 });

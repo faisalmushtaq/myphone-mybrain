@@ -65,7 +65,8 @@ export function LabCheckIn() {
           return;
         }
       }
-      dispatch({ type: 'go-to', stepId: 'done' });
+      // MyStory follows each check-in (optional, with a skip), then the summary.
+      dispatch({ type: 'go-to', stepId: 'mystory' });
     } catch (error) {
       setErrors([{ field: 'lab-files', message: describeError(error, 'your check-in') }]);
     } finally {

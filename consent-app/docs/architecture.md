@@ -39,7 +39,7 @@ such as `MP2670FF90A5F2`; the recipe is in `docs/participant-id.md` and
 platform builds the same ID from the same four details, so the questionnaires,
 the laboratory data and the donations meet without a name.
 
-The study has three pages, each its own short flow in the same bundle,
+The study has three pages for its data, plus a booking page and MyStory's own page (below), each its own short flow in the same bundle,
 chosen by the mount's `data-flow` (or `?flow=` on the plain test page), and
 every send is filed under the phase of the page it came from, so nobody is
 asked whether their files are from before or after the break:
@@ -54,8 +54,18 @@ asked whether their files are from before or after the break:
   person their progress and book one follow-up) → clean → send → done.
 * **`/break/check-in/`** (`checkin`, phase `mid`), during the break: the
   code → a few questions (`labCheckInForm`) with an optional screenshot of
-  the week's screen time → thanks, with MyStory offered (`labMyStory`; not
-  live yet, so the card says so). Repeatable each week.
+  the week's screen time → MyStory (optional, "Skip this time") → thanks.
+  Repeatable each week.
+* **`/break/book/`** (`book`): the two lab visits. The first opens once the
+  screenshots and one app's cleaned data from before the break have arrived;
+  the second once the first is booked, in the days that end the break.
+  Times by day, an email address (and a UK mobile for texts), then a
+  confirmation with a calendar file; change or cancel up to 24 hours before.
+  The same step opens from the other pages' summaries. See `docs/booking.md`.
+* **`/break/mystory/?phase=pre|mid|post`** (`story`): MyStory on its own,
+  for a personal link. Each phase has its own prompts and signifiers
+  (`src/lab/mystory.ts`); any phase can use another survey (MySelf) instead,
+  linked or embedded with the participant ID. See `docs/mystory.md`.
 * **`/break/after/`** (`after`, phase `post`), when the break ends: the code
   → a reminder of what was agreed and how to withdraw (consent is not taken
   again) → screenshots → guide → clean → send → done.
@@ -81,6 +91,21 @@ opens at the next thing still to do. Progress emails link to
 bar. Progress saved on a device belongs to the ID it was confirmed for:
 confirming a different ID there starts afresh, and progress saved under the
 old code scheme is dropped.
+
+Everything after the first visit runs by itself: confirmations, reminders
+the day before and on the day, weekly check-in nudges, a nudge to book the
+second visit and the end-of-break message go by email and, for people who
+asked, by text (`labMessages`, every 15 minutes; `docs/booking.md`). Every
+page opens ready for one participant from a personal link
+(`?code=MP…`), which the emails, the texts and the staff page use.
+
+A third bundle, `tools-app.js`, serves two pages that are not for
+participants: the research team's staff page (`/break/staff/`, behind a staff
+key: lab times, bookings, participants and their links, the schools' upload
+passwords) and each school's upload page for its UPN lists
+(`/schools/upload/?school=<slug>`, behind a password per school; see
+`docs/school-uploads.md`). Their code is in `src/tools/` and
+`firebase/functions/src/staff.ts`, `schoolUpload.ts`.
 
 Cleaning happens entirely on the device (`src/lab/cleaner.ts`, ported from
 the lab team's single-file tool and unit-tested with Vitest): the ZIP is read

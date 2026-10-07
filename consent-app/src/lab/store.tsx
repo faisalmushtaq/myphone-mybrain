@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useReducer, type Dispatch, type ReactNode } from 'react';
 import { getApi } from '../api';
+import type { LabPhase } from '../api/types';
 import type { LabFlow, LabState } from './model';
 import { loadLabState, saveLabState, startingLabState } from './persistence';
 import { labReducer, type LabAction } from './reducer';
@@ -11,8 +12,8 @@ interface LabStore {
 
 const LabContext = createContext<LabStore | null>(null);
 
-export function LabStoreProvider({ flow, children }: { flow: LabFlow; children: ReactNode }) {
-  const [state, dispatch] = useReducer(labReducer, flow, (f: LabFlow) => loadLabState(f) ?? startingLabState(f));
+export function LabStoreProvider({ flow, phase, children }: { flow: LabFlow; phase?: LabPhase; children: ReactNode }) {
+  const [state, dispatch] = useReducer(labReducer, flow, (f: LabFlow) => loadLabState(f, phase) ?? startingLabState(f, phase));
 
   useEffect(() => saveLabState(state), [state]);
 

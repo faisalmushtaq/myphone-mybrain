@@ -29,6 +29,8 @@ import { blank, isObj, ISO_DATE, limits, str, UUID, validateClient, validateResp
  *   labCheckIns/             one record per mid-break check-in: the answers, by code
  *   labReminders/{code}      a participant's email, when they asked to be sent their
  *                            progress and one follow-up (identifying)
+ *   labBookings/, labSlots/, labContacts/{code}   the lab visits (booking.ts)
+ *   labStories/              MyStory, by phase (story.ts)
  *   Storage lab/{code}/      the files themselves; labquarantine/{uid}/ uploads
  *                            waiting to be checked; signatures/lab/{code}/
  */
@@ -386,7 +388,7 @@ export async function inspectCleanedArchive(buffer: Buffer): Promise<ArchiveFact
 
 /* ── Functions ─────────────────────────────────────────────────────────── */
 
-function toIso(value: unknown): string | null {
+export function toIso(value: unknown): string | null {
   if (value instanceof Timestamp) return value.toDate().toISOString();
   if (value instanceof Date) return value.toISOString();
   return typeof value === 'string' ? value : null;
@@ -397,7 +399,8 @@ function safeName(name: string): string {
   return name.replace(/[\\/]/g, '_').replace(/[^\x20-\x7e -￿]/g, '').slice(0, 120) || 'file';
 }
 
-async function rateLimitLookups(db: Firestore, uid: string, what = 'lab-lookup', limit = LOOKUPS_PER_HOUR): Promise<void> {
+/** Counts one attempt by this session at something (an hour's window); refuses once the limit is passed. */
+export async function rateLimitLookups(db: Firestore, uid: string, what = 'lab-lookup', limit = LOOKUPS_PER_HOUR): Promise<void> {
   const ref = db.collection('ratelimits').doc(`${what}-${uid}`);
   const allowed = await db.runTransaction(async (tx) => {
     const current = (await tx.get(ref)).data();
@@ -483,10 +486,10 @@ export const lookupLabParticipant = onCall(callOptions, async (request) => {
   const db = getFirestore();
   await rateLimitLookups(db, uid);
   const participant = (await db.collection('labParticipants').doc(code).get()).data();
-  if (!participant?.consentId) return { exists: false, consentedAt: null, archives: 0, screenshots: 0, phases: emptyPhases(), checkIns: 0, lastCheckInAt: null, platformsNotUsed: [] };
+  if (!participant?.consentId) return { exists: false, consentedAt: null, archives: 0, screenshots: 0, phases: emptyPhases(), checkIns: 0, lastCheckInAt: null, platformsNotUsed: [], visits: [], stories: { pre: 0, mid: 0, post: 0 } };
   // Which apps' data has arrived in each phase, so the pages can tick them off on any device.
   const phases = phaseCountsOf(participant);
-  const donations = await db.collection('labDonations').where('participantCode', '==', code).get();
+  const [donations, bookings] = await Promise.all([db.collection('labDonations').where('participantCode', '==', code).get(), db.collection('labBookings').where('participantCode', '==', code).get()]);
   const seen: Record<Phase, Set<string>> = { pre: new Set(), mid: new Set(), post: new Set() };
   for (const d of donations.docs) {
     const phase = (d.data().phase ?? 'pre') as Phase;
@@ -501,6 +504,13 @@ export const lookupLabParticipant = onCall(callOptions, async (request) => {
     checkIns: Number(participant.checkInCount ?? 0),
     lastCheckInAt: toIso(participant.lastCheckInAt),
     platformsNotUsed: notUsedOf(participant),
+    // The lab visits standing (booked or done), so each page can say what comes next.
+    visits: bookings.docs
+      .map((d) => d.data())
+      .filter((b) => b.status === 'booked' || b.status === 'attended')
+      .map((b) => ({ visit: b.visit === 2 ? 2 : 1, start: toIso(b.start), status: String(b.status) }))
+      .sort((a, b) => String(a.start).localeCompare(String(b.start))),
+    stories: { pre: Number(participant.storyCounts?.pre ?? 0), mid: Number(participant.storyCounts?.mid ?? 0), post: Number(participant.storyCounts?.post ?? 0) },
   };
 });
 

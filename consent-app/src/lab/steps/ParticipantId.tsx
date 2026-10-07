@@ -33,6 +33,18 @@ const words = {
     lead: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, from after the break. First, enter the details you gave at the start so we can find your record. There is nothing to sign.',
     leadKnown: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, from after the break. There is nothing to sign.',
   },
+  book: {
+    kicker: 'Your lab visits',
+    title: 'Book your lab visits.',
+    lead: 'Choose a time for each of your two lab visits, or change one you booked. First, enter the details you gave at the start so we can find your record.',
+    leadKnown: 'Choose a time for each of your two lab visits, or change one you booked.',
+  },
+  story: {
+    kicker: 'MyStory',
+    title: 'MyStory.',
+    lead: 'A few minutes, in your own words. First, enter the details you gave at the start so your story joins up with the rest of your data, labelled with your participant ID, not your name.',
+    leadKnown: 'A few minutes, in your own words. Your story is labelled with your participant ID, not your name.',
+  },
 } as const;
 
 /**

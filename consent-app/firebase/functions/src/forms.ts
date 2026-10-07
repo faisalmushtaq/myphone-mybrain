@@ -128,3 +128,75 @@ export const cleaner = {
   platformOf: Object.fromEntries(generated.cleaner.categories.map((c) => [c.id, c.platform as string])) as Record<string, string>,
   titleOf: Object.fromEntries(generated.cleaner.categories.map((c) => [c.id, c.title as string])) as Record<string, string>,
 };
+
+/* ── Lab visits, MyStory and the schools (src/lab/booking.ts, src/lab/mystory.ts, _data/schools.json) ── */
+
+/** The study's pages, by flow: for the personal links in emails, texts and the staff page. */
+export const labPagePaths: Record<string, string> = generated.labPages;
+
+export interface BookingReminder {
+  id: string;
+  hoursBefore: number;
+  email: boolean;
+  sms: boolean;
+}
+
+/** Booking the two lab visits: what must have arrived first, the windows, the reminders. */
+export const labBooking = {
+  requires: { screenshots: generated.labBooking.requires.screenshots as number, archives: generated.labBooking.requires.archives as number },
+  visits: generated.labBooking.visits.map((v) => ({ visit: v.visit as 1 | 2, title: v.title as string, summary: v.summary as string, what: v.what as string })),
+  minutes: generated.labBooking.minutes as number,
+  visit2AfterDays: { min: generated.labBooking.visit2AfterDays.min as number, max: generated.labBooking.visit2AfterDays.max as number },
+  minNoticeHours: generated.labBooking.minNoticeHours as number,
+  changeUntilHours: generated.labBooking.changeUntilHours as number,
+  horizonDays: generated.labBooking.horizonDays as number,
+  timeZone: generated.labBooking.timeZone as string,
+  location: { name: generated.labBooking.location.name as string, address: generated.labBooking.location.address as string, directions: generated.labBooking.location.directions as string },
+  bring: generated.labBooking.bring as readonly string[],
+  reminders: generated.labBooking.reminders.map((r): BookingReminder => ({ id: r.id, hoursBefore: r.hoursBefore, email: r.email, sms: r.sms })),
+  textHours: { from: generated.labBooking.textHours.from as number, to: generated.labBooking.textHours.to as number },
+  textOnBooking: generated.labBooking.textOnBooking as boolean,
+};
+
+export interface JourneyMessage {
+  id: string;
+  day: number;
+  unless?: 'visit-2-booked' | 'checked-in';
+}
+
+/** The messages during the break, by day after the first visit. */
+export const labJourneyMessages: JourneyMessage[] = generated.labJourneyMessages.map((m) => ({ id: m.id, day: m.day, ...('unless' in m ? { unless: m.unless as JourneyMessage['unless'] } : {}) }));
+export const labJourneyHour: number = generated.labJourneyHour;
+
+export type StoryPhase = 'pre' | 'mid' | 'post';
+export type StorySignifier =
+  | { id: string; type: 'triad'; question: string; corners: string[] }
+  | { id: string; type: 'dyad'; question: string; left: string; right: string }
+  | { id: string; type: 'choice'; question: string; options: { value: string; label: string }[]; multiple?: boolean };
+
+export interface StoryStructure {
+  id: string;
+  version: string;
+  phase: StoryPhase;
+  title: string;
+  prompts: { id: string; text: string }[];
+  signifiers: StorySignifier[];
+}
+
+/** MyStory's structure for each phase of the break study: what the server accepts and the export describes. */
+export const storyStructures = generated.storyStructures as unknown as Record<StoryPhase, StoryStructure>;
+export const storyLimits = { titleMax: generated.storyLimits.titleMax as number, storyMin: generated.storyLimits.storyMin as number, storyMax: generated.storyLimits.storyMax as number };
+
+export type StoryMode = { mode: 'native' } | { mode: 'link' | 'embed'; name: string; url: string; idParam: string; phaseParam: string | null };
+/** How each phase's MyStory is collected: on this site, or by another survey given the participant ID. */
+export const storyModes = generated.storyModes as unknown as Record<StoryPhase, StoryMode>;
+
+export interface SchoolEntry {
+  slug: string;
+  id: string;
+  name: string;
+  area: string;
+}
+
+/** The participating schools (_data/schools.json): the school upload page and the UPN matching use these. */
+export const schools: SchoolEntry[] = generated.schools.map((x) => ({ slug: x.slug, id: x.id, name: x.name, area: x.area }));

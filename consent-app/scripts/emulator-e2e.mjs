@@ -328,6 +328,33 @@ async function inner() {
     rawZip.file('user_data_tiktok.json', JSON.stringify(tiktokExport));
     const tiktokZip = await rawZip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 
+    // The team adds lab times through the staff service: two for first visits, two for the end of the break.
+    const refused = async (fn, code) => {
+      try {
+        await fn();
+        return false;
+      } catch (e) {
+        return String(e.code).includes(code);
+      }
+    };
+    const staffCall = (data) => httpsCallable(fns, 'staffApi')({ staffKey: 'emulator-staff-key', ...data });
+    ok('the staff service refuses a wrong key', await refused(() => httpsCallable(fns, 'staffApi')({ staffKey: 'a guess', action: 'overview' }), 'permission-denied'));
+    const DAY = 86400000;
+    const nineUtc = (days) => {
+      const d = new Date(Date.now() + days * DAY);
+      d.setUTCHours(9, 0, 0, 0);
+      return d;
+    };
+    const v1a = nineUtc(10);
+    const v2a = nineUtc(41);
+    const added = await staffCall({ action: 'add-slots', slots: [[v1a, null], [nineUtc(11), null], [v2a, 2], [nineUtc(42), 2]].map(([d, visit]) => ({ start: d.toISOString(), minutes: 120, capacity: 1, visit })) });
+    ok('the team adds four lab times', added.data?.created === 4, JSON.stringify(added.data));
+    const twice = await staffCall({ action: 'add-slots', slots: [{ start: v1a.toISOString(), minutes: 120, capacity: 1 }] });
+    ok('adding the same time twice is skipped, not doubled', twice.data?.created === 0 && twice.data?.skipped === 1, JSON.stringify(twice.data));
+    ok('a past time is refused', await refused(() => staffCall({ action: 'add-slots', slots: [{ start: new Date(Date.now() - DAY).toISOString() }] }), 'invalid-argument'));
+    ok('nobody can book without consent on file', await stranger(() => httpsCallable(fns, 'bookLabSlot')({ participantCode: 'MP33CE17327FF2', slotId: 'abc', visit: 1, email: 'x@example.com', mobile: null, smsReminders: false, replaces: null, client })));
+    const icsStamp = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
     await page.goto(`http://127.0.0.1:${PORT}/lab.html`);
     await page.getByRole('heading', { name: /Take part in the social media break study/ }).waitFor();
     await snap('welcome');
@@ -436,6 +463,36 @@ async function inner() {
     await snap('done-apps');
     ok('no browser errors in the lab flow', errors.length === 0, errors.join(' | '));
 
+    // With the data in, the summary offers the first lab visit: book it, with an email and text reminders.
+    ok('the summary offers the first lab visit once the data is in', (await page.getByRole('heading', { name: 'Book your first lab visit.' }).count()) === 1);
+    await page.getByRole('button', { name: 'Choose a time' }).click();
+    await page.getByRole('heading', { name: 'Book your first lab visit.', level: 1 }).waitFor({ timeout: 30000 });
+    await page.locator('.mpmb-slots__time').first().waitFor({ timeout: 30000 });
+    ok('only the times for a first visit are offered, by day', (await page.locator('.mpmb-slots__time').count()) === 2 && (await page.locator('.mpmb-slots__day').count()) === 2);
+    await page.getByRole('button', { name: 'Book this time' }).click();
+    await page.getByText('Choose a time.').first().waitFor();
+    ok('booking without a time or an email is held back with reasons', (await page.getByText(/Enter your email address, so we can send you the details/).count()) >= 1);
+    await page.locator('.mpmb-slots__time').first().click();
+    await page.getByLabel('Email address').fill('jane@example.com');
+    await page.getByLabel(/Mobile number/).fill('07700 900123');
+    ok('giving a mobile number ticks text reminders', await page.locator('#lab-sms').isChecked());
+    await snap('book');
+    await page.getByRole('button', { name: 'Book this time' }).click();
+    await page.getByText(/Booked: your first lab visit/).first().waitFor({ timeout: 30000 });
+    await snap('booked');
+    const bookingsOf = async () => (await db.collection('labBookings').where('participantCode', '==', 'MP2670FF90A5F2').get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+    const v1 = (await bookingsOf()).find((b) => b.visit === 1);
+    ok('the first visit is booked against the code in the chosen time, with the confirmation recorded (no email or texts set up here)', v1?.status === 'booked' && v1?.start?.toDate().getTime() === v1a.getTime() && v1?.confirmation?.email === 'not-configured' && v1?.confirmation?.sms === 'not-configured' && v1?.sequence === 0 && v1?.bookedBy === 'participant', JSON.stringify(v1?.confirmation));
+    const contact = (await db.collection('labContacts').doc('MP2670FF90A5F2').get()).data();
+    ok('the contact details are kept apart from the research data, the mobile in international form', contact?.email === 'jane@example.com' && contact?.mobile === '+447700900123' && contact?.smsReminders === true);
+    ok('the time counts the booking', (await db.collection('labSlots').doc(v1.slotId).get()).data()?.booked === 1);
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Add to my calendar' }).click()]);
+    const icsText = fs.readFileSync(await download.path(), 'utf8');
+    ok('the calendar file is an iCalendar event for the visit, in UTC', download.suggestedFilename() === 'myphone-mybrain-visit-1.ics' && icsText.startsWith('BEGIN:VCALENDAR') && icsText.includes('UID:MP2670FF90A5F2-visit-1@myphonemybrain.com') && icsText.includes(`DTSTART:${icsStamp(v1a)}`) && icsText.includes('\r\n'));
+    await page.getByRole('button', { name: 'Back to my summary' }).click();
+    await page.getByText(/The details are in your email/).waitFor();
+    ok('the summary shows the booked visit', (await page.locator('.mpmb-visits-card').innerText()).includes('First lab visit'));
+
     const labP2 = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data();
     ok('participant row counts one screenshot and one archive over two sends', labP2?.archiveCount === 1 && labP2?.screenshotCount === 1 && labP2?.donationIds?.length === 2);
     ok('the send settles the reminder, so no follow-up will go', Boolean((await db.collection('labReminders').doc('MP2670FF90A5F2').get()).data()?.completedAt));
@@ -500,9 +557,40 @@ async function inner() {
     await page.waitForFunction(() => document.querySelectorAll('.mpmb-shots li').length === 1);
     await snap('checkin');
     await page.getByRole('button', { name: 'Send my check-in' }).click();
-    await page.getByRole('heading', { name: /Your check-in has been sent/ }).waitFor({ timeout: 90000 });
-    ok('after the check-in, MyStory is mentioned as coming soon, and support is signposted', (await page.getByText(/Coming soon: MyStory/).count()) === 1 && (await page.getByText(/Samaritans/).count()) === 1);
+    await page.getByRole('heading', { name: 'Your story this week', level: 1 }).waitFor({ timeout: 90000 });
+    ok('MyStory follows the check-in, with the mid-break questions and a way to skip it', (await page.getByText(/wanted to open one of your apps/).count()) === 1 && (await page.getByRole('button', { name: 'Skip this time' }).count()) === 1);
+    await page.getByRole('button', { name: 'Send my story' }).click();
+    await page.getByText('Choose one of the questions to answer.').first().waitFor();
+    await page.locator('#story-prompt-pull').check();
+    await page.locator('#story-text').fill('I reached for TikTok on the bus out of habit, then read my book instead.');
+    await page.locator('#story-title').fill('The bus');
+    await page.locator('#story-pull').scrollIntoViewIfNeeded();
+    const pad = await page.locator('#story-pull svg').boundingBox();
+    await page.mouse.click(pad.x + pad.width * 0.5, pad.y + pad.height * 0.22);
+    await page.locator('#story-hard').focus();
+    for (let i = 0; i < 20; i += 1) await page.keyboard.press('ArrowRight');
+    await page.locator('#story-where-travelling').check();
+    await page.locator('fieldset.mpmb-dyad', { has: page.locator('#story-afterwards') }).getByLabel(/Not sure/).check();
+    await snap('mystory');
+    await page.getByRole('button', { name: 'Send my story' }).click();
+    await page.getByRole('heading', { name: 'Thank you. Your story is in.' }).waitFor({ timeout: 30000 });
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: /Your check-in has been sent/ }).waitFor({ timeout: 30000 });
+    ok('after the check-in, support is signposted and the second visit is offered', (await page.getByText(/Samaritans/).count()) === 1 && (await page.getByRole('heading', { name: 'Book your second lab visit.' }).count()) === 1);
     await snap('checkin-done');
+    const midStory = (await db.collection('labStories').where('participantCode', '==', 'MP2670FF90A5F2').get()).docs.map((d) => d.data())[0];
+    const pull = midStory?.answers?.pull;
+    ok('the story is filed under the code and phase: prompt, title, the triangle leaning to Habit, the slider moved, a "not sure", a choice', midStory?.phase === 'mid' && midStory?.structureId === 'mystory-mid' && midStory?.promptId === 'pull' && midStory?.title === 'The bus' && midStory?.source === 'checkin' && typeof midStory?.checkInId === 'string' && pull && pull.a > 0.5 && Math.abs(pull.a + pull.b + pull.c - 1) < 0.002 && midStory?.answers?.hard === 70 && midStory?.answers?.afterwards === 'na' && midStory?.answers?.where === 'travelling' && !('feeling' in (midStory?.answers ?? {})), JSON.stringify(midStory?.answers));
+    // The second visit, in the days that end the break, booked from the summary; the contact details are remembered.
+    await page.getByRole('button', { name: 'Choose a time' }).click();
+    await page.getByRole('heading', { name: 'Book your second lab visit.', level: 1 }).waitFor({ timeout: 30000 });
+    await page.locator('.mpmb-slots__time').first().waitFor({ timeout: 30000 });
+    ok('the second visit is offered only in the days that end the break, with the email remembered', (await page.locator('.mpmb-slots__time').count()) === 2 && (await page.getByLabel('Email address').inputValue()) === 'jane@example.com');
+    await page.locator('.mpmb-slots__time').first().click();
+    await page.getByRole('button', { name: 'Book this time' }).click();
+    await page.getByText(/Booked: your second lab visit/).first().waitFor({ timeout: 30000 });
+    const v2 = (await bookingsOf()).find((b) => b.visit === 2 && b.status === 'booked');
+    ok('the second visit is booked at the end of the break', v2?.start?.toDate().getTime() === v2a.getTime() && v2?.sequence === 0);
     const labP3 = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data();
     const checkIn = labP3?.checkInIds?.length ? (await db.collection('labCheckIns').doc(labP3.checkInIds[0]).get()).data() : null;
     ok('the check-in is filed under the code with its answers', checkIn?.participantCode === 'MP2670FF90A5F2' && checkIn?.number === 1 && checkIn?.answers?.week === '2' && checkIn?.answers?.['apps-used'] === 'once-or-twice' && checkIn?.answers?.notes === 'Brick held up fine.' && checkIn?.formVersion === '0.1-draft' && labP3?.checkInCount === 1, JSON.stringify(checkIn?.answers));
@@ -578,6 +666,125 @@ async function inner() {
     const checkinTsv = await readExport('social-media-break/donations/phenotype/checkin.tsv');
     ok('the check-ins are exported, one row each, with their mid-break screenshot in ses-mid and the after-break files in ses-post', checkinTsv.startsWith('participant_id\tsession_id\tcheck_in_id\tcheck_in_n\tsubmitted_at\tform_version\tweek\tapps_used\tmood\tdifficulty\tmissed\tnotes\n') && checkinTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && checkinTsv.includes('\t2\tonce-or-twice\t4\t3\t2\tBrick held up fine.') && labManifest.counts?.labCheckIns === 1 && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-mid/sub-MP2670FF90A5F2_ses-mid_run-01_screenshot.png') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-post/sub-MP2670FF90A5F2_ses-post_run-01_screenshot.png') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-post/sub-MP2670FF90A5F2_ses-post_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sub-MP2670FF90A5F2/ses-post/beh/sub-MP2670FF90A5F2_ses-post_task-tiktokwatch_run-02_beh.tsv'), JSON.stringify(labManifest.counts));
     ok('the lab study has its own folder: a pre session with unpacked tables under donations/, names only under identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 2 && labManifest.counts?.labScreenshots === 3 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-MP2670FF90A5F2\t') && labParticipantsTsv.includes('\ttiktok\tinstagram; youtube\tandroid\t') && labParticipantsTsv.includes('pre; mid; post') && !labParticipantsTsv.includes('Jane') && !labParticipantsTsv.includes('LS2 9JT') && !labParticipantsTsv.includes('2005-03-14') && labParticipantsTsv.includes('\t21\t') && labConsentsTsv.includes('Jane Smith') && labConsentsTsv.includes('LS2 9JT') && labConsentsTsv.includes('2005-03-14') && remindersTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\tjane@example.com') && !labParticipantsTsv.includes('jane@') && labBeh.includes('archive\tsourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-02_archive.zip') && watchTsv === 'time\tlink\n2026-09-01 20:11:03\thttps://www.tiktokv.com/share/video/1/\n2026-09-01 20:12:40\thttps://www.tiktokv.com/share/video/2/\n' && !labManifest.files?.some((n) => n.includes('tiktoksearch')) && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-01_screenshot.png') && labManifest.files?.some((n) => n.startsWith('social-media-break/identifying/signatures/sub-MP2670FF90A5F2/')) && !labManifest.files?.some((n) => n.startsWith('schools/') && n.includes('MP2670FF90A5F2')), JSON.stringify(labManifest.counts));
+
+    // The booking page on its own: both visits; move the second, then cancel it.
+    await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=book`);
+    await page.getByRole('heading', { name: 'Book your lab visits.', level: 1 }).waitFor();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: 'Your lab visits.', level: 1 }).waitFor({ timeout: 30000 });
+    await page.locator('.mpmb-visit').nth(1).waitFor({ timeout: 30000 });
+    ok('the booking page lists both visits, and the first cannot be moved while the second is booked around it', (await page.locator('.mpmb-visit').count()) === 2 && (await page.locator('.mpmb-visit').first().getByRole('button', { name: 'Change the time' }).count()) === 0);
+    await snap('book-page');
+    await page.locator('.mpmb-visit').nth(1).getByRole('button', { name: 'Change the time' }).click();
+    await page.getByRole('heading', { name: 'Change your second lab visit.', level: 1 }).waitFor();
+    ok('moving offers the other times in the window, not the current one', (await page.locator('.mpmb-slots__time').count()) === 1);
+    await page.locator('.mpmb-slots__time').first().click();
+    await page.getByRole('button', { name: 'Move my visit to this time' }).click();
+    await page.getByText(/Moved: your second lab visit/).first().waitFor({ timeout: 30000 });
+    const afterMove = await bookingsOf();
+    const moved = afterMove.find((b) => b.visit === 2 && b.status === 'booked');
+    const old2 = afterMove.find((b) => b.id === v2.id);
+    ok('a move cancels the old booking, points it at the new one, and frees its time', old2?.status === 'cancelled' && old2?.replacedBy === moved?.id && moved?.replaces === v2.id && moved?.sequence === 1 && (await db.collection('labSlots').doc(v2.slotId).get()).data()?.booked === 0);
+    await page.locator('.mpmb-visit').nth(1).getByRole('button', { name: 'Cancel this visit' }).click();
+    await page.getByRole('button', { name: 'Yes, cancel it' }).click();
+    await page.getByText(/is cancelled\. We have emailed you to confirm/).first().waitFor({ timeout: 30000 });
+    const cancelled2 = (await bookingsOf()).find((b) => b.id === moved.id);
+    ok('cancelling frees the time and records who cancelled', cancelled2?.status === 'cancelled' && cancelled2?.cancelledBy === 'participant' && (await db.collection('labSlots').doc(moved.slotId).get()).data()?.booked === 0 && cancelled2?.cancellation?.email === 'not-configured');
+    ok('with the second visit cancelled, its times are offered again', (await page.getByRole('heading', { name: 'Book your second lab visit.', level: 1 }).count()) === 1);
+
+    // The quarter-hourly messages, run at chosen moments: the reminders the day before, then the first weekly check-in.
+    const runMessages = async (at) => (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/labMessagesNow?at=${encodeURIComponent(at.toISOString())}`, { method: 'POST' })).json();
+    await runMessages(new Date(v1a.getTime() - 23 * 3600000));
+    const reminded = (await db.collection('labBookings').doc(v1.id).get()).data()?.reminders ?? {};
+    ok('the day before the visit, the email and text reminders go (recorded as not-configured here), and the same-day text waits', reminded['day-before-email']?.outcome === 'not-configured' && reminded['day-before-sms']?.outcome === 'not-configured' && !reminded['same-day-sms'], JSON.stringify(reminded));
+    await runMessages(new Date(v1a.getTime() - 23 * 3600000 + 60000));
+    ok('a second run sends nothing twice', Object.keys((await db.collection('labBookings').doc(v1.id).get()).data()?.reminders ?? {}).length === 2);
+    await runMessages(new Date(v1a.getTime() + 7 * DAY + 30 * 60000));
+    const sentMessages = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data()?.messages ?? {};
+    ok('a week into the break the check-in reminder goes; an overdue one is skipped, never sent late', sentMessages['check-in-1']?.email === 'not-configured' && sentMessages['check-in-1']?.sms === 'not-configured' && sentMessages['book-visit-2']?.skipped === 'skip-stale', JSON.stringify(sentMessages));
+
+    // MyStory on its own page, from a personal link, for after the break.
+    await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=post&code=MP2670FF90A5F2`);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: 'Looking back on your break', level: 1 }).waitFor({ timeout: 30000 });
+    await page.locator('#story-prompt-mattered').check();
+    await page.locator('#story-text').fill('The quiet evenings mattered most: I slept better and talked to my flatmates.');
+    await page.locator('#story-title').fill('Quiet evenings');
+    await page.getByRole('button', { name: 'Send my story' }).click();
+    await page.getByRole('heading', { name: 'Thank you. Your story is in.' }).waitFor({ timeout: 30000 });
+    const postStory = (await db.collection('labStories').where('phase', '==', 'post').get()).docs.map((d) => d.data())[0];
+    ok('a story from MyStory’s own page is filed under the after-break phase', postStory?.participantCode === 'MP2670FF90A5F2' && postStory?.source === 'story' && postStory?.structureId === 'mystory-post' && postStory?.title === 'Quiet evenings');
+    ok('no browser errors on the booking and MyStory pages', errors.length === 0, errors.join(' | '));
+
+    // The staff page: the key, the times, a participant's links, a school's password.
+    const toolsSnap = (name) => page.screenshot({ path: path.join(root, 'dist-emulator', `tools-${name}.png`), fullPage: true });
+    await page.goto(`http://127.0.0.1:${PORT}/tools.html?tool=staff`);
+    await page.getByLabel('Staff key').fill('wrong');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByText('That staff key is not right.').waitFor({ timeout: 30000 });
+    await page.getByLabel('Staff key').fill('emulator-staff-key');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('heading', { name: 'Add lab times' }).waitFor({ timeout: 30000 });
+    ok('the staff page lists the times with their bookings', (await page.locator('.mpmb-tools__row').count()) === 4 && (await page.getByText(/1 of 1 booked/).count()) === 1);
+    await toolsSnap('times');
+    await page.getByRole('button', { name: 'Bookings', exact: true }).click();
+    await page.getByRole('heading', { name: 'Bookings from a fortnight ago' }).waitFor();
+    ok('the bookings show who is coming, their contact details and what was sent', (await page.locator('.mpmb-tools__row').count()) === 1 && (await page.locator('.mpmb-tools__row').first().innerText()).includes('jane@example.com') && (await page.locator('.mpmb-tools__row').first().innerText()).includes('day-before email: not set up'));
+    await page.getByRole('button', { name: 'Participants', exact: true }).click();
+    await page.getByLabel('Find a participant').fill('mp2670ff90a5f2');
+    await page.getByRole('button', { name: 'Show', exact: true }).click();
+    await page.getByRole('heading', { name: 'Personal links' }).waitFor({ timeout: 30000 });
+    const detailText = await page.locator('.mpmb-tools__detail').innerText();
+    ok('a participant’s detail shows the messages sent and every personal link', detailText.includes('https://myphonemybrain.com/break/check-in/?code=MP2670FF90A5F2') && detailText.includes('https://myphonemybrain.com/break/mystory/?phase=post&code=MP2670FF90A5F2') && detailText.includes('check-in-1: email not-configured'));
+    await toolsSnap('participant');
+    await page.getByRole('button', { name: 'School uploads', exact: true }).click();
+    const duaCard = page.locator('section.mpmb-card', { has: page.getByRole('heading', { name: 'Dixons Unity Academy' }) });
+    await duaCard.getByRole('button', { name: 'Make a password' }).click();
+    await duaCard.locator('.mpmb-tools__password').waitFor({ timeout: 30000 });
+    const schoolPassword = (await duaCard.locator('.mpmb-tools__password').innerText()).trim();
+    const access = (await db.collection('schoolUploadAccess').doc('dua').get()).data();
+    ok('a school password is made, shown once, and only its hash is kept', /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(schoolPassword) && access?.active === true && typeof access?.hash === 'string' && !JSON.stringify(access).includes(schoolPassword.replace(/-/g, '')));
+    await toolsSnap('schools');
+
+    // The school's upload page: the password, the file read back for checking, then sent.
+    await page.goto(`http://127.0.0.1:${PORT}/tools.html?tool=school-upload&school=dua`);
+    await page.getByLabel('Password').fill('AAAA-BBBB-CCCC');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText(/That password is not right/).waitFor({ timeout: 30000 });
+    await page.getByLabel('Password').fill(schoolPassword.toLowerCase().replace(/-/g, ' '));
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: 'Send the class lists.' }).waitFor({ timeout: 30000 });
+    const classCsv = 'UPN,Legal Forename,Legal Surname,DOB,Year,Reg Group,SEN\nA123456789012,Kai,Patel,14/03/2013,8,8K,No\nA123456789013,Ola,Nowak,01/02/2013,8,8K,No\nB12,Bad,Row,01/02/2013,8,8K,No\n';
+    await page.locator('#school-file').setInputFiles({ name: 'Year 8.csv', mimeType: 'text/csv', buffer: Buffer.from(classCsv) });
+    await page.getByRole('heading', { name: 'Check what we read' }).waitFor({ timeout: 30000 });
+    const checkText = await page.locator('.mpmb-card').innerText();
+    ok('the school sees what was read before sending: pupils, usable UPNs, columns not read, a row to check', checkText.includes('3 pupils') && checkText.includes('2 with a UPN we can use') && checkText.includes('Not read: SEN') && checkText.includes('1 row to check'), checkText.slice(0, 300));
+    await toolsSnap('school-check');
+    await page.getByLabel('Your name').fill('Ms Teacher');
+    await page.getByLabel(/Your role/).fill('Head of Year 8');
+    await page.getByLabel('Your school email').fill('teacher@dua.example.org');
+    await page.getByRole('button', { name: 'Send to the research team' }).click();
+    await page.getByRole('heading', { name: 'Thank you. We have your file.' }).waitFor({ timeout: 30000 });
+    const upload = (await db.collection('schoolUploads').get()).docs.map((d) => d.data())[0];
+    ok('the upload is recorded: the school, what was read, who sent it', upload?.schoolId === 'DUA' && upload?.pupilCount === 3 && upload?.validUpns === 2 && upload?.uploader?.name === 'Ms Teacher' && upload?.pupils?.[0]?.upn === 'A123456789012' && upload?.pupils?.[0]?.dateOfBirth === '2013-03-14' && upload?.notified?.team === 'not-configured');
+    const [schoolFiles] = await bucket.getFiles({ prefix: 'schoolupns/dua/' });
+    ok('the file is kept exactly as sent, in its own place', schoolFiles.length === 1 && (await schoolFiles[0].download())[0].toString('utf8') === classCsv);
+    ok('a client cannot read the school files or the password hashes', (await denied(() => getBytes(ref(webStorage, schoolFiles[0].name)))) && (await denied(() => getDoc(doc(webDb, 'schoolUploadAccess', 'dua')))));
+    // The wrong staff key and the wrong school password, tried on purpose above, are refused by the server (403, 400): the only errors allowed.
+    ok('no browser errors on the staff and school pages beyond the two refusals tried on purpose', errors.length === 2 && errors.some((e) => /status of 403/.test(e)) && errors.some((e) => /status of 400/.test(e)), errors.join(' | '));
+
+    // Everything new reaches the export: MyStory by phase, the visits and contacts, the school's file and the UPN match.
+    const finalManifest = await (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' })).json();
+    const midTsv = await readExport('social-media-break/donations/phenotype/mystory_mid.tsv');
+    const postTsv = await readExport('social-media-break/donations/phenotype/mystory_post.tsv');
+    const visitsTsv = await readExport('social-media-break/identifying/visits.tsv');
+    const contactsTsv = await readExport('social-media-break/identifying/contacts.tsv');
+    const labPeople = await readExport('social-media-break/donations/participants.tsv');
+    const matchesTsv = await readExport('schools/upn-uploads/upn_matches.tsv');
+    const unmatchedTsv = await readExport('schools/upn-uploads/upn_unmatched.tsv');
+    ok('MyStory is exported by phase, the triangle over three columns', midTsv.split('\n')[0].includes('pull_habit\tpull_people_and_connection\tpull_boredom_or_stress\tpull_status') && midTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && midTsv.includes('\tThe bus\t') && midTsv.includes('\tnot-sure\t') && postTsv.includes('\tQuiet evenings\t') && finalManifest.counts?.labStories === 2, JSON.stringify(finalManifest.counts));
+    ok('the visits and contact details are exported to identifying/, the visit date to the research table', visitsTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\t1\t') && visitsTsv.includes('\tmoved\t') && visitsTsv.includes('day-before-email:not-configured') && contactsTsv.includes('jane@example.com\t+447700900123\ttrue') && labPeople.includes(`\t${v1a.toISOString().slice(0, 10)}\tbooked\t`) && !labPeople.includes('jane@'));
+    ok('the school’s file and what was read sit in schools/upn-uploads/, and the UPN is matched to the family’s record', finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/\d{4}-\d{2}-\d{2}_[0-9a-f]{8}_Year 8\.csv$/.test(n)) && finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/.*_pupils\.tsv$/.test(n)) && matchesTsv.includes('\tKai\tPatel\t2013-03-14\t') && matchesTsv.includes('\tA123456789012\tname-and-dob\t') && unmatchedTsv.includes('DUA\tA123456789013\tOla\tNowak') && finalManifest.counts?.upnUploads === 1 && finalManifest.counts?.upnMatched === 1, JSON.stringify(finalManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {
       await uploadBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`), buffer, { contentType: 'image/png' });

@@ -1,4 +1,4 @@
-import type { LabConsentRecord, LabLookupResult, LabPhase, LabPhone, LabPlatform } from '../api/types';
+import type { DeliveryOutcome, LabBooking, LabBookingOptions, LabConsentRecord, LabLookupResult, LabPhase, LabPhone, LabPlatform, StoryAnswer } from '../api/types';
 import type { SendStage, SessionInfo, SignatureRecord, StatementRecord } from '../model/types';
 import type { CategoryId } from './cleaner';
 import type { CodeParts } from './config';
@@ -10,14 +10,14 @@ import type { CodeParts } from './config';
  * arrive), so progress lives in localStorage keyed by the participant ID.
  */
 
-export type LabStepId = 'welcome' | 'participant-id' | 'information' | 'consent' | 'reminder' | 'checkin' | 'guide' | 'screenshots' | 'clean' | 'send' | 'done';
+export type LabStepId = 'welcome' | 'participant-id' | 'information' | 'consent' | 'reminder' | 'checkin' | 'guide' | 'screenshots' | 'clean' | 'send' | 'done' | 'book' | 'mystory';
 
 /**
  * Which of the study's three pages this is (see labPages in config.ts). Each
  * page is its own short flow, keeps its own progress on the device, and
  * files what it sends under its own phase.
  */
-export type LabFlow = 'baseline' | 'checkin' | 'after';
+export type LabFlow = 'baseline' | 'checkin' | 'after' | 'book' | 'story';
 
 /**
  * The steps of each page. Before the break: the screenshots go first, sent
@@ -28,11 +28,14 @@ export type LabFlow = 'baseline' | 'checkin' | 'after';
  */
 export const labFlowSteps: Record<LabFlow, LabStepId[]> = {
   baseline: ['welcome', 'participant-id', 'information', 'consent', 'screenshots', 'guide', 'clean', 'send', 'done'],
-  checkin: ['participant-id', 'checkin', 'done'],
+  checkin: ['participant-id', 'checkin', 'mystory', 'done'],
   after: ['participant-id', 'reminder', 'screenshots', 'guide', 'clean', 'send', 'done'],
+  book: ['participant-id', 'book'],
+  story: ['participant-id', 'mystory'],
 };
 
-export const labFlowPhase: Record<LabFlow, LabPhase> = { baseline: 'pre', checkin: 'mid', after: 'post' };
+/** The phase each page files under; MyStory's own page takes it from its link (?phase=). */
+export const labFlowPhase: Record<LabFlow, LabPhase> = { baseline: 'pre', checkin: 'mid', after: 'post', book: 'pre', story: 'mid' };
 
 export const labStepTitles: Record<LabStepId, string> = {
   welcome: 'Social media break study',
@@ -46,6 +49,8 @@ export const labStepTitles: Record<LabStepId, string> = {
   clean: 'Choose what to share',
   send: 'Send your data',
   done: 'Thank you',
+  book: 'Your lab visits',
+  mystory: 'MyStory',
 };
 
 export type FileStatus = 'ready' | 'uploading' | 'uploaded' | 'sent' | 'failed';
@@ -102,6 +107,27 @@ export interface LabCheckInState {
   count: number;
 }
 
+/** Booking the lab visits: what the server said, and the contact details for the confirmation and reminders. */
+export interface LabBookingState {
+  options: LabBookingOptions | null;
+  /** Remembered on this device for next time (persistence.ts). */
+  email: string;
+  mobile: string;
+  smsReminders: boolean;
+  /** The booking just made or moved on this page, to confirm it. */
+  confirmed: { booking: LabBooking; kind: 'booked' | 'moved'; email: DeliveryOutcome; sms: DeliveryOutcome } | null;
+}
+
+/** A MyStory being written, and the ones sent from this page. */
+export interface LabStoryState {
+  promptId: string;
+  title: string;
+  story: string;
+  /** Each signifier's answer; 'na' for "not sure". */
+  answers: Record<string, StoryAnswer>;
+  sent: { storyId: string; title: string; receivedAt: string }[];
+}
+
 export interface LabState {
   /** The page this state belongs to; fixed when the page loads. */
   flow: LabFlow;
@@ -128,6 +154,8 @@ export interface LabState {
   submission: LabSubmission;
   archives: LabArchive[];
   screenshots: LabScreenshot[];
+  booking: LabBookingState;
+  story: LabStoryState;
   session: SessionInfo | null;
   restored: boolean;
 }

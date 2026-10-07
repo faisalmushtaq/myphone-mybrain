@@ -1,6 +1,6 @@
-import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { logger } from 'firebase-functions/v2';
 import nodemailer from 'nodemailer';
+import { readSecret } from './secrets.js';
 
 /**
  * Emails the team straight from the function over SMTP: Gmail with an app
@@ -12,7 +12,8 @@ import nodemailer from 'nodemailer';
  * environment (see .env.example and the deploy workflow). Until the secret
  * exists, messages are still stored, nobody is emailed, and the stored record
  * and the logs say so. Nothing is ever emailed to families; adult participants
- * in the social media break study can ask for a progress email (lab.ts).
+ * in the social media break study can ask for a progress email (lab.ts), and
+ * get their booking confirmations and reminders (booking.ts).
  */
 
 export interface MailSettings {
@@ -33,8 +34,17 @@ export interface TeamMessage {
   replyTo?: string;
 }
 
+export interface Attachment {
+  filename: string;
+  content: string;
+  contentType: string;
+}
+
 export interface Mail extends TeamMessage {
   to: string;
+  /** A copy, for example to the study's contact for every booking. */
+  cc?: string;
+  attachments?: Attachment[];
 }
 
 /** Reads the SMTP settings from the environment; null when no sending account or recipient is set. */
@@ -53,33 +63,15 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv = process.env): MailSetti
   };
 }
 
-const CACHE_FOR = 10 * 60_000;
-const RETRY_AFTER = 5 * 60_000;
-let cache: { password: string | null; at: number } | null = null;
-let client: SecretManagerServiceClient | null = null;
-
-/** The SMTP password from Secret Manager, cached; null while it is not there (or not readable) yet. */
+/** The SMTP password from Secret Manager (cached there); null while it is not there, or in the emulator. */
 async function password(secret: string): Promise<string | null> {
-  const now = Date.now();
-  if (cache && now - cache.at < (cache.password ? CACHE_FOR : RETRY_AFTER)) return cache.password;
-  const project = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
-  if (!project || process.env.FUNCTIONS_EMULATOR === 'true') {
-    cache = { password: null, at: now };
+  if (process.env.FUNCTIONS_EMULATOR === 'true') {
     logger.info('Mail: not sending from this environment');
     return null;
   }
-  try {
-    client ??= new SecretManagerServiceClient();
-    const [version] = await client.accessSecretVersion({ name: `projects/${project}/secrets/${secret}/versions/latest` });
-    const data = version.payload?.data;
-    const value = (typeof data === 'string' ? data : data ? Buffer.from(data).toString('utf8') : '').trim();
-    cache = { password: value || null, at: now };
-    if (!value) logger.warn('Mail: the SMTP password secret is empty, so nobody is emailed about new enquiries', { secret });
-  } catch (error) {
-    cache = { password: null, at: now };
-    logger.warn('Mail: no SMTP password available yet, so nobody is emailed about new enquiries. Run scripts/set-mail-password.sh.', { secret, error: String((error as Error).message ?? error) });
-  }
-  return cache.password;
+  const value = await readSecret(secret);
+  if (!value) logger.warn('Mail: no SMTP password available yet, so nobody is emailed. Run scripts/set-mail-password.sh.', { secret });
+  return value;
 }
 
 /** Emails the team. Never throws: the caller stores the record whatever happens here. */
@@ -109,7 +101,7 @@ export async function sendMail(message: Mail, settings: MailSettings | null = se
       greetingTimeout: 10_000,
       socketTimeout: 20_000,
     });
-    await transport.sendMail({ from: settings.from, to: message.to, replyTo: message.replyTo, subject: message.subject, text: message.text });
+    await transport.sendMail({ from: settings.from, to: message.to, cc: message.cc, replyTo: message.replyTo, subject: message.subject, text: message.text, attachments: message.attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })) });
     return 'sent';
   } catch (error) {
     logger.error('Mail: sending failed', { error: String((error as Error).message ?? error) });

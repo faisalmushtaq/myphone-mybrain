@@ -122,7 +122,7 @@ test('the lab dataset is labelled by participant ID, has one session per phase, 
     ],
   };
   const rows = labParticipantsTable(snap);
-  assert.deepEqual(rows[0], { participant_id: 'sub-MP2670FF90A5F2', consented_on: '2026-10-05', consent_version: '1.0', information_version: '1.0', consent_n: 1, age: 21, phases: ['pre', 'mid', 'post'], sends_n: 4, checkins_n: 1, archives_n: 1, screenshots_n: 3, platforms: ['tiktok'], platforms_not_used: ['instagram', 'youtube'], phone: 'iphone', first_send_at: '2026-10-05T10:00:00.000Z', last_send_at: '2026-11-10T10:00:00.000Z' });
+  assert.deepEqual(rows[0], { participant_id: 'sub-MP2670FF90A5F2', consented_on: '2026-10-05', consent_version: '1.0', information_version: '1.0', consent_n: 1, age: 21, phases: ['pre', 'mid', 'post'], sends_n: 4, checkins_n: 1, archives_n: 1, screenshots_n: 3, platforms: ['tiktok'], platforms_not_used: ['instagram', 'youtube'], phone: 'iphone', first_send_at: '2026-10-05T10:00:00.000Z', last_send_at: '2026-11-10T10:00:00.000Z', stories_n: 0, visit1_on: null, visit1_status: null, visit2_on: null, visit2_status: null });
   assert.equal(rows[1].sends_n, 0, 'consented but nothing sent yet');
   assert.ok(!JSON.stringify(rows).includes('Jane'));
   const sessions = labSessionsOf(snap);
@@ -166,7 +166,7 @@ test('the lab dataset is labelled by participant ID, has one session per phase, 
     ['lab/MP2670FF90A5F2/u4.jpg', 'social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-post/sub-MP2670FF90A5F2_ses-post_run-01_screenshot.jpg'],
     ['signatures/lab/MP2670FF90A5F2/c1.png', 'social-media-break/identifying/signatures/sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_consent-v1_signature.png'],
   ]);
-  assert.deepEqual(out.counts, { labParticipants: 2, labConsents: 2, labDonations: 4, labArchives: 1, labScreenshots: 3, labSignatures: 1, labCheckIns: 1 });
+  assert.deepEqual(out.counts, { labParticipants: 2, labConsents: 2, labDonations: 4, labArchives: 1, labScreenshots: 3, labSignatures: 1, labCheckIns: 1, labStories: 0, labBookings: 0 });
   const checkins = out.files.find((f) => f.path === 'social-media-break/donations/phenotype/checkin.tsv')!.body;
   assert.equal(checkins, 'participant_id\tsession_id\tcheck_in_id\tcheck_in_n\tsubmitted_at\tform_version\tweek\tapps_used\tmood\tdifficulty\tmissed\tnotes\nsub-MP2670FF90A5F2\tses-mid\tk1\t1\t2026-10-20T10:00:00.000Z\t0.1-draft\t2\tnever\t4\t3\t2\tBrick held up fine\n');
   const checkinDictionary = JSON.parse(out.files.find((f) => f.path === 'social-media-break/donations/phenotype/checkin.json')!.body);
@@ -208,4 +208,79 @@ test('a cleaned archive is unpacked into one BIDS behavioural table per kind of 
   const igOut = await buildArchiveTables(await ig.generateAsync({ type: 'nodebuffer' }), igTables.map((table) => ({ table, base: `y/${table.task}` })));
   assert.equal(igOut.find((f) => f.path === 'y/instagramreels.tsv')!.body, 'time\turl\n2025-10-01T06:26:40.000Z\thttps://www.instagram.com/reel/abc/\n');
   assert.equal(igOut.find((f) => f.path === 'y/instagramsearch.tsv')!.body, 'time\tsearch_term\n2025-10-01T07:00:00.000Z\tsleep tips\n');
+});
+
+test('MyStory: one table per phase, a triangle spread over its corners, every answer marked answered, not sure or left out', async () => {
+  const { labStoryColumns, labStoryDictionary, labStoryTable, labExport, visitColumns, labVisitsTable } = await import('./exportLab.js');
+  const stories = [
+    { id: 's2', data: { participantCode: 'MP2670FF90A5F2', phase: 'mid', structureVersion: '0.1-draft', promptId: 'pull', title: 'Bus', story: 'Reached for my phone on the bus.', answers: { pull: { a: 0.5, b: 0.25, c: 0.25 }, hard: 80, where: 'travelling', afterwards: 'na' }, source: 'checkin', checkInId: 'k1', receivedAt: '2026-10-20T10:05:00.000Z' } },
+    { id: 's1', data: { participantCode: 'MP2670FF90A5F2', phase: 'pre', structureVersion: '0.1-draft', promptId: 'evening', title: 'Evenings', story: 'Scrolling until late most nights.', answers: {}, source: 'story', receivedAt: '2026-10-06T10:05:00.000Z' } },
+  ];
+  const columns = labStoryColumns('mid');
+  assert.deepEqual(columns.slice(0, 11), ['participant_id', 'session_id', 'story_id', 'story_n', 'submitted_at', 'structure_version', 'source', 'check_in_id', 'prompt_id', 'title', 'story']);
+  assert.ok(columns.includes('pull_habit') && columns.includes('pull_people_and_connection') && columns.includes('pull_boredom_or_stress') && columns.includes('pull_status'));
+  const [row] = labStoryTable('mid', stories);
+  assert.equal(row.participant_id, 'sub-MP2670FF90A5F2');
+  assert.equal(row.session_id, 'ses-mid');
+  assert.equal(row.pull_habit, 0.5);
+  assert.equal(row.pull_status, 'answered');
+  assert.equal(row.hard, 80);
+  assert.equal(row.afterwards, null);
+  assert.equal(row.afterwards_status, 'not-sure');
+  assert.equal(row.feeling_status, 'skipped');
+  assert.equal(labStoryTable('pre', stories)[0].about_status, 'skipped');
+  const dictionary = labStoryDictionary('mid');
+  assert.match(String((dictionary.hard as { Description: string }).Description), /0 \(“Easy”\) to 100 \(“Very hard”\)/);
+  assert.equal((dictionary.prompt_id as { Levels: Record<string, string> }).Levels.pull, 'Tell us about a moment this week when you wanted to open one of your apps. What happened?');
+  const bookings = [
+    { id: 'b1', data: { participantCode: 'MP2670FF90A5F2', visit: 1, start: '2026-10-14T09:00:00.000Z', end: '2026-10-14T11:00:00.000Z', status: 'cancelled', cancelReason: 'moved', place: { name: 'Lab' }, reminders: {} } },
+    { id: 'b2', data: { participantCode: 'MP2670FF90A5F2', visit: 1, start: '2026-10-15T09:00:00.000Z', end: '2026-10-15T11:00:00.000Z', status: 'attended', replaces: 'b1', place: { name: 'Lab' }, confirmation: { email: 'sent', sms: 'not-wanted' }, reminders: { 'day-before-email': { outcome: 'sent' }, 'same-day-sms': { skipped: 'skip-booked-late' } } } },
+  ];
+  assert.deepEqual(visitColumns(bookings, 'MP2670FF90A5F2'), { visit1_on: '2026-10-15', visit1_status: 'attended', visit2_on: null, visit2_status: null });
+  const visits = labVisitsTable(bookings);
+  assert.equal(visits[1].confirmation_email, 'sent');
+  assert.deepEqual(visits[1].reminders, ['day-before-email:sent', 'same-day-sms:skip-booked-late']);
+  const out = labExport({ participants: [{ id: 'MP2670FF90A5F2', data: { consentId: 'c1' } }], consents: [], donations: [], reminders: [], checkIns: [], stories, bookings, contacts: [{ id: 'MP2670FF90A5F2', data: { email: 'jane@example.com', mobile: '+447700900123', smsReminders: true } }] }, '2026-10-21T12:00:00.000Z');
+  const paths = out.files.map((f) => f.path);
+  for (const p of ['phenotype/mystory_pre.tsv', 'phenotype/mystory_mid.json', 'phenotype/mystory_post.tsv']) assert.ok(paths.includes(`social-media-break/donations/${p}`), p);
+  assert.ok(out.files.find((f) => f.path === 'social-media-break/identifying/contacts.tsv')!.body.includes('jane@example.com\t+447700900123\ttrue'));
+  assert.ok(!out.files.filter((f) => f.path.startsWith('social-media-break/donations/')).some((f) => f.body.includes('jane@example.com') || f.body.includes('+447700900123')), 'contact details stay in identifying/');
+  assert.equal(out.counts.labStories, 2);
+  assert.equal(out.counts.labBookings, 1);
+});
+
+test('UPN lists: kept in their own folder, read rows beside each file, matched by school, names and date of birth', async () => {
+  const { matchPupil, nameKey, upnExport } = await import('./exportUpn.js');
+  assert.equal(nameKey("Zoë O'Brien-Smith"), 'ZOEOBRIENSMITH');
+  const pupils = [
+    { upn: 'A123456789012', firstName: 'Zoe', lastName: 'Obrien-Smith', dateOfBirth: '2012-03-14', yearGroup: '9', className: '9X', uploadId: 'u1', row: 2 },
+    { upn: 'A123456789013', firstName: 'Samuel', lastName: 'Lee', dateOfBirth: '2012-05-01', yearGroup: '9', className: '9Y', uploadId: 'u1', row: 3 },
+    { upn: 'A123456789014', firstName: 'Amir', lastName: 'Khan', dateOfBirth: '2012-01-01', yearGroup: '9', className: '9X', uploadId: 'u1', row: 4 },
+    { upn: 'A123456789015', firstName: 'Amir', lastName: 'Khan', dateOfBirth: '2012-02-02', yearGroup: '9', className: '9Y', uploadId: 'u1', row: 5 },
+  ];
+  assert.equal(matchPupil({ firstName: "Zoë", lastName: "O'Brien Smith", dateOfBirth: '2012-03-14' }, pupils).level, 'name-and-dob');
+  assert.equal(matchPupil({ firstName: 'Sam', lastName: 'Lee', dateOfBirth: '2012-05-01' }, pupils).level, 'surname-and-dob');
+  assert.equal(matchPupil({ firstName: 'Samuel', lastName: 'Lee', dateOfBirth: '2012-05-02' }, pupils).level, 'name-only');
+  assert.deepEqual(matchPupil({ firstName: 'Amir', lastName: 'Khan', dateOfBirth: '2012-03-03' }, pupils), { level: 'ambiguous', pupil: null, candidates: 2 });
+  assert.equal(matchPupil({ firstName: 'Nobody', lastName: 'Here', dateOfBirth: '2012-03-03' }, pupils).level, 'none');
+  const uploads = [
+    { id: 'aaaaaaaa-1111-2222-3333-444444444444', data: { schoolId: 'DUA', schoolSlug: 'dua', schoolName: 'Dixons Unity Academy', fileName: 'Year 9.csv', path: 'schoolupns/dua/aaaaaaaa-1111-2222-3333-444444444444/Year 9.csv', receivedAt: '2026-10-07T09:00:00.000Z', pupilCount: 2, validUpns: 2, problems: [], uploader: { name: 'Ms T', role: 'Head of Year', email: 't@school.org.uk' }, pupils: pupils.slice(0, 2) } },
+  ];
+  const participants = [
+    { id: 'p1', data: { kind: 'consent', schoolId: 'DUA', firstName: 'Zoë', lastName: "O'Brien-Smith", dateOfBirth: '2012-03-14', yearGroup: '9' } },
+    { id: 'p2', data: { kind: 'declined', schoolId: 'DUA', firstName: 'Kit', lastName: 'Jones', dateOfBirth: '2012-04-04' } },
+    { id: 'p3', data: { kind: 'consent', schoolId: 'GSAL', firstName: 'Ann', lastName: 'Other', dateOfBirth: '2012-04-04' } },
+  ];
+  const out = upnExport(uploads, participants, new Map([['p1', 'sub-00001'], ['p3', 'sub-00002']]));
+  const paths = out.files.map((f) => f.path);
+  assert.ok(paths.includes('schools/upn-uploads/README.md') && paths.includes('schools/upn-uploads/uploads.tsv') && paths.includes('schools/upn-uploads/dua/2026-10-07_aaaaaaaa_pupils.tsv') && paths.includes('schools/upn-uploads/upn_matches.tsv') && paths.includes('schools/upn-uploads/upn_unmatched.tsv'));
+  assert.deepEqual(Array.from(out.copies.entries()), [['schoolupns/dua/aaaaaaaa-1111-2222-3333-444444444444/Year 9.csv', 'schools/upn-uploads/dua/2026-10-07_aaaaaaaa_Year 9.csv']]);
+  const matches = out.files.find((f) => f.path === 'schools/upn-uploads/upn_matches.tsv')!.body.split('\n');
+  assert.ok(matches[1].startsWith('sub-00001\tp1\tconsent\tDUA\tZoë\tO\'Brien-Smith\t2012-03-14\t9\tA123456789012\tname-and-dob'), matches[1]);
+  assert.ok(matches[2].startsWith('n/a\tp2\tdeclined\tDUA\tKit\tJones\t2012-04-04\tn/a\tn/a\tnone'), matches[2]);
+  assert.equal(matches.length, 4, 'a school with no list is not matched');
+  const unmatched = out.files.find((f) => f.path === 'schools/upn-uploads/upn_unmatched.tsv')!.body;
+  assert.ok(unmatched.includes('DUA\tA123456789013\tSamuel\tLee'));
+  assert.ok(!unmatched.includes('A123456789012'));
+  assert.deepEqual(out.counts, { upnUploads: 1, upnPupils: 2, upnMatched: 1 });
 });

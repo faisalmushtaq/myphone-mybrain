@@ -10,7 +10,10 @@ name: Deploy Firebase backend
 # environment: MPMB_VISION (true/false), MPMB_ENFORCE_APP_CHECK (true/false),
 # and for the emails to the team about website enquiries MPMB_SMTP_USER,
 # MPMB_MAIL_TO, MPMB_SMTP_HOST, MPMB_SMTP_PORT (the password itself is stored
-# in Secret Manager by consent-app/firebase/scripts/set-mail-password.sh).
+# in Secret Manager by consent-app/firebase/scripts/set-mail-password.sh), and
+# for text reminders MPMB_SMS_FROM, the sender (the Twilio credentials are
+# stored by set-sms-credentials.sh). The staff page's key is stored by
+# set-staff-key.sh.
 on:
   push:
     branches: [main]
@@ -71,6 +74,7 @@ jobs:
             echo "MPMB_MAIL_FROM_NAME=MyPhone/MyBrain"
             echo "MPMB_SMTP_SECRET=mpmb-smtp-password"
             echo "MPMB_EXPORT_BUCKET=${{ vars.MPMB_EXPORT_BUCKET || 'myphone-mybrain-exports' }}"
+            echo "MPMB_SMS_FROM=${{ vars.MPMB_SMS_FROM || '' }}"
           } > consent-app/firebase/functions/.env
 
       - uses: google-github-actions/auth@v2
@@ -93,7 +97,7 @@ jobs:
       - name: Keep the callables reachable from the website
         if: ${{ inputs.target != 'rules only' }}
         run: |
-          for fn in submitconsent submitdonation enquiry submitlabconsent lookuplabparticipant submitlabdonation requestlabreminder submitlabcheckin updatelabplatforms; do
+          for fn in submitconsent submitdonation enquiry submitlabconsent lookuplabparticipant submitlabdonation requestlabreminder submitlabcheckin updatelabplatforms labbookingoptions booklabslot cancellabbooking submitlabstory schoolupload staffapi; do
             gcloud run services add-iam-policy-binding "$fn" --region="$REGION" --member=allUsers --role=roles/run.invoker --project="$PROJECT_ID" --quiet >/dev/null
           done
 
@@ -111,7 +115,7 @@ jobs:
       - name: Check the functions answer
         if: ${{ inputs.target != 'rules only' }}
         run: |
-          for fn in submitConsent submitDonation enquiry submitLabConsent lookupLabParticipant submitLabDonation requestLabReminder submitLabCheckIn updateLabPlatforms; do
+          for fn in submitConsent submitDonation enquiry submitLabConsent lookupLabParticipant submitLabDonation requestLabReminder submitLabCheckIn updateLabPlatforms labBookingOptions bookLabSlot cancelLabBooking submitLabStory schoolUpload staffApi; do
             code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "https://$REGION-$PROJECT_ID.cloudfunctions.net/$fn" -H 'Content-Type: application/json' -H 'Origin: https://myphonemybrain.com' -d '{}')
             echo "$fn → http $code"
             case "$code" in 400|401) ;; *) echo "unexpected status for $fn"; exit 1 ;; esac

@@ -60,16 +60,17 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
 
     <div class="participant-next-step">
       <h3>Ready to take part?</h3>
-      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube and Instagram data. Downloads can take a few days to arrive, so start before your first lab visit. We can email you a link that brings you back to the right page, on any device; or just come back and enter the same name, date of birth and postcode.</p>
+      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube and Instagram data. Downloads can take a few days to arrive. Once your data is in, you choose a time for your first lab visit on this site, and get a confirmation with a calendar file and reminders. We can email you a link that brings you back to the right page, on any device; or just come back and enter the same name, date of birth and postcode.</p>
       <a class="btn btn-primary" href="{{ '/break/take-part/' | relative_url }}">Take part &nbsp;→</a>
       <a class="text-link" href="{{ '/break/take-part/?step=guide' | relative_url }}">Just show me how to download my data &nbsp;→</a>
     </div>
 
     <h3 class="participant-later-heading">Already taking part?</h3>
+    <p class="participant-later-visits">Your lab visits: <a class="text-link" href="{{ '/break/book/' | relative_url }}">book, change or add them to your calendar &nbsp;→</a></p>
     <div class="participant-info-grid">
       <div class="info-panel">
         <h3>During your break</h3>
-        <p>Once a week, a quick check-in of about two minutes: a few questions about how it is going, and a screenshot of your screen time if you can. Soon you will also be able to tell MyStory, a short typed conversation, about your week in your own words. You just enter the same name, date of birth and postcode as at the start.</p>
+        <p>Once a week, a quick check-in of about two minutes: a few questions about how it is going, and a screenshot of your screen time if you can. Then, if you like, MyStory: a moment from your week in your own words, and a few quick questions about it. We email (or text) you a link each week, or just enter the same name, date of birth and postcode as at the start.</p>
         <a class="text-link" href="{{ '/break/check-in/' | relative_url }}">Mid-break check-in &nbsp;→</a>
       </div>
       <div class="info-panel info-panel-alt">
@@ -82,7 +83,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
     <div class="info-panel break-data-panel">
       <h3>Your data in this study</h3>
       <ul class="info-checklist">
-        <li><strong>What is collected:</strong> your screen-time screenshots, the cleaned files from your apps, your check-in answers, and the record of your consent (with your name, signature, date of birth and postcode), plus your email address if you ask us to email you.</li>
+        <li><strong>What is collected:</strong> your screen-time screenshots, the cleaned files from your apps, your check-in answers and any MyStory stories, and the record of your consent (with your name, signature, date of birth and postcode), plus the email address and mobile number you give for your bookings and reminders.</li>
         <li><strong>How it is labelled:</strong> research data carry your participant ID, never your name. Your name and contact details are kept separately, for the study coordinators only.</li>
         <li><strong>Where it is kept:</strong> secure storage run for the University of Leeds, which is the data controller. Only the research team can see it.</li>
         <li><strong>Changing your mind:</strong> what you have sent is kept and used unless you ask to withdraw, which you can do up to one month after your final session. Email Miftah Faizah to ask.</li>

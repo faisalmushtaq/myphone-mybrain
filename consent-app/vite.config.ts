@@ -31,8 +31,9 @@ export default defineConfig(({ mode }) => {
       cssCodeSplit: false,
       rollupOptions: {
         // The standalone preview is a single inlined page of the family form; every other build
-        // also has the lab study's entry and the New Year break preview's.
-        input: standalone ? 'index.html' : { 'consent-app': 'index.html', 'lab-app': 'lab.html', 'newyear-app': 'newyear.html' },
+        // also has the lab study's entry, the New Year break preview's, and the tools (the staff
+        // page and the schools' upload page).
+        input: standalone ? 'index.html' : { 'consent-app': 'index.html', 'lab-app': 'lab.html', 'newyear-app': 'newyear.html', 'tools-app': 'tools.html' },
         output: {
           // The preview is one inlined file, so the lazily loaded PDF code must be inlined too.
           inlineDynamicImports: standalone,

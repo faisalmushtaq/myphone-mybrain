@@ -12,6 +12,7 @@ rules_version = '2';
 // lab/{participantCode}/...         the lab study's cleaned archives and screenshots
 // signatures/{participantId}/...    signature images from consent records
 // signatures/lab/{participantCode}/ the lab study's signature images
+// schoolupns/{school}/{uploadId}/   the UPN lists schools send (the function writes them)
 //   Only reachable through the Admin SDK and signed-in admin tooling.
 service firebase.storage {
   match /b/{bucket}/o {
@@ -60,6 +61,11 @@ service firebase.storage {
 
     match /signatures/lab/{participantCode}/{file} {
       allow read: if hasRole('coordinator') || hasRole('auditor');
+      allow write: if false;
+    }
+
+    match /schoolupns/{allPaths=**} {
+      allow read: if hasRole('coordinator');
       allow write: if false;
     }
 

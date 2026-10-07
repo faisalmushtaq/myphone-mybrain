@@ -81,6 +81,12 @@ The social media break study (adults; `src/lab/` in the app, `lab.ts` in the fun
 | `labDonations/{id}` | one document per send: the phone type chosen on the screenshots step, the phase of the page it came from (`pre` the first page, `mid` a check-in, with its `checkInId`, `post` the after-break page), and for each file its kind (`archive` or `screenshot`), Storage path, size, SHA-256; for archives the platforms, categories and row counts from the cleaner's manifest and the file names inside; for screenshots the dimensions and the same `quality` result as the family app's images. **No names.** | `researcher`, `coordinator` |
 | `labCheckIns/{id}` | one document per mid-break check-in: the code, which check-in it was for them (`number`), the form version and the answers by question id. **No names.** | `researcher`, `coordinator` |
 | `labReminders/{code}` | when a participant presses "I'll come back later" and asks for an email: the address, which page it is about (`phase`: `pre` or `post`), when the progress email went and whether it was sent, when the one follow-up is due and whether it went, and `completedAt` once files for that page arrive (which cancels the follow-up). Identifying. | `coordinator` |
+| `labSlots/{id}` | the lab times the team offers (staff page): start, end, places, how many are booked, open or closed, which visit (or either), an optional place | `coordinator` |
+| `labBookings/{id}` | one per booking: the code, visit (1 or 2), the time and place, status (`booked`, `attended`, `missed`, `cancelled`), who booked or cancelled it and why, the booking it replaces or was replaced by, the calendar sequence, the confirmation's outcome, and each reminder with its outcome (`docs/booking.md`) | `coordinator` |
+| `labContacts/{code}` | the email address and UK mobile given when booking, and whether texts are wanted. Identifying. | `coordinator` |
+| `labStories/{id}` | MyStory: the code, phase, structure and version, the prompt answered, title, story, each signifier's answer, the page it came from and the check-in it followed (`docs/mystory.md`). **No names**, though the story is free text. | `researcher`, `coordinator` |
+| `schoolUploads/{id}` | a school's UPN list as read: who sent it and when, the rows (UPN, names, date of birth, year group, class) and the rows to check (`docs/school-uploads.md`). Identifying. | `coordinator` |
+| `schoolUploadAccess/{slug}` | the hash of a school's upload password, when it was made, whether uploads are open | nobody (functions only) |
 
 Storage:
 
@@ -92,6 +98,7 @@ Storage:
 | `labquarantine/{uid}/{uploadId}` | the lab study's uploads (images up to 10 MB, ZIP archives up to 64 MB) while the page is open | the session that created them: create and delete only |
 | `lab/{code}/{uploadId}.zip|png|jpg` | accepted cleaned archives (kept exactly as sent) and screenshots (re-encoded without metadata) | `researcher`, `coordinator` |
 | `signatures/lab/{code}/{consentId}.png` | the lab study's drawn signatures | `coordinator`, `auditor` |
+| `schoolupns/{slug}/{uploadId}/<file>` | the UPN lists schools send, exactly as sent | `coordinator` |
 
 Identifying details and research data are in different collections and
 different Storage folders, joined only by `participantId`, so a researcher
@@ -236,7 +243,15 @@ Run it again any time; it skips what is already done.
     workflow. Until the password is stored, messages are kept in
     `enquiries/` with `notified: not-configured`. Nothing is ever emailed
     to families.
-11. **Staff access.** Give team members roles with the Admin SDK, for example
+11. **The break study's lab visits, texts and staff page.** Make the staff
+    key once, in Cloud Shell:
+    `bash consent-app/firebase/scripts/set-staff-key.sh <project-id>` (it
+    prints the key once), sign in at `/break/staff/` and add lab times. Text
+    reminders are optional: `set-sms-credentials.sh` stores the Twilio
+    credentials, and the repository variable `MPMB_SMS_FROM` names the
+    sender. See `docs/booking.md`; the schools' UPN uploads are in
+    `docs/school-uploads.md`.
+12. **Staff access to the database.** Give team members roles with the Admin SDK, for example
     `admin.auth().setCustomUserClaims(uid, { roles: ['coordinator'] })`, after
     they sign in to an admin tool with a University account (Google Workspace
     or Microsoft via Identity Platform). Nobody reads data as a plain console

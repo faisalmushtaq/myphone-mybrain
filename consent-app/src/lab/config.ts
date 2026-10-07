@@ -198,11 +198,13 @@ export const labStudy = {
 };
 
 /**
- * The three pages of the study, each its own short flow on the website, all
+ * The pages of the study, each its own short flow on the website, all
  * keyed by the participant ID:
  *   baseline  /break/take-part/  consent, then screenshots and app data before the break
  *   checkin   /break/check-in/   during the break: a few questions, optional screenshots, MyStory
  *   after     /break/after/      after the break: a reminder (no new consent), screenshots and app data
+ *   book      /break/book/       booking the two lab visits, once the data from before the break is in
+ *   story     /break/mystory/    MyStory on its own, for the phase in the link (?phase=pre, mid or post)
  * Each send is filed under the phase of the page it came from (pre, mid,
  * post), so nobody is asked whether their files are from before or after.
  */
@@ -210,6 +212,10 @@ export const labPages = {
   baseline: { path: '/break/take-part/', phase: 'pre', label: 'Before your break' },
   checkin: { path: '/break/check-in/', phase: 'mid', label: 'Mid-break check-in' },
   after: { path: '/break/after/', phase: 'post', label: 'After your break' },
+  /** Booking and changing the two lab visits (see booking.ts). */
+  book: { path: '/break/book/', phase: 'pre', label: 'Your lab visits' },
+  /** MyStory on its own, for any phase: /break/mystory/?phase=pre (see mystory.ts). */
+  story: { path: '/break/mystory/', phase: 'mid', label: 'MyStory' },
 } as const;
 
 export type LabCheckInQuestion =
@@ -312,19 +318,6 @@ export const labCheckInForm: { id: string; version: string; title: string; quest
       maxLength: 1000,
     },
   ],
-};
-
-/**
- * MyStory, the study's conversation tool: after a check-in, participants can
- * talk it through in their own words. Not live yet, so url is null and the
- * check-in page says it is coming. When it is, set url; the page then opens
- * it in a new tab with the participant ID added as the codeParam query
- * parameter, so the conversation is filed under the same code, never a name.
- */
-export const labMyStory: { name: string; url: string | null; codeParam: string } = {
-  name: 'MyStory',
-  url: null,
-  codeParam: 'code',
 };
 
 /**

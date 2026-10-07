@@ -1,11 +1,11 @@
-import type { LabConsentRecord, LabLookupResult, LabPhone, LabPlatform } from '../api/types';
+import type { LabBookingOptions, LabConsentRecord, LabLookupResult, LabPhase, LabPhone, LabPlatform, StoryAnswer } from '../api/types';
 import { todayIso } from '../lib/dates';
 import type { SessionInfo, SignatureRecord } from '../model/types';
 import { labConsentForm, labInformationVersion, labStudy, type CodeParts } from './config';
 
 /** The apps whose data the study takes, in the order they are listed. */
 export const labPlatforms: LabPlatform[] = [...labStudy.platforms];
-import { labFlowPhase, labFlowSteps, type LabArchive, type LabFlow, type LabScreenshot, type LabState, type LabStepId, type LabSubmission } from './model';
+import { labFlowPhase, labFlowSteps, type LabArchive, type LabBookingState, type LabFlow, type LabScreenshot, type LabState, type LabStepId, type LabStoryState, type LabSubmission } from './model';
 
 export type LabAction =
   | { type: 'go-to'; stepId: LabStepId }
@@ -35,6 +35,12 @@ export type LabAction =
   | { type: 'update-screenshot'; id: string; patch: Partial<LabScreenshot> }
   | { type: 'remove-screenshot'; id: string }
   | { type: 'files-sent'; ids: string[]; receivedAt: string; donationId: string | null }
+  | { type: 'booking-options'; options: LabBookingOptions }
+  | { type: 'booking-contact'; patch: Partial<Pick<LabBookingState, 'email' | 'mobile' | 'smsReminders'>> }
+  | { type: 'booking-confirmed'; confirmed: LabBookingState['confirmed'] }
+  | { type: 'story-field'; patch: Partial<Pick<LabStoryState, 'promptId' | 'title' | 'story'>> }
+  | { type: 'story-answer'; id: string; value: StoryAnswer | null }
+  | { type: 'story-sent'; storyId: string; title: string; receivedAt: string }
   | { type: 'session'; session: SessionInfo }
   | { type: 'restored'; state: LabState }
   | { type: 'reset' };
@@ -43,7 +49,9 @@ export function initialConsent(): LabConsentRecord {
   return { formId: labConsentForm.id, formVersion: labConsentForm.version, informationVersion: labInformationVersion.version, responses: {}, typedName: '', signature: null, confirmedDate: todayIso(), completedAt: null };
 }
 
-export function initialLabState(flow: LabFlow = 'baseline'): LabState {
+export const emptyStory = (): LabStoryState => ({ promptId: '', title: '', story: '', answers: {}, sent: [] });
+
+export function initialLabState(flow: LabFlow = 'baseline', phase: LabPhase = labFlowPhase[flow]): LabState {
   return {
     flow,
     stepId: labFlowSteps[flow][0],
@@ -55,7 +63,7 @@ export function initialLabState(flow: LabFlow = 'baseline'): LabState {
     returning: false,
     consent: initialConsent(),
     phone: null,
-    phase: labFlowPhase[flow],
+    phase,
     progress: null,
     checkIn: { answers: {}, checkInId: null, sentAt: null, count: 0 },
     app: null,
@@ -63,6 +71,8 @@ export function initialLabState(flow: LabFlow = 'baseline'): LabState {
     submission: { consentId: null, consentVersion: 0, consentSentAt: null, consentStage: 'idle', consentError: null, consentOnFile: false, donationStage: 'idle', donationError: null, donationIds: [], lastDonationAt: null, archivesSent: 0, screenshotsSent: 0 },
     archives: [],
     screenshots: [],
+    booking: { options: null, email: '', mobile: '', smsReminders: false, confirmed: null },
+    story: emptyStory(),
     session: null,
     restored: false,
   };
@@ -114,7 +124,15 @@ export function nextFilesStep(state: LabState): LabStepId {
 export function resumeStep(state: LabState): LabStepId {
   if (state.flow === 'checkin') return 'checkin';
   if (state.flow === 'after') return 'reminder';
+  if (state.flow === 'book') return 'book';
+  if (state.flow === 'story') return 'mystory';
   return nextFilesStep(state);
+}
+
+/** Whether the data the first visit needs has arrived (labBooking.requires), as far as this page knows. */
+export function readyToBook(state: LabState, requires: { screenshots: number; archives: number }): boolean {
+  const pre = state.progress?.phases?.pre ?? (state.phase === 'pre' ? phaseHave(state) : null);
+  return Boolean(pre && pre.screenshots >= requires.screenshots && pre.archives >= requires.archives);
 }
 
 export function labReducer(state: LabState, action: LabAction): LabState {
@@ -137,7 +155,7 @@ export function labReducer(state: LabState, action: LabAction): LabState {
       return { ...state, code: action.code, returning: action.returning, codeConfirmed: false };
     case 'confirm-code': {
       // A different person on this device: their consent, files and progress are not this one's.
-      const base = state.confirmedCode && state.confirmedCode !== action.code ? { ...initialLabState(state.flow), session: state.session, codeParts: state.codeParts, stepId: state.stepId } : state;
+      const base = state.confirmedCode && state.confirmedCode !== action.code ? { ...initialLabState(state.flow, state.phase), session: state.session, codeParts: state.codeParts, stepId: state.stepId, booking: { ...initialLabState(state.flow).booking, email: state.booking.email, mobile: state.booking.mobile, smsReminders: state.booking.smsReminders } } : state;
       const onFile = action.lookup.exists;
       // Someone signing up: their name, from the details they just gave, starts the consent's typed name.
       const typedName = base.consent.typedName || [base.codeParts.firstName.trim(), base.codeParts.lastName.trim()].filter(Boolean).join(' ');
@@ -181,7 +199,7 @@ export function labReducer(state: LabState, action: LabAction): LabState {
     case 'checkin-sent':
       return { ...state, checkIn: { ...state.checkIn, checkInId: action.checkInId, sentAt: action.receivedAt, count: action.count } };
     case 'checkin-new':
-      return { ...state, checkIn: { answers: {}, checkInId: null, sentAt: null, count: state.checkIn.count }, screenshots: [], stepId: 'checkin' };
+      return { ...state, checkIn: { answers: {}, checkInId: null, sentAt: null, count: state.checkIn.count }, screenshots: [], story: emptyStory(), stepId: 'checkin' };
     case 'app':
       return { ...state, app: action.app };
     case 'not-used':
@@ -241,12 +259,28 @@ export function labReducer(state: LabState, action: LabAction): LabState {
         },
       };
     }
+    case 'booking-options':
+      return { ...state, booking: { ...state.booking, options: action.options } };
+    case 'booking-contact':
+      return { ...state, booking: { ...state.booking, ...action.patch } };
+    case 'booking-confirmed':
+      return { ...state, booking: { ...state.booking, confirmed: action.confirmed } };
+    case 'story-field':
+      return { ...state, story: { ...state.story, ...action.patch } };
+    case 'story-answer': {
+      const answers = { ...state.story.answers };
+      if (action.value === null) delete answers[action.id];
+      else answers[action.id] = action.value;
+      return { ...state, story: { ...state.story, answers } };
+    }
+    case 'story-sent':
+      return { ...state, story: { ...emptyStory(), sent: [...state.story.sent, { storyId: action.storyId, title: action.title, receivedAt: action.receivedAt }] } };
     case 'session':
       return { ...state, session: action.session };
     case 'restored':
       return { ...action.state, restored: true };
     case 'reset':
-      return initialLabState(state.flow);
+      return initialLabState(state.flow, state.phase);
     default:
       return state;
   }

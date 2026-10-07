@@ -4,6 +4,7 @@ import { logger } from 'firebase-functions/v2';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { labExport } from './exportLab.js';
+import { upnExport } from './exportUpn.js';
 import { parentQuestionsForm, questionWording, study } from './forms.js';
 
 /**
@@ -21,6 +22,8 @@ import { parentQuestionsForm, questionWording, study } from './forms.js';
  *                            consent and agreement records, signatures and
  *                            website enquiries, with the key from BIDS labels
  *                            to people. Never inside the BIDS dataset.
+ *   schools/upn-uploads/     the UPN lists schools send, matched to the families'
+ *                            records (exportUpn.ts)
  *   social-media-break/      the adult laboratory study, same shape:
  *                            donations/ holds the donated archives and
  *                            screenshots, identifying/ the consent records
@@ -519,8 +522,12 @@ identifying/   written by the website every hour: names, dates of birth,
                contact details, consent and agreement records, signatures,
                website enquiries, and the key from labels to people; for
                study coordinators only
+upn-uploads/   written by the website every hour: the UPN lists schools sent
+               through their upload page, each file as sent, what was read
+               from it, and the match between UPNs and the families' records;
+               for study coordinators only
 
-The two folders above are mirrors: anything added inside them is removed on
+The three folders above are mirrors: anything added inside them is removed on
 the next run. Keep the team's own datasets (for example the workshop EEG
 recordings) beside them in this folder, never inside them.
 `;
@@ -536,7 +543,9 @@ One folder per study, each with the same two subfolders:
 
 schools/              the young people's study (parents' consent, young
                       people's agreement, the parents' questions, screen-time
-                      screenshots), labelled sub-00001... in order of consent
+                      screenshots), labelled sub-00001... in order of consent;
+                      also upn-uploads/, the UPN lists schools send, matched
+                      to the families' records (study coordinators only)
 social-media-break/   the adult laboratory study: cleaned TikTok and YouTube
                       archives and screen-time screenshots donated by
                       participants, labelled by their participant ID
@@ -608,11 +617,14 @@ export async function runExport(): Promise<Manifest> {
   const exportedAt = new Date().toISOString();
 
   const load = async (name: string): Promise<Doc[]> => (await db.collection(name).get()).docs.map((d) => ({ id: d.id, data: plain(d.data()) as DocumentData }));
-  const [participants, consents, assents, submissions, enquiries, surveys, donations, labParticipants, labConsents, labDonations, labReminders, labCheckIns] = await Promise.all(['participants', 'consents', 'assents', 'submissions', 'enquiries', 'surveys', 'donations', 'labParticipants', 'labConsents', 'labDonations', 'labReminders', 'labCheckIns'].map(load));
+  const [participants, consents, assents, submissions, enquiries, surveys, donations, labParticipants, labConsents, labDonations, labReminders, labCheckIns, labStories, labBookings, labContacts, schoolUploads] = await Promise.all(
+    ['participants', 'consents', 'assents', 'submissions', 'enquiries', 'surveys', 'donations', 'labParticipants', 'labConsents', 'labDonations', 'labReminders', 'labCheckIns', 'labStories', 'labBookings', 'labContacts', 'schoolUploads'].map(load),
+  );
   const labels = await assignLabels(db, participants);
   const snap: Snapshot = { participants, consents, assents, submissions, enquiries, surveys, donations, labels };
   const sessions = sessionsOf(snap);
-  const lab = labExport({ participants: labParticipants, consents: labConsents, donations: labDonations, reminders: labReminders, checkIns: labCheckIns }, exportedAt);
+  const lab = labExport({ participants: labParticipants, consents: labConsents, donations: labDonations, reminders: labReminders, checkIns: labCheckIns, stories: labStories, bookings: labBookings, contacts: labContacts }, exportedAt);
+  const upn = upnExport(schoolUploads, participants, labels);
 
   const tsv = tsvFile;
   const json = jsonFile;
@@ -660,10 +672,10 @@ export async function runExport(): Promise<Manifest> {
     }
   }
 
-  files.push(...lab.files);
+  files.push(...lab.files, ...upn.files);
 
   // Binary files: copied once, deleted when their record goes.
-  const copies = new Map<string, string>(lab.copies);
+  const copies = new Map<string, string>([...lab.copies, ...upn.copies]);
   for (const s of sessions) s.images.forEach((img, i) => typeof img.path === 'string' && copies.set(img.path, `${B}/${screenshotFile(s, i + 1, img.path)}`));
   for (const kind of ['consent', 'assent'] as const) {
     for (const d of kind === 'consent' ? consents : assents) {
@@ -733,6 +745,7 @@ export async function runExport(): Promise<Manifest> {
       screenshots,
       signatures: Array.from(copies.values()).filter((t) => t.startsWith(`${I}/signatures/`)).length,
       ...lab.counts,
+      ...upn.counts,
       filesCopiedThisRun: copied,
       archivesUnpackedThisRun: built,
       filesMissing: missing,

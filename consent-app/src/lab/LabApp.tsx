@@ -1,8 +1,10 @@
 import { useEffect, type ComponentType } from 'react';
+import type { LabPhase } from '../api/types';
 import { labPages, PARTICIPANT_CODE, normaliseParticipantCode } from './config';
 import { labStepTitles, type LabFlow, type LabStepId } from './model';
 import { labJourney } from './reducer';
 import { LabStoreProvider, useLab } from './store';
+import { LabBook } from './steps/LabBook';
 import { LabCheckIn } from './steps/LabCheckIn';
 import { LabClean } from './steps/LabClean';
 import { LabConsent } from './steps/LabConsent';
@@ -12,6 +14,7 @@ import { LabInformation } from './steps/LabInformation';
 import { LabReminder } from './steps/LabReminder';
 import { LabScreenshots } from './steps/LabScreenshots';
 import { LabSend } from './steps/LabSend';
+import { LabStory } from './steps/LabStory';
 import { LabWelcome } from './steps/LabWelcome';
 import { ParticipantId } from './steps/ParticipantId';
 
@@ -27,6 +30,8 @@ const steps: Record<LabStepId, ComponentType> = {
   clean: LabClean,
   send: LabSend,
   done: LabDone,
+  book: LabBook,
+  mystory: LabStory,
 };
 
 function Frame() {
@@ -88,9 +93,9 @@ function Frame() {
   );
 }
 
-export function LabApp({ flow = 'baseline' }: { flow?: LabFlow }) {
+export function LabApp({ flow = 'baseline', phase }: { flow?: LabFlow; phase?: LabPhase }) {
   return (
-    <LabStoreProvider flow={flow}>
+    <LabStoreProvider flow={flow} phase={phase}>
       <Frame />
     </LabStoreProvider>
   );

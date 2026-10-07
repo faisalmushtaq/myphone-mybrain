@@ -1,7 +1,7 @@
 import type { DocumentData } from 'firebase-admin/firestore';
 import JSZip from 'jszip';
 import { jsonFile, jsonlFile, textFile, toTsv, tsvFile, type Doc, type OutFile, type Row } from './export.js';
-import { cleaner, labCheckInForm, labConsentForm, labStudy } from './forms.js';
+import { cleaner, labCheckInForm, labConsentForm, labStudy, storyStructures, type StoryPhase, type StorySignifier } from './forms.js';
 
 /**
  * The social media break study's part of the hourly export: its own folder,
@@ -20,12 +20,15 @@ import { cleaner, labCheckInForm, labConsentForm, labStudy } from './forms.js';
  *                                               check-ins during it, ses-post after),
  *                                               however many sends it took
  *   social-media-break/donations/phenotype/checkin.tsv   the check-in answers, one row each
+ *   social-media-break/donations/phenotype/mystory_<phase>.tsv   MyStory, one row per story,
+ *                                               one table per phase (each phase asks its own questions)
  *   social-media-break/donations/sub-<CODE>/ses-<phase>/beh/*_task-donation_beh.tsv
  *                                               the files of that phase, with what the
  *                                               cleaner's manifest says is inside, or
  *                                               the screenshot checks
  *   social-media-break/donations/sourcedata/sub-<CODE>/ses-<phase>/   the archives and screenshots
- *   social-media-break/identifying/consents.tsv, consent_statements.tsv, signatures/
+ *   social-media-break/identifying/consents.tsv, consent_statements.tsv, signatures/,
+ *                                               visits.tsv (the lab bookings), contacts.tsv
  */
 
 const BIDS_VERSION = '1.10.0';
@@ -47,6 +50,11 @@ export interface LabSnapshot {
   donations: Doc[];
   reminders: Doc[];
   checkIns: Doc[];
+  /** MyStory (story.ts). */
+  stories?: Doc[];
+  /** The lab visits and the contact details given when booking (booking.ts). */
+  bookings?: Doc[];
+  contacts?: Doc[];
 }
 
 /** Everything a participant sent in one phase of the study: one BIDS session, however many sends it took. */
@@ -141,9 +149,92 @@ export function labParticipantsTable(snap: LabSnapshot): Row[] {
         phone: d.phone ?? last(sends)?.data.phone,
         first_send_at: sends[0]?.data.receivedAt,
         last_send_at: last(sends)?.data.receivedAt,
+        stories_n: (snap.stories ?? []).filter((x) => x.data.participantCode === id).length,
+        ...visitColumns(snap.bookings ?? [], id),
       };
     })
     .sort(byLabel);
+}
+
+/** The standing lab visits for a participant (booked, attended or missed; the latest of each), for participants.tsv. */
+export function visitColumns(bookings: Doc[], code: string): Row {
+  const out: Row = {};
+  for (const visit of [1, 2]) {
+    const mine = bookings.filter((b) => b.data.participantCode === code && b.data.visit === visit && b.data.status !== 'cancelled').sort((a, b) => String(a.data.start ?? '').localeCompare(String(b.data.start ?? '')));
+    const latest = last(mine);
+    out[`visit${visit}_on`] = latest ? String(latest.data.start ?? '').slice(0, 10) || null : null;
+    out[`visit${visit}_status`] = latest?.data.status ?? null;
+  }
+  return out;
+}
+
+export const LAB_PARTICIPANT_COLUMNS = ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'age', 'phases', 'sends_n', 'checkins_n', 'archives_n', 'screenshots_n', 'platforms', 'platforms_not_used', 'phone', 'first_send_at', 'last_send_at', 'stories_n', 'visit1_on', 'visit1_status', 'visit2_on', 'visit2_status'];
+
+/* ── MyStory ───────────────────────────────────────────────────────────── */
+
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').split('_').slice(0, 4).join('_');
+const PHASE_SESSION: Record<StoryPhase, string> = { pre: 'ses-pre', mid: 'ses-mid', post: 'ses-post' };
+
+/** The columns one signifier becomes: a triangle gives one share per corner; every signifier says whether it was answered. */
+export function signifierColumns(sig: StorySignifier): string[] {
+  const id = sig.id.replace(/-/g, '_');
+  if (sig.type === 'triad') return [...sig.corners.map((c) => `${id}_${slug(c)}`), `${id}_status`];
+  return [id, `${id}_status`];
+}
+
+export function labStoryColumns(phase: StoryPhase): string[] {
+  return ['participant_id', 'session_id', 'story_id', 'story_n', 'submitted_at', 'structure_version', 'source', 'check_in_id', 'prompt_id', 'title', 'story', ...storyStructures[phase].signifiers.flatMap(signifierColumns)];
+}
+
+/** One phase's stories: one row each, in time order, the signifiers spread over their columns. */
+export function labStoryTable(phase: StoryPhase, stories: Doc[]): Row[] {
+  const structure = storyStructures[phase];
+  const mine = stories.filter((x) => x.data.phase === phase).sort((a, b) => String(a.data.participantCode).localeCompare(String(b.data.participantCode)) || String(a.data.receivedAt ?? '').localeCompare(String(b.data.receivedAt ?? '')));
+  const counts = new Map<string, number>();
+  return mine.map(({ id, data: d }) => {
+    const code = String(d.participantCode);
+    counts.set(code, (counts.get(code) ?? 0) + 1);
+    const row: Row = { participant_id: labLabel(code), session_id: PHASE_SESSION[phase], story_id: id, story_n: counts.get(code), submitted_at: d.receivedAt, structure_version: d.structureVersion, source: d.source, check_in_id: d.checkInId ?? null, prompt_id: d.promptId, title: d.title, story: d.story };
+    const answers = (d.answers ?? {}) as Record<string, unknown>;
+    for (const sig of structure.signifiers) {
+      const a = answers[sig.id];
+      const id2 = sig.id.replace(/-/g, '_');
+      row[`${id2}_status`] = a === undefined || a === null ? 'skipped' : a === 'na' ? 'not-sure' : 'answered';
+      const answered = a !== undefined && a !== null && a !== 'na';
+      if (sig.type === 'triad') {
+        const t = (answered ? a : {}) as Record<string, unknown>;
+        sig.corners.forEach((c, i) => (row[`${id2}_${slug(c)}`] = answered ? t[['a', 'b', 'c'][i]] : null));
+      } else row[id2] = answered ? (Array.isArray(a) ? a.join(',') : a) : null;
+    }
+    return row;
+  });
+}
+
+export function labStoryDictionary(phase: StoryPhase): Record<string, unknown> {
+  const s = storyStructures[phase];
+  const status = { Description: 'Whether this question was answered', Levels: { answered: 'Answered', 'not-sure': 'The participant chose “not sure” or “doesn’t apply”', skipped: 'Left out' } };
+  const out: Record<string, unknown> = {
+    MeasurementToolMetadata: { Description: `MyStory (${s.id} ${s.version}), ${s.title.toLowerCase()}: a short story in the participant’s own words about one of the prompts, then a few questions placing it, as in SenseMaker-style micro-narratives. Each phase of the study asks its own questions.` },
+    participant_id: { Description: 'sub- followed by the participant ID' },
+    session_id: { Description: `${PHASE_SESSION[phase]}: the phase of the study the story belongs to` },
+    story_id: { Description: 'Identifier of the story' },
+    story_n: { Description: 'Which story this was for the participant in this phase: 1 for the first' },
+    submitted_at: { Description: 'When the story was received (ISO 8601, UTC)' },
+    structure_version: { Description: `Version of ${s.id} answered` },
+    source: { Description: 'The page the story was told on', Levels: { baseline: 'The first page, before the break', checkin: 'After a mid-break check-in', after: 'The after-break page', story: 'MyStory’s own page, from a personal link', book: 'The booking page' } },
+    check_in_id: { Description: 'For a story told after a check-in: that check-in (phenotype/checkin.tsv)' },
+    prompt_id: { Description: 'The prompt the participant chose to answer', Levels: Object.fromEntries(s.prompts.map((p) => [p.id, p.text])) },
+    title: { Description: 'The title the participant gave the story' },
+    story: { Description: 'The story, as typed (free text; participants are asked to leave out names)' },
+  };
+  for (const sig of s.signifiers) {
+    const id = sig.id.replace(/-/g, '_');
+    if (sig.type === 'triad') sig.corners.forEach((c, i) => (out[`${id}_${slug(c)}`] = { Description: `${sig.question} Share given to “${c}” (corner ${i + 1} of the triangle): the three shares add up to 1`, Units: 'proportion' }));
+    else if (sig.type === 'dyad') out[id] = { Description: `${sig.question} A slider from 0 (“${sig.left}”) to 100 (“${sig.right}”)` };
+    else out[id] = { Description: `${sig.question}${sig.multiple ? ' Several may be chosen, separated by commas.' : ''}`, Levels: Object.fromEntries(sig.options.map((o) => [o.value, o.label])) };
+    out[`${id}_status`] = status;
+  }
+  return out;
 }
 
 export function labSessionsTable(sessions: LabSession[]): Row[] {
@@ -498,10 +589,16 @@ and mirrors the current records. Do not edit files here.
 
 participants.tsv          one row per participant with consent on file:
                           consent dates and versions, phases with data, sends,
-                          check-ins, archives and screenshots, platforms, phone
+                          check-ins, archives and screenshots, platforms, phone,
+                          stories, and the dates of the two lab visits
 phenotype/checkin.tsv     the mid-break check-ins: one row per check-in, one
                           column per question, with checkin.json describing
                           each question and its answers
+phenotype/mystory_<phase>.tsv   MyStory: one row per story (the prompt chosen,
+                          title, story, and the questions placing it: a
+                          triangle's three shares, sliders from 0 to 100,
+                          choices), one table per phase (pre, mid, post), each
+                          described by its .json
 sub-<CODE>/               one session per phase of the study: ses-pre holds
                           everything sent before the break, ses-mid the
                           screenshots sent with the check-ins (check_in_id links
@@ -588,6 +685,11 @@ consents.tsv             every consent record, by participant ID, with the typed
 consent_statements.tsv   one row per statement per consent record
 reminders.tsv            email addresses of participants who asked for a progress
                          email, when it and the one follow-up were sent
+visits.tsv               every lab booking: visit, time, place, booked, moved,
+                         attended, missed or cancelled, and each confirmation
+                         and reminder with its outcome
+contacts.tsv             the email address and UK mobile given when booking, and
+                         whether texts were wanted
 signatures/              drawn signatures, named by participant ID and version
 raw/                     every document as JSON Lines
 
@@ -595,6 +697,35 @@ Files are tab-separated UTF-8 with n/a for missing values; timestamps are
 ISO 8601 in UTC. The donated data, labelled by code only, is in the
 donations/ folder next to this one.
 `;
+
+export const LAB_VISIT_COLUMNS = ['participant_code', 'participant_id', 'visit', 'start', 'end', 'place', 'status', 'booked_at', 'booked_by', 'cancelled_at', 'cancelled_by', 'cancel_reason', 'replaces', 'confirmation_email', 'confirmation_text', 'reminders', 'booking_id'];
+
+/** Every lab booking, in time order: booked, moved (the old one cancelled, pointing at the new), attended, missed. */
+export function labVisitsTable(bookings: Doc[]): Row[] {
+  return [...bookings]
+    .sort((a, b) => String(a.data.start ?? '').localeCompare(String(b.data.start ?? '')))
+    .map(({ id, data: d }) => ({
+      participant_code: d.participantCode,
+      participant_id: labLabel(String(d.participantCode)),
+      visit: d.visit,
+      start: d.start,
+      end: d.end,
+      place: d.place?.name,
+      status: d.status,
+      booked_at: d.bookedAt,
+      booked_by: d.bookedBy,
+      cancelled_at: d.cancelledAt,
+      cancelled_by: d.cancelledBy,
+      cancel_reason: d.cancelReason,
+      replaces: d.replaces,
+      confirmation_email: d.confirmation?.email,
+      confirmation_text: d.confirmation?.sms,
+      reminders: Object.entries((d.reminders ?? {}) as Record<string, Record<string, unknown>>)
+        .map(([k, v]) => `${k}:${String(v?.outcome ?? v?.skipped ?? 'claimed')}`)
+        .sort(),
+      booking_id: id,
+    }));
+}
 
 /** The lab study's files, binary copies and counts, for runExport to merge with the schools study's. */
 export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFile[]; copies: Map<string, string>; derived: Derivation[]; counts: Record<string, number> } {
@@ -605,7 +736,7 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     jsonFile(`${B}/dataset_description.json`, labDatasetDescription(exportedAt)),
     textFile(`${B}/README`, LAB_README),
     textFile(`${B}/CHANGES`, `1.0.0 ${exportedAt.slice(0, 10)}\n  - Regenerated automatically every hour; see ../../manifest.json.\n`),
-    tsvFile(`${B}/participants.tsv`, labParticipantsTable(snap), ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'age', 'phases', 'sends_n', 'checkins_n', 'archives_n', 'screenshots_n', 'platforms', 'platforms_not_used', 'phone', 'first_send_at', 'last_send_at']),
+    tsvFile(`${B}/participants.tsv`, labParticipantsTable(snap), LAB_PARTICIPANT_COLUMNS),
     jsonFile(`${B}/participants.json`, labParticipantsDictionary()),
     tsvFile(`${B}/phenotype/checkin.tsv`, labCheckInTable(snap.checkIns), labCheckInColumns()),
     jsonFile(`${B}/phenotype/checkin.json`, labCheckInDictionary()),
@@ -613,9 +744,21 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     jsonlFile(`${B}/sourcedata/raw/labParticipants.jsonl`, snap.participants),
     jsonlFile(`${B}/sourcedata/raw/labDonations.jsonl`, snap.donations),
     jsonlFile(`${B}/sourcedata/raw/labCheckIns.jsonl`, snap.checkIns),
+    jsonlFile(`${B}/sourcedata/raw/labStories.jsonl`, snap.stories ?? []),
     textFile(`${I}/README.md`, LAB_IDENTIFYING_README, 'text/markdown; charset=utf-8'),
     jsonlFile(`${I}/raw/consents.jsonl`, snap.consents),
+    jsonlFile(`${I}/raw/bookings.jsonl`, snap.bookings ?? []),
+    jsonlFile(`${I}/raw/contacts.jsonl`, snap.contacts ?? []),
+    tsvFile(`${I}/visits.tsv`, labVisitsTable(snap.bookings ?? []), LAB_VISIT_COLUMNS),
+    tsvFile(
+      `${I}/contacts.tsv`,
+      (snap.contacts ?? []).map(({ id, data: d }) => ({ participant_code: id, participant_id: labLabel(id), email: d.email, mobile: d.mobile, sms_reminders: d.smsReminders, updated_at: d.updatedAt })),
+      ['participant_code', 'participant_id', 'email', 'mobile', 'sms_reminders', 'updated_at'],
+    ),
   ];
+  for (const phase of LAB_PHASES) {
+    files.push(tsvFile(`${B}/phenotype/mystory_${phase}.tsv`, labStoryTable(phase, snap.stories ?? []), labStoryColumns(phase)), jsonFile(`${B}/phenotype/mystory_${phase}.json`, labStoryDictionary(phase)));
+  }
   const { records, statements } = labConsentTables(snap.consents);
   files.push(tsvFile(`${I}/consents.tsv`, records), tsvFile(`${I}/consent_statements.tsv`, statements));
   files.push(
@@ -665,6 +808,8 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     labScreenshots: all.filter((f) => f.kind === 'screenshot').length,
     labSignatures: snap.consents.filter((c) => typeof c.data.signature?.image?.path === 'string').length,
     labCheckIns: snap.checkIns.length,
+    labStories: (snap.stories ?? []).length,
+    labBookings: (snap.bookings ?? []).filter((b) => b.data.status !== 'cancelled').length,
   };
   return { files, copies, derived, counts };
 }

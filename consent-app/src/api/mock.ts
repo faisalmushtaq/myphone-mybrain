@@ -1,7 +1,9 @@
 import { study } from '../config/study';
 import { referenceCode } from '../lib/ids';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type UploadMeta, type UploadSlot } from './types';
+import { labBooking } from '../lab/booking';
+import { addDays, atUkTime, previewIcs, ukIsoDay } from '../lab/calendar';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBooking, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabSlot, type LabStoryPayload, type LabStoryResult, type LabVisit, type UploadMeta, type UploadSlot } from './types';
 
 export interface MockFlags {
   failUploads: boolean;
@@ -10,6 +12,26 @@ export interface MockFlags {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const jitter = (min: number, max: number) => min + Math.random() * (max - min);
+
+interface MockBooking {
+  bookingId: string;
+  visit: LabVisit;
+  slotId: string;
+  start: string;
+  end: string;
+  status: LabBooking['status'];
+  sequence: number;
+}
+
+interface MockLab {
+  sessionId: string;
+  consents: LabConsentPayload[];
+  donations: LabDonationPayload[];
+  checkIns: (LabCheckInPayload & { receivedAt: string })[];
+  notUsed: LabPlatform[];
+  bookings: MockBooking[];
+  stories: Pick<LabStoryPayload, 'phase' | 'promptId' | 'title'>[];
+}
 
 interface MockSubmission {
   sessionId: string;
@@ -29,7 +51,7 @@ interface MockSubmission {
  */
 export class MockConsentApi implements ConsentApi {
   private uploads = new Map<string, { sessionId: string; size: number; type: string }>();
-  private lab = new Map<string, { sessionId: string; consents: LabConsentPayload[]; donations: LabDonationPayload[]; checkIns: (LabCheckInPayload & { receivedAt: string })[]; notUsed: LabPlatform[] }>();
+  private lab = new Map<string, MockLab>();
   private submissions = new Map<string, MockSubmission>();
   private static STORE_KEY = 'mpmb-mock-server:v2';
   /** The lab study's records, in localStorage so the study's three pages see the same participants, as they would the real server. */
@@ -39,8 +61,8 @@ export class MockConsentApi implements ConsentApi {
     try {
       const lab = window.localStorage.getItem(MockConsentApi.LAB_KEY);
       if (lab) {
-        const entries = JSON.parse(lab) as [string, Partial<{ sessionId: string; consents: LabConsentPayload[]; donations: LabDonationPayload[]; checkIns: (LabCheckInPayload & { receivedAt: string })[]; notUsed: LabPlatform[] }>][];
-        this.lab = new Map(entries.map(([code, e]) => [code, { sessionId: e.sessionId ?? '', consents: e.consents ?? [], donations: e.donations ?? [], checkIns: e.checkIns ?? [], notUsed: e.notUsed ?? [] }]));
+        const entries = JSON.parse(lab) as [string, Partial<MockLab>][];
+        this.lab = new Map(entries.map(([code, e]) => [code, { sessionId: e.sessionId ?? '', consents: e.consents ?? [], donations: e.donations ?? [], checkIns: e.checkIns ?? [], notUsed: e.notUsed ?? [], bookings: e.bookings ?? [], stories: e.stories ?? [] }]));
       }
     } catch {
       /* start empty */
@@ -77,6 +99,8 @@ export class MockConsentApi implements ConsentApi {
           donations: p.donations.map((d) => ({ phase: d.phase, uploads: d.uploads.map((u) => ({ uploadId: u.uploadId, kind: u.kind, platforms: u.platforms })) })),
           checkIns: p.checkIns.map((c) => ({ receivedAt: c.receivedAt, answers: c.answers })),
           notUsed: p.notUsed,
+          bookings: p.bookings,
+          stories: p.stories.map((x) => ({ phase: x.phase, promptId: x.promptId, title: x.title })),
         },
       ]);
       window.localStorage.setItem(MockConsentApi.LAB_KEY, JSON.stringify(slim));
@@ -182,7 +206,7 @@ export class MockConsentApi implements ConsentApi {
     if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');
     this.checkSession(session);
     if (!payload.consent.signature) throw new ApiError('validation', 'The consent record has no signature.');
-    const existing = this.lab.get(payload.participantCode) ?? { sessionId: session.sessionId, consents: [], donations: [], checkIns: [], notUsed: [] };
+    const existing = this.lab.get(payload.participantCode) ?? { sessionId: session.sessionId, consents: [], donations: [], checkIns: [], notUsed: [], bookings: [], stories: [] };
     existing.consents.push(payload);
     this.lab.set(payload.participantCode, existing);
     this.persistLab();
@@ -207,6 +231,8 @@ export class MockConsentApi implements ConsentApi {
       checkIns: found?.checkIns.length ?? 0,
       lastCheckInAt: found?.checkIns.at(-1)?.receivedAt ?? null,
       platformsNotUsed: found?.notUsed ?? [],
+      visits: (found?.bookings ?? []).filter((b) => b.status === 'booked' || b.status === 'attended').map((b) => ({ visit: b.visit, start: b.start, status: b.status })),
+      stories: { pre: found?.stories.filter((x) => x.phase === 'pre').length ?? 0, mid: found?.stories.filter((x) => x.phase === 'mid').length ?? 0, post: found?.stories.filter((x) => x.phase === 'post').length ?? 0 },
     };
   }
 
@@ -272,6 +298,124 @@ export class MockConsentApi implements ConsentApi {
     if (!this.lab.has(payload.participantCode)) throw new ApiError('validation', 'We have no consent on file for this participant code. Please give your consent first.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(payload.email)) throw new ApiError('validation', 'Enter an email address in the format name@example.com.');
     return { outcome: 'sent', followUpAt: new Date(Date.now() + 48 * 3600_000).toISOString() };
+  }
+
+  /* ── Lab visits: weekday mornings and afternoons, made up in the browser ── */
+
+  private place() {
+    return { ...labBooking.location };
+  }
+
+  private mockSlots(): LabSlot[] {
+    const taken = new Map<string, number>();
+    for (const p of this.lab.values()) for (const b of p.bookings) if (b.status === 'booked' || b.status === 'attended') taken.set(b.slotId, (taken.get(b.slotId) ?? 0) + 1);
+    const today = ukIsoDay(new Date().toISOString());
+    const out: LabSlot[] = [];
+    for (let d = 1; d <= labBooking.horizonDays; d += 1) {
+      const day = addDays(today, d);
+      const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+      if (weekday === 0 || weekday === 6) continue;
+      for (const hour of [10, 14]) {
+        const start = atUkTime(day, hour);
+        const slotId = `mock${day.replace(/-/g, '')}${hour}`;
+        if (start.getTime() < Date.now() + labBooking.minNoticeHours * 3600_000 || taken.get(slotId)) continue;
+        out.push({ slotId, start: start.toISOString(), end: new Date(start.getTime() + labBooking.minutes * 60_000).toISOString(), visit: null, place: this.place(), spaces: 1 });
+      }
+    }
+    return out;
+  }
+
+  private bookingView(code: string, b: MockBooking): LabBooking {
+    return { bookingId: b.bookingId, visit: b.visit, start: b.start, end: b.end, place: this.place(), status: b.status, canChange: b.status === 'booked' && Date.parse(b.start) - Date.now() >= labBooking.changeUntilHours * 3600_000, ics: previewIcs({ code, visit: b.visit, start: b.start, end: b.end, place: this.place(), sequence: b.sequence }) };
+  }
+
+  private standing(p: MockLab, visit: LabVisit, except?: string): MockBooking | undefined {
+    return p.bookings.filter((b) => b.visit === visit && b.bookingId !== except && (b.status === 'booked' || b.status === 'attended')).at(-1);
+  }
+
+  private nextFor(p: MockLab | undefined, except?: string): { missing: string[]; next: LabVisit | null; window: { from: string; to: string } | null } {
+    const pre = p?.donations.filter((d) => d.phase === 'pre').flatMap((d) => d.uploads) ?? [];
+    const missing = [!p?.consents.length ? 'your consent' : '', pre.some((u) => u.kind === 'screenshot') ? '' : 'your screen-time screenshots', pre.some((u) => u.kind === 'archive') ? '' : 'the cleaned data from at least one of your apps'].filter(Boolean);
+    if (!p) return { missing, next: null, window: null };
+    const first = this.standing(p, 1, except);
+    if (!first) return missing.length ? { missing, next: null, window: null } : { missing, next: 1, window: { from: ukIsoDay(new Date().toISOString()), to: addDays(ukIsoDay(new Date().toISOString()), labBooking.horizonDays) } };
+    if (this.standing(p, 2, except)) return { missing, next: null, window: null };
+    const day = ukIsoDay(first.start);
+    return { missing, next: 2, window: { from: addDays(day, labBooking.visit2AfterDays.min), to: addDays(day, labBooking.visit2AfterDays.max) } };
+  }
+
+  private inWindow(slots: LabSlot[], window: { from: string; to: string } | null): LabSlot[] {
+    return window ? slots.filter((s) => ukIsoDay(s.start) >= window.from && ukIsoDay(s.start) <= window.to) : [];
+  }
+
+  async labBookingOptions(session: SessionInfo, participantCode: string): Promise<LabBookingOptions> {
+    await sleep(jitter(250, 600));
+    this.checkSession(session);
+    const p = this.lab.get(participantCode);
+    const { missing, next, window } = this.nextFor(p);
+    const all = this.mockSlots();
+    const changing: LabBookingOptions['changing'] = {};
+    for (const visit of [1, 2] as LabVisit[]) {
+      const b = p ? this.standing(p, visit) : undefined;
+      if (!p || !b || b.status !== 'booked' || (visit === 1 && this.standing(p, 2))) continue;
+      changing[visit] = this.inWindow(all, this.nextFor(p, b.bookingId).window);
+    }
+    return {
+      consent: Boolean(p?.consents.length),
+      missing,
+      bookings: (p?.bookings ?? []).filter((b) => b.status !== 'cancelled').map((b) => this.bookingView(participantCode, b)),
+      next,
+      window,
+      slots: this.inWindow(all, window),
+      changing,
+      smsAvailable: true,
+      rules: { minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours },
+    };
+  }
+
+  async bookLabSlot(session: SessionInfo, payload: LabBookPayload): Promise<LabBookResult> {
+    await sleep(jitter(400, 900));
+    if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');
+    this.checkSession(session);
+    const p = this.lab.get(payload.participantCode);
+    if (!p?.consents.length) throw new ApiError('validation', 'We have no consent on file for this participant ID.');
+    const replaced = payload.replaces ? p.bookings.find((b) => b.bookingId === payload.replaces) : undefined;
+    const { next, window } = this.nextFor(p, replaced?.bookingId);
+    if (next !== payload.visit) throw new ApiError('validation', payload.visit === 1 ? 'Your first visit can be booked once your data has arrived.' : 'Your second visit can be booked once your first is booked.');
+    const slot = this.inWindow(this.mockSlots(), window).find((s) => s.slotId === payload.slotId);
+    if (!slot) throw new ApiError('validation', 'That time has just been taken. Please choose another.');
+    const sequence = Math.max(-1, ...p.bookings.filter((b) => b.visit === payload.visit).map((b) => b.sequence)) + 1;
+    if (replaced) replaced.status = 'cancelled';
+    const booking: MockBooking = { bookingId: `labb_${crypto.randomUUID().slice(0, 8)}`, visit: payload.visit, slotId: slot.slotId, start: slot.start, end: slot.end, status: 'booked', sequence };
+    p.bookings.push(booking);
+    this.persistLab();
+    return { booking: this.bookingView(payload.participantCode, booking), email: 'sent' as DeliveryOutcome, sms: payload.smsReminders ? 'sent' : 'not-wanted' };
+  }
+
+  async cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingId: string }): Promise<{ bookingId: string; email: DeliveryOutcome }> {
+    await sleep(jitter(300, 700));
+    this.checkSession(session);
+    const b = this.lab.get(payload.participantCode)?.bookings.find((x) => x.bookingId === payload.bookingId);
+    if (!b || b.status !== 'booked') throw new ApiError('validation', 'That booking was not found.');
+    b.status = 'cancelled';
+    this.persistLab();
+    return { bookingId: b.bookingId, email: 'sent' };
+  }
+
+  async submitLabStory(session: SessionInfo, payload: LabStoryPayload): Promise<LabStoryResult> {
+    await sleep(jitter(300, 700));
+    if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');
+    this.checkSession(session);
+    const p = this.lab.get(payload.participantCode);
+    if (!p?.consents.length) throw new ApiError('validation', 'We have no consent on file for this participant ID.');
+    p.stories.push({ phase: payload.phase, promptId: payload.promptId, title: payload.title });
+    this.persistLab();
+    return { storyId: `labs_${p.stories.length}`, receivedAt: new Date().toISOString() };
+  }
+
+  async callTool<Res>(): Promise<Res> {
+    await sleep(200);
+    throw new ApiError('server', 'This page needs the live study database; it does not work in the preview.');
   }
 
   inspectLab() {

@@ -26,3 +26,16 @@ export function checkArchiveFile(file: File): string | null {
   if (file.size > labStudy.maxArchiveBytes) return `This download is over ${Math.round(labStudy.maxArchiveBytes / 1024 / 1024)} MB, usually because it includes your photos or videos. Request it again with only the items the guide lists (it will be much smaller), or email ${labStudy.contact.name} at ${labStudy.contact.email}.`;
   return null;
 }
+
+/** A UK mobile number in international form (+447…), or null: the same rule as the server (firebase/functions/src/sms.ts). */
+export function ukMobile(input: string): string | null {
+  let n = input.replace(/[^\d+]/g, '');
+  if (n.startsWith('+44')) n = `0${n.slice(3)}`;
+  else if (n.startsWith('0044')) n = `0${n.slice(4)}`;
+  else if (n.startsWith('44') && n.length === 12) n = `0${n.slice(2)}`;
+  if (n.startsWith('00')) return null;
+  if (!n.startsWith('07') && n.startsWith('7') && n.length === 10) n = `0${n}`;
+  return /^07\d{9}$/.test(n) ? `+44${n.slice(1)}` : null;
+}
+
+export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
