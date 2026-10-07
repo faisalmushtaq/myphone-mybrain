@@ -49,7 +49,8 @@ h2 { line-height: .98; }
 :where(h1, h2) + :where(p, .prose, ul, ol) { margin-top: clamp(.9rem, 1.6vw, 1.25rem); }
 p { max-width: 70ch; }
 .container { max-width: 1200px; padding-inline: clamp(1.35rem, 4vw, 3.5rem); }
-.section { position: relative; padding-block: clamp(4.6rem, 8vw, 7.6rem); background: var(--mpb-paper); }
+/* Section spacing: the same on a computer as on a phone (asked for on 7 October 2026: the gaps between sections were too big on desktop). */
+.section { position: relative; padding-block: clamp(4.6rem, 5vw, 5rem); background: var(--mpb-paper); }
 .section::before { display: none; }
 .section-white { background: #ffffff; }
 .section-light { background: var(--mpb-mist); }
@@ -265,7 +266,7 @@ p { max-width: 70ch; }
 .hero-scroll-line { width: 23px; height: 1px; background: #fff; }
 
 /* Focused inner pages */
-.page-hero { position: relative; overflow: hidden; padding: clamp(8rem, 14vw, 11.5rem) 0 clamp(4rem, 8vw, 6.8rem); background: var(--mpb-teal); color: #fff; }
+.page-hero { position: relative; overflow: hidden; padding: clamp(3.5rem, 5vw, 4.5rem) 0 clamp(4rem, 5vw, 4.5rem); background: var(--mpb-teal); color: #fff; }
 .page-hero::after { content: ""; position: absolute; right: -20vw; bottom: -42vw; width: min(75vw, 760px); height: min(75vw, 760px); border: 3rem solid rgba(255,255,255,.08); border-radius: 50%; }
 .page-hero .container { position: relative; z-index: 1; }
 .page-hero h1 { max-width: 12ch; margin: 0 0 1.25rem; color: #fff; font-size: clamp(3.3rem, 7vw, 6.1rem); }
@@ -298,7 +299,7 @@ p { max-width: 70ch; }
 .benefit-grid, .promise-grid { gap: 15px; }
 .benefit-card, .promise-card { border-left: 4px solid var(--mpb-yellow); border-radius: 0; box-shadow: var(--shadow-sm); }
 .benefit-card h3, .promise-card h3 { color: var(--mpb-teal); }
-.promise-card h3 { margin-bottom: .6rem; }
+.promise-card h3, .benefit-card h3 { margin-bottom: .6rem; }
 .gatsby-header { background: var(--mpb-teal); }
 .gatsby-header .section-kicker { color: var(--mpb-yellow); }
 .gatsby-grid { background: #fff; }
