@@ -19,7 +19,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <li><a href="#taking-part">How taking part works</a></li>
         <li><a href="#workshop">The workshop</a></li>
         <li><a href="#safety">Safety and preparing</a></li>
-        <li><a href="#screen-time">Sharing screen time</a></li>
+        <li><a href="#screen-time">Screen time and phone habits</a></li>
         <li><a href="#linking">Linking with records</a></li>
         <li><a href="#information">Your child’s information</a></li>
         <li><a href="#changing-your-mind">Changing your mind</a></li>
@@ -43,26 +43,22 @@ page_intro: "You’re reading this because your child’s school is taking part 
     </div>
 
     <h2 id="taking-part">How taking part works.</h2>
-    <p class="section-subheading">There are three separate choices: your child’s place in the workshop, which is opt-out; your child’s own choice on the day; and sharing their screen time, which is opt-in.</p>
+    <p class="section-subheading">There are two separate choices: the workshop at school, which is opt-out, and which your child can still say no to on the day; and your answers about their screen time and phone habits, which are opt-in.</p>
     <ol class="consent-routes" role="list">
       <li class="consent-route">
         <span class="consent-route__tag">Opt-out</span>
         <h3>The workshop at school</h3>
         <p>Every young person in the classes taking part is invited. <strong>You don’t need to do anything for your child to take part.</strong> If you don’t want them to, a parent or carer emails us before the workshop. There is no form and no paper slip.</p>
+        <p>On the day, the researchers explain the workshop again and ask each young person whether they want to take part. <strong>Your child can say no</strong>, choose which parts to do, or stop at any time, without giving a reason. Nobody will mind, and it will not affect anything at school.</p>
         <p>Opting out of the workshop also opts your child out of linking with their education and health records: one email covers both.</p>
         <a class="text-link" href="{{ '/take-part/consent/?optout=1' | relative_url }}">How to opt out &nbsp;→</a>
       </li>
       <li class="consent-route consent-route--mist">
-        <span class="consent-route__tag">Their choice</span>
-        <h3>Your child decides on the day</h3>
-        <p>At school, the researchers explain the workshop again and ask each young person whether they want to take part. Your child can say no, choose which parts to do, or stop at any time, without giving a reason, even if you have not opted them out.</p>
-        <p>Nobody will mind, and it will not affect anything at school.</p>
-      </li>
-      <li class="consent-route">
         <span class="consent-route__tag">Opt-in</span>
-        <h3>Sharing screen time</h3>
-        <p>Screenshots of the phone’s screen-time summary are shared only if you choose to, online, on this website. Under 16, a parent or carer says yes first, then your child decides too, unless you send the screenshots from your own phone. At 16 or 17, young people decide for themselves.</p>
-        <a class="text-link" href="#screen-time">More about screen time &nbsp;→</a>
+        <h3>Your answers about their phone</h3>
+        <p>Online, on this website, and only if you choose: you answer a few questions about your child’s phone habits, and can share screenshots of their screen time. <strong>It takes about five minutes.</strong></p>
+        <p>If the screenshots come from your child’s own phone, it is their choice too. At 16 or 17, young people can do this themselves.</p>
+        <a class="text-link" href="#screen-time">More about screen time and phone habits &nbsp;→</a>
       </li>
     </ol>
     <div class="info-panel">
@@ -71,7 +67,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     </div>
     <div class="prose">
       <h3>Why the workshop is opt-out</h3>
-      <p>We want the study to include young people from every background. When families have to return a form before their child can take part, young people from busier households, or from families who hear less from school, are often left out, and the findings would not reflect them. So every young person in the classes taking part is invited, and the choice stays with families and young people: any parent or carer can opt their child out, every young person decides for themselves on the day, and sharing screen time is a separate yes.</p>
+      <p>We want the study to include young people from every background. When families have to return a form before their child can take part, young people from busier households, or from families who hear less from school, are often left out, and the findings would not reflect them. So every young person in the classes taking part is invited, and the choice stays with families and young people: any parent or carer can opt their child out, every young person decides for themselves on the day, and your answers about their phone are a separate yes.</p>
     </div>
 
     <h2 id="workshop">What happens at the workshop.</h2>
@@ -117,8 +113,8 @@ page_intro: "You’re reading this because your child’s school is taking part 
       </div>
     </div>
 
-    <h2 id="screen-time">Sharing screen time.</h2>
-    <p class="section-subheading">Separate from the workshop, and only if you choose: screenshots of the phone’s screen-time summary, shared online on this website. It takes about five minutes.</p>
+    <h2 id="screen-time">Screen time and phone habits.</h2>
+    <p class="section-subheading">Separate from the workshop, and only if you choose: online, on this website, you answer a few questions about your child’s phone habits and can share screenshots of their phone’s screen-time summary. It takes about five minutes.</p>
     <div class="participant-info-grid">
       <div class="info-panel">
         <h3>What the screenshots show</h3>
