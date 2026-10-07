@@ -156,12 +156,14 @@ export const labBooking = {
   reminders: generated.labBooking.reminders.map((r): BookingReminder => ({ id: r.id, hoursBefore: r.hoursBefore, email: r.email, sms: r.sms })),
   textHours: { from: generated.labBooking.textHours.from as number, to: generated.labBooking.textHours.to as number },
   textOnBooking: generated.labBooking.textOnBooking as boolean,
+  /** Copied on every booking, change and cancellation email. */
+  copyTo: generated.labBooking.copyTo as readonly string[],
 };
 
 export interface JourneyMessage {
   id: string;
   day: number;
-  unless?: 'visit-2-booked' | 'checked-in';
+  unless?: 'checked-in';
 }
 
 /** The messages during the break, by day after the first visit. */

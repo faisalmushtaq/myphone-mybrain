@@ -20,12 +20,15 @@ function phaseOf(flow: LabFlow): LabPhase | undefined {
   return wanted === 'pre' || wanted === 'post' ? wanted : 'mid';
 }
 
+/** MyStory told at a lab visit, on the lab's computer (?at=lab, from the staff page's links): nothing is kept on the device. */
+const atLabOf = (flow: LabFlow) => flow === 'story' && new URLSearchParams(window.location.search).get('at') === 'lab';
+
 if (mount) {
   mount.classList.add('mpmb-app');
   const flow = flowOf(mount);
   createRoot(mount).render(
     <StrictMode>
-      <LabApp flow={flow} phase={phaseOf(flow)} />
+      <LabApp flow={flow} phase={phaseOf(flow)} atLab={atLabOf(flow)} />
     </StrictMode>,
   );
 }

@@ -39,8 +39,9 @@ jobs:
           # consent-app/.env.production, written by firebase/scripts/setup-project.sh
           # and committed: they are public identifiers, access is governed by the rules.
           # Without that file the site is built against the in-memory mock.
-          # Repository → Settings → Variables: MPMB_PROTOTYPE=false removes the prototype controls.
-          MPMB_PROTOTYPE: ${{ vars.MPMB_PROTOTYPE || 'true' }}
+          # The live site has no draft markers or prototype controls (docs/decisions.md).
+          # Repository → Settings → Variables: MPMB_PROTOTYPE=true brings them back for a review build.
+          MPMB_PROTOTYPE: ${{ vars.MPMB_PROTOTYPE || 'false' }}
 
       - name: Build Jekyll
         run: bundle exec jekyll build

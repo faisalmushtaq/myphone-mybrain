@@ -26,6 +26,8 @@ export interface ParticipantLinks {
   after: string;
   /** MyStory for each phase: this site's page, or another survey's address with the ID and the phase. */
   story: Record<StoryPhase, string>;
+  /** MyStory before and after the break, told at the lab visits on a lab computer: the page forgets the participant once the story is sent. */
+  atLab: Record<'pre' | 'post', string>;
 }
 
 const withCode = (path: string, code: string, extra: Record<string, string> = {}) => {
@@ -35,10 +37,10 @@ const withCode = (path: string, code: string, extra: Record<string, string> = {}
   return url.toString();
 };
 
-/** MyStory's address for one participant and phase. */
-export function storyLink(phase: StoryPhase, code: string): string {
+/** MyStory's address for one participant and phase; at the lab, on a shared computer. */
+export function storyLink(phase: StoryPhase, code: string, atLab = false): string {
   const mode = storyModes[phase];
-  if (mode.mode === 'native') return withCode(labPagePaths.story, code, { phase });
+  if (mode.mode === 'native') return withCode(labPagePaths.story, code, atLab ? { phase, at: 'lab' } : { phase });
   const url = new URL(mode.url);
   url.searchParams.set(mode.idParam, code);
   if (mode.phaseParam) url.searchParams.set(mode.phaseParam, phase);
@@ -52,6 +54,7 @@ export function participantLinks(code: string): ParticipantLinks {
     checkIn: withCode(labPagePaths.checkin, code),
     after: withCode(labPagePaths.after, code),
     story: { pre: storyLink('pre', code), mid: storyLink('mid', code), post: storyLink('post', code) },
+    atLab: { pre: storyLink('pre', code, true), post: storyLink('post', code, true) },
   };
 }
 

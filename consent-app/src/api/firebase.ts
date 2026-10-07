@@ -4,7 +4,7 @@ import { connectAuthEmulator, getAuth, signInAnonymously, type Auth, type User }
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, deleteObject, getStorage, ref, uploadBytesResumable, type FirebaseStorage } from 'firebase/storage';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabStoryPayload, type LabStoryResult, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabStoryPayload, type LabStoryResult, type UploadMeta, type UploadSlot } from './types';
 
 /**
  * Firebase implementation of the API boundary.
@@ -216,8 +216,8 @@ export class FirebaseConsentApi implements ConsentApi {
     return this.call<LabBookPayload, LabBookResult>(session, 'bookLabSlot', payload);
   }
 
-  cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingId: string }): Promise<{ bookingId: string; email: DeliveryOutcome }> {
-    return this.call<{ participantCode: string; bookingId: string }, { bookingId: string; email: DeliveryOutcome }>(session, 'cancelLabBooking', payload);
+  cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingIds?: string[] | null }): Promise<LabCancelResult> {
+    return this.call<{ participantCode: string; bookingIds?: string[] | null }, LabCancelResult>(session, 'cancelLabBooking', payload);
   }
 
   submitLabStory(session: SessionInfo, payload: LabStoryPayload): Promise<LabStoryResult> {

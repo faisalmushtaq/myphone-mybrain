@@ -11,8 +11,8 @@ name: Deploy Firebase backend
 # and for the emails to the team about website enquiries MPMB_SMTP_USER,
 # MPMB_MAIL_TO, MPMB_SMTP_HOST, MPMB_SMTP_PORT (the password itself is stored
 # in Secret Manager by consent-app/firebase/scripts/set-mail-password.sh), and
-# for text reminders MPMB_SMS_FROM, the sender (the Twilio credentials are
-# stored by set-sms-credentials.sh). The staff page's key is stored by
+# for text reminders MPMB_SMS_FROM, the sender (MyPhoneStdy unless set; texts
+# start once the Twilio credentials are stored by set-sms-credentials.sh). The staff page's key is stored by
 # set-staff-key.sh.
 on:
   push:
@@ -74,7 +74,7 @@ jobs:
             echo "MPMB_MAIL_FROM_NAME=MyPhone/MyBrain"
             echo "MPMB_SMTP_SECRET=mpmb-smtp-password"
             echo "MPMB_EXPORT_BUCKET=${{ vars.MPMB_EXPORT_BUCKET || 'myphone-mybrain-exports' }}"
-            echo "MPMB_SMS_FROM=${{ vars.MPMB_SMS_FROM || '' }}"
+            echo "MPMB_SMS_FROM=${{ vars.MPMB_SMS_FROM || 'MyPhoneStdy' }}"
           } > consent-app/firebase/functions/.env
 
       - uses: google-github-actions/auth@v2

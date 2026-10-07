@@ -3,19 +3,23 @@ import { getApi } from '../api';
 import type { LabPhase } from '../api/types';
 import type { LabFlow, LabState } from './model';
 import { loadLabState, saveLabState, startingLabState } from './persistence';
-import { labReducer, type LabAction } from './reducer';
+import { initialLabState, labReducer, type LabAction } from './reducer';
 
 interface LabStore {
   state: LabState;
   dispatch: Dispatch<LabAction>;
+  /** On a lab computer, shared between participants: nothing is kept on the device, and the page forgets the participant when done. */
+  atLab: boolean;
 }
 
 const LabContext = createContext<LabStore | null>(null);
 
-export function LabStoreProvider({ flow, phase, children }: { flow: LabFlow; phase?: LabPhase; children: ReactNode }) {
-  const [state, dispatch] = useReducer(labReducer, flow, (f: LabFlow) => loadLabState(f, phase) ?? startingLabState(f, phase));
+export function LabStoreProvider({ flow, phase, atLab = false, children }: { flow: LabFlow; phase?: LabPhase; atLab?: boolean; children: ReactNode }) {
+  const [state, dispatch] = useReducer(labReducer, flow, (f: LabFlow) => (atLab ? initialLabState(f, phase) : (loadLabState(f, phase) ?? startingLabState(f, phase))));
 
-  useEffect(() => saveLabState(state), [state]);
+  useEffect(() => {
+    if (!atLab) saveLabState(state);
+  }, [state, atLab]);
 
   useEffect(() => {
     if (state.session) return;
@@ -53,7 +57,7 @@ export function LabStoreProvider({ flow, phase, children }: { flow: LabFlow; pha
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh?.sessionId]);
 
-  return <LabContext.Provider value={{ state, dispatch }}>{children}</LabContext.Provider>;
+  return <LabContext.Provider value={{ state, dispatch, atLab }}>{children}</LabContext.Provider>;
 }
 
 export function useLab(): LabStore {

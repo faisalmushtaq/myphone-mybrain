@@ -2,8 +2,8 @@ import { study } from '../config/study';
 import { referenceCode } from '../lib/ids';
 import type { SessionInfo } from '../model/types';
 import { labBooking } from '../lab/booking';
-import { addDays, atUkTime, previewIcs, ukIsoDay } from '../lab/calendar';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBooking, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabSlot, type LabStoryPayload, type LabStoryResult, type LabVisit, type UploadMeta, type UploadSlot } from './types';
+import { addDays, atUkTime, daysBetween, previewIcs, ukIsoDay } from '../lab/calendar';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBooking, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabSlot, type LabStoryPayload, type LabStoryResult, type LabVisit, type UploadMeta, type UploadSlot } from './types';
 
 export interface MockFlags {
   failUploads: boolean;
@@ -311,7 +311,7 @@ export class MockConsentApi implements ConsentApi {
     for (const p of this.lab.values()) for (const b of p.bookings) if (b.status === 'booked' || b.status === 'attended') taken.set(b.slotId, (taken.get(b.slotId) ?? 0) + 1);
     const today = ukIsoDay(new Date().toISOString());
     const out: LabSlot[] = [];
-    for (let d = 1; d <= labBooking.horizonDays; d += 1) {
+    for (let d = 1; d <= labBooking.horizonDays + labBooking.visit2AfterDays.max; d += 1) {
       const day = addDays(today, d);
       const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
       if (weekday === 0 || weekday === 6) continue;
@@ -329,45 +329,32 @@ export class MockConsentApi implements ConsentApi {
     return { bookingId: b.bookingId, visit: b.visit, start: b.start, end: b.end, place: this.place(), status: b.status, canChange: b.status === 'booked' && Date.parse(b.start) - Date.now() >= labBooking.changeUntilHours * 3600_000, ics: previewIcs({ code, visit: b.visit, start: b.start, end: b.end, place: this.place(), sequence: b.sequence }) };
   }
 
-  private standing(p: MockLab, visit: LabVisit, except?: string): MockBooking | undefined {
-    return p.bookings.filter((b) => b.visit === visit && b.bookingId !== except && (b.status === 'booked' || b.status === 'attended')).at(-1);
+  private standing(p: MockLab, visit: LabVisit): MockBooking | undefined {
+    return p.bookings.filter((b) => b.visit === visit && (b.status === 'booked' || b.status === 'attended')).at(-1);
   }
 
-  private nextFor(p: MockLab | undefined, except?: string): { missing: string[]; next: LabVisit | null; window: { from: string; to: string } | null } {
+  /** As the server: nothing until the data is in, then both visits together; a missed or cancelled one leaves that visit to book. */
+  private bookingStateOf(p: MockLab | undefined): { missing: string[]; active: Record<LabVisit, MockBooking | undefined>; toBook: LabVisit[] } {
     const pre = p?.donations.filter((d) => d.phase === 'pre').flatMap((d) => d.uploads) ?? [];
     const missing = [!p?.consents.length ? 'your consent' : '', pre.some((u) => u.kind === 'screenshot') ? '' : 'your screen-time screenshots', pre.some((u) => u.kind === 'archive') ? '' : 'the cleaned data from at least one of your apps'].filter(Boolean);
-    if (!p) return { missing, next: null, window: null };
-    const first = this.standing(p, 1, except);
-    if (!first) return missing.length ? { missing, next: null, window: null } : { missing, next: 1, window: { from: ukIsoDay(new Date().toISOString()), to: addDays(ukIsoDay(new Date().toISOString()), labBooking.horizonDays) } };
-    if (this.standing(p, 2, except)) return { missing, next: null, window: null };
-    const day = ukIsoDay(first.start);
-    return { missing, next: 2, window: { from: addDays(day, labBooking.visit2AfterDays.min), to: addDays(day, labBooking.visit2AfterDays.max) } };
-  }
-
-  private inWindow(slots: LabSlot[], window: { from: string; to: string } | null): LabSlot[] {
-    return window ? slots.filter((s) => ukIsoDay(s.start) >= window.from && ukIsoDay(s.start) <= window.to) : [];
+    const active = { 1: p ? this.standing(p, 1) : undefined, 2: p ? this.standing(p, 2) : undefined };
+    return { missing, active, toBook: missing.length ? [] : ([1, 2] as LabVisit[]).filter((v) => !active[v]) };
   }
 
   async labBookingOptions(session: SessionInfo, participantCode: string): Promise<LabBookingOptions> {
     await sleep(jitter(250, 600));
     this.checkSession(session);
     const p = this.lab.get(participantCode);
-    const { missing, next, window } = this.nextFor(p);
-    const all = this.mockSlots();
-    const changing: LabBookingOptions['changing'] = {};
-    for (const visit of [1, 2] as LabVisit[]) {
-      const b = p ? this.standing(p, visit) : undefined;
-      if (!p || !b || b.status !== 'booked' || (visit === 1 && this.standing(p, 2))) continue;
-      changing[visit] = this.inWindow(all, this.nextFor(p, b.bookingId).window);
-    }
+    const { missing, toBook } = this.bookingStateOf(p);
+    const all = missing.length ? [] : this.mockSlots();
+    const last1 = addDays(ukIsoDay(new Date().toISOString()), labBooking.horizonDays);
     return {
       consent: Boolean(p?.consents.length),
       missing,
       bookings: (p?.bookings ?? []).filter((b) => b.status !== 'cancelled').map((b) => this.bookingView(participantCode, b)),
-      next,
-      window,
-      slots: this.inWindow(all, window),
-      changing,
+      toBook,
+      slots: { 1: all.filter((s) => ukIsoDay(s.start) <= last1), 2: all },
+      gap: { ...labBooking.visit2AfterDays },
       smsAvailable: true,
       rules: { minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours },
     };
@@ -379,27 +366,42 @@ export class MockConsentApi implements ConsentApi {
     this.checkSession(session);
     const p = this.lab.get(payload.participantCode);
     if (!p?.consents.length) throw new ApiError('validation', 'We have no consent on file for this participant ID.');
-    const replaced = payload.replaces ? p.bookings.find((b) => b.bookingId === payload.replaces) : undefined;
-    const { next, window } = this.nextFor(p, replaced?.bookingId);
-    if (next !== payload.visit) throw new ApiError('validation', payload.visit === 1 ? 'Your first visit can be booked once your data has arrived.' : 'Your second visit can be booked once your first is booked.');
-    const slot = this.inWindow(this.mockSlots(), window).find((s) => s.slotId === payload.slotId);
-    if (!slot) throw new ApiError('validation', 'That time has just been taken. Please choose another.');
-    const sequence = Math.max(-1, ...p.bookings.filter((b) => b.visit === payload.visit).map((b) => b.sequence)) + 1;
-    if (replaced) replaced.status = 'cancelled';
-    const booking: MockBooking = { bookingId: `labb_${crypto.randomUUID().slice(0, 8)}`, visit: payload.visit, slotId: slot.slotId, start: slot.start, end: slot.end, status: 'booked', sequence };
-    p.bookings.push(booking);
+    const { missing, active } = this.bookingStateOf(p);
+    if (missing.length) throw new ApiError('validation', `Your lab visits can be booked once ${missing.join(' and ')} ${missing.length === 1 ? 'has' : 'have'} arrived.`);
+    const all = this.mockSlots();
+    const plan: Record<LabVisit, { start: string } | undefined> = { 1: active[1], 2: active[2] };
+    const chosen = payload.visits.map((c) => {
+      const slot = all.find((s) => s.slotId === c.slotId);
+      if (!slot) throw new ApiError('validation', 'That time has just been taken. Please choose another.');
+      const previous = active[c.visit];
+      if (previous && previous.status !== 'booked') throw new ApiError('validation', 'That visit has already happened.');
+      plan[c.visit] = slot;
+      return { ...c, slot, previous };
+    });
+    if (!plan[1] || !plan[2]) throw new ApiError('validation', 'Please choose a time for both visits: they are booked together.');
+    const gap = daysBetween(ukIsoDay(plan[1].start), ukIsoDay(plan[2].start));
+    const { min, max } = labBooking.visit2AfterDays;
+    if (gap < min || gap > max) throw new ApiError('validation', `Your second visit needs to be ${min} to ${max} days after your first.`);
+    const booked = chosen.map(({ visit, slot, previous }) => {
+      if (previous) previous.status = 'cancelled';
+      const sequence = Math.max(-1, ...p.bookings.filter((b) => b.visit === visit).map((b) => b.sequence)) + 1;
+      const booking: MockBooking = { bookingId: `labb_${crypto.randomUUID().slice(0, 8)}`, visit, slotId: slot.slotId, start: slot.start, end: slot.end, status: 'booked', sequence };
+      p.bookings.push(booking);
+      return this.bookingView(payload.participantCode, booking);
+    });
     this.persistLab();
-    return { booking: this.bookingView(payload.participantCode, booking), email: 'sent' as DeliveryOutcome, sms: payload.smsReminders ? 'sent' : 'not-wanted' };
+    return { booked, kind: chosen.some((c) => c.previous) ? 'moved' : 'booked', email: 'sent' as DeliveryOutcome, sms: payload.smsReminders ? 'sent' : 'not-wanted' };
   }
 
-  async cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingId: string }): Promise<{ bookingId: string; email: DeliveryOutcome }> {
+  async cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingIds?: string[] | null }): Promise<LabCancelResult> {
     await sleep(jitter(300, 700));
     this.checkSession(session);
-    const b = this.lab.get(payload.participantCode)?.bookings.find((x) => x.bookingId === payload.bookingId);
-    if (!b || b.status !== 'booked') throw new ApiError('validation', 'That booking was not found.');
-    b.status = 'cancelled';
+    const mine = this.lab.get(payload.participantCode)?.bookings ?? [];
+    const targets = payload.bookingIds?.length ? mine.filter((b) => payload.bookingIds!.includes(b.bookingId) && b.status === 'booked') : mine.filter((b) => b.status === 'booked' && Date.parse(b.start) > Date.now());
+    if (!targets.length) throw new ApiError('validation', 'There are no visits to cancel.');
+    for (const b of targets) b.status = 'cancelled';
     this.persistLab();
-    return { bookingId: b.bookingId, email: 'sent' };
+    return { bookingIds: targets.map((b) => b.bookingId), email: 'sent' };
   }
 
   async submitLabStory(session: SessionInfo, payload: LabStoryPayload): Promise<LabStoryResult> {

@@ -195,38 +195,49 @@ export interface LabBooking {
 
 export interface LabBookingOptions {
   consent: boolean;
-  /** What has still to arrive before a first visit can be booked, in plain words. */
+  /** What has still to arrive before the visits can be booked, in plain words. */
   missing: string[];
+  /** Visits booked, attended or missed (not cancelled), soonest first. */
   bookings: LabBooking[];
-  /** The visit to book next, if any, and the UK dates it can be on. */
-  next: LabVisit | null;
-  window: { from: string; to: string } | null;
-  slots: LabSlot[];
-  /** For a visit that can still be moved: the times it could move to. */
-  changing: Partial<Record<LabVisit, LabSlot[]>>;
+  /** The visits still to book: both at first, as they are booked together; afterwards the one a missed or cancelled visit left. */
+  toBook: LabVisit[];
+  /** Open times for each visit, widely: the page narrows the second to `gap` days after the first (chosen or kept). */
+  slots: Record<LabVisit, LabSlot[]>;
+  /** The second visit is this many days after the first (inclusive, UK dates). */
+  gap: { min: number; max: number };
   /** Whether text reminders are set up. */
   smsAvailable: boolean;
   rules: { minNoticeHours: number; changeUntilHours: number };
 }
 
+export interface LabVisitChoice {
+  visit: LabVisit;
+  slotId: string;
+}
+
 export interface LabBookPayload {
   participantCode: string;
-  slotId: string;
-  visit: LabVisit;
+  /** One time for each visit being booked or moved: both at the first booking. */
+  visits: LabVisitChoice[];
   email: string;
   mobile: string | null;
   smsReminders: boolean;
-  /** The booking this one replaces (a change of time). */
-  replaces: string | null;
   client: ClientInfo;
 }
 
 export type DeliveryOutcome = 'sent' | 'failed' | 'not-configured' | 'no-contact' | 'not-wanted' | 'invalid-number' | string;
 
 export interface LabBookResult {
-  booking: LabBooking;
+  /** The new bookings (a moved visit gets a new one). */
+  booked: LabBooking[];
+  kind: 'booked' | 'moved';
   email: DeliveryOutcome;
   sms: DeliveryOutcome;
+}
+
+export interface LabCancelResult {
+  bookingIds: string[];
+  email: DeliveryOutcome;
 }
 
 /* ── MyStory (src/lab/mystory.ts) ──────────────────────────────────────── */
@@ -327,7 +338,8 @@ export interface ConsentApi {
   /** The lab visits: where someone stands, their bookings, and the open times. */
   labBookingOptions(session: SessionInfo, participantCode: string): Promise<LabBookingOptions>;
   bookLabSlot(session: SessionInfo, payload: LabBookPayload): Promise<LabBookResult>;
-  cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingId: string }): Promise<{ bookingId: string; email: DeliveryOutcome }>;
+  /** Cancels the visits named, or, with none named, every visit still to come. */
+  cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingIds?: string[] | null }): Promise<LabCancelResult>;
   submitLabStory(session: SessionInfo, payload: LabStoryPayload): Promise<LabStoryResult>;
   /** The staff page and the schools' upload page: one callable each, with an action (firebase/functions/src/staff.ts, schoolUpload.ts). */
   callTool<Res>(session: SessionInfo, name: 'staffApi' | 'schoolUpload', payload: Record<string, unknown>): Promise<Res>;

@@ -93,9 +93,9 @@ function Frame() {
   );
 }
 
-export function LabApp({ flow = 'baseline', phase }: { flow?: LabFlow; phase?: LabPhase }) {
+export function LabApp({ flow = 'baseline', phase, atLab = false }: { flow?: LabFlow; phase?: LabPhase; atLab?: boolean }) {
   return (
-    <LabStoreProvider flow={flow} phase={phase}>
+    <LabStoreProvider flow={flow} phase={phase} atLab={atLab}>
       <Frame />
     </LabStoreProvider>
   );

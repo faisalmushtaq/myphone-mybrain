@@ -2,7 +2,7 @@ import { FieldValue, getFirestore, Timestamp, type DocumentData, type DocumentRe
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
-import { labBooking, labJourneyHour, labJourneyMessages, labStudy, storyModes, type JourneyMessage } from './forms.js';
+import { labBooking, labJourneyHour, labJourneyMessages, labStudy, type JourneyMessage } from './forms.js';
 import { icsFor } from './ics.js';
 import { normaliseCode, phaseCountsOf, rateLimitLookups } from './lab.js';
 import { participantLinks } from './links.js';
@@ -24,12 +24,13 @@ import { isObj, str, validateClient, type ClientInfo } from './validate.js';
  *   labContacts/{code}  the email address and UK mobile number given when
  *                       booking, and whether texts are wanted (identifying)
  *
- * A first visit can be booked only once the data from before the break has
- * arrived (labBooking.requires); the second only once the first is booked,
- * in the window after it that ends the 30-day break. Every booking, change
- * and cancellation is emailed to the participant with a calendar file and
- * copied to the study's contact; reminders go by email and, for people who
- * asked, by text. Every quarter of an hour, labMessages sends what is due.
+ * Nothing can be booked until the data from before the break has arrived
+ * (labBooking.requires); then both visits are booked together, the second
+ * 28 to 35 days after the first (docs/decisions.md). Every booking, change
+ * and cancellation is emailed to the participant with a calendar file per
+ * visit and copied to Miftah and the team inbox (labBooking.copyTo);
+ * reminders go by email and, for people who asked, by text. Every quarter of
+ * an hour, labMessages sends what is due.
  */
 
 const REGION = 'europe-west2';
@@ -107,22 +108,22 @@ const placeLine = (p: Place) => [p.name, p.address].filter(Boolean).join(', ');
 
 export interface BookingState {
   consent: boolean;
-  /** What has still to arrive before a first visit can be booked, in plain words. */
+  /** What has still to arrive before the visits can be booked, in plain words. */
   missing: string[];
-  /** The standing booking for each visit. */
+  /** The standing booking for each visit (booked or attended). */
   active: Record<Visit, BookingRecord | null>;
-  /** The visit to book next, if any. */
-  next: Visit | null;
-  /** The UK dates the next visit can be on, inclusive. */
-  window: { from: string; to: string } | null;
+  /** The visits still to book: both at first, since they are booked together; afterwards only one a missed or cancelled visit left open. */
+  toBook: Visit[];
 }
 
+const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+
 /**
- * Where a participant stands: a first visit once consent and the data from
- * before the break are in (a missed first visit can be booked again); a
- * second once the first stands, in the days that end the break.
+ * Where a participant stands: nothing can be booked until consent and the
+ * data from before the break are in; then both visits, together. A missed or
+ * cancelled visit leaves that visit to book again.
  */
-export function bookingState(participant: DocumentData | undefined, bookings: BookingRecord[], now: Date): BookingState {
+export function bookingState(participant: DocumentData | undefined, bookings: BookingRecord[], _now: Date = new Date()): BookingState {
   const consent = Boolean(participant?.consentId);
   const pre = participant ? phaseCountsOf(participant).pre : { screenshots: 0, archives: 0 };
   const missing: string[] = [];
@@ -134,19 +135,40 @@ export function bookingState(participant: DocumentData | undefined, bookings: Bo
       .filter((b) => b.visit === visit && ACTIVE.includes(b.status))
       .sort((a, b) => b.start.getTime() - a.start.getTime())[0] ?? null;
   const active: Record<Visit, BookingRecord | null> = { 1: standing(1), 2: standing(2) };
-  let next: Visit | null = null;
-  let window: BookingState['window'] = null;
-  if (!active[1]) {
-    if (!missing.length) {
-      next = 1;
-      window = { from: ukDate(now), to: ukDate(new Date(now.getTime() + labBooking.horizonDays * DAY)) };
-    }
-  } else if (!active[2]) {
-    next = 2;
-    const first = ukDate(active[1].start);
-    window = { from: addDays(first, labBooking.visit2AfterDays.min), to: addDays(first, labBooking.visit2AfterDays.max) };
+  const toBook = missing.length ? [] : ([1, 2] as Visit[]).filter((v) => !active[v]);
+  return { consent, missing, active, toBook };
+}
+
+const GAP = labBooking.visit2AfterDays;
+
+/**
+ * The UK dates a visit can be on: the first from today; the second 28 to 35
+ * days after the first; and, when only the first is being chosen against a
+ * second that stays, 28 to 35 days before it.
+ */
+export function visitWindow(visit: Visit, other: Date | null, now: Date): { from: string; to: string } {
+  const today = ukDate(now);
+  const horizon = addDays(today, labBooking.horizonDays);
+  if (visit === 1) {
+    if (!other) return { from: today, to: horizon };
+    const from = addDays(ukDate(other), -GAP.max);
+    return { from: from > today ? from : today, to: addDays(ukDate(other), -GAP.min) };
   }
-  return { consent, missing, active, next, window };
+  if (!other) return { from: addDays(today, GAP.min), to: addDays(horizon, GAP.max) };
+  return { from: addDays(ukDate(other), GAP.min), to: addDays(ukDate(other), GAP.max) };
+}
+
+/**
+ * The days to list open times for on the booking page: the first visit from
+ * today; the second from 28 days on, or from 28 days after a first visit that
+ * has already happened. The page narrows each list to fit the other visit.
+ */
+export function offerWindows(state: BookingState, now: Date): Record<Visit, { from: string; to: string }> {
+  const today = ukDate(now);
+  const second = visitWindow(2, null, now);
+  const afterFirst = state.active[1] ? visitWindow(2, state.active[1].start, now).from : second.from;
+  const from = afterFirst < second.from ? (afterFirst > today ? afterFirst : today) : second.from;
+  return { 1: visitWindow(1, null, now), 2: { from, to: second.to } };
 }
 
 export interface SlotView {
@@ -167,15 +189,18 @@ export function slotProblem(slot: DocumentData, visit: Visit, window: { from: st
   if (start.getTime() <= now.getTime()) return 'That time has passed. Please choose another.';
   if (byStaff) return null;
   if (start.getTime() < now.getTime() + labBooking.minNoticeHours * HOUR) return `Times can be booked online up to ${labBooking.minNoticeHours} hours ahead. For anything sooner, contact ${labStudy.contactName} at ${labStudy.contactEmail}.`;
-  if (window && (ukDate(start) < window.from || ukDate(start) > window.to)) return visit === 2 ? `Your second visit needs to be between ${ukLongDate(atUkTime(window.from, 12))} and ${ukLongDate(atUkTime(window.to, 12))}, at the end of your break.` : 'That time is too far ahead. Please choose another.';
+  if (window && (ukDate(start) < window.from || ukDate(start) > window.to)) {
+    const between = `between ${ukLongDate(atUkTime(window.from, 12))} and ${ukLongDate(atUkTime(window.to, 12))}`;
+    return visit === 2 ? `Your second visit needs to be ${GAP.min} to ${GAP.max} days after your first: ${between}.` : `Your first visit needs to be ${GAP.min} to ${GAP.max} days before your second: ${between}.`;
+  }
   return null;
 }
 
-/** The open times for a visit in its window, soonest first. */
+/** The open times for a visit in a window, soonest first. */
 export async function openSlots(db: Firestore, visit: Visit, window: { from: string; to: string }, now: Date, byStaff = false): Promise<SlotView[]> {
   const from = atUkTime(window.from, 0);
   const to = new Date(atUkTime(window.to, 0).getTime() + DAY);
-  const snap = await db.collection('labSlots').where('start', '>=', from).where('start', '<', to).orderBy('start').limit(400).get();
+  const snap = await db.collection('labSlots').where('start', '>=', from).where('start', '<', to).orderBy('start').limit(800).get();
   return snap.docs
     .filter((d) => !slotProblem(d.data(), visit, window, now, byStaff))
     .map((d) => ({ slotId: d.id, start: toDate(d.data().start).toISOString(), end: toDate(d.data().end).toISOString(), visit: d.data().visit === 1 || d.data().visit === 2 ? d.data().visit : null, place: placeOf(d.data()), spaces: Number(d.data().capacity ?? 1) - Number(d.data().booked ?? 0) }));
@@ -215,80 +240,105 @@ export const icsName = (b: BookingRecord) => `myphone-mybrain-visit-${b.visit}.i
 
 const signOff = ['', 'The MyPhone/MyBrain team, University of Leeds'];
 const contactLine = `reply to this email or contact ${labStudy.contactName} at ${labStudy.contactEmail}`;
+const Contact_ = (s: string) => `${s[0].toUpperCase()}${s.slice(1)}`;
+const visitTitle = (visit: Visit) => (visit === 1 ? 'First lab visit' : 'Second lab visit');
+const shortWhen = (b: BookingRecord) => `${ukShortDate(b.start)}, ${ukClock(b.start)}`;
+const byVisit = (xs: BookingRecord[]) => [...xs].sort((a, b) => a.visit - b.visit || a.start.getTime() - b.start.getTime());
 
-function whenWhere(b: BookingRecord): string[] {
-  return [`When:  ${ukSpan(b.start, b.end)} (UK time)`, `Where: ${b.place.name}`, ...(b.place.address ? [`       ${b.place.address}`] : []), ...(b.place.directions ? [`       ${b.place.directions}`] : []), `Participant ID: ${b.participantCode}`];
+function whereLines(b: BookingRecord): string[] {
+  return [`Where: ${b.place.name}`, ...(b.place.address ? [`       ${b.place.address}`] : []), ...(b.place.directions ? [`       ${b.place.directions}`] : [])];
 }
+
+/** One visit in an email: its title, when, where and what happens. */
+function visitBlock(b: BookingRecord, note = ''): string[] {
+  return [`${visitTitle(b.visit)}${note}`, `When:  ${ukSpan(b.start, b.end)} (UK time)`, ...whereLines(b), `What happens: ${visitInfo(b.visit).what}`];
+}
+
+const bringLines = () => ['Before each visit, please remember:', ...labBooking.bring.map((x) => `- ${x}`)];
 
 function reminderPromise(contact: Contact): string {
   const texts = contact.smsReminders && contact.mobile;
-  return texts ? 'We will email you the day before, and text you the day before and on the day.' : 'We will email you a reminder the day before.';
+  return texts ? 'We will email you the day before each visit, and text you the day before and on the day.' : 'We will email you a reminder the day before each visit.';
 }
 
-/** The email for a booking, a change of time or a cancellation; always copied to the study's contact. */
-export function bookingEmail(kind: 'booked' | 'moved' | 'cancelled', b: BookingRecord, contact: Contact, opts: { previous?: BookingRecord; byTeam?: boolean; reason?: string } = {}): { subject: string; text: string } {
-  const info = visitInfo(b.visit);
-  const links = participantLinks(b.participantCode);
-  const when = `${ukShortDate(b.start)}, ${ukClock(b.start)}`;
+/**
+ * The email for booked visits, changed times or cancelled visits. For a
+ * booking or a change it lists every visit now standing (the new times
+ * marked); for a cancellation, the visits cancelled. Copied to the study's
+ * contact and the team inbox (labBooking.copyTo).
+ */
+export function visitsEmail(kind: 'booked' | 'moved' | 'cancelled', visits: BookingRecord[], contact: Contact, opts: { changed?: string[]; byTeam?: boolean; reason?: string } = {}): { subject: string; text: string } {
+  const sorted = byVisit(visits);
+  const code = sorted[0]?.participantCode ?? '';
+  const links = participantLinks(code);
+  const both = sorted.length > 1;
   if (kind === 'cancelled') {
     return {
-      subject: `MyPhone/MyBrain: your ${visitWords(b.visit)} on ${when} is cancelled`,
+      subject: both ? 'MyPhone/MyBrain: your lab visits are cancelled' : `MyPhone/MyBrain: your ${visitWords(sorted[0].visit)} on ${shortWhen(sorted[0])} is cancelled`,
       text: [
         'Hello,',
         '',
-        `Your ${visitWords(b.visit)} for the ${labStudy.name} on ${ukSpan(b.start, b.end)} has been cancelled${opts.byTeam ? ' by the research team' : ''}.${opts.reason ? ` ${opts.reason}` : ''}`,
-        'The attached calendar file removes it from your calendar, if you added it.',
+        `${both ? 'Your lab visits' : `Your ${visitWords(sorted[0].visit)}`} for the ${labStudy.name} ${both ? 'have' : 'has'} been cancelled${opts.byTeam ? ' by the research team' : ''}.${opts.reason ? ` ${opts.reason}` : ''}`,
         '',
-        `To book another time: ${links.book}`,
+        ...sorted.flatMap((b) => [`${visitTitle(b.visit)}: ${ukSpan(b.start, b.end)}`]),
+        `Participant ID: ${code}`,
         '',
-        `Questions? ${contactLine[0].toUpperCase()}${contactLine.slice(1)}.`,
+        `The attached calendar file${both ? 's remove them' : ' removes it'} from your calendar, if you added ${both ? 'them' : 'it'}.`,
+        '',
+        `To book again: ${links.book}`,
+        '',
+        `Questions? ${Contact_(contactLine)}.`,
         ...signOff,
       ].join('\n'),
     };
   }
-  const story = b.visit === 1 ? ['', `Before your visit, if you have a few minutes: tell us about your phone in your own words, in ${storyModes.pre.mode === 'native' ? 'MyStory' : storyModes.pre.name}. It takes about five minutes.`, links.story.pre] : [];
+  const changed = new Set(opts.changed ?? []);
+  const intro =
+    kind === 'moved'
+      ? `Your lab visit times for the ${labStudy.name} have changed${opts.byTeam ? ' (the research team made the change)' : ''}. Your visits now:`
+      : `Your ${both ? 'two lab visits' : visitWords(sorted[0].visit)} for the ${labStudy.name} ${both ? 'are' : 'is'} booked. Thank you!`;
   return {
-    subject: kind === 'moved' ? `MyPhone/MyBrain: your ${visitWords(b.visit)} has moved to ${when}` : `MyPhone/MyBrain: your ${visitWords(b.visit)} is booked for ${when}`,
+    subject: kind === 'moved' ? 'MyPhone/MyBrain: your lab visit times have changed' : both ? `MyPhone/MyBrain: your lab visits are booked: ${ukShortDate(sorted[0].start)} and ${ukShortDate(sorted[1].start)}` : `MyPhone/MyBrain: your ${visitWords(sorted[0].visit)} is booked for ${shortWhen(sorted[0])}`,
     text: [
       'Hello,',
       '',
-      kind === 'moved'
-        ? `Your ${visitWords(b.visit)} for the ${labStudy.name} has moved${opts.previous ? ` from ${ukSpan(opts.previous.start, opts.previous.end)}` : ''}. The new time:`
-        : `Your ${visitWords(b.visit)} for the ${labStudy.name} is booked. Thank you!`,
+      intro,
+      ...sorted.flatMap((b) => ['', ...visitBlock(b, kind === 'moved' && changed.has(b.id) ? ' (new time)' : '')]),
       '',
-      ...whenWhere(b),
+      `Participant ID: ${code}`,
       '',
-      `What happens: ${info.what}`,
-      `Please bring: ${labBooking.bring.join(' ')}`,
+      ...bringLines(),
       '',
-      `The attached calendar file adds the visit to your calendar${kind === 'moved' ? ' and replaces the earlier time' : ''}, with a reminder the day before. ${reminderPromise(contact)}`,
+      `The attached calendar file${both ? 's add the visits' : ' adds the visit'} to your calendar${kind === 'moved' ? ', replacing the earlier times' : ''}, with a reminder the day before. ${reminderPromise(contact)}`,
       '',
-      `To change or cancel, up to ${labBooking.changeUntilHours} hours before the visit: ${links.book}`,
+      `To change or cancel, up to ${labBooking.changeUntilHours} hours before a visit: ${links.book}`,
       `After that, or if anything is unclear, ${contactLine}.`,
-      ...story,
       ...signOff,
     ].join('\n'),
   };
 }
 
+const placeShort = (b: BookingRecord) => b.place.name.split(',')[0];
+
 /** Texts are kept to one message: plain characters, under 160 where possible. */
-export function bookingText(kind: 'booked' | 'moved' | 'day-before' | 'same-day', b: BookingRecord): string {
-  const where = b.place.name;
-  const when = `${ukShortDate(b.start)}, ${ukClock(b.start)}`;
-  switch (kind) {
-    case 'booked':
-      return `MyPhone/MyBrain: your ${visitWords(b.visit)} is booked for ${when}, ${where}. Details are in your email.`;
-    case 'moved':
-      return `MyPhone/MyBrain: your ${visitWords(b.visit)} has moved to ${when}, ${where}. Details are in your email.`;
-    case 'day-before':
-      return `MyPhone/MyBrain reminder: your lab visit is tomorrow (${ukShortDate(b.start)}) at ${ukClock(b.start)}, ${where}. Can't come? Email ${labStudy.contactEmail}`;
-    case 'same-day':
-      return `MyPhone/MyBrain: see you today at ${ukClock(b.start)}, ${where}. Running late? Email ${labStudy.contactEmail}`;
+export function visitsText(kind: 'booked' | 'moved', visits: BookingRecord[]): string {
+  const sorted = byVisit(visits);
+  if (sorted.length > 1) {
+    const times = sorted.map(shortWhen).join(' and ');
+    return kind === 'moved' ? `MyPhone/MyBrain: your lab visits are now ${times} at the ${placeShort(sorted[0])}. Details are in your email.` : `MyPhone/MyBrain: your lab visits are booked for ${times} at the ${placeShort(sorted[0])}. Details are in your email.`;
   }
+  const b = sorted[0];
+  return kind === 'moved' ? `MyPhone/MyBrain: your ${visitWords(b.visit)} has moved to ${shortWhen(b)}, ${b.place.name}. Details are in your email.` : `MyPhone/MyBrain: your ${visitWords(b.visit)} is booked for ${shortWhen(b)}, ${b.place.name}. Details are in your email.`;
+}
+
+/** The reminder texts before a visit. */
+export function bookingText(kind: 'day-before' | 'same-day', b: BookingRecord): string {
+  return kind === 'day-before'
+    ? `MyPhone/MyBrain reminder: your lab visit is tomorrow (${ukShortDate(b.start)}) at ${ukClock(b.start)}, ${placeShort(b)}. Can't come? Email ${labStudy.contactEmail}`
+    : `MyPhone/MyBrain: see you today at ${ukClock(b.start)} at the main entrance, ${placeShort(b)}. Running late? Email ${labStudy.contactEmail}`;
 }
 
 export function reminderEmail(b: BookingRecord): { subject: string; text: string } {
-  const info = visitInfo(b.visit);
   const links = participantLinks(b.participantCode);
   return {
     subject: `MyPhone/MyBrain: your ${visitWords(b.visit)} is tomorrow at ${ukClock(b.start)}`,
@@ -297,10 +347,10 @@ export function reminderEmail(b: BookingRecord): { subject: string; text: string
       '',
       `A reminder: your ${visitWords(b.visit)} for the ${labStudy.name} is tomorrow.`,
       '',
-      ...whenWhere(b),
+      ...visitBlock(b),
+      `Participant ID: ${b.participantCode}`,
       '',
-      `What happens: ${info.what}`,
-      `Please bring: ${labBooking.bring.join(' ')}`,
+      ...bringLines(),
       ...(b.visit === 2 ? ['', `If you have not sent your screen-time screenshots from the end of your break yet, please do it before the visit: ${links.after}`] : []),
       '',
       `Can't come? Please ${contactLine} as soon as you can, so the time can go to someone else.`,
@@ -314,20 +364,13 @@ export function journeyMessage(id: string, code: string, visit2: BookingRecord |
   const links = participantLinks(code);
   const visit2Line = visit2 ? `Your second lab visit is on ${ukSpan(visit2.start, visit2.end)}.` : '';
   const hello = ['Hello,', ''];
-  const end = ['', `Questions, or problems with Brick or the break? ${contactLine[0].toUpperCase()}${contactLine.slice(1)}.`, ...signOff];
+  const end = ['', `Questions, or problems with Brick or the break? ${Contact_(contactLine)}.`, ...signOff];
   if (id.startsWith('check-in-')) {
     const week = id.slice('check-in-'.length);
     return {
       subject: `MyPhone/MyBrain: your week ${week} check-in`,
       text: [...hello, `It's time for your weekly check-in for the ${labStudy.name}: a few quick questions about your break, and a screenshot of your screen time if you can. It takes about two minutes, and there is an optional MyStory at the end.`, '', links.checkIn, ...(visit2Line ? ['', visit2Line] : []), ...end].join('\n'),
       sms: `MyPhone/MyBrain: time for your week ${week} check-in, about 2 minutes: ${links.checkIn}`,
-    };
-  }
-  if (id === 'book-visit-2' || id === 'book-visit-2-again') {
-    return {
-      subject: 'MyPhone/MyBrain: book your second lab visit',
-      text: [...hello, `${id === 'book-visit-2' ? 'Thank you for coming to your first lab visit.' : 'A reminder:'} Please book your second lab visit, at the end of your 30-day break. The booking page shows the times that fit.`, '', links.book, ...end].join('\n'),
-      sms: `MyPhone/MyBrain: please book your second lab visit, for the end of your break: ${links.book}`,
     };
   }
   if (id === 'end-of-break') {
@@ -359,109 +402,176 @@ export async function contactOf(db: Firestore, code: string): Promise<Contact> {
 
 const wantsTexts = (c: Contact) => Boolean(c.smsReminders && c.mobile);
 
-/** Emails the participant (copied to the study's contact) about a booking, with its calendar file, and texts them if they asked. Never throws. */
-export async function notifyBooking(kind: 'booked' | 'moved' | 'cancelled', b: BookingRecord, contact: Contact, opts: { previous?: BookingRecord; byTeam?: boolean; reason?: string } = {}): Promise<{ email: MailOutcome | 'no-contact'; sms: SmsOutcome | 'not-wanted' }> {
-  const message = bookingEmail(kind, b, contact, opts);
-  const email = contact.email ? await sendMail({ to: contact.email, cc: labStudy.contactEmail, replyTo: labStudy.contactEmail, ...message, attachments: [{ filename: icsName(b), content: bookingIcs(b, kind === 'cancelled'), contentType: `text/calendar; charset=utf-8; method=${kind === 'cancelled' ? 'CANCEL' : 'PUBLISH'}` }] }) : 'no-contact';
-  const sms = kind !== 'cancelled' && labBooking.textOnBooking && wantsTexts(contact) ? await sendSms(contact.mobile!, bookingText(kind, b)) : 'not-wanted';
+/**
+ * Emails the participant about booked, changed or cancelled visits, with a
+ * calendar file per visit, copied to the study's contact and the team inbox;
+ * texts them about a booking or a change if they asked. Never throws.
+ */
+export async function notifyVisits(kind: 'booked' | 'moved' | 'cancelled', visits: BookingRecord[], contact: Contact, opts: { changed?: string[]; byTeam?: boolean; reason?: string } = {}): Promise<{ email: MailOutcome | 'no-contact'; sms: SmsOutcome | 'not-wanted' }> {
+  const message = visitsEmail(kind, visits, contact, opts);
+  const attachments = byVisit(visits)
+    .filter((b) => kind === 'cancelled' || b.status === 'booked')
+    .map((b) => ({ filename: icsName(b), content: bookingIcs(b, kind === 'cancelled'), contentType: `text/calendar; charset=utf-8; method=${kind === 'cancelled' ? 'CANCEL' : 'PUBLISH'}` }));
+  const email = contact.email ? await sendMail({ to: contact.email, cc: labBooking.copyTo.join(', '), replyTo: labStudy.contactEmail, ...message, attachments }) : 'no-contact';
+  const sms = kind !== 'cancelled' && labBooking.textOnBooking && wantsTexts(contact) ? await sendSms(contact.mobile!, visitsText(kind, visits.filter((b) => b.status === 'booked'))) : 'not-wanted';
   return { email, sms };
 }
 
 /* ── Placing and cancelling ────────────────────────────────────────────── */
 
+export interface VisitChoice {
+  visit: Visit;
+  slotId: string;
+}
+
 export interface PlaceRequest {
   code: string;
-  slotId: string;
-  visit: Visit;
-  /** The booking this one replaces (a change of time). */
-  replaces: string | null;
+  /** One time per visit being booked or moved. */
+  choices: VisitChoice[];
   by: 'participant' | 'staff';
   uid: string;
   client: ClientInfo | null;
 }
 
+export interface PlaceResult {
+  /** The new bookings. */
+  booked: BookingRecord[];
+  /** The bookings they replace (moved). */
+  replaced: BookingRecord[];
+  /** Every visit standing afterwards. */
+  standing: BookingRecord[];
+}
+
 /**
- * Books a slot in one transaction: the slot still has room, the visit is
- * not already booked (unless this replaces that booking), and for a change
- * of time the old booking is released. The team may book any open time with
- * room, without the notice, window or data checks.
+ * Books visits in one transaction. A participant books both visits together
+ * (or the one a missed or cancelled visit left), with consent and the data
+ * from before the break in, the second 28 to 35 days after the first, each
+ * at least 24 hours ahead; choosing a new time for a visit already booked
+ * moves it (up to 24 hours before). The team may book any open time with
+ * room, one visit at a time, without the notice, window or data checks.
  */
-export async function placeBooking(db: Firestore, req: PlaceRequest, now = new Date()): Promise<{ booking: BookingRecord; previous: BookingRecord | null }> {
+export async function placeVisits(db: Firestore, req: PlaceRequest, now = new Date()): Promise<PlaceResult> {
+  if (!req.choices.length || req.choices.length > 2 || new Set(req.choices.map((c) => c.visit)).size !== req.choices.length) throw new HttpsError('invalid-argument', 'Choose one time for each visit.');
   const participantRef = db.collection('labParticipants').doc(req.code);
-  const slotRef = db.collection('labSlots').doc(req.slotId);
-  const bookingRef = db.collection('labBookings').doc();
+  const slotRefs = req.choices.map((c) => db.collection('labSlots').doc(c.slotId));
   const byStaff = req.by === 'staff';
   return db.runTransaction(async (tx) => {
-    const [participantSnap, slotSnap, mine] = await Promise.all([tx.get(participantRef), tx.get(slotRef), tx.get(db.collection('labBookings').where('participantCode', '==', req.code))]);
+    const [participantSnap, mine, ...slotSnaps] = await Promise.all([tx.get(participantRef), tx.get(db.collection('labBookings').where('participantCode', '==', req.code)), ...slotRefs.map((r) => tx.get(r))]);
     const participant = participantSnap.data();
     if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID.');
-    if (!slotSnap.exists) throw new HttpsError('not-found', 'That time is no longer available. Please choose another.');
     const bookings = mine.docs.map((d) => bookingFrom(d.id, d.data()));
-    const previous = req.replaces ? (bookings.find((b) => b.id === req.replaces) ?? null) : null;
-    if (req.replaces && (!previous || previous.visit !== req.visit || previous.status !== 'booked')) throw new HttpsError('failed-precondition', 'The booking to change was not found. Please reload the page.');
-    if (previous && previous.slotId === req.slotId) throw new HttpsError('failed-precondition', 'That is the time you already have. Choose a different one, or keep it.');
-    if (previous && !byStaff && !changeable(previous, now)) throw new HttpsError('failed-precondition', `Visits can be changed online up to ${labBooking.changeUntilHours} hours before. Please contact ${labStudy.contactName} at ${labStudy.contactEmail}.`);
-    // Where the participant stands without the booking being replaced.
-    const state = bookingState(participant, bookings.filter((b) => b.id !== req.replaces), now);
-    if (state.active[req.visit]) throw new HttpsError('failed-precondition', `Your ${visitWords(req.visit)} is already booked. To move it, use “Change time”.`);
-    if (!byStaff && state.next !== req.visit) {
-      throw new HttpsError('failed-precondition', req.visit === 1 ? `Your first visit can be booked once ${state.missing.join(' and ')} ${state.missing.length === 1 ? 'has' : 'have'} arrived.` : 'Your second visit can be booked once your first is booked.');
-    }
-    if (req.visit === 1 && previous && state.active[2]) throw new HttpsError('failed-precondition', `Your second visit is already booked for ${ukSpan(state.active[2].start, state.active[2].end)}. To move your first visit, please contact ${labStudy.contactName} at ${labStudy.contactEmail}.`);
-    const slot = slotSnap.data()!;
-    // The window for the visit; the team's own bookings are not held to it.
-    const problem = slotProblem(slot, req.visit, state.next === req.visit ? state.window : null, now, byStaff);
-    if (problem) throw new HttpsError('failed-precondition', problem);
-
-    const sequence = Math.max(-1, ...bookings.filter((b) => b.visit === req.visit).map((b) => b.sequence)) + 1;
-    const booking: BookingRecord = { id: bookingRef.id, participantCode: req.code, visit: req.visit, slotId: req.slotId, start: toDate(slot.start), end: toDate(slot.end), place: placeOf(slot), status: 'booked', bookedAt: now, sequence };
-    tx.set(bookingRef, {
-      studyId: labStudy.studyId,
-      participantCode: req.code,
-      visit: req.visit,
-      slotId: req.slotId,
-      start: booking.start,
-      end: booking.end,
-      place: booking.place,
-      status: 'booked',
-      bookedAt: now,
-      bookedBy: req.by,
-      sequence,
-      replaces: previous?.id ?? null,
-      replacedBy: null,
-      cancelledAt: null,
-      cancelledBy: null,
-      reminders: {},
-      sessionUid: req.uid,
-      client: req.client,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+    const state = bookingState(participant, bookings, now);
+    if (!byStaff && state.missing.length) throw new HttpsError('failed-precondition', `Your lab visits can be booked once ${list(state.missing)} ${state.missing.length === 1 ? 'has' : 'have'} arrived.`);
+    const plan: Record<Visit, { start: Date; end: Date } | null> = { 1: state.active[1], 2: state.active[2] };
+    const replaced: BookingRecord[] = [];
+    req.choices.forEach((c, i) => {
+      const snap = slotSnaps[i];
+      if (!snap.exists) throw new HttpsError('not-found', 'That time is no longer available. Please choose another.');
+      const previous = state.active[c.visit];
+      if (previous) {
+        if (previous.status !== 'booked') throw new HttpsError('failed-precondition', `Your ${visitWords(c.visit)} has already happened.`);
+        if (previous.slotId === c.slotId) throw new HttpsError('failed-precondition', `That is the time you already have for your ${visitWords(c.visit)}.`);
+        if (!byStaff && !changeable(previous, now)) throw new HttpsError('failed-precondition', `Visits can be changed online up to ${labBooking.changeUntilHours} hours before. Please contact ${labStudy.contactName} at ${labStudy.contactEmail}.`);
+        replaced.push(previous);
+      }
+      plan[c.visit] = { start: toDate(snap.data()!.start), end: toDate(snap.data()!.end) };
     });
-    tx.update(slotRef, { booked: FieldValue.increment(1), bookingIds: FieldValue.arrayUnion(bookingRef.id), updatedAt: FieldValue.serverTimestamp() });
-    if (previous) {
-      tx.update(db.collection('labBookings').doc(previous.id), { status: 'cancelled', cancelledAt: now, cancelledBy: req.by, cancelReason: 'moved', replacedBy: bookingRef.id, updatedAt: FieldValue.serverTimestamp() });
-      tx.update(db.collection('labSlots').doc(previous.slotId), { booked: FieldValue.increment(-1), updatedAt: FieldValue.serverTimestamp() });
+    if (!byStaff && (!plan[1] || !plan[2])) throw new HttpsError('failed-precondition', 'Please choose a time for both visits: they are booked together.');
+    if (plan[1] && plan[2] && plan[2].start.getTime() <= plan[1].end.getTime()) throw new HttpsError('failed-precondition', 'The second visit must come after the first.');
+    req.choices.forEach((c, i) => {
+      const other = plan[c.visit === 1 ? 2 : 1];
+      const problem = slotProblem(slotSnaps[i].data()!, c.visit, byStaff ? null : visitWindow(c.visit, other?.start ?? null, now), now, byStaff);
+      if (problem) throw new HttpsError('failed-precondition', problem);
+    });
+
+    // One update per slot, however many bookings it gains or loses here.
+    const slotDelta = new Map<string, { delta: number; add: string[] }>();
+    const touch = (slotId: string, delta: number, add?: string) => {
+      const d = slotDelta.get(slotId) ?? { delta: 0, add: [] };
+      d.delta += delta;
+      if (add) d.add.push(add);
+      slotDelta.set(slotId, d);
+    };
+    const booked: BookingRecord[] = [];
+    req.choices.forEach((c, i) => {
+      const slot = slotSnaps[i].data()!;
+      const ref = db.collection('labBookings').doc();
+      const previous = replaced.find((b) => b.visit === c.visit) ?? null;
+      const sequence = Math.max(-1, ...bookings.filter((b) => b.visit === c.visit).map((b) => b.sequence)) + 1;
+      const booking: BookingRecord = { id: ref.id, participantCode: req.code, visit: c.visit, slotId: c.slotId, start: toDate(slot.start), end: toDate(slot.end), place: placeOf(slot), status: 'booked', bookedAt: now, sequence };
+      tx.set(ref, {
+        studyId: labStudy.studyId,
+        participantCode: req.code,
+        visit: c.visit,
+        slotId: c.slotId,
+        start: booking.start,
+        end: booking.end,
+        place: booking.place,
+        status: 'booked',
+        bookedAt: now,
+        bookedBy: req.by,
+        sequence,
+        replaces: previous?.id ?? null,
+        replacedBy: null,
+        cancelledAt: null,
+        cancelledBy: null,
+        reminders: {},
+        sessionUid: req.uid,
+        client: req.client,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      touch(c.slotId, 1, ref.id);
+      if (previous) {
+        tx.update(db.collection('labBookings').doc(previous.id), { status: 'cancelled', cancelledAt: now, cancelledBy: req.by, cancelReason: 'moved', replacedBy: ref.id, updatedAt: FieldValue.serverTimestamp() });
+        touch(previous.slotId, -1);
+      }
+      booked.push(booking);
+    });
+    for (const [slotId, d] of slotDelta) {
+      tx.update(db.collection('labSlots').doc(slotId), { booked: FieldValue.increment(d.delta), ...(d.add.length ? { bookingIds: FieldValue.arrayUnion(...d.add) } : {}), updatedAt: FieldValue.serverTimestamp() });
     }
-    tx.set(participantRef, { bookingIds: FieldValue.arrayUnion(bookingRef.id), [`visit${req.visit}At`]: booking.start, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    return { booking, previous };
+    tx.set(participantRef, { bookingIds: FieldValue.arrayUnion(...booked.map((b) => b.id)), ...Object.fromEntries(booked.map((b) => [`visit${b.visit}At`, b.start])), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const standing = ([1, 2] as Visit[]).map((v) => booked.find((b) => b.visit === v) ?? state.active[v]).filter((b): b is BookingRecord => Boolean(b));
+    return { booked, replaced, standing };
   });
 }
 
-/** Cancels a standing booking and frees its place. */
-export async function cancelBooking(db: Firestore, bookingId: string, by: 'participant' | 'staff', reason: string | null, now = new Date(), code: string | null = null): Promise<BookingRecord> {
-  const ref = db.collection('labBookings').doc(bookingId);
+/**
+ * Cancels standing bookings and frees their places: the ones named, or, with
+ * none named, every visit still to come. A participant can cancel online up
+ * to 24 hours before each.
+ */
+export async function cancelVisits(db: Firestore, req: { code: string | null; bookingIds: string[] | null; by: 'participant' | 'staff'; reason: string | null }, now = new Date()): Promise<BookingRecord[]> {
   return db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists) throw new HttpsError('not-found', 'That booking was not found.');
-    const booking = bookingFrom(snap.id, snap.data()!);
-    if (code && booking.participantCode !== code) throw new HttpsError('not-found', 'That booking was not found.');
-    if (booking.status !== 'booked') throw new HttpsError('failed-precondition', 'That booking is no longer standing.');
-    if (by === 'participant' && !changeable(booking, now)) throw new HttpsError('failed-precondition', `Visits can be cancelled online up to ${labBooking.changeUntilHours} hours before. Please contact ${labStudy.contactName} at ${labStudy.contactEmail}.`);
-    // The cancellation's calendar file must be newer than the booking's, and the next booking's newer still.
-    tx.update(ref, { status: 'cancelled', cancelledAt: now, cancelledBy: by, cancelReason: reason, sequence: booking.sequence + 1, updatedAt: FieldValue.serverTimestamp() });
-    tx.update(db.collection('labSlots').doc(booking.slotId), { booked: FieldValue.increment(-1), updatedAt: FieldValue.serverTimestamp() });
-    tx.set(db.collection('labParticipants').doc(booking.participantCode), { [`visit${booking.visit}At`]: null, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    return { ...booking, status: 'cancelled' as const, sequence: booking.sequence + 1 };
+    let targets: BookingRecord[];
+    if (req.bookingIds?.length) {
+      const snaps = await Promise.all(req.bookingIds.map((id) => tx.get(db.collection('labBookings').doc(id))));
+      targets = snaps.map((s) => {
+        if (!s.exists) throw new HttpsError('not-found', 'That booking was not found.');
+        const b = bookingFrom(s.id, s.data()!);
+        if (req.code && b.participantCode !== req.code) throw new HttpsError('not-found', 'That booking was not found.');
+        if (b.status !== 'booked') throw new HttpsError('failed-precondition', 'That booking is no longer standing.');
+        return b;
+      });
+    } else {
+      if (!req.code) throw new HttpsError('invalid-argument', 'Name the bookings to cancel.');
+      const mine = await tx.get(db.collection('labBookings').where('participantCode', '==', req.code));
+      targets = mine.docs.map((d) => bookingFrom(d.id, d.data())).filter((b) => b.status === 'booked' && b.start.getTime() > now.getTime());
+      if (!targets.length) throw new HttpsError('failed-precondition', 'There are no visits to cancel.');
+    }
+    if (req.by === 'participant' && targets.some((b) => !changeable(b, now))) throw new HttpsError('failed-precondition', `Visits can be cancelled online up to ${labBooking.changeUntilHours} hours before. Please contact ${labStudy.contactName} at ${labStudy.contactEmail}.`);
+    const slotDelta = new Map<string, number>();
+    for (const b of targets) {
+      // The cancellation's calendar file must be newer than the booking's, and the next booking's newer still.
+      tx.update(db.collection('labBookings').doc(b.id), { status: 'cancelled', cancelledAt: now, cancelledBy: req.by, cancelReason: req.reason, sequence: b.sequence + 1, updatedAt: FieldValue.serverTimestamp() });
+      slotDelta.set(b.slotId, (slotDelta.get(b.slotId) ?? 0) - 1);
+    }
+    for (const [slotId, delta] of slotDelta) tx.update(db.collection('labSlots').doc(slotId), { booked: FieldValue.increment(delta), updatedAt: FieldValue.serverTimestamp() });
+    const byCode = new Map<string, BookingRecord[]>();
+    for (const b of targets) byCode.set(b.participantCode, [...(byCode.get(b.participantCode) ?? []), b]);
+    for (const [code, mine] of byCode) tx.set(db.collection('labParticipants').doc(code), { ...Object.fromEntries(mine.map((b) => [`visit${b.visit}At`, null])), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return targets.map((b) => ({ ...b, status: 'cancelled' as const, sequence: b.sequence + 1 }));
   });
 }
 
@@ -484,20 +594,25 @@ export function validateBookingPayload(input: unknown): string[] {
   const problems: string[] = [];
   if (!isObj(input)) return ['The request is not an object.'];
   if (!normaliseCode(input.participantCode)) problems.push('The participant ID is malformed.');
-  if (typeof input.slotId !== 'string' || !DOC_ID.test(input.slotId)) problems.push('Choose a time.');
-  if (input.visit !== 1 && input.visit !== 2) problems.push('The visit is malformed.');
+  const visits = input.visits;
+  if (!Array.isArray(visits) || !visits.length || visits.length > 2) problems.push('Choose a time for each visit.');
+  else {
+    for (const v of visits) {
+      if (!isObj(v) || (v.visit !== 1 && v.visit !== 2) || typeof v.slotId !== 'string' || !DOC_ID.test(v.slotId)) problems.push('Choose a time for each visit.');
+    }
+    if (new Set(visits.map((v) => (isObj(v) ? v.visit : null))).size !== visits.length) problems.push('Choose one time for each visit.');
+  }
   if (!str(input.email, 254) || !EMAIL.test(String(input.email).trim())) problems.push('Enter an email address in the format name@example.com.');
   if (input.mobile !== null && input.mobile !== undefined && input.mobile !== '') {
     if (!str(input.mobile, 30) || !ukMobile(String(input.mobile))) problems.push('Enter a UK mobile number, such as 07700 900123, or leave it empty.');
   }
   if (typeof input.smsReminders !== 'boolean') problems.push('Say whether you want text reminders.');
   else if (input.smsReminders && !input.mobile) problems.push('Enter your mobile number for text reminders, or untick them.');
-  if (input.replaces !== null && input.replaces !== undefined && (typeof input.replaces !== 'string' || !DOC_ID.test(input.replaces))) problems.push('The booking to change is malformed.');
   validateClient(input.client, problems);
   return problems;
 }
 
-/** Where someone stands, their visits, and the open times for the next one. */
+/** Where someone stands, their visits, and the open times for each visit. */
 export const labBookingOptions = onCall(callOptions, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Please try again.');
@@ -509,15 +624,11 @@ export const labBookingOptions = onCall(callOptions, async (request) => {
   const participant = (await db.collection('labParticipants').doc(code).get()).data();
   const bookings = await bookingsOf(db, code);
   const state = bookingState(participant, bookings, now);
-  const slots = state.next && state.window ? await openSlots(db, state.next, state.window, now) : [];
-  // A visit being changed: the times for it, in its own window.
-  const changing: Partial<Record<Visit, SlotView[]>> = {};
-  for (const visit of [1, 2] as Visit[]) {
-    const b = state.active[visit];
-    if (!b || !changeable(b, now)) continue;
-    const others = bookingState(participant, bookings.filter((x) => x.id !== b.id), now);
-    if (others.next === visit && others.window && !(visit === 1 && state.active[2])) changing[visit] = (await openSlots(db, visit, others.window, now)).filter((s) => s.slotId !== b.slotId);
-  }
+  const anyBooked = Boolean(state.active[1] || state.active[2]);
+  // Open times for each visit, widely: the page narrows the second to 28 to 35 days after the first chosen (or kept).
+  const offer = !state.missing.length && (state.toBook.length || anyBooked);
+  const windows = offerWindows(state, now);
+  const [first, second] = offer ? await Promise.all([openSlots(db, 1, windows[1], now), openSlots(db, 2, windows[2], now)]) : [[], []];
   return {
     consent: state.consent,
     missing: state.missing,
@@ -525,51 +636,52 @@ export const labBookingOptions = onCall(callOptions, async (request) => {
       .filter((b) => b.status !== 'cancelled')
       .sort((a, b) => a.start.getTime() - b.start.getTime())
       .map((b) => bookingView(b, now)),
-    next: state.next,
-    window: state.window,
-    slots,
-    changing,
+    toBook: state.toBook,
+    slots: { 1: first, 2: second },
+    gap: { min: GAP.min, max: GAP.max },
     smsAvailable: await smsReady(),
     rules: { minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours },
   };
 });
 
-/** Books (or moves) a visit, then emails the confirmation with its calendar file, copied to the study's contact. */
+/** Books both visits (or moves them), then emails the confirmation with the calendar files, copied to Miftah and the team inbox. */
 export const bookLabSlot = onCall(callOptions, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Please try again.');
   const problems = validateBookingPayload(request.data);
   if (problems.length) throw new HttpsError('invalid-argument', problems[0], { problems });
-  const p = request.data as { participantCode: string; slotId: string; visit: Visit; email: string; mobile?: string | null; smsReminders: boolean; replaces?: string | null; client: ClientInfo };
+  const p = request.data as { participantCode: string; visits: VisitChoice[]; email: string; mobile?: string | null; smsReminders: boolean; client: ClientInfo };
   const code = normaliseCode(p.participantCode)!;
   const db = getFirestore();
   await rateLimitLookups(db, uid, 'lab-booking', BOOKINGS_PER_HOUR);
   const now = new Date();
-  const { booking, previous } = await placeBooking(db, { code, slotId: p.slotId, visit: p.visit, replaces: p.replaces ?? null, by: 'participant', uid, client: p.client }, now);
+  const result = await placeVisits(db, { code, choices: p.visits.map((v) => ({ visit: v.visit, slotId: v.slotId })), by: 'participant', uid, client: p.client }, now);
   const mobile = p.mobile ? ukMobile(p.mobile) : null;
   const contact: Contact = { email: p.email.trim(), mobile, smsReminders: Boolean(p.smsReminders && mobile) };
   await db.collection('labContacts').doc(code).set({ participantCode: code, ...contact, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  const outcome = await notifyBooking(previous ? 'moved' : 'booked', booking, contact, { previous: previous ?? undefined });
-  await db.collection('labBookings').doc(booking.id).set({ confirmation: { at: new Date(), ...outcome } }, { merge: true });
-  logger.info(previous ? 'Lab visit moved' : 'Lab visit booked', { participantCode: code, bookingId: booking.id, visit: booking.visit, ...outcome });
-  return { booking: bookingView(booking, now), email: outcome.email, sms: outcome.sms };
+  const kind = result.replaced.length ? 'moved' : 'booked';
+  const outcome = await notifyVisits(kind, result.standing, contact, { changed: result.booked.map((b) => b.id) });
+  await Promise.all(result.booked.map((b) => db.collection('labBookings').doc(b.id).set({ confirmation: { at: new Date(), ...outcome } }, { merge: true })));
+  logger.info(kind === 'moved' ? 'Lab visits moved' : 'Lab visits booked', { participantCode: code, bookingIds: result.booked.map((b) => b.id), ...outcome });
+  return { booked: result.booked.map((b) => bookingView(b, now)), kind, email: outcome.email, sms: outcome.sms };
 });
 
-/** Cancels a visit (up to the cut-off), and emails the cancellation, copied to the study's contact. */
+/** Cancels the visits still to come (up to the cut-off), and emails the cancellation, copied to Miftah and the team inbox. */
 export const cancelLabBooking = onCall(callOptions, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Please try again.');
-  const data = request.data as { participantCode?: unknown; bookingId?: unknown } | undefined;
+  const data = request.data as { participantCode?: unknown; bookingIds?: unknown } | undefined;
   const code = normaliseCode(data?.participantCode);
   if (!code) throw new HttpsError('invalid-argument', 'The participant ID is malformed.');
-  if (typeof data?.bookingId !== 'string' || !DOC_ID.test(data.bookingId)) throw new HttpsError('invalid-argument', 'The booking is malformed.');
+  const ids = data?.bookingIds === undefined || data?.bookingIds === null ? null : data.bookingIds;
+  if (ids !== null && (!Array.isArray(ids) || ids.length > 2 || ids.some((x) => typeof x !== 'string' || !DOC_ID.test(x)))) throw new HttpsError('invalid-argument', 'The bookings are malformed.');
   const db = getFirestore();
   await rateLimitLookups(db, uid, 'lab-booking', BOOKINGS_PER_HOUR);
-  const cancelled = await cancelBooking(db, data.bookingId, 'participant', null, new Date(), code);
-  const outcome = await notifyBooking('cancelled', cancelled, await contactOf(db, code));
-  await db.collection('labBookings').doc(cancelled.id).set({ cancellation: { at: new Date(), ...outcome } }, { merge: true });
-  logger.info('Lab visit cancelled', { participantCode: code, bookingId: cancelled.id, visit: cancelled.visit, email: outcome.email });
-  return { bookingId: cancelled.id, email: outcome.email };
+  const cancelled = await cancelVisits(db, { code, bookingIds: ids as string[] | null, by: 'participant', reason: null }, new Date());
+  const outcome = await notifyVisits('cancelled', cancelled, await contactOf(db, code));
+  await Promise.all(cancelled.map((b) => db.collection('labBookings').doc(b.id).set({ cancellation: { at: new Date(), ...outcome } }, { merge: true })));
+  logger.info('Lab visits cancelled', { participantCode: code, bookingIds: cancelled.map((b) => b.id), email: outcome.email });
+  return { bookingIds: cancelled.map((b) => b.id), email: outcome.email };
 });
 
 /* ── Reminders and messages, every quarter of an hour ──────────────────── */
@@ -594,7 +706,7 @@ export function reminderAction(hoursBefore: number, channel: 'email' | 'sms', b:
   return 'send';
 }
 
-export type JourneyAction = 'wait' | 'send' | 'skip-stale' | 'skip-unless' | 'skip-visit-2-done';
+export type JourneyAction = 'wait' | 'send' | 'skip-stale' | 'skip-unless' | 'skip-visit-2';
 
 /** When a break-time message is due: its day after the first visit, at the set hour, UK time. */
 export const journeyDueAt = (m: JourneyMessage, visit1Start: Date) => atUkTime(addDays(ukDate(visit1Start), m.day), labJourneyHour);
@@ -603,8 +715,8 @@ export function journeyAction(m: JourneyMessage, ctx: { visit1Start: Date; visit
   const dueAt = journeyDueAt(m, ctx.visit1Start);
   if (now.getTime() < dueAt.getTime()) return 'wait';
   if (now.getTime() - dueAt.getTime() > STALE_AFTER) return 'skip-stale';
-  if (ctx.visit2 && ctx.visit2.start.getTime() <= now.getTime()) return 'skip-visit-2-done';
-  if (m.unless === 'visit-2-booked' && ctx.visit2) return 'skip-unless';
+  // From a day before the second visit, its own reminders say what to do (a visit 28 or 29 days on comes before the day-30 message).
+  if (ctx.visit2 && ctx.visit2.start.getTime() - now.getTime() < DAY) return 'skip-visit-2';
   if (m.unless === 'checked-in' && ctx.lastCheckInAt && now.getTime() - ctx.lastCheckInAt.getTime() < 3 * DAY) return 'skip-unless';
   return 'send';
 }

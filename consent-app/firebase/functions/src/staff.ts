@@ -2,7 +2,7 @@ import { FieldValue, getFirestore, type DocumentData, type Firestore } from 'fir
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { bookingFrom, bookingsOf, bookingState, bookingView, cancelBooking, contactOf, notifyBooking, placeBooking, toDate, type Contact, type Visit } from './booking.js';
+import { bookingFrom, bookingsOf, bookingState, bookingView, cancelVisits, contactOf, notifyVisits, placeVisits, toDate, visitWindow, type BookingState, type Contact, type Visit } from './booking.js';
 import { labBooking, labJourneyMessages, schools } from './forms.js';
 import { normaliseCode, notUsedOf, phaseCountsOf, toIso } from './lab.js';
 import { participantLinks, schoolUploadLink } from './links.js';
@@ -22,10 +22,10 @@ import { isObj } from './validate.js';
  *   add-slots       new times (one, or a batch the page builds from a pattern)
  *   update-slot     open or close a time, change its places, place name or note
  *   delete-slot     remove a time nobody has booked
- *   book-for        book a participant into a time (no notice, window or data checks)
- *   cancel-booking  cancel a booking, telling the participant or not
+ *   book-for        book one visit for a participant, or move it (no notice, window or data checks)
+ *   cancel-booking  cancel one visit, telling the participant or not
  *   mark-booking    attended, missed, or back to booked
- *   resend          send a booking's confirmation again
+ *   resend          send the confirmation of a participant's visits again
  *   participants    everyone in the break study, with where they stand
  *   participant     one participant: files, check-ins, stories, visits, contact, messages, their links
  *   pause-messages  stop (or restart) the automatic reminders and messages for someone
@@ -134,6 +134,16 @@ async function overview(db: Firestore) {
   };
 }
 
+/** For a visit still to book while the other stands: the days it can be on (28 to 35 days from the other), as the participant would be offered. */
+function windowsOf(state: BookingState, now: Date): Partial<Record<Visit, { from: string; to: string }>> {
+  const out: Partial<Record<Visit, { from: string; to: string }>> = {};
+  for (const v of state.toBook) {
+    const other = state.active[v === 1 ? 2 : 1];
+    if (other) out[v] = visitWindow(v, other.start, now);
+  }
+  return out;
+}
+
 async function participantDetail(db: Firestore, code: string) {
   const ref = db.collection('labParticipants').doc(code);
   const p = (await ref.get()).data();
@@ -152,8 +162,8 @@ async function participantDetail(db: Firestore, code: string) {
     lastCheckInAt: toIso(p?.lastCheckInAt),
     stories: plainOf(p?.storyCounts) ?? {},
     missing: state.missing,
-    next: state.next,
-    window: state.window,
+    toBook: state.toBook,
+    windows: windowsOf(state, new Date()),
     bookings: bookingDocs.docs.map((d) => bookingRow(d.id, d.data(), null)).sort((a, b) => a.start.localeCompare(b.start)),
     contact,
     progressEmail: typeof reminder?.email === 'string' ? reminder.email : null,
@@ -187,7 +197,7 @@ async function participantsList(db: Firestore) {
         stories: plainOf(p.storyCounts) ?? {},
         visit1: state.active[1] ? { start: state.active[1].start.toISOString(), status: state.active[1].status } : null,
         visit2: state.active[2] ? { start: state.active[2].start.toISOString(), status: state.active[2].status } : null,
-        next: state.next,
+        toBook: state.toBook,
         missing: state.missing,
         messagesPaused: Boolean(p.messagesPaused),
       };
@@ -289,24 +299,26 @@ export const staffApi = onCall(callOptions, async (request) => {
       const code = codeOf(data.participantCode);
       const visit = data.visit === 2 ? 2 : data.visit === 1 ? 1 : null;
       if (!visit) throw bad('Choose the visit.');
-      const replaces = data.replaces === undefined || data.replaces === null ? null : docId(data.replaces, 'booking to replace');
-      const { booking, previous } = await placeBooking(db, { code, slotId: docId(data.slotId, 'time'), visit, replaces, by: 'staff', uid, client: null }, now);
+      // A visit already booked moves to the new time.
+      const result = await placeVisits(db, { code, choices: [{ visit, slotId: docId(data.slotId, 'time') }], by: 'staff', uid, client: null }, now);
       const current = await contactOf(db, code);
       const email = typeof data.email === 'string' && data.email.trim() ? data.email.trim() : current.email;
       const mobile = typeof data.mobile === 'string' && data.mobile.trim() ? ukMobile(data.mobile) : current.mobile;
       if (typeof data.mobile === 'string' && data.mobile.trim() && !mobile) throw bad('That is not a UK mobile number.');
       const contact: Contact = { email, mobile, smsReminders: typeof data.smsReminders === 'boolean' ? data.smsReminders && Boolean(mobile) : current.smsReminders && Boolean(mobile) };
       if (email !== current.email || mobile !== current.mobile || contact.smsReminders !== current.smsReminders) await db.collection('labContacts').doc(code).set({ participantCode: code, ...contact, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-      const outcome = data.notify === false ? { email: 'not-asked', sms: 'not-asked' } : await notifyBooking(previous ? 'moved' : 'booked', booking, contact, { previous: previous ?? undefined });
+      const kind = result.replaced.length ? 'moved' : 'booked';
+      const outcome = data.notify === false ? { email: 'not-asked', sms: 'not-asked' } : await notifyVisits(kind, result.standing, contact, { changed: result.booked.map((b) => b.id), byTeam: true });
+      const [booking] = result.booked;
       await db.collection('labBookings').doc(booking.id).set({ confirmation: { at: new Date(), ...outcome } }, { merge: true });
-      logger.info('Lab visit booked by the team', { participantCode: code, bookingId: booking.id, visit, ...outcome });
-      return { bookingId: booking.id, ...outcome };
+      logger.info(kind === 'moved' ? 'Lab visit moved by the team' : 'Lab visit booked by the team', { participantCode: code, bookingId: booking.id, visit, ...outcome });
+      return { bookingId: booking.id, kind, ...outcome };
     }
 
     case 'cancel-booking': {
       const reason = typeof data.reason === 'string' && data.reason.trim() ? data.reason.trim().slice(0, 300) : null;
-      const cancelled = await cancelBooking(db, docId(data.bookingId, 'booking'), 'staff', reason, now);
-      const outcome = data.notify === false ? { email: 'not-asked', sms: 'not-asked' } : await notifyBooking('cancelled', cancelled, await contactOf(db, cancelled.participantCode), { byTeam: true, reason: reason ?? undefined });
+      const [cancelled] = await cancelVisits(db, { code: null, bookingIds: [docId(data.bookingId, 'booking')], by: 'staff', reason }, now);
+      const outcome = data.notify === false ? { email: 'not-asked', sms: 'not-asked' } : await notifyVisits('cancelled', [cancelled], await contactOf(db, cancelled.participantCode), { byTeam: true, reason: reason ?? undefined });
       await db.collection('labBookings').doc(cancelled.id).set({ cancellation: { at: new Date(), ...outcome } }, { merge: true });
       return { ok: true, ...outcome };
     }
@@ -327,8 +339,10 @@ export const staffApi = onCall(callOptions, async (request) => {
       if (!snap.exists) throw new HttpsError('not-found', 'That booking was not found.');
       const b = bookingFrom(snap.id, snap.data()!);
       if (b.status !== 'booked') throw new HttpsError('failed-precondition', 'Only a standing booking can be confirmed again.');
-      const outcome = await notifyBooking('booked', b, await contactOf(db, b.participantCode));
-      await snap.ref.set({ resent: FieldValue.arrayUnion({ at: now, ...outcome }) }, { merge: true });
+      // The confirmation lists every visit still to come, as the first one did.
+      const visits = (await bookingsOf(db, b.participantCode)).filter((x) => x.id === b.id || (x.status === 'booked' && x.end.getTime() > now.getTime()));
+      const outcome = await notifyVisits('booked', visits, await contactOf(db, b.participantCode));
+      await Promise.all(visits.map((x) => db.collection('labBookings').doc(x.id).set({ resent: FieldValue.arrayUnion({ at: now, ...outcome }) }, { merge: true })));
       return outcome;
     }
 

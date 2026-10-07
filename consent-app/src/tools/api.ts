@@ -79,7 +79,8 @@ export interface ParticipantRow {
   stories: Record<string, number>;
   visit1: { start: string; status: string } | null;
   visit2: { start: string; status: string } | null;
-  next: 1 | 2 | null;
+  /** Visits still to book: both at first; afterwards one a missed or cancelled visit left. */
+  toBook: (1 | 2)[];
   missing: string[];
   messagesPaused: boolean;
 }
@@ -94,14 +95,15 @@ export interface ParticipantDetail {
   lastCheckInAt: string | null;
   stories: Record<string, number>;
   missing: string[];
-  next: 1 | 2 | null;
-  window: { from: string; to: string } | null;
+  toBook: (1 | 2)[];
+  /** For a visit still to book while the other stands: the UK dates it can be on. */
+  windows: Partial<Record<1 | 2, { from: string; to: string }>>;
   bookings: StaffBooking[];
   contact: Contact;
   progressEmail: string | null;
   messages: Record<string, { at?: string; dueAt?: string; email?: string; sms?: string; skipped?: string }>;
   messagesPaused: boolean;
-  links: { takePart: string; book: string; checkIn: string; after: string; story: Record<'pre' | 'mid' | 'post', string> };
+  links: { takePart: string; book: string; checkIn: string; after: string; story: Record<'pre' | 'mid' | 'post', string>; atLab: Record<'pre' | 'post', string> };
 }
 
 export interface SchoolRow {

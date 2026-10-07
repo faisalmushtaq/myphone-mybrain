@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { pointOf, sharesAt, sharesInWords } from './Signifiers';
 import { storyStructures, storySurveyUrl } from '../mystory';
-import { byDay, googleCalendarUrl, ukClock, ukDateWords, ukHours, ukIsoDay } from '../calendar';
+import { byDay, daysBetween, firstVisitDays, googleCalendarUrl, onDays, secondVisitDays, ukClock, ukDateWords, ukHours, ukIsoDay } from '../calendar';
+import { labBooking } from '../booking';
 import { ukMobile } from '../validation';
 
 describe('MyStory signifiers', () => {
@@ -45,6 +46,20 @@ describe('lab visit times', () => {
     expect(url.searchParams.get('dates')).toBe('20261014T090000Z/20261014T110000Z');
     expect(url.searchParams.get('location')).toBe('School of Psychology, University of Leeds, Leeds LS2 9JT');
     expect(url.searchParams.get('details')).toContain('MP2670FF90A5F2');
+  });
+
+  it('the second visit: 28 to 35 days after the first, by UK date', () => {
+    const gap = labBooking.visit2AfterDays;
+    expect(gap).toEqual({ min: 28, max: 35 });
+    expect(secondVisitDays('2026-10-14T09:00:00.000Z', gap)).toEqual({ from: '2026-11-11', to: '2026-11-18' });
+    // 23:30 UTC on 30 June is already 1 July in Leeds.
+    expect(secondVisitDays('2026-06-30T23:30:00.000Z', gap).from).toBe('2026-07-29');
+    expect(firstVisitDays('2026-11-13T10:00:00.000Z', gap)).toEqual({ from: '2026-10-09', to: '2026-10-16' });
+    expect(onDays('2026-11-18T22:30:00.000Z', { from: '2026-11-11', to: '2026-11-18' })).toBe(true);
+    expect(onDays('2026-11-19T00:30:00.000Z', { from: '2026-11-11', to: '2026-11-18' })).toBe(false);
+    // Across the clocks going back: still whole days.
+    expect(daysBetween('2026-10-14', '2026-11-11')).toBe(28);
+    expect(daysBetween('2026-03-20', '2026-04-24')).toBe(35);
   });
 
   it('UK mobile numbers, as the server reads them', () => {

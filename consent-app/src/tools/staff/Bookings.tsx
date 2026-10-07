@@ -59,9 +59,9 @@ export function Bookings({ staff }: { staff: Staff }) {
     });
   const bookFor = () =>
     run('book-for', async () => {
-      const r = await staff.ask<{ email: string; sms: string }>('book-for', { participantCode: form.code.trim().toUpperCase(), slotId: form.slotId, visit: Number(form.visit), email: form.email.trim() || null, mobile: form.mobile.trim() || null, notify: formNotify });
+      const r = await staff.ask<{ kind: 'booked' | 'moved'; email: string; sms: string }>('book-for', { participantCode: form.code.trim().toUpperCase(), slotId: form.slotId, visit: Number(form.visit), email: form.email.trim() || null, mobile: form.mobile.trim() || null, notify: formNotify });
       setForm({ code: '', slotId: '', visit: '1', email: '', mobile: '' });
-      return `Booked. Confirmation email ${outcome(r.email)}, text ${outcome(r.sms)}.`;
+      return `${r.kind === 'moved' ? 'Moved to the new time' : 'Booked'}. Confirmation email ${outcome(r.email)}, text ${outcome(r.sms)}.`;
     });
 
   return (
@@ -153,7 +153,7 @@ export function Bookings({ staff }: { staff: Staff }) {
         <h2 className="mpmb-h3" id="bookings-for">
           Book someone in
         </h2>
-        <p className="mpmb-hint">For example, the second visit at the end of the first. The team can book at short notice and outside the usual window; the participant needs consent on file. Leave email and mobile empty to use the ones on file.</p>
+        <p className="mpmb-hint">One visit at a time: for example, a visit arranged by email. If the participant already has that visit booked, it moves to the new time. The team can book at short notice and outside the 28 to 35 days; the participant needs consent on file. The confirmation lists both visits. Leave email and mobile empty to use the ones on file.</p>
         <div className="mpmb-tools__grid">
           <TextField id="for-code" label="Participant ID" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="mpmb-input--upper" />
           <SelectField id="for-visit" label="Visit" value={form.visit} onChange={(e) => setForm({ ...form, visit: e.target.value || '1' })} placeholder="First visit" options={[{ value: '2', label: 'Second visit' }]} />

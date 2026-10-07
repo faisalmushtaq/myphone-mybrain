@@ -60,7 +60,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
 
     <div class="participant-next-step">
       <h3>Ready to take part?</h3>
-      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube and Instagram data. Downloads can take a few days to arrive. Once your data is in, you choose a time for your first lab visit on this site, and get a confirmation with a calendar file and reminders. We can email you a link that brings you back to the right page, on any device; or just come back and enter the same name, date of birth and postcode.</p>
+      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube and Instagram data. Downloads can take a few days to arrive. Once your data is in, you book both lab visits on this site at the same sitting: the first starts your break, and the second, 28 to 35 days later, ends it. You get a confirmation with calendar files, and reminders. We can email you a link that brings you back to the right page, on any device; or just come back and enter the same name, date of birth and postcode.</p>
       <a class="btn btn-primary" href="{{ '/break/take-part/' | relative_url }}">Take part &nbsp;→</a>
       <a class="text-link" href="{{ '/break/take-part/?step=guide' | relative_url }}">Just show me how to download my data &nbsp;→</a>
     </div>

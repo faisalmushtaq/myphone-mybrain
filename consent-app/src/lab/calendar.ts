@@ -112,3 +112,19 @@ export function addDays(isoDay: string, days: number): string {
   const [y, m, d] = isoDay.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
+
+/** Days from one UK date to another (YYYY-MM-DD). */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
+export type DayRange = { from: string; to: string };
+
+/** The UK dates the second visit can be on: gap.min to gap.max days after the first (inclusive). */
+export const secondVisitDays = (firstStart: string, gap: { min: number; max: number }): DayRange => ({ from: addDays(ukIsoDay(firstStart), gap.min), to: addDays(ukIsoDay(firstStart), gap.max) });
+
+/** The UK dates the first visit can be on when the second stays where it is. */
+export const firstVisitDays = (secondStart: string, gap: { min: number; max: number }): DayRange => ({ from: addDays(ukIsoDay(secondStart), -gap.max), to: addDays(ukIsoDay(secondStart), -gap.min) });
+
+/** Whether a moment falls on one of the UK dates in a range. */
+export const onDays = (iso: string, days: DayRange) => ukIsoDay(iso) >= days.from && ukIsoDay(iso) <= days.to;

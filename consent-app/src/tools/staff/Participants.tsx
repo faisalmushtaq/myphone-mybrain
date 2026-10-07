@@ -86,7 +86,13 @@ function Detail({ staff, code, onClose }: { staff: Staff; code: string; onClose:
             {detail.platformsNotUsed.length ? ` · does not use ${detail.platformsNotUsed.join(', ')}` : ''} · stories: {['pre', 'mid', 'post'].map((p) => `${p} ${detail.stories[p] ?? 0}`).join(', ')}
           </p>
           <p>
-            {detail.next === 1 ? 'Can book the first visit now.' : detail.next === 2 ? `Can book the second visit (${detail.window?.from} to ${detail.window?.to}).` : detail.missing.length ? `Before booking: ${detail.missing.join(', ')}.` : 'Both visits booked.'}
+            {detail.toBook.length === 2
+              ? 'Can book both visits now.'
+              : detail.toBook.length === 1
+                ? `Visit ${detail.toBook[0]} to book again${detail.windows[detail.toBook[0]] ? ` (${detail.windows[detail.toBook[0]]!.from} to ${detail.windows[detail.toBook[0]]!.to}, to fit the other visit)` : ''}.`
+                : detail.missing.length
+                  ? `Before booking: ${detail.missing.join(', ')}.`
+                  : 'Both visits booked.'}
           </p>
           <h3 className="mpmb-h3">Visits</h3>
           {detail.bookings.length ? (
@@ -136,9 +142,13 @@ function Detail({ staff, code, onClose }: { staff: Staff; code: string; onClose:
         <CopyLine label="Book or change lab visits" value={detail.links.book} />
         <CopyLine label="Weekly check-in" value={detail.links.checkIn} />
         <CopyLine label="After the break: data again" value={detail.links.after} />
-        <CopyLine label="MyStory before the break" value={detail.links.story.pre} />
-        <CopyLine label="MyStory during the break" value={detail.links.story.mid} />
-        <CopyLine label="MyStory after the break" value={detail.links.story.post} />
+        <CopyLine label="MyStory during the break (also after each check-in)" value={detail.links.story.mid} />
+      </ul>
+      <h3 className="mpmb-h3">At the lab</h3>
+      <p className="mpmb-hint">MyStory before and after the break is told at the visits. Open the link on the lab computer and hand it over; once the story is sent, the page forgets the participant, ready for the next person.</p>
+      <ul className="mpmb-tools__list" role="list">
+        <CopyLine label="MyStory at the first visit (before the break)" value={detail.links.atLab.pre} />
+        <CopyLine label="MyStory at the second visit (after the break)" value={detail.links.atLab.post} />
       </ul>
     </section>
   );
@@ -192,7 +202,7 @@ export function Participants({ staff }: { staff: Staff }) {
                 <Button variant="link" onClick={() => setOpen(r.participantCode)}>
                   <span className="mpmb-mono">{r.participantCode}</span>
                 </Button>{' '}
-                consent {when(r.consentedAt)} · before: {files(r.pre)} · visit 1: {r.visit1 ? `${when(r.visit1.start)} (${r.visit1.status})` : r.next === 1 ? 'to book' : 'n/a'} · visit 2: {r.visit2 ? `${when(r.visit2.start)} (${r.visit2.status})` : r.next === 2 ? 'to book' : 'n/a'} · {r.checkIns} check-ins · after: {files(r.post)}
+                consent {when(r.consentedAt)} · before: {files(r.pre)} · visit 1: {r.visit1 ? `${when(r.visit1.start)} (${r.visit1.status})` : r.toBook.includes(1) ? 'to book' : 'n/a'} · visit 2: {r.visit2 ? `${when(r.visit2.start)} (${r.visit2.status})` : r.toBook.includes(2) ? 'to book' : 'n/a'} · {r.checkIns} check-ins · after: {files(r.post)}
                 {r.missing.length && !r.visit1 ? ` · waiting for ${r.missing.join(', ')}` : ''}
                 {r.messagesPaused ? ' · messages stopped' : ''}
               </span>

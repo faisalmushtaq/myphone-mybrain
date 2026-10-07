@@ -5,10 +5,11 @@
  * so the booking page, the server's checks and the emails agree.
  *
  * The order is fixed by the study: consent, then the data from before the
- * break, then the first visit. A first visit cannot be booked until the
- * screenshots and at least one app's cleaned data have arrived, because the
- * team cannot use a visit without them. The second visit ends the break, so
- * it is offered only once the first is booked, in a window after it.
+ * break, then the visits. Nothing can be booked until the screenshots and at
+ * least one app's cleaned data have arrived, because the team cannot use a
+ * visit without them. Both visits are then booked at the same sitting, so
+ * people commit to both: the second ends the break, 28 to 35 days after the
+ * first (docs/decisions.md, 7 October 2026).
  *
  * Times are UK times (Europe/London) everywhere: on the page, in the emails
  * and texts, and in the calendar file (written in UTC, so calendars in any
@@ -33,8 +34,8 @@ export const labBooking = {
   ] as LabVisit[],
   /** Length of a visit, unless a slot says otherwise. */
   minutes: 120,
-  /** The second visit ends the 30-day break: it can be booked this many days after the first (inclusive, UK dates). */
-  visit2AfterDays: { min: 30, max: 35 },
+  /** The second visit ends the 30-day break: this many days after the first (inclusive, UK dates). Both are booked together. */
+  visit2AfterDays: { min: 28, max: 35 },
   /** A slot must start at least this long after it is booked online. */
   minNoticeHours: 24,
   /** Online changes and cancellations close this long before a visit; after that, people contact the team. */
@@ -46,13 +47,14 @@ export const labBooking = {
   location: {
     name: 'School of Psychology, University of Leeds',
     address: 'Leeds LS2 9JT',
-    directions: 'A member of the team will meet you at the School of Psychology reception and take you to the lab.',
+    directions: 'A member of the team will meet you at the main entrance of the School of Psychology.',
     /** Shown only in preview builds. */
-    draft: 'Placeholder: confirm the building, the room and where participants are met.',
+    draft: 'Placeholder: confirm the building and the room.',
   },
   /** In the confirmation email and the reminders. */
-  bring: ['Your phone, charged.'],
-  bringDraft: 'Placeholder: add anything else participants should bring or do beforehand (for example, for the EEG).',
+  bring: ['Your phone, charged.', 'Clean, dry hair, with no oils, gel, spray or conditioner (for the EEG).', 'Your glasses or contact lenses, if you wear them.', 'Please arrive 10 minutes early: we meet you at the main entrance of the School of Psychology.'],
+  /** Copied on every booking, change and cancellation email, besides the participant: the study's contact and the team inbox. */
+  copyTo: ['M.Faizah@leeds.ac.uk', 'brainpop@leeds.ac.uk'],
   /**
    * Reminders before each visit. A text goes only to people who asked for
    * texts, gave a UK mobile number, and only once the text service is set up
@@ -73,25 +75,23 @@ export const labBooking = {
  * Messages during the break, timed from the first visit (day 0, UK date),
  * sent at 09:00 UK time by email, and by text to people who asked for texts.
  * Each goes once. A message more than a day overdue (for example because the
- * first visit was booked late or the system was paused) is skipped, never
- * sent late. Nothing goes after a visit is marked as missed, or once the
- * team pauses messages for someone.
+ * system was paused) is skipped, never sent late. Nothing goes after a visit
+ * is marked as missed, or once the team pauses messages for someone.
  *
- *   unless 'visit-2-booked': skipped when the second visit is already booked
- *   unless 'checked-in':     skipped when a check-in arrived in the last three days
+ *   unless 'checked-in': skipped when a check-in arrived in the last three days
+ *
+ * Both visits are booked together, so there is no nudge to book the second.
  */
 export interface LabJourneyMessage {
   id: string;
   day: number;
-  unless?: 'visit-2-booked' | 'checked-in';
+  unless?: 'checked-in';
 }
 
 export const labJourneyMessages: LabJourneyMessage[] = [
-  { id: 'book-visit-2', day: 1, unless: 'visit-2-booked' },
   { id: 'check-in-1', day: 7, unless: 'checked-in' },
   { id: 'check-in-2', day: 14, unless: 'checked-in' },
   { id: 'check-in-3', day: 21, unless: 'checked-in' },
-  { id: 'book-visit-2-again', day: 22, unless: 'visit-2-booked' },
   { id: 'check-in-4', day: 28, unless: 'checked-in' },
   { id: 'end-of-break', day: 30 },
 ];

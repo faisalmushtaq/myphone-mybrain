@@ -114,8 +114,8 @@ export interface LabBookingState {
   email: string;
   mobile: string;
   smsReminders: boolean;
-  /** The booking just made or moved on this page, to confirm it. */
-  confirmed: { booking: LabBooking; kind: 'booked' | 'moved'; email: DeliveryOutcome; sms: DeliveryOutcome } | null;
+  /** The visits just booked or moved on this page, to confirm them. */
+  confirmed: { booked: LabBooking[]; kind: 'booked' | 'moved'; email: DeliveryOutcome; sms: DeliveryOutcome } | null;
 }
 
 /** A MyStory being written, and the ones sent from this page. */

@@ -11,9 +11,9 @@ is about, without repeating MySelf.
 
 | Phase | Structure (`src/lab/mystory.ts`) | Where it is asked |
 | --- | --- | --- |
-| Before the break (`pre`) | `mystory-pre`: a recent moment with the phone, a typical evening, a time social media changed how they felt; the triangle *connecting with people / passing the time / finding things out*; sliders *worse–better* and *not my choice–completely my choice*; which app; how they feel about it now | The summary at the end of `/break/take-part/` (optional card), the link in the first visit's confirmation email, and `/break/mystory/?phase=pre` |
+| Before the break (`pre`) | `mystory-pre`: a recent moment with the phone, a typical evening, a time social media changed how they felt; the triangle *connecting with people / passing the time / finding things out*; sliders *worse–better* and *not my choice–completely my choice*; which app; how they feel about it now | **At the first lab visit**, on the lab computer, from the link on the staff page (`/break/mystory/?phase=pre&at=lab&code=MP…`) |
 | During the break (`mid`) | `mystory-mid`: a moment they wanted to open an app, what they did instead, what surprised them; the triangle *habit / people and connection / boredom or stress*; sliders *easy–very hard* and *worse–better*; where they were; how they feel now | **After every weekly check-in** (optional, with "Skip this time"), and `/break/mystory/?phase=mid` |
-| After the break (`post`) | `mystory-post`: the moment that mattered most, the first time back on the apps, what they will do differently; the triangle *my time / my mood / my relationships*; sliders *harder–easier than expected* and *much less–much more than before*; would they do it again; how they feel now | The summary at the end of `/break/after/` (optional card), and `/break/mystory/?phase=post` |
+| After the break (`post`) | `mystory-post`: the moment that mattered most, the first time back on the apps, what they will do differently; the triangle *my time / my mood / my relationships*; sliders *harder–easier than expected* and *much less–much more than before*; would they do it again; how they feel now | **At the second lab visit**, on the lab computer, from the link on the staff page (`/break/mystory/?phase=post&at=lab&code=MP…`) |
 
 Every signifier can be left out or answered "not sure", as in SenseMaker. The
 triangle works by touch, mouse and keyboard (arrow keys), and says its value
@@ -108,7 +108,17 @@ data should live in both, option 4 is the clean way.
 
 ## The pages
 
+Decided 7 October 2026 (`decisions.md`): MyStory runs on this site's own
+form; during the break it follows **every weekly check-in**; before and after
+the break it is told **at the lab visits**, on a lab computer. The drafts
+stay until MySelf's prompts and signifiers arrive.
+
 - After each check-in: `/break/check-in/` → MyStory → summary.
-- On its own, from a personal link: `/break/mystory/?phase=pre|mid|post&code=MP…`.
-  The staff page lists each participant's three links, and the first visit's
-  confirmation email carries the `pre` one.
+- At a lab visit: on the staff page, **Participants** → the participant →
+  **At the lab** → copy the link for that visit, open it on the lab
+  computer, press Continue to confirm the ID, and hand it over. The page
+  keeps nothing on the computer; after **Send my story**, **Finish** clears
+  it for the next person.
+- On its own, from a personal link: `/break/mystory/?phase=mid&code=MP…`
+  (the staff page lists it; the `pre` and `post` pages also work this way,
+  for anyone who could not tell their story at the visit).

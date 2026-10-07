@@ -7,7 +7,7 @@ import { labBooking } from '../booking';
 import { ukDayYear, ukHours, visitName, visitTitle } from '../calendar';
 import { labPages, labStudy } from '../config';
 import { labFileStore } from '../fileStore';
-import { labMyStory, storySurveyUrl, type StoryPhase } from '../mystory';
+import { labMyStory, storySurveyUrl } from '../mystory';
 import { clearLabState } from '../persistence';
 import { namesOf, PlatformChecklist } from '../PlatformChecklist';
 import { phaseHave, platformsToDo, readyToBook } from '../reducer';
@@ -16,21 +16,15 @@ import { filesPhrase } from '../words';
 
 type CopyStatus = { kind: 'idle' } | { kind: 'working' } | { kind: 'done'; fileName: string } | { kind: 'failed' };
 
-const STORY_WORDS: Record<StoryPhase, string> = {
-  pre: 'A few minutes, in your own words: a moment with your phone, before your break.',
-  mid: 'A few minutes, in your own words: a moment from your week without social media.',
-  post: 'A few minutes, in your own words: looking back on your break.',
-};
-
-/** MyStory, offered after each page's main part: this site's own form or another survey, filed under the same participant ID. */
-function StoryCard({ phase, code, sent, onOpen }: { phase: StoryPhase; code: string; sent: number; onOpen: () => void }) {
-  const mode = labMyStory.phases[phase];
-  const url = storySurveyUrl(phase, code);
+/** MyStory after a check-in: this site's own form or another survey, filed under the same participant ID. (Before and after the break, it is told at the lab visits.) */
+function StoryCard({ code, sent, onOpen }: { code: string; sent: number; onOpen: () => void }) {
+  const mode = labMyStory.phases.mid;
+  const url = storySurveyUrl('mid', code);
   return (
     <div className="mpmb-card mpmb-card--mist mpmb-mystory">
       <p className="mpmb-kicker">{sent ? 'Thank you for your story' : 'If you have a few minutes'}</p>
       <h2 className="mpmb-h3">{sent ? `Another story for ${labMyStory.name}?` : `Tell ${labMyStory.name} your story.`}</h2>
-      <p>{STORY_WORDS[phase]} Then a few quick questions about it. It is labelled with your participant ID, never your name. Optional.</p>
+      <p>A few minutes, in your own words: a moment from your week without social media. Then a few quick questions about it. It is labelled with your participant ID, never your name. Optional.</p>
       {mode.mode === 'link' && url ? (
         <a className="mpmb-btn mpmb-btn--secondary" href={url} target="_blank" rel="noopener noreferrer">
           <span>Open {mode.name}</span>
@@ -47,40 +41,49 @@ function StoryCard({ phase, code, sent, onOpen }: { phase: StoryPhase; code: str
   );
 }
 
-/** The lab visits from this page: booked ones with their time, or the next one to book once it can be. */
+/** The lab visits from this page: the ones still to come, or booking them (both together) once the data is in. */
 function VisitsCard({ onBook }: { onBook: () => void }) {
   const { state } = useLab();
-  const booked = state.booking.options ? state.booking.options.bookings.filter((b) => b.status === 'booked' || b.status === 'attended').map((b) => ({ visit: b.visit, start: b.start, end: b.end })) : (state.progress?.visits ?? []).map((v) => ({ visit: v.visit, start: v.start, end: null as string | null }));
-  const first = booked.find((b) => b.visit === 1);
-  const second = booked.find((b) => b.visit === 2);
-  const wanted: 1 | 2 | null = state.flow === 'baseline' ? (first ? null : readyToBook(state, labBooking.requires) ? 1 : null) : first && !second ? 2 : null;
-  const shown = state.flow === 'baseline' ? first : (second ?? null);
-  if (!wanted && !shown) return null;
+  const gap = state.booking.options?.gap ?? labBooking.visit2AfterDays;
+  const standing = state.booking.options ? state.booking.options.bookings.filter((b) => b.status === 'booked' || b.status === 'attended').map((b) => ({ visit: b.visit, start: b.start, end: b.end as string | null })) : (state.progress?.visits ?? []).filter((v) => v.status === 'booked' || v.status === 'attended').map((v) => ({ visit: v.visit, start: v.start, end: null as string | null }));
+  const has = (v: 1 | 2) => standing.some((b) => b.visit === v);
+  const bookBoth = !standing.length && state.flow === 'baseline' && readyToBook(state, labBooking.requires);
+  // A missed or cancelled visit leaves that one to book again.
+  const missing: 1 | 2 | null = has(1) && !has(2) ? 2 : !has(1) && has(2) ? 1 : null;
+  const coming = standing.filter((b) => Date.parse(b.start) > Date.now()).sort((a, b) => a.start.localeCompare(b.start));
+  if (bookBoth || missing) {
+    return (
+      <div className="mpmb-card mpmb-card--next mpmb-visits-card">
+        <p className="mpmb-kicker">Next</p>
+        <h2 className="mpmb-h3">{bookBoth ? 'Book your two lab visits.' : `Book your ${visitName(missing!)}.`}</h2>
+        <p>
+          {bookBoth
+            ? `Your data from before the break is in, so you can book your visits now, both together: the first starts your 30-day break, and the second, ${gap.min} to ${gap.max} days later, ends it. Each takes about two hours.`
+            : missing === 2
+              ? `Your second visit ends your break, ${gap.min} to ${gap.max} days after the first. Choose a time for it now, so it is in your calendar.`
+              : 'Choose a new time for your first visit.'}
+        </p>
+        <Button variant="primary" arrow onClick={onBook}>
+          {bookBoth ? 'Choose the times' : 'Choose a time'}
+        </Button>
+      </div>
+    );
+  }
+  if (!coming.length) return null;
   return (
-    <div className={`mpmb-card${wanted ? ' mpmb-card--next' : ' mpmb-card--mist'} mpmb-visits-card`}>
-      {wanted ? (
-        <>
-          <p className="mpmb-kicker">Next</p>
-          <h2 className="mpmb-h3">Book your {visitName(wanted)}.</h2>
-          <p>{wanted === 1 ? 'Your data from before the break is in, so you can choose a time for your first visit now. It takes about two hours, and your 30-day break starts after it.' : 'Your second visit ends your 30-day break. Choose a time for it now, so it is in your calendar.'}</p>
-          <Button variant="primary" arrow onClick={onBook}>
-            Choose a time
-          </Button>
-        </>
-      ) : (
-        shown && (
-          <>
-            <p className="mpmb-kicker">{visitTitle(shown.visit)}</p>
-            <p>
-              <strong>{ukDayYear(shown.start)}</strong>
-              {shown.end ? `, ${ukHours(shown.start, shown.end)}` : ''}. The details are in your email.
-            </p>
-            <Button variant="link" onClick={onBook}>
-              See it, add it to your calendar, or change it
-            </Button>
-          </>
-        )
-      )}
+    <div className="mpmb-card mpmb-card--mist mpmb-visits-card">
+      <p className="mpmb-kicker">{coming.length > 1 ? 'Your lab visits' : visitTitle(coming[0].visit)}</p>
+      {coming.map((b) => (
+        <p key={b.visit}>
+          {coming.length > 1 && <>{visitTitle(b.visit)}: </>}
+          <strong>{ukDayYear(b.start)}</strong>
+          {b.end ? `, ${ukHours(b.start, b.end)}` : ''}
+        </p>
+      ))}
+      <p>The details are in your email.</p>
+      <Button variant="link" onClick={onBook}>
+        See {coming.length > 1 ? 'them' : 'it'}, add {coming.length > 1 ? 'them' : 'it'} to your calendar, or change {coming.length > 1 ? 'them' : 'it'}
+      </Button>
     </div>
   );
 }
@@ -150,7 +153,7 @@ export function LabDone() {
       <div className="mpmb-step__body">
         <VisitsCard onBook={() => dispatch({ type: 'go-to', stepId: 'book' })} />
         {flow === 'checkin' ? (
-          <StoryCard phase="mid" code={state.code} sent={state.story.sent.length} onOpen={() => dispatch({ type: 'go-to', stepId: 'mystory' })} />
+          <StoryCard code={state.code} sent={state.story.sent.length} onOpen={() => dispatch({ type: 'go-to', stepId: 'mystory' })} />
         ) : (
           <>
             <div className="mpmb-done__why">
@@ -165,7 +168,6 @@ export function LabDone() {
               <PlatformChecklist />
               <p className="mpmb-hint">{toDo.length ? `Still to do: ${namesOf(toDo)}. Come back with ${toDo.length === 1 ? 'it' : 'them'} when the download arrives, on any device, or tell us above if you don’t use ${toDo.length === 1 ? 'it' : 'them'}.` : 'Every app you use is ticked off. Thank you.'}</p>
             </section>
-            {(flow === 'baseline' || flow === 'after') && <StoryCard phase={flow === 'after' ? 'post' : 'pre'} code={state.code} sent={state.story.sent.length} onOpen={() => dispatch({ type: 'go-to', stepId: 'mystory' })} />}
           </>
         )}
         <section aria-labelledby="done-next">

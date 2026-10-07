@@ -7,7 +7,7 @@ import { CheckboxField, TextField } from '../../components/ui/Field';
 import { announce } from '../../lib/announce';
 import { describeError, labClientInfo, labSession } from '../api';
 import { labBooking } from '../booking';
-import { byDay, downloadIcs, googleCalendarUrl, placeLine, ukDateWords, ukDay, ukDayYear, ukHours, visitName, visitTitle } from '../calendar';
+import { byDay, downloadIcs, firstVisitDays, googleCalendarUrl, onDays, placeLine, secondVisitDays, ukDateWords, ukDay, ukDayYear, ukHours, visitName, visitTitle } from '../calendar';
 import { labPages, labStudy } from '../config';
 import { LabShell } from '../LabShell';
 import { useLab } from '../store';
@@ -15,33 +15,43 @@ import { EMAIL, ukMobile, type FieldError } from '../validation';
 
 /** Days of times shown before "Show later dates". */
 const FIRST_DAYS = 8;
+/** The choice that keeps a visit's current time when changing. */
+const KEEP = 'keep';
+const VISITS: LabVisit[] = [1, 2];
 
-/** Times grouped by day, as large radio buttons: one tap to choose. */
-function SlotPicker({ slots, chosen, onChoose, error }: { slots: LabSlot[]; chosen: string | null; onChoose: (slotId: string) => void; error?: string }) {
+/** Times grouped by day, as large radio buttons: one tap to choose. When changing, the current time comes first, to keep it. */
+function SlotPicker({ visit, slots, chosen, onChoose, error, keep }: { visit: LabVisit; slots: LabSlot[]; chosen: string | null; onChoose: (slotId: string) => void; error?: string; keep?: LabBooking | null }) {
   const [all, setAll] = useState(false);
   const days = byDay(slots);
   const shown = all ? days : days.slice(0, FIRST_DAYS);
+  const name = `lab-slot-${visit}`;
+  const describedBy = error ? `${name}-error` : undefined;
+  const option = (value: string, label: string, place?: string) => (
+    <label key={value} className={`mpmb-chip mpmb-slots__time${chosen === value ? ' is-selected' : ''}`}>
+      <input type="radio" name={name} className="mpmb-choice__input" value={value} checked={chosen === value} onChange={() => onChoose(value)} aria-describedby={describedBy} />
+      <span className="mpmb-choice__dot" aria-hidden="true" />
+      <span>{label}</span>
+      {place && <span className="mpmb-slots__place">{place}</span>}
+    </label>
+  );
   return (
-    <div className={`mpmb-slots${error ? ' has-error' : ''}`} id="lab-slot" tabIndex={-1}>
+    <div className={`mpmb-slots${error ? ' has-error' : ''}`} id={name} tabIndex={-1}>
       {error && (
-        <p className="mpmb-error" id="lab-slot-error">
+        <p className="mpmb-error" id={`${name}-error`}>
           <span className="mpmb-sr-only">Error: </span>
           {error}
         </p>
       )}
+      {keep && (
+        <fieldset className="mpmb-slots__day">
+          <legend className="mpmb-slots__legend">Your current time</legend>
+          <div className="mpmb-chips">{option(KEEP, `Keep ${ukDay(keep.start)}, ${ukHours(keep.start, keep.end)}`)}</div>
+        </fieldset>
+      )}
       {shown.map(({ day, slots: times }) => (
         <fieldset className="mpmb-slots__day" key={day}>
           <legend className="mpmb-slots__legend">{ukDateWords(day).replace(/ \d{4}$/, '')}</legend>
-          <div className="mpmb-chips">
-            {times.map((s) => (
-              <label key={s.slotId} className={`mpmb-chip mpmb-slots__time${chosen === s.slotId ? ' is-selected' : ''}`}>
-                <input type="radio" name="lab-slot" className="mpmb-choice__input" value={s.slotId} checked={chosen === s.slotId} onChange={() => onChoose(s.slotId)} aria-describedby={error ? 'lab-slot-error' : undefined} />
-                <span className="mpmb-choice__dot" aria-hidden="true" />
-                <span>{ukHours(s.start, s.end)}</span>
-                {s.place.name !== labBooking.location.name && <span className="mpmb-slots__place">{s.place.name}</span>}
-              </label>
-            ))}
-          </div>
+          <div className="mpmb-chips">{times.map((s) => option(s.slotId, ukHours(s.start, s.end), s.place.name !== labBooking.location.name ? s.place.name : undefined))}</div>
         </fieldset>
       ))}
       {days.length > FIRST_DAYS && (
@@ -53,8 +63,8 @@ function SlotPicker({ slots, chosen, onChoose, error }: { slots: LabSlot[]; chos
   );
 }
 
-/** One booked visit: when and where, the calendar, and changing or cancelling it while that is still allowed online. */
-function VisitCard({ booking, code, onChange, onCancel, canMove, busy }: { booking: LabBooking; code: string; onChange: () => void; onCancel: () => void; canMove: boolean; busy: boolean }) {
+/** One booked visit: when and where, and adding it to a calendar. */
+function VisitCard({ booking, code }: { booking: LabBooking; code: string }) {
   const [saved, setSaved] = useState<string | null>(null);
   const done = booking.status === 'attended';
   return (
@@ -86,50 +96,32 @@ function VisitCard({ booking, code, onChange, onCancel, canMove, busy }: { booki
             </a>
           </div>
           {saved && <p className="mpmb-hint">Saved as {saved}. Open it to add the visit to your calendar.</p>}
-          {booking.canChange ? (
-            <>
-              <p className="mpmb-visit__change">
-                {canMove && (
-                  <Button variant="link" onClick={onChange} disabled={busy}>
-                    Change the time
-                  </Button>
-                )}
-                <Button variant="link" onClick={onCancel} disabled={busy}>
-                  Cancel this visit
-                </Button>
-              </p>
-              {!canMove && booking.visit === 1 && (
-                <p className="mpmb-hint">
-                  Your second visit is booked around this one, so to move it, contact {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>.
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="mpmb-hint">
-              It is less than {labBooking.changeUntilHours} hours away, so it can no longer be changed here. To change it, contact {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>.
-            </p>
-          )}
         </>
       )}
     </div>
   );
 }
 
+const both = (xs: { start: string; end: string }[]) => xs.map((b) => `${ukDayYear(b.start)}, ${ukHours(b.start, b.end)}`).join(', and ');
+
 /**
- * Booking the two lab visits. The first opens once the data from before the
- * break has arrived; the second once the first is booked, in the days that
- * end the 30-day break. A booking is emailed with a calendar file and copied
- * to the study's contact; reminders follow by email and, if wanted, by text.
- * The page is its own (/break/book/) and also opens from the other pages'
- * summaries.
+ * Booking the two lab visits, together: the first starts the 30-day break
+ * and the second, 28 to 35 days later, ends it, and taking part means coming
+ * to both. Nothing can be booked until the data from before the break has
+ * arrived. People choose the first visit, then the second from the times that
+ * fit; the booking is emailed with a calendar file per visit and copied to
+ * the research team; reminders follow by email and, if wanted, by text.
+ * Changing keeps either time or moves it; cancelling cancels the visits
+ * still to come. The page is its own (/break/book/) and also opens from the
+ * other pages' summaries.
  */
 export function LabBook() {
   const { state, dispatch } = useLab();
   const { options, confirmed } = state.booking;
   const [load, setLoad] = useState<{ kind: 'idle' | 'loading' } | { kind: 'failed'; message: string }>({ kind: 'idle' });
-  const [chosen, setChosen] = useState<string | null>(null);
-  const [changing, setChanging] = useState<LabBooking | null>(null);
-  const [cancelling, setCancelling] = useState<LabBooking | null>(null);
+  const [choice, setChoice] = useState<Record<LabVisit, string | null>>({ 1: null, 2: null });
+  const [changing, setChanging] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -156,13 +148,47 @@ export function LabBook() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, state.code]);
 
-  const visit: LabVisit | null = changing ? changing.visit : (options?.next ?? null);
-  const slots = changing ? (options?.changing[changing.visit] ?? []) : (options?.slots ?? []);
   const { email, mobile, smsReminders } = state.booking;
+  const gap = options?.gap ?? labBooking.visit2AfterDays;
+  const standing = (options?.bookings ?? []).filter((b) => b.status === 'booked' || b.status === 'attended');
+  const current = (v: LabVisit): LabBooking | null => standing.filter((b) => b.visit === v).at(-1) ?? null;
+  const toBook = options?.toBook ?? [];
+  const planning = Boolean(options) && (toBook.length > 0 || changing);
+
+  /** Each visit in the planner: still to book, booked and movable (when changing), or staying as it is. */
+  const role = (v: LabVisit): 'open' | 'keep' | 'fixed' => {
+    const b = current(v);
+    if (!b) return 'open';
+    return changing && b.canChange ? 'keep' : 'fixed';
+  };
+  const slotOf = (v: LabVisit, id: string | null) => (id && id !== KEEP ? (options?.slots[v].find((s) => s.slotId === id) ?? null) : null);
+
+  // The first visit's times: any, unless the second stays where it is, when 28 to 35 days before it.
+  const fixed2 = role(2) === 'fixed' ? current(2) : null;
+  const list1 = !options ? [] : fixed2 ? options.slots[1].filter((s) => onDays(s.start, firstVisitDays(fixed2.start, gap))) : options.slots[1];
+  const valid1 = role(1) === 'fixed' || (choice[1] === KEEP ? role(1) === 'keep' : list1.some((s) => s.slotId === choice[1]));
+  const firstStart = role(1) === 'fixed' ? current(1)!.start : !valid1 ? null : choice[1] === KEEP ? current(1)!.start : slotOf(1, choice[1])!.start;
+  // The second visit's times: 28 to 35 days after the first, chosen or kept.
+  const days2 = firstStart ? secondVisitDays(firstStart, gap) : null;
+  const list2 = days2 && options ? options.slots[2].filter((s) => onDays(s.start, days2)) : [];
+  const keep2 = role(2) === 'keep' && days2 && onDays(current(2)!.start, days2) ? current(2) : null;
+  const valid2 = role(2) === 'fixed' || (choice[2] === KEEP ? Boolean(keep2) : list2.some((s) => s.slotId === choice[2]));
+  const picks = VISITS.filter((v) => role(v) !== 'fixed' && choice[v] && choice[v] !== KEEP).map((v) => ({ visit: v, slotId: choice[v]! }));
+  const anyTimes = role(1) === 'fixed' ? list2.length > 0 || Boolean(keep2) : list1.length > 0 || role(1) === 'keep';
+
+  const choose = (v: LabVisit, id: string) => {
+    setChoice((c) => ({ ...c, [v]: id }));
+    setErrors((e) => e.filter((x) => x.field !== `lab-slot-${v}`));
+  };
 
   const validate = (): FieldError[] => {
     const found: FieldError[] = [];
-    if (!chosen || !slots.some((s) => s.slotId === chosen)) found.push({ field: 'lab-slot', message: 'Choose a time.' });
+    if (role(1) !== 'fixed' && !valid1) found.push({ field: 'lab-slot-1', message: 'Choose a time for your first visit.' });
+    if (role(2) !== 'fixed' && !valid2) {
+      const message = !firstStart ? 'Choose your first visit, then a time for your second.' : list2.length || keep2 ? 'Choose a time for your second visit.' : `No times are open ${gap.min} to ${gap.max} days after that first visit yet. Choose another time for your first visit, or contact ${labStudy.contact.name}.`;
+      found.push({ field: 'lab-slot-2', message });
+    }
+    if (!found.length && !picks.length) found.push({ field: `lab-slot-${role(1) === 'fixed' ? 2 : 1}`, message: 'Choose a new time for at least one visit, or keep your current times.' });
     if (!email.trim()) found.push({ field: 'lab-email', message: 'Enter your email address, so we can send you the details.' });
     else if (!EMAIL.test(email.trim())) found.push({ field: 'lab-email', message: 'Enter an email address in the format name@example.com.' });
     // The mobile number is asked for only once texts are set up.
@@ -175,24 +201,39 @@ export function LabBook() {
 
   const toTop = () => window.setTimeout(() => topRef.current?.scrollIntoView({ block: 'start' }), 50);
 
+  const startChanging = () => {
+    setChanging(true);
+    setCancelling(false);
+    setChoice({ 1: current(1)?.canChange ? KEEP : null, 2: current(2)?.canChange ? KEEP : null });
+    setErrors([]);
+    setNotice(null);
+    dispatch({ type: 'booking-confirmed', confirmed: null });
+  };
+
+  const stopChanging = () => {
+    setChanging(false);
+    setChoice({ 1: null, 2: null });
+    setErrors([]);
+  };
+
   const book = async () => {
     setNotice(null);
     const found = validate();
     setErrors(found);
-    if (found.length || !visit || !chosen) return;
+    if (found.length) return;
     setBusy(true);
     try {
       const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
       const texts = Boolean(options?.smsAvailable && smsReminders && mobile.trim());
-      const result = await getApi().bookLabSlot(session, { participantCode: state.code, slotId: chosen, visit, email: email.trim(), mobile: options?.smsAvailable ? mobile.trim() || null : null, smsReminders: texts, replaces: changing?.bookingId ?? null, client: labClientInfo() });
-      dispatch({ type: 'booking-confirmed', confirmed: { booking: result.booking, kind: changing ? 'moved' : 'booked', email: result.email, sms: result.sms } });
-      announce(`${changing ? 'Moved' : 'Booked'}: your ${visitName(visit)}, ${ukDay(result.booking.start)}, ${ukHours(result.booking.start, result.booking.end)}.`);
-      setChanging(null);
-      setChosen(null);
+      const result = await getApi().bookLabSlot(session, { participantCode: state.code, visits: picks, email: email.trim(), mobile: options?.smsAvailable ? mobile.trim() || null : null, smsReminders: texts, client: labClientInfo() });
+      dispatch({ type: 'booking-confirmed', confirmed: { booked: result.booked, kind: result.kind, email: result.email, sms: result.sms } });
+      announce(`${result.kind === 'moved' ? 'Changed' : 'Booked'}: ${result.booked.map((b) => `your ${visitName(b.visit)}, ${ukDay(b.start)}, ${ukHours(b.start, b.end)}`).join('; ')}.`);
+      setChanging(false);
+      setChoice({ 1: null, 2: null });
       toTop();
       await refresh();
     } catch (error) {
-      setErrors([{ field: 'lab-slot', message: describeError(error, 'your booking') }]);
+      setErrors([{ field: `lab-slot-${picks.some((p) => p.visit === 2) ? 2 : 1}`, message: describeError(error, 'your booking') }]);
       // A time someone else has just taken: show what is open now.
       if (error instanceof ApiError && error.code === 'validation') void refresh();
     } finally {
@@ -200,20 +241,25 @@ export function LabBook() {
     }
   };
 
-  const cancel = async (b: LabBooking) => {
+  const toCome = standing.filter((b) => b.status === 'booked' && Date.parse(b.start) > Date.now());
+  const canCancel = toCome.length > 0 && toCome.every((b) => b.canChange);
+  const canMove = standing.some((b) => b.canChange);
+  const visitsWord = toCome.length > 1 ? 'your visits' : toCome.length ? `your ${visitName(toCome[0].visit)}` : 'your visits';
+
+  const cancel = async () => {
     setBusy(true);
     setNotice(null);
     try {
       const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
-      await getApi().cancelLabBooking(session, { participantCode: state.code, bookingId: b.bookingId });
+      await getApi().cancelLabBooking(session, { participantCode: state.code, bookingIds: null });
       dispatch({ type: 'booking-confirmed', confirmed: null });
-      setCancelling(null);
-      setNotice(`Your ${visitName(b.visit)} on ${ukDay(b.start)} is cancelled. We have emailed you to confirm${b.visit === 1 ? '. Choose another time below when you are ready.' : '.'}`);
-      announce('Visit cancelled.');
+      setCancelling(false);
+      setNotice(`${toCome.length > 1 ? 'Your lab visits are' : `Your ${visitName(toCome[0]?.visit ?? 1)} is`} cancelled. We have emailed you to confirm. To take part, book again below when you are ready.`);
+      announce('Visits cancelled.');
       toTop();
       await refresh();
     } catch (error) {
-      setErrors([{ field: 'lab-slot', message: describeError(error, 'the cancellation') }]);
+      setErrors([{ field: 'lab-visits', message: describeError(error, 'the cancellation') }]);
     } finally {
       setBusy(false);
     }
@@ -237,21 +283,87 @@ export function LabBook() {
     );
   }
 
-  const bookings = (options?.bookings ?? []).filter((b) => b.status === 'booked' || b.status === 'attended');
-  const title = changing ? `Change your ${visitName(changing.visit)}.` : visit === 1 ? 'Book your first lab visit.' : visit === 2 ? 'Book your second lab visit.' : bookings.length ? 'Your lab visits.' : 'Book your lab visits.';
+  const title = changing ? 'Change your lab visit times.' : planning ? (toBook.length === 2 ? 'Book your two lab visits.' : `Book your ${visitName(toBook[0])}.`) : standing.length ? 'Your lab visits.' : 'Book your lab visits.';
+  const contactThem = (
+    <>
+      contact {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>
+    </>
+  );
+
+  const visitBlock = (v: LabVisit) => {
+    const r = role(v);
+    const heading = `${toBook.length === 1 && !changing ? '' : `${v}. `}Your ${v === 1 ? 'first' : 'second'} visit`;
+    if (r === 'fixed') {
+      const b = current(v)!;
+      return (
+        <div className="mpmb-booking__visit" key={v}>
+          <h3 className="mpmb-h3">{heading}</h3>
+          <p>
+            <strong>{ukDayYear(b.start)}</strong>, {ukHours(b.start, b.end)}
+            {b.status === 'attended' ? ' (done)' : changing ? ` (less than ${labBooking.changeUntilHours} hours away, so it stays as it is)` : ' (booked)'}.
+          </p>
+        </div>
+      );
+    }
+    const info = labBooking.visits.find((x) => x.visit === v)?.what;
+    if (v === 1) {
+      return (
+        <div className="mpmb-booking__visit" key={v}>
+          <h3 className="mpmb-h3">{heading}</h3>
+          <p>
+            {info}
+            {fixed2 ? ` It needs to be ${gap.min} to ${gap.max} days before your second visit.` : ''}
+          </p>
+          {list1.length || r === 'keep' ? (
+            <SlotPicker visit={1} slots={list1} chosen={choice[1]} onChoose={(id) => choose(1, id)} error={errs['lab-slot-1']} keep={r === 'keep' ? current(1) : null} />
+          ) : (
+            <Callout tone="info">
+              <p>
+                No times are open {fixed2 ? 'in those days ' : ''}right now. The team adds times every week, so please look again in a few days, or {contactThem} to arrange one.
+              </p>
+            </Callout>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div className="mpmb-booking__visit" key={v}>
+        <h3 className="mpmb-h3">{heading}</h3>
+        <p>
+          {info} It is {gap.min} to {gap.max} days after the first{days2 ? `: between ${ukDateWords(days2.from)} and ${ukDateWords(days2.to)}` : ''}.
+        </p>
+        {!days2 ? (
+          <p className="mpmb-hint" id="lab-slot-2" tabIndex={-1}>
+            {errs['lab-slot-2'] ? <span className="mpmb-error">{errs['lab-slot-2']}</span> : 'Choose your first visit, and the times for your second appear here.'}
+          </p>
+        ) : list2.length || keep2 ? (
+          <>
+            {role(2) === 'keep' && !keep2 && <p className="mpmb-hint">Your current second visit is not {gap.min} to {gap.max} days after that first time, so please choose a new one.</p>}
+            <SlotPicker key={days2.from} visit={2} slots={list2} chosen={choice[2]} onChoose={(id) => choose(2, id)} error={errs['lab-slot-2']} keep={keep2} />
+          </>
+        ) : (
+          <Callout tone="important">
+            <p id="lab-slot-2" tabIndex={-1}>
+              No times are open between {ukDateWords(days2.from)} and {ukDateWords(days2.to)} yet. {role(1) === 'fixed' ? <>Please look again in a few days, or {contactThem} to arrange one.</> : <>Choose another time for your first visit, or {contactThem} to arrange your visits.</>}
+            </p>
+          </Callout>
+        )}
+      </div>
+    );
+  };
 
   return (
     <LabShell kicker="Your lab visits" title={title} errors={errors} hideContinue hideBack width="wide">
       <div ref={topRef} />
-      {confirmed && !changing && (
+      {confirmed && !planning && (
         <Callout tone="success" role="status">
           <p>
             <strong>
-              {confirmed.kind === 'moved' ? 'Moved' : 'Booked'}: your {visitName(confirmed.booking.visit)}, {ukDayYear(confirmed.booking.start)}, {ukHours(confirmed.booking.start, confirmed.booking.end)}.
+              {confirmed.kind === 'moved' ? 'Changed' : 'Booked'}: {confirmed.booked.length > 1 ? 'your two lab visits' : `your ${visitName(confirmed.booked[0].visit)}`}, {both(confirmed.booked)}.
             </strong>{' '}
             {confirmed.email === 'sent'
-              ? `We have emailed the details and a calendar file to ${email.trim() || 'you'}, with a copy to ${labStudy.contact.name} in the research team.`
-              : 'Your booking is made, but we could not email you just now. Add it to your calendar below, and the team will be in touch.'}{' '}
+              ? `We have emailed the details and ${confirmed.booked.length > 1 ? 'calendar files' : 'a calendar file'} to ${email.trim() || 'you'}, with a copy to the research team.`
+              : 'Your booking is made, but we could not email you just now. Add your visits to your calendar below, and the team will be in touch.'}{' '}
             {confirmed.sms === 'sent' ? 'We have also sent you a text, and will text you reminders.' : ''}
           </p>
         </Callout>
@@ -275,53 +387,57 @@ export function LabBook() {
         </p>
       )}
 
-      {options && bookings.length > 0 && (
-        <section aria-labelledby="lab-visits" className="mpmb-visits">
-          <h2 className={visit ? 'mpmb-h2' : 'mpmb-sr-only'} id="lab-visits">
+      {options && standing.length > 0 && !changing && (
+        <section aria-labelledby="lab-visits-title" className="mpmb-visits" id="lab-visits" tabIndex={-1}>
+          <h2 className={planning ? 'mpmb-h2' : 'mpmb-sr-only'} id="lab-visits-title">
             Your visits
           </h2>
-          {bookings.map((b) => (
-            <div key={b.bookingId}>
-              <VisitCard
-                booking={b}
-                code={state.code}
-                busy={busy}
-                canMove={Boolean(options.changing[b.visit])}
-                onChange={() => {
-                  setChanging(b);
-                  setChosen(null);
-                  setErrors([]);
-                  setNotice(null);
-                }}
-                onCancel={() => {
-                  setCancelling(b);
-                  setErrors([]);
-                }}
-              />
-              {cancelling?.bookingId === b.bookingId && (
+          {standing.map((b) => (
+            <VisitCard key={b.bookingId} booking={b} code={state.code} />
+          ))}
+          {!planning && (
+            <>
+              <div className="mpmb-actions">
+                {canMove && (
+                  <Button variant="secondary" onClick={startChanging} disabled={busy}>
+                    Change my times
+                  </Button>
+                )}
+                {canCancel && (
+                  <Button variant="ghost" onClick={() => setCancelling(true)} disabled={busy}>
+                    Cancel {visitsWord}
+                  </Button>
+                )}
+              </div>
+              {toCome.some((b) => !b.canChange) && (
+                <p className="mpmb-hint">
+                  A visit less than {labBooking.changeUntilHours} hours away can no longer be changed here. To change it, {contactThem}.
+                </p>
+              )}
+              {cancelling && (
                 <Callout tone="important" role="alert">
                   <p>
-                    Cancel your {visitName(b.visit)} on {ukDay(b.start)} at {ukHours(b.start, b.end)}?{b.visit === 1 && bookings.some((x) => x.visit === 2) ? ' Your second visit stays booked; the team will be in touch about it.' : ''}
+                    Cancel {visitsWord}? {toCome.length > 1 ? 'Both are cancelled: taking part means coming to both, so to take part you would book both again.' : 'You can book it again afterwards, while there are times.'}
                   </p>
                   <div className="mpmb-actions">
-                    <Button variant="danger" loading={busy} onClick={() => void cancel(b)}>
-                      Yes, cancel it
+                    <Button variant="danger" loading={busy} onClick={() => void cancel()}>
+                      Yes, cancel {toCome.length > 1 ? 'them' : 'it'}
                     </Button>
-                    <Button variant="ghost" onClick={() => setCancelling(null)}>
-                      No, keep it
+                    <Button variant="ghost" onClick={() => setCancelling(false)}>
+                      No, keep {toCome.length > 1 ? 'them' : 'it'}
                     </Button>
                   </div>
                 </Callout>
               )}
-            </div>
-          ))}
+            </>
+          )}
         </section>
       )}
 
-      {options && !visit && !bookings.length && (
+      {options && !planning && !standing.length && (
         <Callout tone="important">
           <p>
-            <strong>You can book your first lab visit once {options.missing.join(' and ')} {options.missing.length === 1 ? 'has' : 'have'} arrived.</strong> The team needs them before the visit, so it can use the time with you.
+            <strong>You can book your lab visits once {options.missing.join(' and ')} {options.missing.length === 1 ? 'has' : 'have'} arrived.</strong> The team needs them before the first visit, so it can use the time with you.
           </p>
           {!options.consent ? null : inline && state.flow === 'baseline' ? (
             <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'screenshots' })}>
@@ -338,45 +454,42 @@ export function LabBook() {
         </Callout>
       )}
 
-      {options && visit && (
+      {options && planning && (
         <section aria-labelledby="lab-times" className="mpmb-booking">
-          <h2 className="mpmb-h2" id="lab-times">
-            {changing ? `Choose a new time for your ${visitName(changing.visit)}` : `Choose a time for your ${visitName(visit)}`}
+          <h2 className={changing || toBook.length === 2 ? 'mpmb-sr-only' : 'mpmb-h2'} id="lab-times">
+            Choose a time
           </h2>
-          <p>
-            {labBooking.visits.find((v) => v.visit === visit)?.what}{' '}
-            {visit === 2 && options.window && !changing ? `It ends your break, so it is between ${ukDateWords(options.window.from)} and ${ukDateWords(options.window.to)}. Book it now, or later: we will remind you.` : ''}
-          </p>
+          {toBook.length === 2 && !changing && (
+            <p>
+              Your first visit starts your 30-day social media break; your second, {gap.min} to {gap.max} days later, ends it. Please book both now: taking part means coming to both.
+            </p>
+          )}
+          {changing && <p>Keep either time or choose a new one. The second visit needs to be {gap.min} to {gap.max} days after the first.</p>}
           <p className="mpmb-hint">
             At {placeLine(labBooking.location)}. Times are UK times; each visit lasts about {Math.round(labBooking.minutes / 60)} hours.
             {__PROTOTYPE__ && <span className="mpmb-draft mpmb-draft--text">{labBooking.location.draft}</span>}
           </p>
-          {slots.length ? (
-            <SlotPicker
-              slots={slots}
-              chosen={chosen}
-              onChoose={(id) => {
-                setChosen(id);
-                setErrors((e) => e.filter((x) => x.field !== 'lab-slot'));
-              }}
-              error={errs['lab-slot']}
-            />
-          ) : (
-            <Callout tone="info">
-              <p>
-                No times are open {visit === 2 && options.window ? 'in those days ' : ''}right now. The team adds times every week, so please look again in a few days, or contact {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a> to arrange one.
-              </p>
-            </Callout>
-          )}
+          {VISITS.filter((v) => changing || toBook.length === 2 || toBook.includes(v) || role(v) === 'fixed').map(visitBlock)}
 
-          {slots.length > 0 && (
+          {anyTimes && (
             <div className="mpmb-fields mpmb-booking__contact">
               <h3 className="mpmb-h3">Where to send the confirmation</h3>
-              <TextField id="lab-email" label="Email address" type="email" required autoComplete="email" inputMode="email" maxLength={254} value={email} onChange={(e) => {
+              <TextField
+                id="lab-email"
+                label="Email address"
+                type="email"
+                required
+                autoComplete="email"
+                inputMode="email"
+                maxLength={254}
+                value={email}
+                onChange={(e) => {
                   dispatch({ type: 'booking-contact', patch: { email: e.target.value } });
                   if (errs['lab-email'] && EMAIL.test(e.target.value.trim())) setErrors((x) => x.filter((f) => f.field !== 'lab-email'));
                 }}
-                error={errs['lab-email']} hint="The details and a calendar file go here. We email a reminder the day before." />
+                error={errs['lab-email']}
+                hint="The details and a calendar file for each visit go here. We email a reminder the day before each visit."
+              />
               {options.smsAvailable && (
                 <>
                   <TextField id="lab-mobile" label="Mobile number" required={false} type="tel" autoComplete="tel" inputMode="tel" maxLength={30} width="half" value={mobile} onChange={(e) => dispatch({ type: 'booking-contact', patch: { mobile: e.target.value, ...(e.target.value.trim() && !mobile.trim() ? { smsReminders: true } : {}) } })} error={errs['lab-mobile']} hint="A UK mobile, for text reminders." />
@@ -387,21 +500,14 @@ export function LabBook() {
             </div>
           )}
           <div className="mpmb-actions">
-            {slots.length > 0 && (
+            {anyTimes && (
               <Button variant="primary" arrow loading={busy} onClick={() => void book()}>
-                {changing ? 'Move my visit to this time' : 'Book this time'}
+                {changing ? 'Save my times' : toBook.length === 2 ? 'Book both visits' : 'Book this time'}
               </Button>
             )}
             {changing && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setChanging(null);
-                  setChosen(null);
-                  setErrors([]);
-                }}
-              >
-                Keep my current time
+              <Button variant="ghost" onClick={stopChanging}>
+                Keep my current times
               </Button>
             )}
             {!changing && backToSummary}
@@ -409,10 +515,10 @@ export function LabBook() {
         </section>
       )}
 
-      {options && !visit && (bookings.length > 0 || inline) && (
+      {options && !planning && (standing.length > 0 || inline) && (
         <div className="mpmb-actions">
           {backToSummary}
-          {!inline && bookings.length > 0 && (
+          {!inline && standing.length > 0 && (
             <p className="mpmb-hint">
               During your break, check in each week on the <a href={labPages.checkin.path}>mid-break check-in</a>; when it ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
             </p>

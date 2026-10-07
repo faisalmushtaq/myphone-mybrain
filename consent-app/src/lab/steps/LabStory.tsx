@@ -7,6 +7,7 @@ import { ChoiceField, FieldWrapper, TextField } from '../../components/ui/Field'
 import { announce } from '../../lib/announce';
 import { describeError, labClientInfo, labSession } from '../api';
 import { labPages, labStudy } from '../config';
+import { clearLabState } from '../persistence';
 import { LabShell } from '../LabShell';
 import { labMyStory, storyLimits, storyStructures, storySurveyUrl, type StoryPhase } from '../mystory';
 import { Dyad, Triad, type Shares } from '../story/Signifiers';
@@ -24,7 +25,7 @@ const SOURCE: Record<string, LabStoryPayload['source']> = { baseline: 'baseline'
  * example) shows that survey, given the participant ID and the phase.
  */
 export function LabStory() {
-  const { state, dispatch } = useLab();
+  const { state, dispatch, atLab } = useLab();
   const phase = state.phase as StoryPhase;
   const mode = labMyStory.phases[phase];
   const structure = storyStructures[phase];
@@ -127,6 +128,35 @@ export function LabStory() {
       setBusy(false);
     }
   };
+
+  // At the lab: the page forgets this participant (nothing was kept on the computer) and opens clean for the next.
+  const finishAtLab = () => {
+    clearLabState();
+    // The participant ID left the address when the page opened; the phase and the lab mode stay.
+    window.location.replace(`${window.location.pathname}${window.location.search}`);
+  };
+
+  if (justSent && atLab) {
+    const last = story.sent[story.sent.length - 1];
+    return (
+      <LabShell kicker={labMyStory.name} title="Thank you. Your story is in." hideContinue hideBack>
+        <Callout tone="success" role="status">
+          <p>
+            “{last?.title}” has been sent, labelled with your participant ID, never your name. Please hand the computer back to the researcher.
+          </p>
+        </Callout>
+        <div className="mpmb-actions">
+          <Button variant="primary" onClick={finishAtLab}>
+            Finish
+          </Button>
+          <Button variant="secondary" onClick={() => setJustSent(false)}>
+            Tell another story
+          </Button>
+        </div>
+        <p className="mpmb-hint">Finish clears this page for the next person. Nothing about you is kept on this computer.</p>
+      </LabShell>
+    );
+  }
 
   if (justSent) {
     const last = story.sent[story.sent.length - 1];
