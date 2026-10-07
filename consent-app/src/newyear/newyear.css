@@ -1,0 +1,1063 @@
+/* ============================================================
+   New Year social media break (preview)
+   Every rule is scoped under .mpmb-app .mpmb-ny: the build puts
+   all the apps' CSS in one file (consent-app.css), so nothing
+   here may reach the family or lab apps.
+   ============================================================ */
+
+.mpmb-app .mpmb-ny {
+  /* The attention game's shapes: blue against orange is safe for the common kinds of colour blindness, and the shapes differ too. */
+  --ny-standard: #1d63c9;
+  --ny-target: #f5a300;
+  --ny-target-edge: #7a4500;
+  --ny-green: #1f8a5b;
+  --ny-green-bg: #eaf5ef;
+}
+
+/* ── Band, navigation, preview strip ───────────────────────── */
+.mpmb-app .mpmb-ny .ny-band__who {
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--mpb-yellow);
+}
+.mpmb-app .mpmb-ny .ny-nav {
+  margin-top: 0.8rem;
+}
+.mpmb-app .mpmb-ny .ny-nav ul {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+  max-width: 34rem;
+}
+.mpmb-app .mpmb-ny .ny-nav__item {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.4rem 0.5rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  background: transparent;
+  color: #fff;
+  font-family: var(--f-sans);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.15;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) {
+  .mpmb-app .mpmb-ny .ny-nav__item:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+.mpmb-app .mpmb-ny .ny-nav__item[aria-current='page'] {
+  background: var(--mpb-yellow);
+  border-color: var(--mpb-yellow);
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-preview {
+  background: var(--mpb-important-bg);
+  border-bottom: 1px solid #ead78c;
+}
+.mpmb-app .mpmb-ny .ny-preview__inner {
+  max-width: var(--step-max-wide);
+  margin: 0 auto;
+  padding: 0.7rem var(--gutter);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  color: var(--mpb-ink);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.mpmb-app .mpmb-ny .ny-preview__inner .mpmb-icon {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-preview__inner p {
+  margin: 0;
+}
+
+/* ── Steady spacing inside a screen ────────────────────────── */
+.mpmb-app .mpmb-ny .mpmb-step__body > * + *,
+.mpmb-app .mpmb-ny .ny-form > * + * {
+  margin-top: 1.5rem;
+}
+.mpmb-app .mpmb-ny .mpmb-step__body > .mpmb-actions,
+.mpmb-app .mpmb-ny .ny-form > .mpmb-actions {
+  margin-top: 2rem;
+}
+.mpmb-app .mpmb-ny .ny-section > * + * {
+  margin-top: 0.85rem;
+}
+.mpmb-app .mpmb-ny .ny-section .mpmb-draft {
+  vertical-align: 0.2em;
+}
+/* The site's own stylesheet indents any span in a legend (fieldset legend span); these are whole questions. */
+.mpmb-app .mpmb-ny .ny-legend {
+  margin-left: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-note {
+  margin: 0.6rem 0 0;
+  padding: 0.6rem 0.85rem;
+  background: var(--mpb-paper);
+  border-left: 4px solid var(--mpb-yellow-dark);
+  font-size: 0.97rem;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-count {
+  margin: 0.35rem 0 0;
+}
+.mpmb-app .mpmb-ny .ny-block:focus,
+.mpmb-app .mpmb-ny .ny-confirm:focus {
+  outline: none;
+  box-shadow: none !important;
+}
+
+/* ── Landing ───────────────────────────────────────────────── */
+.mpmb-app .mpmb-ny .ny-points li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+  margin-bottom: 0.65rem;
+}
+.mpmb-app .mpmb-ny .ny-points .mpmb-icon {
+  margin-top: 0.15rem;
+  color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin-top: 2rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--mpb-line);
+}
+.mpmb-app .mpmb-ny .ny-cta .mpmb-btn {
+  min-height: 58px;
+  padding: 0.85em 1.7em;
+  font-size: 1.15rem;
+}
+@media (max-width: 559px) {
+  .mpmb-app .mpmb-ny .ny-cta .mpmb-btn {
+    width: 100%;
+  }
+}
+
+/* ── Joining ───────────────────────────────────────────────── */
+/* The shared check box. The app-wide reset for spans in labels (.mpmb-app label span) is more
+   specific than the box's own rule, so without this an unticked box shows its tick. Scoped here
+   so the other apps are untouched. */
+.mpmb-app .mpmb-ny .mpmb-check__box {
+  display: grid;
+  color: transparent;
+}
+.mpmb-app .mpmb-ny .mpmb-check.is-checked .mpmb-check__box {
+  color: #fff;
+}
+.mpmb-app .mpmb-ny .ny-length .mpmb-choice__options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 30rem;
+}
+.mpmb-app .mpmb-ny .ny-apps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.75rem), 1fr));
+  gap: 0.55rem;
+  margin-top: 0.4rem;
+}
+.mpmb-app .mpmb-ny .ny-apps .mpmb-check__label {
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 0.6rem;
+  padding: 0.8rem 0.75rem;
+  min-height: 56px;
+  align-items: center;
+}
+.mpmb-app .mpmb-ny .ny-apps .mpmb-check__box {
+  width: 26px;
+  height: 26px;
+  margin-top: 0;
+}
+.mpmb-app .mpmb-ny .ny-name__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 1rem 1.1rem;
+  background: var(--mpb-mist);
+  border-left: 5px solid var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-name__value {
+  margin: 0;
+  font-family: var(--f-serif);
+  font-size: clamp(1.5rem, 5.5vw, 2rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-name .mpmb-btn .mpmb-icon {
+  vertical-align: -0.2em;
+  margin-right: 0.15rem;
+}
+
+/* ── Tracker ───────────────────────────────────────────────── */
+.mpmb-app .mpmb-ny .ny-progress__label {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin-bottom: 0.45rem;
+  font-family: var(--f-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+  color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-progress__bar {
+  height: 12px;
+  background: var(--mpb-mist);
+  border: 1px solid var(--mpb-line);
+  overflow: hidden;
+}
+.mpmb-app .mpmb-ny .ny-progress__bar span {
+  display: block;
+  height: 100%;
+  background: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+}
+@media (min-width: 640px) {
+  .mpmb-app .mpmb-ny .ny-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.mpmb-app .mpmb-ny .ny-stats > div {
+  padding: 0.75rem 0.9rem 0.85rem;
+  background: var(--mpb-paper);
+  border: 1px solid var(--mpb-line);
+  border-top: 4px solid var(--mpb-yellow);
+}
+.mpmb-app .mpmb-ny .ny-stats dt {
+  font-family: var(--f-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-stats dd {
+  margin: 0.15rem 0 0;
+  font-family: var(--f-serif);
+  font-size: 1.65rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-cheer {
+  font-weight: 700;
+  color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-cards {
+  display: grid;
+  gap: 0.9rem;
+}
+@media (min-width: 720px) {
+  .mpmb-app .mpmb-ny .ny-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.mpmb-app .mpmb-ny .ny-card {
+  padding: 1.1rem 1.2rem 1.2rem;
+  background: var(--mpb-paper);
+  border: 1px solid var(--mpb-line);
+  border-top: 5px solid var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-card--action {
+  background: var(--mpb-important-bg);
+  border-top-color: var(--mpb-yellow-dark);
+}
+.mpmb-app .mpmb-ny .ny-card > * + * {
+  margin-top: 0.55rem;
+}
+.mpmb-app .mpmb-ny .ny-card > .mpmb-btn {
+  margin-top: 1rem;
+}
+@media (max-width: 559px) {
+  .mpmb-app .mpmb-ny .ny-card > .mpmb-btn {
+    width: 100%;
+  }
+}
+.mpmb-app .mpmb-ny .ny-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 1.25rem;
+}
+.mpmb-app .mpmb-ny .ny-links .mpmb-btn--link {
+  min-height: 44px;
+  padding-inline: 0;
+}
+.mpmb-app .mpmb-ny .ny-tools {
+  margin-top: 2.25rem;
+}
+.mpmb-app .mpmb-ny .ny-tools__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.75rem 0;
+}
+@media (max-width: 559px) {
+  .mpmb-app .mpmb-ny .ny-tools__row .mpmb-btn {
+    width: 100%;
+  }
+}
+
+/* The calendar: shape and words as well as colour for each day. */
+.mpmb-app .mpmb-ny .ny-cal__head,
+.mpmb-app .mpmb-ny .ny-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  max-width: 34rem;
+}
+.mpmb-app .mpmb-ny .ny-cal__head span {
+  font-family: var(--f-mono);
+  font-size: 0.68rem;
+  text-align: center;
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-ny .ny-cal__grid {
+  margin-top: 4px;
+}
+.mpmb-app .mpmb-ny .ny-cal__day,
+.mpmb-app .mpmb-ny .ny-cal__swatch {
+  border: 1.5px solid var(--mpb-line);
+  background: var(--mpb-paper);
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-ny .ny-cal__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 54px;
+  padding: 4px 2px;
+}
+.mpmb-app .mpmb-ny .ny-cal__num {
+  font-family: var(--f-mono);
+  font-size: 0.74rem;
+  line-height: 1;
+}
+.mpmb-app .mpmb-ny .ny-cal__date {
+  display: none;
+  font-size: 0.68rem;
+  line-height: 1.1;
+}
+@media (min-width: 640px) {
+  .mpmb-app .mpmb-ny .ny-cal__date {
+    display: block;
+  }
+}
+.mpmb-app .mpmb-ny .ny-cal__day.is-kept,
+.mpmb-app .mpmb-ny .ny-cal__swatch.is-kept {
+  background: var(--mpb-teal);
+  border-color: var(--mpb-teal);
+  color: #fff;
+}
+.mpmb-app .mpmb-ny .ny-cal__day.is-slipped,
+.mpmb-app .mpmb-ny .ny-cal__swatch.is-slipped {
+  background: var(--mpb-yellow);
+  border-color: #b98a00;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-cal__day.is-not-checked,
+.mpmb-app .mpmb-ny .ny-cal__swatch.is-not-checked {
+  background: #fff;
+  border-style: dashed;
+  border-color: var(--mpb-border);
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-cal__day.is-today,
+.mpmb-app .mpmb-ny .ny-cal__swatch.is-today {
+  border: 3px solid var(--mpb-ink);
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-cal__day.is-today .ny-cal__num {
+  font-weight: 700;
+}
+.mpmb-app .mpmb-ny .ny-dayicon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.mpmb-app .mpmb-ny .ny-dayicon--text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+.mpmb-app .mpmb-ny .ny-cal__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.1rem;
+  margin-top: 0.9rem;
+  font-size: 0.92rem;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-cal__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.mpmb-app .mpmb-ny .ny-cal__swatch {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+}
+
+/* ── Check-in ──────────────────────────────────────────────── */
+.mpmb-app .mpmb-ny .ny-checkin .mpmb-choice__options {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 28rem;
+}
+.mpmb-app .mpmb-ny .ny-scale__options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.4rem;
+  max-width: 38rem;
+}
+.mpmb-app .mpmb-ny .mpmb-choice__option.ny-scale__option {
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  min-height: 104px;
+  padding: 0.65rem 0.2rem 0.55rem;
+  text-align: center;
+}
+.mpmb-app .mpmb-ny .ny-scale__n {
+  display: block;
+  font-family: var(--f-serif);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.mpmb-app .mpmb-ny .ny-scale__label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.2;
+  hyphens: auto;
+}
+.mpmb-app .mpmb-ny .ny-scale__option.is-selected .ny-scale__label {
+  font-weight: 700;
+}
+
+/* ── Brain checks ──────────────────────────────────────────── */
+.mpmb-app .mpmb-ny .ny-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.mpmb-app .mpmb-ny .ny-stage {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
+  background: #fff;
+  border: 1px solid var(--mpb-line);
+  border-left: 5px solid var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-stage.is-done {
+  border-left-color: var(--ny-green);
+  background: var(--ny-green-bg);
+}
+.mpmb-app .mpmb-ny .ny-stage.is-ready {
+  border-left-color: var(--mpb-yellow-dark);
+  background: var(--mpb-important-bg);
+}
+.mpmb-app .mpmb-ny .ny-stage.is-missed {
+  border-left-color: var(--mpb-line);
+  background: var(--mpb-paper);
+}
+.mpmb-app .mpmb-ny .ny-stage__mark {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  border: 2px solid var(--mpb-border);
+  background: #fff;
+  font-weight: 700;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .is-done .ny-stage__mark {
+  background: var(--ny-green);
+  border-color: var(--ny-green);
+  color: #fff;
+}
+.mpmb-app .mpmb-ny .is-ready .ny-stage__mark {
+  background: var(--mpb-yellow);
+  border-color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-stage .mpmb-h4 {
+  margin: 0;
+  display: block;
+}
+.mpmb-app .mpmb-ny .ny-stage__when {
+  margin: 0.15rem 0 0.35rem;
+  font-family: var(--f-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-stage__status {
+  margin: 0;
+}
+.mpmb-app .mpmb-ny .ny-stage .mpmb-btn {
+  margin-top: 0.8rem;
+}
+
+/* The games. */
+.mpmb-app .mpmb-ny .ny-step--game {
+  max-width: 600px;
+}
+.mpmb-app .mpmb-ny .ny-game > * + * {
+  margin-top: 1rem;
+}
+.mpmb-app .mpmb-ny .ny-game > .mpmb-actions {
+  margin-top: 1.75rem;
+}
+.mpmb-app .mpmb-ny .ny-game__meta {
+  font-family: var(--f-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+  color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-game__prompt {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-howto {
+  list-style: decimal;
+  padding-left: 1.35rem;
+}
+.mpmb-app .mpmb-ny .ny-howto li {
+  margin-bottom: 0.45rem;
+  padding-left: 0.2rem;
+}
+.mpmb-app .mpmb-ny .ny-screen {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  background: #fff;
+  border: 1px solid var(--mpb-line);
+}
+.mpmb-app .mpmb-ny .ny-digit {
+  min-height: 1em;
+  font-family: var(--f-sans);
+  font-size: clamp(5rem, 24vw, 7.5rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-digit[data-state='fix'] {
+  font-weight: 400;
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-ny .ny-keypad {
+  max-width: 22rem;
+  margin-inline: auto;
+}
+.mpmb-app .mpmb-ny .ny-keypad__display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 66px;
+  max-width: none;
+  margin: 0;
+  padding: 0.5rem;
+  background: #fff;
+  border: 2px solid var(--mpb-border);
+  font-family: var(--f-mono);
+  font-size: 1.9rem;
+  letter-spacing: 0.06em;
+  color: var(--mpb-ink);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.mpmb-app .mpmb-ny .ny-keypad__placeholder {
+  font-family: var(--f-sans);
+  font-size: 1rem;
+  letter-spacing: 0;
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-ny .ny-keypad__keys {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.mpmb-app .mpmb-ny .ny-key {
+  min-height: 60px;
+  border: 2px solid var(--mpb-teal);
+  background: #fff;
+  color: var(--mpb-ink);
+  font-family: var(--f-sans);
+  font-size: 1.6rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) {
+  .mpmb-app .mpmb-ny .ny-key:hover {
+    background: var(--mpb-mist);
+  }
+  .mpmb-app .mpmb-ny .ny-key--done:hover {
+    background: var(--mpb-yellow-dark);
+  }
+}
+.mpmb-app .mpmb-ny .ny-key:active {
+  background: var(--mpb-mist);
+}
+.mpmb-app .mpmb-ny .ny-key--del {
+  font-size: 1rem;
+}
+.mpmb-app .mpmb-ny .ny-key--done {
+  grid-column: span 2;
+  background: var(--mpb-yellow);
+  border-color: var(--mpb-yellow-dark);
+  font-size: 1.15rem;
+}
+.mpmb-app .mpmb-ny .ny-key--done:active {
+  background: var(--mpb-yellow-dark);
+}
+.mpmb-app .mpmb-ny .ny-keypad__hint {
+  margin-top: 0.6rem;
+  text-align: center;
+}
+@media (hover: none), (pointer: coarse) {
+  .mpmb-app .mpmb-ny .ny-keypad__hint {
+    display: none;
+  }
+}
+
+.mpmb-app .mpmb-ny .ny-legend-shapes li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+.mpmb-app .mpmb-ny .ny-mini {
+  display: block;
+  width: 36px;
+  height: 36px;
+}
+.mpmb-app .mpmb-ny .ny-mini--standard {
+  border-radius: 50%;
+  background: var(--ny-standard);
+}
+.mpmb-app .mpmb-ny .ny-mini--target {
+  width: 32px;
+  height: 32px;
+  margin: 2px;
+  background: var(--ny-target);
+  border: 3px solid var(--ny-target-edge);
+}
+.mpmb-app .mpmb-ny .ny-block__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-family: var(--f-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+  color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-block__stop {
+  min-height: 44px;
+  padding: 0.3rem 0.9rem;
+  border: 1.5px solid var(--mpb-border);
+  background: #fff;
+  color: var(--mpb-ink);
+  font-family: var(--f-sans);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mpmb-app .mpmb-ny .ny-block__bar {
+  height: 6px;
+  margin-top: 0.4rem;
+  background: var(--mpb-mist);
+}
+.mpmb-app .mpmb-ny .ny-block__bar span {
+  display: block;
+  height: 100%;
+  background: var(--mpb-teal);
+}
+/* The arena: nothing animates or fades here; a shape is simply on or off. */
+.mpmb-app .mpmb-ny .ny-arena {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 340px;
+  aspect-ratio: 1 / 1;
+  margin: 0.9rem auto 0;
+  padding: 0;
+  background: #fff;
+  border: 1px solid var(--mpb-line);
+}
+.mpmb-app .mpmb-ny .ny-arena,
+.mpmb-app .mpmb-ny .ny-arena * {
+  transition: none !important;
+  animation: none !important;
+}
+.mpmb-app .mpmb-ny .ny-arena > * {
+  grid-area: 1 / 1;
+}
+.mpmb-app .mpmb-ny .ny-fix,
+.mpmb-app .mpmb-ny .ny-shape {
+  display: none;
+}
+.mpmb-app .mpmb-ny .ny-arena[data-show='fix'] .ny-fix,
+.mpmb-app .mpmb-ny .ny-arena[data-show='standard'] .ny-shape--standard,
+.mpmb-app .mpmb-ny .ny-arena[data-show='target'] .ny-shape--target {
+  display: block;
+}
+.mpmb-app .mpmb-ny .ny-fix {
+  width: 30px;
+  height: 30px;
+  background:
+    linear-gradient(var(--mpb-ink), var(--mpb-ink)) center / 100% 3px no-repeat,
+    linear-gradient(var(--mpb-ink), var(--mpb-ink)) center / 3px 100% no-repeat;
+}
+.mpmb-app .mpmb-ny .ny-shape--standard {
+  width: 46%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background: var(--ny-standard);
+}
+.mpmb-app .mpmb-ny .ny-shape--target {
+  width: 41%;
+  aspect-ratio: 1 / 1;
+  background: var(--ny-target);
+  border: 5px solid var(--ny-target-edge);
+}
+.mpmb-app .mpmb-ny .ny-feedback {
+  max-width: 82%;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-arena[data-show='good'] {
+  background: var(--ny-green-bg);
+}
+.mpmb-app .mpmb-ny .ny-arena[data-show='oops'] {
+  background: var(--mpb-important-bg);
+}
+.mpmb-app .mpmb-ny .ny-tap {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  min-height: 96px;
+  margin: 0.9rem auto 0;
+  border: 3px solid var(--mpb-ink);
+  background: var(--mpb-yellow);
+  color: var(--mpb-ink);
+  font-family: var(--f-serif);
+  font-size: 2rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mpmb-app .mpmb-ny .ny-tap:active {
+  background: var(--mpb-yellow-dark);
+}
+.mpmb-app .mpmb-ny .ny-block__hint {
+  margin-top: 0.75rem;
+  text-align: center;
+}
+
+/* ── Results ───────────────────────────────────────────────── */
+.mpmb-app .mpmb-ny .ny-compare + .ny-compare {
+  margin-top: 1.1rem;
+}
+.mpmb-app .mpmb-ny .ny-compare__head {
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-results .mpmb-list li {
+  margin-bottom: 0.45rem;
+}
+.mpmb-app .mpmb-ny .ny-big-number {
+  margin: 0.35rem 0 0.5rem;
+  font-family: var(--f-serif);
+  font-size: 2.6rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-big-number span {
+  font-family: var(--f-sans);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-ny .ny-table-wrap {
+  overflow-x: auto;
+}
+.mpmb-app .mpmb-ny .ny-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.mpmb-app .mpmb-ny .ny-table th,
+.mpmb-app .mpmb-ny .ny-table td {
+  padding: 0.55rem 0.4rem;
+  border-bottom: 1px solid var(--mpb-line);
+  text-align: left;
+  vertical-align: top;
+}
+.mpmb-app .mpmb-ny .ny-table thead th {
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-table tbody th {
+  font-weight: 700;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-table tr.is-current {
+  background: var(--mpb-important-bg);
+}
+@media (max-width: 559px) {
+  .mpmb-app .mpmb-ny .ny-table {
+    font-size: 0.84rem;
+  }
+  .mpmb-app .mpmb-ny .ny-table th,
+  .mpmb-app .mpmb-ny .ny-table td {
+    padding: 0.5rem 0.2rem;
+  }
+  .mpmb-app .mpmb-ny .ny-table thead th {
+    font-size: 0.64rem;
+    letter-spacing: 0;
+  }
+}
+.mpmb-app .mpmb-ny .ny-numbers {
+  display: grid;
+  margin: 0 0 0.75rem;
+}
+.mpmb-app .mpmb-ny .ny-numbers > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--mpb-line);
+}
+.mpmb-app .mpmb-ny .ny-numbers dd {
+  margin: 0;
+  font-weight: 700;
+  color: var(--mpb-ink);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── Leaderboard ───────────────────────────────────────────── */
+.mpmb-app .mpmb-ny .ny-board {
+  width: 100%;
+  border-collapse: collapse;
+}
+.mpmb-app .mpmb-ny .ny-board caption {
+  caption-side: top;
+  padding: 0 0 0.75rem;
+  text-align: left;
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-board__caption {
+  font-weight: 700;
+}
+.mpmb-app .mpmb-ny .ny-board th,
+.mpmb-app .mpmb-ny .ny-board td {
+  padding: 0.6rem 0.35rem;
+  border-bottom: 1px solid var(--mpb-line);
+  text-align: left;
+  vertical-align: middle;
+}
+.mpmb-app .mpmb-ny .ny-board thead th {
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--mpb-teal);
+  vertical-align: bottom;
+}
+.mpmb-app .mpmb-ny .ny-board .ny-board__rank {
+  width: 2rem;
+  font-family: var(--f-mono);
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-ny .ny-board .ny-board__name {
+  font-weight: 400;
+}
+.mpmb-app .mpmb-ny .ny-board__fun {
+  display: block;
+  font-weight: 700;
+  color: var(--mpb-ink);
+  line-height: 1.25;
+}
+.mpmb-app .mpmb-ny .ny-board .ny-board__num {
+  width: 4.6rem;
+  text-align: right;
+  white-space: nowrap;
+}
+.mpmb-app .mpmb-ny .ny-board__unit {
+  font-size: 0.8rem;
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-ny .ny-board .ny-board__badge {
+  width: 2.4rem;
+  text-align: center;
+}
+.mpmb-app .mpmb-ny .ny-board tr.is-you {
+  background: var(--mpb-important-bg);
+}
+.mpmb-app .mpmb-ny .ny-board tr.is-you td:first-child {
+  box-shadow: inset 5px 0 0 var(--mpb-yellow-dark);
+}
+.mpmb-app .mpmb-ny .ny-tag {
+  display: inline-block;
+  margin-top: 0.2rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--mpb-line);
+  background: #fff;
+  font-family: var(--f-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-ny .ny-tag--you {
+  background: var(--mpb-ink);
+  border-color: var(--mpb-ink);
+  color: #fff;
+}
+.mpmb-app .mpmb-ny .ny-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ny-green);
+  color: #fff;
+  vertical-align: middle;
+}
+.mpmb-app .mpmb-ny .ny-badge--inline {
+  width: 20px;
+  height: 20px;
+}
+
+/* Narrow screens: each row on two lines, the name in full on the first and the counts under it. */
+.mpmb-app .mpmb-ny .ny-board__narrow {
+  display: none;
+}
+@media (max-width: 559px) {
+  .mpmb-app .mpmb-ny .ny-board thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  .mpmb-app .mpmb-ny .ny-board,
+  .mpmb-app .mpmb-ny .ny-board tbody {
+    display: block;
+  }
+  .mpmb-app .mpmb-ny .ny-board caption {
+    display: block;
+  }
+  .mpmb-app .mpmb-ny .ny-board tbody tr {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr) minmax(0, 1fr) 2.25rem;
+    grid-template-areas:
+      'rank name name badge'
+      'rank streak count badge';
+    align-items: center;
+    column-gap: 0.5rem;
+    padding: 0.6rem 0.35rem 0.6rem 0.5rem;
+    border-bottom: 1px solid var(--mpb-line);
+  }
+  .mpmb-app .mpmb-ny .ny-board tbody th,
+  .mpmb-app .mpmb-ny .ny-board tbody td {
+    display: block;
+    width: auto;
+    padding: 0;
+    border: 0;
+    text-align: left;
+  }
+  .mpmb-app .mpmb-ny .ny-board tbody .ny-board__rank {
+    grid-area: rank;
+    align-self: start;
+    padding-top: 0.1rem;
+  }
+  .mpmb-app .mpmb-ny .ny-board tbody .ny-board__name {
+    grid-area: name;
+  }
+  .mpmb-app .mpmb-ny .ny-board tbody .ny-board__streak {
+    grid-area: streak;
+    margin-top: 0.2rem;
+  }
+  .mpmb-app .mpmb-ny .ny-board tbody .ny-board__count {
+    grid-area: count;
+    margin-top: 0.2rem;
+  }
+  .mpmb-app .mpmb-ny .ny-board tbody .ny-board__badge {
+    grid-area: badge;
+    text-align: center;
+  }
+  .mpmb-app .mpmb-ny .ny-board__fun {
+    display: inline;
+    margin-right: 0.4rem;
+  }
+  .mpmb-app .mpmb-ny .ny-board__narrow {
+    display: inline;
+    font-size: 0.85rem;
+    color: var(--mpb-muted);
+  }
+  .mpmb-app .mpmb-ny .ny-board tr.is-you td:first-child {
+    box-shadow: none;
+  }
+  .mpmb-app .mpmb-ny .ny-board tbody tr.is-you {
+    box-shadow: inset 5px 0 0 var(--mpb-yellow-dark);
+  }
+}
+
+/* ── Leaving ───────────────────────────────────────────────── */
+.mpmb-app .mpmb-ny .ny-confirm .mpmb-btn {
+  margin-top: 0;
+}
+@media (max-width: 559px) {
+  .mpmb-app .mpmb-ny .ny-confirm .mpmb-btn {
+    width: 100%;
+  }
+}

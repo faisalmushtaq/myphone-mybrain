@@ -27,12 +27,12 @@ export default defineConfig(({ mode }) => {
       outDir: standalone ? 'dist-standalone' : '../assets/consent-app',
       emptyOutDir: true,
       assetsInlineLimit: standalone ? 300 * 1024 : 4096,
-      // One stylesheet for both apps, so the pages can reference a fixed file name.
+      // One stylesheet for every app, so the pages can reference a fixed file name.
       cssCodeSplit: false,
       rollupOptions: {
         // The standalone preview is a single inlined page of the family form; every other build
-        // also has the lab study's entry.
-        input: standalone ? 'index.html' : { 'consent-app': 'index.html', 'lab-app': 'lab.html' },
+        // also has the lab study's entry and the New Year break preview's.
+        input: standalone ? 'index.html' : { 'consent-app': 'index.html', 'lab-app': 'lab.html', 'newyear-app': 'newyear.html' },
         output: {
           // The preview is one inlined file, so the lazily loaded PDF code must be inlined too.
           inlineDynamicImports: standalone,
