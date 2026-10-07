@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import JSZip from 'jszip';
 import { cleaner, labCheckInForm, labConsentForm, labInformationVersion } from './forms.js';
 import { RejectedUpload } from './images.js';
-import { ageAt, appsToCome, buildParticipantId, idName, inspectCleanedArchive, labFollowUpEmail, labStatusEmail, normaliseCode, normaliseCodeParts, notUsedOf, outstanding, phaseCountsOf, validateLabCheckInPayload, validateLabConsentPayload, validateLabDonationPayload, validateLabPlatformsPayload, validateLabReminderPayload, type LabProgress } from './lab.js';
+import { tooOldToJoin, ageAt, appsToCome, buildParticipantId, idName, inspectCleanedArchive, labFollowUpEmail, labStatusEmail, normaliseCode, normaliseCodeParts, notUsedOf, outstanding, phaseCountsOf, validateLabCheckInPayload, validateLabConsentPayload, validateLabDonationPayload, validateLabPlatformsPayload, validateLabReminderPayload, type LabProgress } from './lab.js';
 
 const now = new Date().toISOString();
 const client = { userAgent: 'test', submittedAt: now, timezoneOffset: 0 };
@@ -23,6 +23,14 @@ const consent = () => ({
   codeParts: { firstName: 'Jane', lastName: 'Smith', dateOfBirth: '2005-03-14', postcode: 'ls2 9jt' } as Record<string, string> | null,
   mobile: '07700 900123' as string | null,
   client,
+});
+
+test('the age range at sign-up: 18 to 21 from the date of birth', () => {
+  const at = new Date('2026-10-07T12:00:00Z');
+  assert.equal(tooOldToJoin('2005-03-14', at), false, '21');
+  assert.equal(tooOldToJoin('2004-10-08', at), false, '21 until tomorrow');
+  assert.equal(tooOldToJoin('2004-10-06', at), true, '22 yesterday');
+  assert.equal(tooOldToJoin('2002-01-01', at), true, '24: no longer in range');
 });
 
 test('participant IDs have their shape and are normalised', () => {

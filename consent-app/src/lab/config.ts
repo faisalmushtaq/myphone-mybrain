@@ -78,7 +78,8 @@ export interface LabInfoSection {
   note?: string;
 }
 
-export const labInformationVersion = { version: '2.0', label: 'Participant information sheet of 21 February 2026' };
+/** 2.1: the sheet of 21 February 2026 with the age range 18 to 21 (decided 7 October 2026; it said 18 to 24). Consents record the version they were shown. */
+export const labInformationVersion = { version: '2.1', label: 'Participant information sheet of 21 February 2026, ages 18 to 21' };
 
 export const labInformation: LabInfoSection[] = [
   {
@@ -93,8 +94,8 @@ export const labInformation: LabInfoSection[] = [
   {
     id: 'invited',
     title: 'Why have I been invited?',
-    summary: 'You are 18 to 24 years old and regularly use social media.',
-    detail: ['You have been invited because you are 18 to 24 years old and regularly use social media. The study aims to better understand how everyday digital behaviour relates to brain activity.'],
+    summary: 'You are 18 to 21 years old and regularly use social media.',
+    detail: ['You have been invited because you are 18 to 21 years old and regularly use social media. The study aims to better understand how everyday digital behaviour relates to brain activity.'],
   },
   {
     id: 'what',
@@ -176,7 +177,8 @@ export const labStudy = {
   /** Wording used in headings; the approved documents call it the intervention study. */
   formalName: 'MyPhone/MyBrain intervention study',
   minAge: 18,
-  maxAge: 24,
+  /** 21 since 7 October 2026 (it was 24). New sign-ups older than this are refused; someone who turns 22 during the study carries on. */
+  maxAge: 21,
   ethicsReference: 'SoPREC 4202',
   /** The committee's approval date, shown with the reference. */
   ethicsApproved: '11 June 2026',

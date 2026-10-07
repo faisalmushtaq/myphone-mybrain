@@ -1,11 +1,11 @@
 ---
 layout: default
 title: "Social media break study | MyPhone/MyBrain"
-description: "A University of Leeds study for adults aged 18 to 24: a month-long break from social media, two EEG lab visits, and a donation of your own TikTok, YouTube or Instagram data, cleaned on your device."
+description: "A University of Leeds study for adults aged 18 to 21: a month-long break from social media, two EEG lab visits, and a donation of your own TikTok, YouTube or Instagram data, cleaned on your device."
 permalink: /break/
 title_main: "Can you take a break from"
 title_accent: "social media?"
-page_intro: "A University of Leeds study for adults aged 18 to 24 who use social media and are willing to pause it for a month, with two visits to our EEG laboratory before and after."
+page_intro: "A University of Leeds study for adults aged 18 to 21 who use social media and are willing to pause it for a month, with two visits to our EEG laboratory before and after."
 ---
 
 {% include page_hero.html %}
@@ -41,7 +41,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
       <div class="info-panel">
         <h3>Who can take part</h3>
         <ul class="info-checklist">
-          <li>You are aged 18 to 24.</li>
+          <li>You are aged 18 to 21.</li>
           <li>You regularly use social media, including TikTok, YouTube or Instagram, so that you can share your usage data from them.</li>
           <li>You are willing to take a temporary break from social media.</li>
         </ul>

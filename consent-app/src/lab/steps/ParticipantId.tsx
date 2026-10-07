@@ -128,6 +128,11 @@ export function ParticipantId() {
           setNotFound({ kind: 'details' });
           return;
         }
+        // Signing up: the date of birth must be in the study's age range. Checked only now, for someone new, so a participant who has turned 22 since signing up still gets in.
+        if (age !== null && age > labStudy.maxAge) {
+          setErrors([{ field: 'lab-dob', message: `This study is for people aged ${labStudy.minAge} to ${labStudy.maxAge}, so you can’t sign up. Thank you for your interest.` }]);
+          return;
+        }
         dispatch({ type: 'confirm-code', code, returning: false, lookup });
         dispatch({ type: 'go-to', stepId: 'information' });
         return;
@@ -277,13 +282,6 @@ export function ParticipantId() {
               onChange={(e) => dispatch({ type: 'booking-contact', patch: { mobile: e.target.value } })}
               error={errs['lab-mobile-start']}
             />
-          )}
-          {firstPage && age !== null && age > labStudy.maxAge && (
-            <Callout tone="info">
-              <p>
-                This study is for people aged {labStudy.minAge} to {labStudy.maxAge}. If you are older, please check with {contact} before you carry on.
-              </p>
-            </Callout>
           )}
           <p className="mpmb-hint">{firstPage ? 'Use exactly the same details whenever you come back, and in the questionnaire, so everything matches up. Started already? Enter the same details and you will carry on where you left off.' : 'Your details are only used to find your record.'}</p>
         </div>
