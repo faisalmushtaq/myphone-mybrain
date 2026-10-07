@@ -23,6 +23,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <li><a href="#linking">Linking with records</a></li>
         <li><a href="#information">Your child’s information</a></li>
         <li><a href="#changing-your-mind">Changing your mind</a></li>
+        <li><a href="#opting-out">Opting out</a></li>
         <li><a href="#questions">Questions and approval</a></li>
       </ol>
     </nav>
@@ -51,7 +52,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <p>Every young person in the classes taking part is invited. <strong>You don’t need to do anything for your child to take part.</strong> If you don’t want them to, a parent or carer emails us before the workshop. There is no form and no paper slip.</p>
         <p>On the day, the researchers explain the workshop again and ask each young person whether they want to take part. <strong>Your child can say no</strong>, choose which parts to do, or stop at any time, without giving a reason. Nobody will mind, and it will not affect anything at school.</p>
         <p>Opting out of the workshop also opts your child out of linking with their education and health records: one email covers both.</p>
-        <a class="text-link" href="{{ '/take-part/consent/?optout=1' | relative_url }}">How to opt out &nbsp;→</a>
+        <a class="text-link" href="#opting-out">How to opt out &nbsp;→</a>
       </li>
       <li class="consent-route consent-route--mist">
         <span class="consent-route__tag">Opt-in</span>
@@ -61,15 +62,6 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <a class="text-link" href="#screen-time">More about screen time and phone habits &nbsp;→</a>
       </li>
     </ol>
-    <div class="info-panel">
-      <h3>How to opt out</h3>
-      <p>A parent or carer emails <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a> with your child’s full name, their school and their class or year group, and your name. The <a href="{{ '/take-part/consent/?optout=1' | relative_url }}">opt-out page</a> first explains what your child would miss, then writes the email with you. Please email before the workshop. If your email arrives after it, we withdraw your child’s information too, as far as is still possible. Opting out will not affect your child’s education or their relationship with school.</p>
-    </div>
-    <div class="prose">
-      <h3>Why the workshop is opt-out</h3>
-      <p>We want the study to include young people from every background. When families have to return a form before their child can take part, young people from busier households, or from families who hear less from school, are often left out, and the findings would not reflect them. So every young person in the classes taking part is invited, and the choice stays with families and young people: any parent or carer can opt their child out, every young person decides for themselves on the day, and your answers about their phone are a separate yes.</p>
-    </div>
-
     <h2 id="workshop">What happens at the workshop.</h2>
     <p class="section-subheading">About two hours, at school, during the school day, in a group of up to 30 young people, with at least two researchers.</p>
     <div class="participant-info-grid">
@@ -161,6 +153,17 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <li><strong>How much can be removed:</strong> ask within one month of the workshop and we can remove all of your child’s information. After that, information that has been made anonymous, or already used in analyses, may no longer be removable; we remove everything we still can. Opting out after the workshop withdraws your child’s information, including from linking, in the same way.</li>
         <li>None of this affects your child’s education or their relationship with school.</li>
       </ul>
+    </div>
+
+    <h2 id="opting-out">Opting out.</h2>
+    <p class="section-subheading">If you don’t want your child to take part in the workshop, one email from a parent or carer is all it takes.</p>
+    <div class="info-panel">
+      <h3>How to opt out</h3>
+      <p>A parent or carer emails <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a> with your child’s full name, their school and their class or year group, and your name. The <a href="{{ '/take-part/consent/?optout=1' | relative_url }}">opt-out page</a> first explains what your child would miss, then writes the email with you. Please email before the workshop. If your email arrives after it, we withdraw your child’s information too, as far as is still possible. Opting out will not affect your child’s education or their relationship with school.</p>
+    </div>
+    <div class="prose">
+      <h3>Why the workshop is opt-out</h3>
+      <p>We want the study to include young people from every background. When families have to return a form before their child can take part, young people from busier households, or from families who hear less from school, are often left out, and the findings would not reflect them. So every young person in the classes taking part is invited, and the choice stays with families and young people: any parent or carer can opt their child out, every young person decides for themselves on the day, and your answers about their phone are a separate yes.</p>
     </div>
 
     <h2 id="questions">Questions and approval.</h2>
