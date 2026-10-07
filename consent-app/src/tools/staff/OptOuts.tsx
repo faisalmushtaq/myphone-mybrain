@@ -66,9 +66,10 @@ export function OptOuts({ staff }: { staff: Staff }) {
     setNotice(null);
     try {
       await staff.ask('add-opt-out', { optOut: { ...form, dateOfBirth: form.dateOfBirth || null } });
+      // The list first, so the message and the new row appear together.
+      await load();
       setNotice(`Logged: ${form.firstName.trim()} ${form.lastName.trim()} is opted out. The export flags them from the next hour.`);
       setForm({ ...blank, receivedOn: today() });
-      await load();
     } catch (e) {
       setError(messageOf(e));
     } finally {
@@ -81,10 +82,10 @@ export function OptOuts({ staff }: { staff: Staff }) {
     setError(null);
     try {
       await staff.ask('cancel-opt-out', { optOutId: row.optOutId, reason });
+      await load();
       setCancelling(null);
       setReason('');
       setNotice(`${row.firstName} ${row.lastName} is back in: the opt-out is kept, marked cancelled.`);
-      await load();
     } catch (e) {
       setError(messageOf(e));
     } finally {

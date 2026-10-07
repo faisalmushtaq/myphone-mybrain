@@ -115,3 +115,41 @@ describe('the family form after 7 October 2026: who decides, and where the scree
     expect(buildConsentPayload(s).more?.status).toBe('completed');
   });
 });
+
+describe('carrying on later with a reference (before or after the workshop)', () => {
+  const summary = (over: Partial<import('../api/types').ResumeSummary> = {}): import('../api/types').ResumeSummary => ({ referenceCode: 'MPMB-ABCD-EF2', firstName: 'Kai', selfConsent: false, phoneSource: 'child', assentStatus: 'deferred', imageCount: 0, maxImages: 6, canAgree: true, canAddScreenshots: false, reason: null, ...over });
+  const found = (over: Partial<import('../api/types').ResumeSummary> = {}) => reducer(initialState(), { type: 'resume-found', summary: summary(over), dateOfBirth: dobFor(13) });
+
+  it('a young person whose part was put off: their answer, then the screenshots, nothing of the parent’s', () => {
+    const s = found();
+    expect(s.route).toBe('young');
+    expect(s.submission.referenceCode).toBe('MPMB-ABCD-EF2');
+    expect(buildJourney(s)).toEqual(['welcome', 'resume', 'child-assent', 'done']);
+    expect(firstIncomplete(s)).toBe('child-assent');
+    const yes = apply(s, { type: 'assent-signature', signature }, { type: 'assent-sign' });
+    expect(buildJourney(yes)).toEqual(['welcome', 'resume', 'child-assent', 'phone-use', 'done']);
+    expect(firstIncomplete(yes)).toBeNull();
+    expect(phoneSourceOf(yes)).toBe('child');
+    expect(parentMoreApplies(yes)).toBe(false);
+    const no = reducer(s, { type: 'assent-decline' });
+    expect(buildJourney(no)).toEqual(['welcome', 'resume', 'child-assent', 'assent-declined', 'done']);
+  });
+
+  it('screenshots only, from the parent’s phone or after a yes given before; nothing at all after a no', () => {
+    const parent = found({ phoneSource: 'parent', assentStatus: 'not-started', canAgree: false, canAddScreenshots: true });
+    expect(parent.route).toBe('parent');
+    expect(buildJourney(parent)).toEqual(['welcome', 'resume', 'phone-use', 'done']);
+    expect(parent.submission.consentStage).toBe('sent');
+    expect(firstIncomplete(parent)).toBeNull();
+    const agreed = found({ assentStatus: 'completed', canAgree: false, canAddScreenshots: true });
+    expect(agreed.assent.status).toBe('completed');
+    expect(buildJourney(agreed)).toEqual(['welcome', 'resume', 'phone-use', 'done']);
+    expect(buildJourney(found({ assentStatus: 'declined', canAgree: false, canAddScreenshots: false, reason: 'declined' }))).toEqual(['welcome', 'resume', 'done']);
+  });
+
+  it('before the record is found, the step stands alone; "Finish and clear" forgets the record', () => {
+    const looking = reducer(initialState(), { type: 'go-to', stepId: 'resume' });
+    expect(buildJourney(looking)).toEqual(['welcome', 'resume']);
+    expect(reducer(found(), { type: 'reset' }).resume).toBeNull();
+  });
+});

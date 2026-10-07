@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bookingIcs, bookingState, offerWindows, bookingText, journeyAction, journeyMessage, nextTextTime, reminderAction, reminderEmail, slotProblem, validateBookingPayload, visitsEmail, visitsText, visitWindow, type BookingRecord } from './booking.js';
+import { addressChangedEmail, bookingIcs, bookingState, offerWindows, bookingText, journeyAction, journeyMessage, maskedContact, maskEmail, nextTextTime, reminderAction, reminderEmail, slotProblem, validateBookingPayload, visitsEmail, visitsText, visitWindow, type BookingRecord } from './booking.js';
 import { labBooking, labJourneyMessages } from './forms.js';
 import { foldLine, icsFor } from './ics.js';
 import { participantLinks, storyLink } from './links.js';
@@ -231,6 +231,31 @@ test('booking requests: a time for each visit, an email, a UK mobile only when t
   assert.match(validateBookingPayload({ ...ok, visits: [] }).join(' '), /Choose a time for each visit/);
   assert.match(validateBookingPayload({ ...ok, visits: [...ok.visits, { visit: 1, slotId: 'c' }] }).join(' '), /Choose a time for each visit/);
   assert.match(validateBookingPayload({ ...ok, slotId: 'abc123', visit: 1, visits: undefined }).join(' '), /Choose a time for each visit/, 'the old one-visit request is refused');
+  // Changing visits on another device: the address on file is kept (email null), with nothing new for texts.
+  assert.deepEqual(validateBookingPayload({ ...ok, email: null, mobile: null, smsReminders: false }), []);
+  assert.deepEqual(validateBookingPayload({ ...ok, email: null, mobile: null, smsReminders: true }), [], 'the text setting on file is kept, whatever the page sends');
+  assert.match(validateBookingPayload({ ...ok, email: null, mobile: '07700 900123', smsReminders: true }).join(' '), /mobile number needs the email address too/);
+  assert.match(validateBookingPayload({ ...ok, email: undefined }).join(' '), /email address/, 'leaving the email out is not keeping it');
+});
+
+test('changing visits from another device: the address on file, masked; the old address told of a new one', () => {
+  assert.equal(maskEmail('jane.smith@example.com'), 'j•••@example.com');
+  assert.equal(maskEmail('x@leeds.ac.uk'), 'x•••@leeds.ac.uk');
+  assert.equal(maskEmail('nonsense'), '•••');
+  assert.deepEqual(maskedContact({ email: 'jane@example.com', mobile: '+447700900123', smsReminders: true }), { email: 'j•••@example.com', mobileEnding: '123', smsReminders: true });
+  assert.deepEqual(maskedContact({ email: 'jane@example.com', mobile: null, smsReminders: true }), { email: 'j•••@example.com', mobileEnding: null, smsReminders: false }, 'no texts without a number');
+  assert.equal(maskedContact({ email: null, mobile: null, smsReminders: false }), null, 'nothing on file before the first booking');
+  const v1 = booking({ status: 'attended' });
+  const v2 = booking({ id: 'b2', visit: 2, slotId: 's2', start: new Date('2026-11-12T10:00:00Z'), end: new Date('2026-11-12T12:00:00Z') });
+  const gone = booking({ id: 'b0', visit: 2, status: 'cancelled' });
+  const { subject, text } = addressChangedEmail([v2, gone, v1]);
+  assert.equal(subject, 'MyPhone/MyBrain: your lab visit emails now go to a different address');
+  assert.match(text, /went to a different email address from this one/);
+  assert.match(text, /First lab visit: Wednesday 14 October 2026, 10:00 to 12:00 \(UK time\)\nSecond lab visit: Thursday 12 November 2026, 10:00 to 12:00/);
+  assert.equal(text.match(/Second lab visit/g)?.length, 1, 'cancelled visits are left out');
+  assert.match(text, /Participant ID: MP2670FF90A5F2/);
+  assert.match(text, /If it was not, please reply to this email or contact .+ straight away\./);
+  assert.doesNotMatch(text, /@example\.com/, 'the new address is not shown');
 });
 
 test('personal links: every page with the ID, MyStory by phase', () => {

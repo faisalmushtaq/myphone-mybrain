@@ -52,7 +52,7 @@ myphone-mybrain/
 
 ## Consent and phone-use donation app (prototype)
 
-`consent-app/` contains a React + TypeScript application (built with Vite) that mounts inside the site at `/take-part/consent/`. It lets a parent or guardian give consent, records the young person's own agreement (sent to the server the moment they have signed, so participation is on record even if the family stops there), and collects screenshots of the phone's screen-time summary, which are checked for safety and relevance before they are kept. All participant-facing wording is placeholder text marked "Draft wording" in the interface.
+`consent-app/` contains a React + TypeScript application (built with Vite) that mounts inside the site at `/take-part/consent/`. It is the opt-in for sharing screen time: a parent or carer gives permission and answers a few questions (16- and 17-year-olds can decide alone), the young person gives their own agreement when the screenshots come from their phone, and screenshots of the phone's screen-time summary are checked for safety and relevance before they are kept. The record is sent as soon as it is complete, so it counts even if the family stops there. Families can fill it in before or after the workshop, and a family that stopped part-way carries on later, on any device, with the reference from their thank-you page and the young person's date of birth (`consent-app/docs/journey.md`, "Carrying on later"). Participant-facing wording that is not yet approved is marked as draft in the code.
 
 It has two backends: an in-memory **mock** (the default; nothing leaves the page) and **Firebase** (`consent-app/firebase/`, see `consent-app/docs/firebase.md`), chosen by repository variables at build time.
 

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
 import { getApi, mockFlags } from '../api';
 import { study } from '../config/study';
+import { forgetFinishReference } from '../lib/entryLink';
 import { imageStore } from '../lib/imageStore';
 import type { AppState } from '../model/types';
 import { clearState, loadState, saveState } from './persistence';
@@ -52,6 +53,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let timer = window.setTimeout(clear, minutes * 60 * 1000);
     function clear() {
       clearState();
+      forgetFinishReference();
       imageStore.clear();
       dispatch({ type: 'reset', reason: 'inactivity' });
     }

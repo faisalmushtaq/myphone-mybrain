@@ -3,7 +3,7 @@ import { referenceCode } from '../lib/ids';
 import type { SessionInfo } from '../model/types';
 import { labBooking } from '../lab/booking';
 import { addDays, atUkTime, daysBetween, previewIcs, ukIsoDay } from '../lab/calendar';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBooking, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabSlot, type LabStoryPayload, type LabStoryResult, type LabVisit, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBooking, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabSlot, type LabStoryPayload, type LabStoryResult, type LabVisit, type LateAgreementPayload, type LateAgreementResult, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
 
 export interface MockFlags {
   failUploads: boolean;
@@ -31,6 +31,8 @@ interface MockLab {
   notUsed: LabPlatform[];
   bookings: MockBooking[];
   stories: Pick<LabStoryPayload, 'phase' | 'promptId' | 'title'>[];
+  /** Where booking confirmations go, as the server's labContacts. */
+  contact?: { email: string; mobile: string | null; smsReminders: boolean } | null;
 }
 
 interface MockSubmission {
@@ -39,6 +41,10 @@ interface MockSubmission {
   version: number;
   consents: ConsentPayload[];
   donations: DonationPayload[];
+  /** Sessions that came back later with the reference and the date of birth. */
+  resumed?: string[];
+  /** The young person's answer given later, which supersedes the one in the record. */
+  lateAssent?: LateAgreementPayload['assent'];
 }
 
 /**
@@ -62,7 +68,7 @@ export class MockConsentApi implements ConsentApi {
       const lab = window.localStorage.getItem(MockConsentApi.LAB_KEY);
       if (lab) {
         const entries = JSON.parse(lab) as [string, Partial<MockLab>][];
-        this.lab = new Map(entries.map(([code, e]) => [code, { sessionId: e.sessionId ?? '', consents: e.consents ?? [], donations: e.donations ?? [], checkIns: e.checkIns ?? [], notUsed: e.notUsed ?? [], bookings: e.bookings ?? [], stories: e.stories ?? [] }]));
+        this.lab = new Map(entries.map(([code, e]) => [code, { sessionId: e.sessionId ?? '', consents: e.consents ?? [], donations: e.donations ?? [], checkIns: e.checkIns ?? [], notUsed: e.notUsed ?? [], bookings: e.bookings ?? [], stories: e.stories ?? [], contact: e.contact ?? null }]));
       }
     } catch {
       /* start empty */
@@ -101,6 +107,7 @@ export class MockConsentApi implements ConsentApi {
           notUsed: p.notUsed,
           bookings: p.bookings,
           stories: p.stories.map((x) => ({ phase: x.phase, promptId: x.promptId, title: x.title })),
+          contact: p.contact ?? null,
         },
       ]);
       window.localStorage.setItem(MockConsentApi.LAB_KEY, JSON.stringify(slim));
@@ -143,6 +150,43 @@ export class MockConsentApi implements ConsentApi {
     this.submissions.set(code, { sessionId: session.sessionId, participantId, version: 1, consents: [payload], donations: [] });
     this.persist();
     return { referenceCode: code, participantId, receivedAt, version: 1 };
+  }
+
+  /** As the server's resume.ts: what can still be added, from the record as sent. Only records made in this tab can be found (the mock keeps their contents in memory). */
+  private resumeSummaryOf(code: string, s: MockSubmission): ResumeSummary {
+    const last = s.consents[s.consents.length - 1];
+    const source = last.phoneSource;
+    const status = s.lateAssent?.status ?? last.assent.status;
+    const imageCount = s.donations.reduce((n, d) => n + d.uploads.length, 0);
+    const room = imageCount < 6;
+    const canAgree = source === 'child' && (status === 'deferred' || status === 'not-started');
+    const canAddScreenshots = room && (source === 'parent' || (source === 'child' && status === 'completed'));
+    const reason = canAgree || canAddScreenshots ? null : source !== 'parent' && source !== 'child' ? 'no-screen-time' : status === 'declined' ? 'declined' : 'full';
+    return { referenceCode: code, firstName: last.identity.firstName.trim(), selfConsent: false, phoneSource: source, assentStatus: status, imageCount, maxImages: 6, canAgree, canAddScreenshots, reason };
+  }
+
+  async resumeLookup(session: SessionInfo, payload: ResumeLookupPayload): Promise<ResumeSummary> {
+    await sleep(jitter(400, 800));
+    this.checkSession(session);
+    const code = payload.referenceCode.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^MPMB(\w{4})(\w{3})$/, 'MPMB-$1-$2');
+    const s = this.submissions.get(code);
+    const dob = s?.consents[s.consents.length - 1].identity.dateOfBirth;
+    const same = dob && Number(dob.day) === Number(payload.dateOfBirth.day) && Number(dob.month) === Number(payload.dateOfBirth.month) && dob.year === payload.dateOfBirth.year;
+    if (!s || !same) throw new ApiError('validation', 'We could not find a record with that reference and date of birth. Check both: the reference is on your thank-you page and your copy of the record, and looks like MPMB-ABCD-EF2.');
+    s.resumed = [...(s.resumed ?? []), session.sessionId];
+    return this.resumeSummaryOf(code, s);
+  }
+
+  async resumeAgree(session: SessionInfo, payload: LateAgreementPayload): Promise<LateAgreementResult> {
+    await sleep(jitter(400, 800));
+    if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');
+    this.checkSession(session);
+    const s = this.submissions.get(payload.referenceCode);
+    if (!s || !s.resumed?.includes(session.sessionId)) throw new ApiError('validation', 'That reference does not belong to this session. Enter it again with the date of birth.');
+    if (!this.resumeSummaryOf(payload.referenceCode, s).canAgree) throw new ApiError('validation', 'The young person’s agreement cannot be added to this record. Please contact the team.');
+    s.lateAssent = payload.assent;
+    s.version += 1;
+    return { referenceCode: payload.referenceCode, receivedAt: new Date().toISOString(), version: s.version, status: payload.assent.status };
   }
 
   async requestUploadSlot(sessionId: string, meta: UploadMeta): Promise<UploadSlot> {
@@ -189,7 +233,7 @@ export class MockConsentApi implements ConsentApi {
     if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');
     this.checkSession(session);
     const submission = this.submissions.get(payload.referenceCode);
-    if (!submission || submission.sessionId !== session.sessionId) throw new ApiError('validation', 'That reference does not belong to this session.');
+    if (!submission || (submission.sessionId !== session.sessionId && !submission.resumed?.includes(session.sessionId))) throw new ApiError('validation', 'That reference does not belong to this session.');
     const accepted: string[] = [];
     for (const upload of payload.uploads) {
       if (this.uploads.get(upload.uploadId)?.sessionId !== session.sessionId) throw new ApiError('validation', 'One of the images was not uploaded correctly.');
@@ -358,6 +402,7 @@ export class MockConsentApi implements ConsentApi {
       gap: { ...labBooking.visit2AfterDays },
       smsAvailable: true,
       rules: { minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours },
+      contact: p?.contact ? { email: `${p.contact.email.slice(0, 1)}•••@${p.contact.email.split('@')[1] ?? ''}`, mobileEnding: p.contact.mobile ? p.contact.mobile.replace(/\D/g, '').slice(-3) : null, smsReminders: p.contact.smsReminders } : null,
     };
   }
 
@@ -369,6 +414,7 @@ export class MockConsentApi implements ConsentApi {
     if (!p?.consents.length) throw new ApiError('validation', 'We have no consent on file for this participant ID.');
     const { missing, active } = this.bookingStateOf(p);
     if (missing.length) throw new ApiError('validation', `Your lab visits can be booked once ${missing.join(' and ')} ${missing.length === 1 ? 'has' : 'have'} arrived.`);
+    if (payload.email === null && !p.contact) throw new ApiError('validation', 'Enter your email address, so we can send you the details.');
     const all = this.mockSlots();
     const plan: Record<LabVisit, { start: string } | undefined> = { 1: active[1], 2: active[2] };
     const chosen = payload.visits.map((c) => {
@@ -390,8 +436,9 @@ export class MockConsentApi implements ConsentApi {
       p.bookings.push(booking);
       return this.bookingView(payload.participantCode, booking);
     });
+    if (payload.email !== null) p.contact = { email: payload.email, mobile: payload.mobile, smsReminders: payload.smsReminders };
     this.persistLab();
-    return { booked, kind: chosen.some((c) => c.previous) ? 'moved' : 'booked', email: 'sent' as DeliveryOutcome, sms: payload.smsReminders ? 'sent' : 'not-wanted' };
+    return { booked, kind: chosen.some((c) => c.previous) ? 'moved' : 'booked', email: 'sent' as DeliveryOutcome, sms: p.contact?.smsReminders ? 'sent' : 'not-wanted' };
   }
 
   async cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingIds?: string[] | null }): Promise<LabCancelResult> {

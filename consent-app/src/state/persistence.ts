@@ -61,6 +61,7 @@ export function loadState(): { state: AppState; expired: boolean } | null {
         survey: { ...base.survey, ...(parsed.survey ?? {}) },
         phoneSource: parsed.phoneSource === 'parent' || parsed.phoneSource === 'child' || parsed.phoneSource === 'none' ? parsed.phoneSource : null,
         more: { ...base.more, ...(parsed.more ?? {}) },
+        resume: parsed.resume && typeof parsed.resume.referenceCode === 'string' ? parsed.resume : null,
         submission: { ...base.submission, ...(parsed.submission ?? {}) },
         prototype: base.prototype,
         handover: null,

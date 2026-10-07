@@ -1884,6 +1884,21 @@
     flex-direction: row;
   }
 }
+/* The link to carry on later (src/components/CarryOnLink.tsx): its own card between the next steps and "Changing your mind". */
+.mpmb-carryon {
+  margin: 1.5rem 0;
+}
+.mpmb-carryon__title {
+  margin: 0 0 0.35rem;
+  font-weight: 700;
+}
+.mpmb-carryon__url {
+  margin: 0 0 0.75rem;
+  overflow-wrap: anywhere;
+}
+.mpmb-carryon .mpmb-actions {
+  margin-top: 0.75rem;
+}
 .mpmb-done .mpmb-disclosure {
   margin-top: 1.5rem;
 }
@@ -2476,6 +2491,18 @@
 }
 
 /* Welcome: about folded in */
+/* Carrying on later with a reference (src/steps/Resume.tsx): one line under the two routes. */
+.mpmb-welcome__resume {
+  margin: 1.25rem 0 0;
+  color: var(--mpb-muted, inherit);
+}
+.mpmb-welcome__resume .mpmb-btn--link,
+.mpmb-id-switch .mpmb-btn--link {
+  display: inline;
+  padding: 0;
+  min-height: 0;
+  vertical-align: baseline;
+}
 /* Opting out of the workshop: its own section at the foot of the welcome screen, and the three opt-out pages (src/steps/OptOut.tsx). */
 .mpmb-welcome__optout {
   margin-top: 2.25rem;

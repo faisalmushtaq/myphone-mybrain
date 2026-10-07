@@ -81,13 +81,15 @@ async function inner() {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 
+  // Draws on the page the locator belongs to (a second device has its own mouse).
   const draw = async (locator, points) => {
     await locator.scrollIntoViewIfNeeded();
     const box = await locator.boundingBox();
-    await page.mouse.move(box.x + points[0][0] * box.width, box.y + points[0][1] * box.height);
-    await page.mouse.down();
-    for (const [x, y] of points.slice(1)) await page.mouse.move(box.x + x * box.width, box.y + y * box.height, { steps: 5 });
-    await page.mouse.up();
+    const { mouse } = locator.page();
+    await mouse.move(box.x + points[0][0] * box.width, box.y + points[0][1] * box.height);
+    await mouse.down();
+    for (const [x, y] of points.slice(1)) await mouse.move(box.x + x * box.width, box.y + y * box.height, { steps: 5 });
+    await mouse.up();
   };
   const png = async (label) =>
     Buffer.from(
@@ -320,6 +322,72 @@ async function inner() {
     ok('no questions record when they were skipped without an answer', sub2?.surveyId && (await db.collection('surveys').doc(sub2.surveyId).get()).data()?.status === 'skipped');
     await page.getByRole('button', { name: /Everything is right/ }).click();
     await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
+
+    // Carrying on later (often after the workshop): the parent says yes and chooses the young person's phone, but Noah isn't there;
+    // later, on Noah's own phone, the link from the thank-you page and his date of birth find the record, and he adds his answer and a screenshot.
+    await page.getByRole('button', { name: /Finish and clear/ }).click();
+    await page.getByRole('button', { name: /I’m a parent or carer/ }).click();
+    await page.getByLabel('First name', { exact: true }).fill('Noah');
+    await page.getByLabel('Last name', { exact: true }).fill('Clarke');
+    await page.getByLabel('Date of birth', { exact: true }).fill('2013-03-14');
+    await page.getByLabel('School', { exact: true }).selectOption('GSAL');
+    await page.getByLabel('Your full name', { exact: true }).fill('Jo Clarke');
+    await page.getByLabel('Your relationship to the young person').selectOption('father');
+    await page.getByLabel(/parental responsibility for/).check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByLabel(/I confirm all of the above/).check();
+    for (const [id, v] of [['phone-use', 'agreed'], ['recontact', 'declined']]) await page.locator(`#stmt-${id}-${v}`).check();
+    await page.getByRole('button', { name: /I can’t draw my signature/ }).click();
+    await page.getByLabel(/Type your full name as your signature/).fill('Jo Clarke');
+    await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await page.getByRole('button', { name: 'Skip these questions' }).click();
+    await page.locator('#phone-source-child').check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Noah isn’t here right now' }).click();
+    await page.getByRole('heading', { name: /Some more questions about Noah’s phone use/ }).waitFor({ timeout: 30000 });
+    await page.getByRole('button', { name: 'Skip these questions' }).click();
+    await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
+    await page.locator('.mpmb-save', { hasText: 'Permission saved' }).waitFor({ timeout: 60000 });
+    const noahCode = (await page.locator('.mpmb-save strong').innerText()).trim();
+    await page.getByRole('button', { name: /Everything is right/ }).click();
+    await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
+    const carryOnUrl = (await page.locator('.mpmb-carryon__url').innerText()).trim();
+    ok('the thank-you page gives the link to carry on later, before or after the workshop, instead of “the team will send a link”', carryOnUrl.endsWith(`?finish=${noahCode}`) && (await page.getByText(/Noah can do their part later\. Nothing from Noah’s phone has been sent\. When they are ready, before or after the workshop/).count()) === 1 && (await page.getByText(/the team will send/).count()) === 0, carryOnUrl);
+    const noahBefore = (await db.collection('submissions').doc(noahCode).get()).data();
+    const laterDevice = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const noahPage = await laterDevice.newPage();
+    noahPage.on('pageerror', (e) => errors.push(e.message));
+    await noahPage.goto(carryOnUrl);
+    await noahPage.getByRole('heading', { name: 'Carry on with your reference.' }).waitFor({ timeout: 30000 });
+    ok('the link opens “Carry on” with the reference filled in, and leaves the address bar', (await noahPage.getByLabel('Your reference').inputValue()) === noahCode && !noahPage.url().includes('finish='), noahPage.url());
+    await noahPage.getByLabel('The young person’s date of birth').fill('2013-03-15');
+    await noahPage.getByRole('button', { name: 'Find my record' }).click();
+    await noahPage.getByText(/We could not find a record with that reference and date of birth/).first().waitFor({ timeout: 30000 });
+    ok('a wrong date of birth finds nothing, and counts against the reference', (await db.collection('submissions').doc(noahCode).get()).data()?.resumeFailures === 1);
+    await noahPage.getByLabel('The young person’s date of birth').fill('2013-03-14');
+    await noahPage.getByRole('button', { name: 'Find my record' }).click();
+    await noahPage.getByRole('heading', { name: 'We found your record.' }).waitFor({ timeout: 30000 });
+    await noahPage.getByRole('button', { name: 'Continue to Noah’s part' }).click();
+    await noahPage.getByRole('heading', { name: /Do you want to share your screen time/ }).waitFor();
+    ok('only Noah’s part is asked: his answer, with no “decide later” and nothing of the parent’s', (await noahPage.getByRole('button', { name: 'I’d like to decide later' }).count()) === 0 && (await noahPage.getByText(/Your parent or carer has said it’s okay with them/).count()) === 1);
+    await draw(noahPage.locator('#assent-signature'), [[0.2, 0.6], [0.5, 0.35], [0.8, 0.6]]);
+    await noahPage.getByRole('button', { name: 'Sign and continue' }).click();
+    await noahPage.locator('.mpmb-save', { hasText: 'Your answer is saved.' }).waitFor({ timeout: 60000 });
+    const noahMid = (await db.collection('submissions').doc(noahCode).get()).data();
+    const lateAssent = (await db.collection('assents').doc(noahMid.assentId).get()).data();
+    ok('his yes is a new agreement record on the same reference, superseding the one put off', noahMid.assentId !== noahBefore.assentId && lateAssent?.status === 'completed' && lateAssent?.late === true && lateAssent?.supersedes === noahBefore.assentId && lateAssent?.participantId === noahBefore.participantId && noahMid.version === noahBefore.version + 1 && noahMid.resumeUids?.length === 1 && noahMid.resumeFailures === 0 && Boolean(lateAssent?.signature?.image?.path));
+    await noahPage.getByRole('radio', { name: 'Android' }).check();
+    await noahPage.locator('input[type=file]').first().setInputFiles([{ name: 'noah.png', mimeType: 'image/png', buffer: await png('Digital Wellbeing') }]);
+    await noahPage.waitForFunction(() => document.querySelectorAll('.mpmb-upload').length === 1);
+    await noahPage.getByRole('button', { name: /Send this screenshot/ }).click();
+    await noahPage.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 90000 });
+    const noahAfter = (await db.collection('submissions').doc(noahCode).get()).data();
+    const lateDonation = (await db.collection('donations').doc(noahAfter.donationIds?.[0] ?? 'x').get()).data();
+    ok('his screenshot is added to the same record, marked as sent later, with his agreement', noahAfter.imageCount === 1 && lateDonation?.late === true && lateDonation?.from === 'young-person-phone' && lateDonation?.agreement?.response === 'agreed' && lateDonation?.participantId === noahBefore.participantId && Boolean(noahAfter.resumedAt) && (await noahPage.getByText(`Added to reference ${noahCode}`).count()) === 1);
+    await noahPage.getByRole('button', { name: 'Finish and clear this device' }).click();
+    await noahPage.getByRole('heading', { name: /Share screen time with MyPhone/ }).waitFor();
+    ok('no browser errors carrying on later', errors.length === 0, errors.join(' | '));
+    await laterDevice.close();
 
     // The social media break study: participant ID, consent, a cleaned TikTok export and a screenshot, then the export.
     const JSZip = admin('jszip');
@@ -759,37 +827,57 @@ async function inner() {
     ok('the check-ins are exported, one row each, with their mid-break screenshot in ses-mid and the after-break files in ses-post', checkinTsv.startsWith('participant_id\tsession_id\tcheck_in_id\tcheck_in_n\tsubmitted_at\tform_version\tweek\tapps_used\tmood\tdifficulty\tmissed\tnotes\n') && checkinTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && checkinTsv.includes('\t2\tonce-or-twice\t4\t3\t2\tBrick held up fine.') && labManifest.counts?.labCheckIns === 1 && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-mid/sub-MP2670FF90A5F2_ses-mid_run-01_screenshot.png') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-post/sub-MP2670FF90A5F2_ses-post_run-01_screenshot.png') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-post/sub-MP2670FF90A5F2_ses-post_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sub-MP2670FF90A5F2/ses-post/beh/sub-MP2670FF90A5F2_ses-post_task-tiktokwatch_run-02_beh.tsv'), JSON.stringify(labManifest.counts));
     ok('the lab study has its own folder: a pre session with unpacked tables under donations/, names only under identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 2 && labManifest.counts?.labScreenshots === 3 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-MP2670FF90A5F2\t') && labParticipantsTsv.includes('\ttiktok\tinstagram; youtube\tandroid\t') && labParticipantsTsv.includes('pre; mid; post') && !labParticipantsTsv.includes('Jane') && !labParticipantsTsv.includes('LS2 9JT') && !labParticipantsTsv.includes('2005-03-14') && labParticipantsTsv.includes('\t21\t') && labConsentsTsv.includes('Jane Smith') && labConsentsTsv.includes('LS2 9JT') && labConsentsTsv.includes('2005-03-14') && remindersTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\tjane@example.com') && !labParticipantsTsv.includes('jane@') && labBeh.includes('archive\tsourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-02_archive.zip') && watchTsv === 'time\tlink\n2026-09-01 20:11:03\thttps://www.tiktokv.com/share/video/1/\n2026-09-01 20:12:40\thttps://www.tiktokv.com/share/video/2/\n' && !labManifest.files?.some((n) => n.includes('tiktoksearch')) && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-01_screenshot.png') && labManifest.files?.some((n) => n.startsWith('social-media-break/identifying/signatures/sub-MP2670FF90A5F2/')) && !labManifest.files?.some((n) => n.startsWith('schools/') && n.includes('MP2670FF90A5F2')), JSON.stringify(labManifest.counts));
 
-    // The booking page on its own: both visits; move the second, cancel both, then book both again.
-    await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=book`);
-    await page.getByRole('heading', { name: 'Book your lab visits.', level: 1 }).waitFor();
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('heading', { name: 'Your lab visits.', level: 1 }).waitFor({ timeout: 30000 });
-    await page.locator('.mpmb-visit').nth(1).waitFor({ timeout: 30000 });
-    ok('the booking page lists both visits, with one way to change them and one to cancel', (await page.locator('.mpmb-visit').count()) === 2 && (await page.getByRole('button', { name: 'Change my times' }).count()) === 1 && (await page.getByRole('button', { name: 'Cancel your visits' }).count()) === 1);
-    await snap('book-page');
-    await page.getByRole('button', { name: 'Change my times' }).click();
-    await page.getByRole('heading', { name: 'Change your lab visit times.', level: 1 }).waitFor();
-    ok('changing starts from the current times, kept', (await page.locator('#lab-slot-1 input[value="keep"]').isChecked()) && (await page.locator('#lab-slot-2 input[value="keep"]').isChecked()) && (await page.getByLabel('Email address').inputValue()) === 'jane@example.com');
-    await page.getByRole('button', { name: 'Save my times' }).click();
-    await page.getByText('Choose a new time for at least one visit, or keep your current times.').first().waitFor();
-    ok('the second visit can move to the other time in its window, not the one too late', (await page.locator('#lab-slot-2 .mpmb-slots__time').count()) === 2);
-    await page.locator('#lab-slot-2 .mpmb-slots__time').nth(1).click();
-    await page.getByRole('button', { name: 'Save my times' }).click();
-    await page.getByText(/Changed: your second lab visit/).first().waitFor({ timeout: 30000 });
+    // The booking page on its own, later, on a device that knows nothing: signing in with the participant ID typed from an email;
+    // both visits; move the second without typing the email again, cancel both, then book both again with a new email address.
+    const later = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const bookPage = await later.newPage();
+    bookPage.on('pageerror', (e) => errors.push(e.message));
+    await bookPage.goto(`http://127.0.0.1:${PORT}/lab.html?flow=book`);
+    await bookPage.getByRole('heading', { name: 'Book or change your lab visits.', level: 1 }).waitFor();
+    await bookPage.getByRole('button', { name: 'Use my participant ID instead' }).click();
+    await bookPage.getByLabel('Participant ID').fill('MP0000000000AB');
+    await bookPage.getByRole('button', { name: 'Continue' }).click();
+    await bookPage.getByText(/We could not find anyone with participant ID MP0000000000AB/).waitFor({ timeout: 30000 });
+    await bookPage.getByLabel('Participant ID').fill(' mp2670 ff90a5f2 ');
+    await bookPage.screenshot({ path: path.join(root, 'dist-emulator', 'lab-id-signin.png'), fullPage: true });
+    await bookPage.getByRole('button', { name: 'Continue' }).click();
+    await bookPage.getByRole('heading', { name: 'Your lab visits.', level: 1 }).waitFor({ timeout: 30000 });
+    await bookPage.locator('.mpmb-visit').nth(1).waitFor({ timeout: 30000 });
+    ok('on a new device the typed participant ID (any case, spaces) finds the visits; a wrong one is refused', (await bookPage.locator('.mpmb-visit').count()) === 2 && (await bookPage.getByRole('button', { name: 'Change my times' }).count()) === 1 && (await bookPage.getByRole('button', { name: 'Cancel your visits' }).count()) === 1);
+    await bookPage.screenshot({ path: path.join(root, 'dist-emulator', 'lab-book-page.png'), fullPage: true });
+    await bookPage.getByRole('button', { name: 'Change my times' }).click();
+    await bookPage.getByRole('heading', { name: 'Change your lab visit times.', level: 1 }).waitFor();
+    ok('changing starts from the current times, kept, and the confirmation goes to the address on file without typing it again', (await bookPage.locator('#lab-slot-1 input[value="keep"]').isChecked()) && (await bookPage.locator('#lab-slot-2 input[value="keep"]').isChecked()) && (await bookPage.getByLabel('Email address').count()) === 0 && (await bookPage.getByText('We will email the new times to j•••@example.com, the address you gave before, and text the mobile number ending 123.').count()) === 1);
+    await bookPage.getByRole('button', { name: 'Save my times' }).click();
+    await bookPage.getByText('Choose a new time for at least one visit, or keep your current times.').first().waitFor();
+    ok('the second visit can move to the other time in its window, not the one too late', (await bookPage.locator('#lab-slot-2 .mpmb-slots__time').count()) === 2);
+    await bookPage.locator('#lab-slot-2 .mpmb-slots__time').nth(1).click();
+    await bookPage.getByRole('button', { name: 'Save my times' }).click();
+    await bookPage.getByText(/Changed: your second lab visit/).first().waitFor({ timeout: 30000 });
     const afterMove = await bookingsOf();
     const moved = afterMove.find((b) => b.visit === 2 && b.status === 'booked');
     const old2 = afterMove.find((b) => b.id === v2.id);
     ok('a move cancels the old booking, points it at the new one, frees its time, and leaves the first visit alone', old2?.status === 'cancelled' && old2?.replacedBy === moved?.id && moved?.replaces === v2.id && moved?.sequence === 1 && (await db.collection('labSlots').doc(v2.slotId).get()).data()?.booked === 0 && afterMove.find((b) => b.id === v1.id)?.status === 'booked');
-    await page.getByRole('button', { name: 'Cancel your visits' }).click();
-    await page.getByRole('button', { name: 'Yes, cancel them' }).click();
-    await page.getByText(/Your lab visits are cancelled\. We have emailed you to confirm/).first().waitFor({ timeout: 30000 });
+    const keptContact = (await db.collection('labContacts').doc('MP2670FF90A5F2').get()).data();
+    ok('the move kept the contact on file as it was', keptContact?.email === 'jane@example.com' && keptContact?.mobile === '+447700900123' && keptContact?.smsReminders === true && !keptContact?.addressChanges, JSON.stringify(keptContact));
+    ok('the change was confirmed by email to the address on file', (await bookPage.getByText(/We have emailed the details|we could not email you just now/).count()) >= 1 && moved?.confirmation?.email === 'not-configured');
+    await bookPage.getByRole('button', { name: 'Cancel your visits' }).click();
+    await bookPage.getByRole('button', { name: 'Yes, cancel them' }).click();
+    await bookPage.getByText(/Your lab visits are cancelled\. We have emailed you to confirm/).first().waitFor({ timeout: 30000 });
     const afterCancel = await bookingsOf();
     ok('cancelling cancels both, frees the times and records who cancelled', afterCancel.every((b) => b.status === 'cancelled') && afterCancel.find((b) => b.id === moved.id)?.cancelledBy === 'participant' && afterCancel.find((b) => b.id === v1.id)?.cancellation?.email === 'not-configured' && (await db.collection('labSlots').doc(moved.slotId).get()).data()?.booked === 0 && (await db.collection('labSlots').doc(v1.slotId).get()).data()?.booked === 0);
-    await page.getByRole('heading', { name: 'Book your two lab visits.', level: 1 }).waitFor({ timeout: 30000 });
-    await page.locator('#lab-slot-1 .mpmb-slots__time').first().click();
-    await page.locator('#lab-slot-2 .mpmb-slots__time').first().click();
-    await page.getByRole('button', { name: 'Book both visits' }).click();
-    await page.getByText(/Booked: your two lab visits/).first().waitFor({ timeout: 30000 });
+    await bookPage.getByRole('heading', { name: 'Book your two lab visits.', level: 1 }).waitFor({ timeout: 30000 });
+    await bookPage.locator('#lab-slot-1 .mpmb-slots__time').first().click();
+    await bookPage.locator('#lab-slot-2 .mpmb-slots__time').first().click();
+    await bookPage.getByRole('button', { name: 'Use a different email address' }).click();
+    await bookPage.getByLabel('Email address').fill('jane.smith@example.org');
+    await bookPage.getByLabel(/Mobile number/).fill('07700 900123');
+    await bookPage.getByRole('button', { name: 'Book both visits' }).click();
+    await bookPage.getByText(/Booked: your two lab visits/).first().waitFor({ timeout: 30000 });
+    const newContact = (await db.collection('labContacts').doc('MP2670FF90A5F2').get()).data();
+    ok('a new email address replaces the old one, and the old one is told (not set up here)', newContact?.email === 'jane.smith@example.org' && newContact?.mobile === '+447700900123' && newContact?.addressChanges?.length === 1 && newContact.addressChanges[0].from === 'jane@example.com' && newContact.addressChanges[0].told === 'not-configured', JSON.stringify(newContact?.addressChanges));
+    ok('no browser errors on the booking page signed in by ID', errors.length === 0, errors.join(' | '));
+    await later.close();
     v1 = (await bookingsOf()).find((b) => b.visit === 1 && b.status === 'booked');
     ok('booking again gives each visit a newer calendar entry, so calendars update the same event', v1?.start?.toDate().getTime() === v1a.getTime() && v1?.sequence === 2, String(v1?.sequence));
 
@@ -846,7 +934,7 @@ async function inner() {
     await toolsSnap('times');
     await page.getByRole('button', { name: 'Bookings', exact: true }).click();
     await page.getByRole('heading', { name: 'Bookings from a fortnight ago' }).waitFor();
-    ok('the bookings show who is coming, their contact details and what was sent', (await page.locator('.mpmb-tools__row').count()) === 2 && (await page.locator('.mpmb-tools__row').first().innerText()).includes('jane@example.com') && (await page.locator('.mpmb-tools__row').first().innerText()).includes('day-before email: not set up'));
+    ok('the bookings show who is coming, their contact details and what was sent', (await page.locator('.mpmb-tools__row').count()) === 2 && (await page.locator('.mpmb-tools__row').first().innerText()).includes('jane.smith@example.org') && (await page.locator('.mpmb-tools__row').first().innerText()).includes('day-before email: not set up'));
     await page.getByRole('button', { name: 'Participants', exact: true }).click();
     await page.getByLabel('Find a participant').fill('mp2670ff90a5f2');
     await page.getByRole('button', { name: 'Show', exact: true }).click();
@@ -907,6 +995,7 @@ async function inner() {
     await page.getByLabel('Parent or carer’s name').fill('Ewa Nowak');
     await page.getByRole('button', { name: 'Log the opt-out' }).click();
     await page.getByText(/Logged: Ola Nowak is opted out/).waitFor({ timeout: 30000 });
+    await page.locator('.mpmb-tools__row', { hasText: 'Ola Nowak' }).waitFor({ timeout: 30000 });
     const loggedOptOuts = (await db.collection('optOuts').get()).docs.map((d) => d.data());
     ok('the opt-out is logged with the school, the date and who sent it', loggedOptOuts.length === 1 && loggedOptOuts[0].schoolId === 'DUA' && loggedOptOuts[0].parentName === 'Ewa Nowak' && loggedOptOuts[0].status === 'active' && /^\d{4}-\d{2}-\d{2}$/.test(loggedOptOuts[0].receivedOn));
     ok('the staff page lists it', (await page.locator('.mpmb-tools__row', { hasText: 'Ola Nowak' }).count()) === 1 && (await page.getByText(/Opted out \(1\)/).count()) === 1);
@@ -925,9 +1014,9 @@ async function inner() {
     const familiesTsv = await readExport('schools/donations/participants.tsv');
     const phoneUseTsv = await readExport('schools/donations/phenotype/parent_phone_use.tsv');
     ok('MyStory is exported by phase, the triangle over three columns', midTsv.split('\n')[0].includes('pull_habit\tpull_people_and_connection\tpull_boredom_or_stress\tpull_status') && midTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && midTsv.includes('\tThe bus\t') && midTsv.includes('\tnot-sure\t') && postTsv.includes('\tQuiet evenings\t') && preTsv.includes('sub-MP2670FF90A5F2\tses-pre\t') && preTsv.includes('\tLate nights\t') && finalManifest.counts?.labStories === 3, JSON.stringify(finalManifest.counts));
-    ok('the visits and contact details are exported to identifying/, the visit date to the research table', visitsTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\t1\t') && visitsTsv.includes('\tmoved\t') && visitsTsv.includes('day-before-email:not-configured') && contactsTsv.includes('jane@example.com\t+447700900123\ttrue') && labPeople.includes(`\t${v1a.toISOString().slice(0, 10)}\tbooked\t`) && !labPeople.includes('jane@'));
+    ok('the visits and contact details are exported to identifying/, the visit date to the research table', visitsTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\t1\t') && visitsTsv.includes('\tmoved\t') && visitsTsv.includes('day-before-email:not-configured') && contactsTsv.includes('jane.smith@example.org\t+447700900123\ttrue') && labPeople.includes(`\t${v1a.toISOString().slice(0, 10)}\tbooked\t`) && !labPeople.includes('jane@'));
     ok('the opt-out is flagged on the school’s list and listed in identifying/ with the UPN it names', unmatchedTsv.split('\n').some((l) => l.startsWith('DUA\tA123456789013\tOla\tNowak') && l.includes('\ttrue\t')) && optOutsTsv.includes('\tactive\t') && optOutsTsv.includes('\tOla\tNowak\t') && optOutsTsv.includes('\tEwa Nowak\t') && optOutsTsv.includes('\tA123456789013\tname-only'), optOutsTsv.split('\n')[1]);
-    ok('the research table says who decided, where the screen time came from, and the longer answers have their own table', familiesTsv.split('\n')[0].includes('\tself_consent\tphone_source\t') && familiesTsv.includes('\ttrue\tchild\tcompleted\t') && familiesTsv.includes('\tfalse\tnone\tnot-started\t') && phoneUseTsv.split('\n')[0].startsWith('participant_id\town_phone_age\tschool_day_time') && phoneUseTsv.includes('\t12\t3-4\t'), familiesTsv);
+    ok('the research table says who decided, where the screen time came from, and the longer answers have their own table', familiesTsv.split('\n')[0].includes('\tself_consent\tphone_source\t') && familiesTsv.split('\n')[0].endsWith('\tadded_later_on\topted_out') && familiesTsv.includes(`\t${new Date().toISOString().slice(0, 10)}\tfalse`) && familiesTsv.includes('\ttrue\tchild\tcompleted\t') && familiesTsv.includes('\tfalse\tnone\tnot-started\t') && phoneUseTsv.split('\n')[0].startsWith('participant_id\town_phone_age\tschool_day_time') && phoneUseTsv.includes('\t12\t3-4\t'), familiesTsv);
     ok('the school’s file and what was read sit in schools/upn-uploads/, and the UPN is matched to the family’s record', finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/\d{4}-\d{2}-\d{2}_[0-9a-f]{8}_Year 8\.csv$/.test(n)) && finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/.*_pupils\.tsv$/.test(n)) && matchesTsv.includes('\tKai\tPatel\t2013-03-14\t') && matchesTsv.includes('\tA123456789012\tname-and-dob\t') && unmatchedTsv.includes('DUA\tA123456789013\tOla\tNowak') && finalManifest.counts?.upnUploads === 1 && finalManifest.counts?.upnMatched === 1, JSON.stringify(finalManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {

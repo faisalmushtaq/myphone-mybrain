@@ -41,6 +41,30 @@ Decided by the study lead (`decisions.md`):
 | Parent, 16 or 17 | details → permission (no screenshots question) → quick questions → *handover* → agreement → screenshots → check → done; not there, no or later: longer questions |
 | Opting out | welcome → "Opt out of the workshop" (or `?optout=1`, from the school pages) → warning → second warning → how to email the team (a ready-made email, the school filled in). Nothing is sent. |
 
+### Carrying on later (before or after the workshop)
+
+Families can fill in the form at any time, before or after the workshop. A
+family that sent its record but did not finish it carries on later, on any
+device, with the **reference** (on the thank-you page, which shows a ready
+link, and in the PDF copy) and the **young person's date of birth**:
+
+| Came back to | Steps |
+| --- | --- |
+| The young person's part, put off (not there, or "decide later") | welcome → `resume` (reference, date of birth) → their agreement → screenshots → done; a no → done (sent when they press Finish, so they can still change it) |
+| Screenshots, from the parent's phone or after a yes given before | welcome → `resume` → screenshots → done |
+| Nothing left to add (a no, no screen time, or the most screenshots) | welcome → `resume`, which says why and who to email |
+
+Entry: `?finish=<reference>` (the thank-you page's link), `?finish` alone
+(the FAQ and the school pages), or "Carry on with your reference" on the first
+page. No handovers and no progress bar: whoever came back does the rest, and
+the parent's permission is already in the record. The server
+(`resumeRecord`, `firebase/functions/src/resume.ts`) checks the date of birth
+against the record (five wrong tries lock the reference for a day), lets this
+session add to the record, and takes the young person's answer as a new
+agreement record that supersedes the one put off. Nothing already sent is
+shown or can be changed. The export marks what came later (`added_later_on`
+in `participants.tsv`, `added_later` in each sessions file).
+
 The website's links choose where the form starts (`?who=parent`,
 `?who=young`, `?optout=1`; `src/lib/entryLink.ts`). The welcome screen reads
 that once and drops it from the address, so after "Finish and clear this

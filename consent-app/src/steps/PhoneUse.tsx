@@ -147,6 +147,8 @@ export function PhoneUse() {
       onContinue={() => void send()}
       continueLabel={sendLabel}
       continueLoading={sending}
+      // Carrying on later, the answer before this one is already sent: there is no going back to it here.
+      hideBack={Boolean(state.resume)}
       secondaryAction={
         // Sharing is the young person's own choice: when they hold the phone, saying no is one press, with no appeal.
         young ? (
@@ -291,7 +293,7 @@ export function PhoneUse() {
       {appeal && !young && (
         <Callout tone="important" role="alert" title="Before you skip">
           <p>
-            That’s fine: your answers are already saved, and we will ask you a few more questions instead. If you can, though, the screenshots take about a minute, and they are the part of MyPhone/MyBrain no one else can provide: real screen time and real app use, not guesses.
+            {state.resume ? 'That’s fine: you can come back with your reference at any time.' : 'That’s fine: your answers are already saved, and we will ask you a few more questions instead.'} If you can, though, the screenshots take about a minute, and they are the part of MyPhone/MyBrain no one else can provide: real screen time and real app use, not guesses.
           </p>
           <div className="mpmb-callout__actions">
             <Button

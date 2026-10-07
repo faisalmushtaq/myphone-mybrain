@@ -56,6 +56,8 @@ export function snapshotOf(state: AppState): string {
  * young person's answer whenever they are asked for one.
  */
 export function firstIncomplete(state: AppState): StepId | null {
+  // Carrying on later: the record is on the server; only the young person's answer may still be needed.
+  if (state.resume) return state.resume.canAgree && (state.assent.status === 'not-started' || (state.assent.status === 'completed' && validateAssent(state.assent).length)) ? 'child-assent' : null;
   if (validateChildDetails(state.identity).length) return 'child-details';
   if (youngAlone(state)) return state.assent.status === 'completed' && !validateAssent(state.assent).length ? null : 'child-assent';
   if (validateGuardian(state.guardian).length) return state.route === 'parent' ? 'child-details' : 'parent-details';
@@ -122,10 +124,39 @@ export function useSync() {
     [dispatch],
   );
 
+  /**
+   * Carrying on later: the young person's answer, given now, goes to the
+   * record found by its reference (the rest of the record is already there).
+   */
+  const sendLateAnswer = useCallback(async (s: AppState): Promise<ConsentResult | null> => {
+    const resume = s.resume!;
+    const done = (version: number, at: string | null): ConsentResult => ({ referenceCode: resume.referenceCode, participantId: s.submission.participantId ?? '', receivedAt: at ?? '', version });
+    if (!resume.canAgree || s.submission.consentStage === 'sent') return done(s.submission.consentVersion, s.submission.consentSentAt);
+    if (s.assent.status !== 'completed' && s.assent.status !== 'declined') return null;
+    consentInFlight.current = true;
+    dispatch({ type: 'submission', patch: { consentStage: 'sending', consentError: null } });
+    announce('Saving your answer.');
+    try {
+      const { formId, formVersion, responses, signature, startedAt, completedAt } = s.assent;
+      const result = await withSession((session) => getApi().resumeAgree(session, { referenceCode: resume.referenceCode, assent: { formId, formVersion, status: s.assent.status as 'completed' | 'declined', responses, signature, startedAt, completedAt }, client: clientInfo() }));
+      dispatch({ type: 'submission', patch: { consentStage: 'sent', consentError: null, consentSentAt: result.receivedAt, consentVersion: result.version } });
+      announce('Your answer is saved.');
+      return done(result.version, result.receivedAt);
+    } catch (error) {
+      const message = friendlyError(error, 'permission');
+      dispatch({ type: 'submission', patch: { consentStage: 'failed', consentError: message } });
+      announce(message);
+      return null;
+    } finally {
+      consentInFlight.current = false;
+    }
+  }, [dispatch, withSession]);
+
   /** Returns the result when the record is on the server (already or just now), or null on failure. */
   const sendConsent = useCallback(async (): Promise<ConsentResult | null> => {
     const s = stateRef.current;
     if (consentInFlight.current) return null;
+    if (s.resume) return sendLateAnswer(s);
     if (firstIncomplete(s)) return null;
     const snapshot = snapshotOf(s);
     if (s.submission.consentStage === 'sent' && s.submission.sentSnapshot === snapshot && s.submission.referenceCode && s.submission.participantId) {
@@ -161,7 +192,7 @@ export function useSync() {
     } finally {
       consentInFlight.current = false;
     }
-  }, [dispatch, withSession]);
+  }, [dispatch, sendLateAnswer, withSession]);
 
   /**
    * Sends every uploaded-but-unsent image. The permission is sent first if it
@@ -208,7 +239,8 @@ export function useSync() {
     }
   }, [dispatch, sendConsent, withSession]);
 
-  const dirty = state.submission.sentSnapshot !== null && state.submission.sentSnapshot !== snapshotOf(state);
+  // Carrying on later sends answers, never amendments, so nothing is ever waiting to be re-sent.
+  const dirty = !state.resume && state.submission.sentSnapshot !== null && state.submission.sentSnapshot !== snapshotOf(state);
 
   return { sendConsent, sendDonation, dirty, submission: state.submission };
 }

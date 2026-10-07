@@ -217,6 +217,7 @@ export function participantsTable(snap: Snapshot): Row[] {
         sessions_n: mine.length,
         screenshots_n: mine.reduce((n, s) => n + s.images.length, 0),
         platform: mine.length ? mine[mine.length - 1].donation.data.platform : null,
+        added_later_on: typeof submission?.data.resumedAt === 'string' ? submission.data.resumedAt.slice(0, 10) : null,
         opted_out: Boolean(optOutFor(p.data, optOuts)),
       };
     })
@@ -224,7 +225,7 @@ export function participantsTable(snap: Snapshot): Row[] {
 }
 
 /** The columns of participants.tsv, in order. */
-export const PARTICIPANT_COLUMNS = ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'opted_out'];
+export const PARTICIPANT_COLUMNS = ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'added_later_on', 'opted_out'];
 
 export function phenotypeTable(snap: Snapshot, form: ServedQuestionForm = parentQuestionsForm): Row[] {
   const ids = form.questions.map((q) => q.id);
@@ -249,6 +250,7 @@ export function sessionsTable(sessions: Session[]): Row[] {
     young_person_agreed_in_app: s.donation.data.youngPersonAgreedInApp,
     assent_status_at_send: s.donation.data.assentStatusAtSend,
     needs_review: s.donation.data.needsReview,
+    added_later: Boolean(s.donation.data.late),
   }));
 }
 
@@ -368,6 +370,7 @@ export function submissionsTable(snap: Snapshot): Row[] {
     donation_count: Array.isArray(d.donationIds) ? d.donationIds.length : 0,
     platform: d.platform,
     last_donation_at: d.lastDonationAt,
+    added_later_at: d.resumedAt ?? null,
     created_at: d.createdAt,
     updated_at: d.updatedAt,
   }));
@@ -427,6 +430,7 @@ export function participantsDictionary(): Record<string, unknown> {
     sessions_n: { Description: 'Occasions on which screenshots were sent; each is a session' },
     screenshots_n: { Description: 'Screenshots accepted in total' },
     platform: { Description: 'Phone type reported at the latest send', Levels: { ios: 'iPhone', android: 'Android', other: 'Something else, or not sure' } },
+    added_later_on: { Description: 'Date the family last came back with their reference to add the young person’s agreement or screenshots (often after the workshop); n/a when everything came at once. Each screenshot session’s own time is in the sessions files.' },
     opted_out: { Description: 'Whether a parent or carer has opted the young person out of the workshop and the study by email (identifying/opt_outs.tsv): if true, their data is not to be used, and is withdrawn as far as possible' },
   };
 }
@@ -723,7 +727,7 @@ export async function runExport(): Promise<Manifest> {
   }
   const behColumns = Object.keys(behDictionary()).filter((k) => !['TaskName', 'TaskDescription'].includes(k));
   for (const [label, mine] of bySubject) {
-    files.push(tsv(`${B}/${label}/${label}_sessions.tsv`, sessionsTable(mine), ['session_id', 'acq_time', 'platform', 'screenshots_n', 'young_person_agreed_in_app', 'assent_status_at_send', 'needs_review']));
+    files.push(tsv(`${B}/${label}/${label}_sessions.tsv`, sessionsTable(mine), ['session_id', 'acq_time', 'platform', 'screenshots_n', 'young_person_agreed_in_app', 'assent_status_at_send', 'needs_review', 'added_later']));
     for (const s of mine) {
       const base = `${B}/${label}/${s.session}/beh/${label}_${s.session}_task-${TASK}_beh`;
       files.push(tsv(`${base}.tsv`, behTable(s), behColumns), json(`${base}.json`, behDictionary()));

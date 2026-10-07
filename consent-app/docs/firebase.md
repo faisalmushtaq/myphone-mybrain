@@ -47,6 +47,7 @@ with a role claim.
 | `firebase/firebase.json`, `firestore.indexes.json` | Project layout and emulator ports; the composite indexes the follow-up queries need (deployed with the rules) |
 | `firebase/firestore.rules`, `firebase/storage.rules` | Security rules (see below) |
 | `firebase/functions/src/index.ts` | `submitConsent` and `submitDonation` callables, `purgeQuarantine` schedule |
+| `firebase/functions/src/resume.ts` | `resumeRecord`: carrying on later with a record (the reference and the young person's date of birth find it; the young person's answer given later) |
 | `firebase/functions/src/lab.ts` | The social media break study: `submitLabConsent`, `lookupLabParticipant`, `submitLabDonation`, `submitLabCheckIn`, `updateLabPlatforms` and `requestLabReminder` callables, the hourly `labFollowUps` schedule, and the check that a donated archive is the cleaner's |
 | `firebase/functions/src/validate.ts` | Server-side validation of the family payloads (mirrors `src/lib/validation.ts`); its helpers are shared with `lab.ts` |
 | `firebase/functions/src/images.ts`, `signatures.ts` | The image pipeline (prove it is an image, re-encode without metadata, quality checks) and signature storage, shared by both studies |
@@ -124,17 +125,33 @@ session, the participant document is updated, new consent and assent records
 are written pointing at the ones they supersede, and the submission's version
 goes up. Any failure means nothing is recorded.
 
-**`submitDonation`** checks the reference belongs to the caller's session,
+**`submitDonation`** checks the reference belongs to the caller's session
+(the one that made the record, or one that came back with `resumeRecord`),
 then reads the server's own copy of the records: the parent's current
-permission record must say yes to screenshots, and the young person must not
-have said no. The young person's own agreement is not a gate (it may be
-collected on paper at school); when they signed in the app it travels with
-the images, and either way the donation records what was known at the time. At most six images per family in total. Each
+permission record must say yes to screenshots (unless a 16- or 17-year-old
+decided alone), the young person must not have said no, and when the
+screenshots come from the young person's phone they must have agreed in the
+app. From the parent's own phone (Family Sharing, Family Link) the parent's
+yes is enough. Screenshots sent by a session that came back later are marked
+`late`. At most six images per family in total. Each
 upload must exist under the caller's own quarantine folder and decode as a
 PNG, JPEG or WebP; it is re-encoded (which removes EXIF, GPS, ICC and XMP
 metadata) and only the clean copy is checked and stored. Images the checks
 refuse are deleted from quarantine and reported back with a reason; the rest
 are stored and recorded, so one bad image never loses the others.
+
+**`resumeRecord`** lets a family carry on later, before or after the
+workshop. `lookup` takes the reference and the young person's date of birth:
+a match adds the caller's anonymous session to the submission's `resumeUids`
+and says what can still be added (`canAgree`: the young person's answer was
+put off; `canAddScreenshots`; or why nothing can). A wrong date of birth
+counts against the reference (`resumeFailures`); five lock it for a day
+(`resumeLockedUntil`), and the answer never says whether the reference exists.
+Look-ups are also limited per session. `agree` takes the young person's yes
+(signed) or no on the current agreement form, only when their part was put
+off, and writes a new agreement record (`late: true`) superseding the one put
+off; the submission's `assentId`, `version`, `versions` and `resumedAt` move
+on. Nothing already sent can be read or changed.
 
 ### Photo checks
 

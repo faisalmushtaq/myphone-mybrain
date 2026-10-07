@@ -63,7 +63,7 @@ export function ChildAssent() {
           <Button variant="secondary" onClick={decline}>
             I don’t want to share it
           </Button>
-          {study.allowDeferredAssent && withParent && (
+          {study.allowDeferredAssent && withParent && !state.resume && (
             <Button variant="link" onClick={later}>
               I’d like to decide later
             </Button>

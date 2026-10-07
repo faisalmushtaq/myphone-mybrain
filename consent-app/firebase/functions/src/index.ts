@@ -10,9 +10,11 @@ import { checkImage, cleanImage, RejectedUpload, type CleanImage } from './image
 import type { Quality } from './quality.js';
 import { signatureRecord, storeSignature } from './signatures.js';
 import { LAB_QUARANTINE } from './lab.js';
+import { mayAddTo } from './resume.js';
 import { parseDate, selfConsentOf, validateConsentPayload, validateDonationPayload, type ConsentPayload, type DonationPayload } from './validate.js';
 
 export { enquiry } from './enquiry.js';
+export { resumeRecord } from './resume.js';
 export { exportData, exportNow } from './export.js';
 export { labFollowUps, lookupLabParticipant, requestLabReminder, submitLabCheckIn, submitLabConsent, submitLabDonation, updateLabPlatforms } from './lab.js';
 export { bookLabSlot, cancelLabBooking, labBookingOptions, labMessages, labMessagesNow } from './booking.js';
@@ -282,7 +284,9 @@ export const submitDonation = onCall(callOptions, async (request) => {
 
   const submissionRef = db.collection('submissions').doc(payload.referenceCode);
   const submission = (await submissionRef.get()).data();
-  if (!submission || submission.sessionUid !== uid) throw new HttpsError('failed-precondition', 'That reference does not belong to this session.');
+  // The session that made the record, or one that came back later with its reference and the young person's date of birth (resume.ts).
+  if (!submission || !mayAddTo(submission, uid)) throw new HttpsError('failed-precondition', 'That reference does not belong to this session.');
+  const later = submission.sessionUid !== uid;
   if (submission.kind !== 'consent' || (!submission.consentId && !submission.selfConsent)) throw new HttpsError('failed-precondition', 'Screenshots cannot be added to this record.');
   // null for records made before 7 October 2026, when the young person's agreement could also be given on paper.
   const source = (submission.phoneSource ?? null) as 'parent' | 'child' | 'none' | null;
@@ -329,12 +333,14 @@ export const submitDonation = onCall(callOptions, async (request) => {
       assentStatusAtSend: assent?.status ?? null,
       youngPersonAgreedInApp: payload.agreement !== null,
       needsReview: images.some((i) => i.quality.verdict === 'review'),
+      // Sent later, from a device that came back with the reference (often after the workshop).
+      late: later,
       receivedAt,
       client: payload.client,
       createdAt: FieldValue.serverTimestamp(),
     });
     if (source !== 'parent' && payload.agreement && assent?.status === 'completed' && assent?.responses?.['phone-use']?.response !== 'agreed') batch.update(assentRef, { 'responses.phone-use': payload.agreement, updatedAt: FieldValue.serverTimestamp() });
-    batch.update(submissionRef, { donationIds: FieldValue.arrayUnion(donationId), imageCount: FieldValue.increment(images.length), platform: payload.platform, lastDonationAt: receivedAt, updatedAt: FieldValue.serverTimestamp() });
+    batch.update(submissionRef, { donationIds: FieldValue.arrayUnion(donationId), imageCount: FieldValue.increment(images.length), platform: payload.platform, lastDonationAt: receivedAt, ...(later ? { resumedAt: receivedAt } : {}), updatedAt: FieldValue.serverTimestamp() });
     await batch.commit();
   }
 

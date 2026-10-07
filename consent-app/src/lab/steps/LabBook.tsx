@@ -112,8 +112,11 @@ const both = (xs: { start: string; end: string }[]) => xs.map((b) => `${ukDayYea
  * fit; the booking is emailed with a calendar file per visit and copied to
  * the research team; reminders follow by email and, if wanted, by text.
  * Changing keeps either time or moves it; cancelling cancels the visits
- * still to come. The page is its own (/break/book/) and also opens from the
- * other pages' summaries.
+ * still to come. People come back to change on any device, with their
+ * participant ID (it is in every email), their four details or the link in
+ * an email; the confirmation goes to the address on file unless they choose
+ * another, and then the old address is told too. The page is its own
+ * (/break/book/) and also opens from the other pages' summaries.
  */
 export function LabBook() {
   const { state, dispatch } = useLab();
@@ -125,6 +128,10 @@ export function LabBook() {
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  // A different email address from the one on file (only asked for when someone chooses it).
+  const [newAddress, setNewAddress] = useState(false);
+  // Where the last confirmation went, for the message after booking.
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
   const ready = state.codeConfirmed && state.submission.consentStage === 'sent';
@@ -154,6 +161,9 @@ export function LabBook() {
   const current = (v: LabVisit): LabBooking | null => standing.filter((b) => b.visit === v).at(-1) ?? null;
   const toBook = options?.toBook ?? [];
   const planning = Boolean(options) && (toBook.length > 0 || changing);
+  // Changing visits, or booking again, keeps the address on file unless the person chooses another: nothing to type again on a new device.
+  const onFile = options?.contact ?? null;
+  const keepContact = Boolean(onFile) && !newAddress;
 
   /** Each visit in the planner: still to book, booked and movable (when changing), or staying as it is. */
   const role = (v: LabVisit): 'open' | 'keep' | 'fixed' => {
@@ -189,6 +199,7 @@ export function LabBook() {
       found.push({ field: 'lab-slot-2', message });
     }
     if (!found.length && !picks.length) found.push({ field: `lab-slot-${role(1) === 'fixed' ? 2 : 1}`, message: 'Choose a new time for at least one visit, or keep your current times.' });
+    if (keepContact) return found;
     if (!email.trim()) found.push({ field: 'lab-email', message: 'Enter your email address, so we can send you the details.' });
     else if (!EMAIL.test(email.trim())) found.push({ field: 'lab-email', message: 'Enter an email address in the format name@example.com.' });
     // The mobile number is asked for only once texts are set up.
@@ -225,7 +236,10 @@ export function LabBook() {
     try {
       const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
       const texts = Boolean(options?.smsAvailable && smsReminders && mobile.trim());
-      const result = await getApi().bookLabSlot(session, { participantCode: state.code, visits: picks, email: email.trim(), mobile: options?.smsAvailable ? mobile.trim() || null : null, smsReminders: texts, client: labClientInfo() });
+      const contact = keepContact ? { email: null, mobile: null, smsReminders: false } : { email: email.trim(), mobile: options?.smsAvailable ? mobile.trim() || null : null, smsReminders: texts };
+      const result = await getApi().bookLabSlot(session, { participantCode: state.code, visits: picks, ...contact, client: labClientInfo() });
+      setSentTo(keepContact ? onFile!.email : email.trim());
+      setNewAddress(false);
       dispatch({ type: 'booking-confirmed', confirmed: { booked: result.booked, kind: result.kind, email: result.email, sms: result.sms } });
       announce(`${result.kind === 'moved' ? 'Changed' : 'Booked'}: ${result.booked.map((b) => `your ${visitName(b.visit)}, ${ukDay(b.start)}, ${ukHours(b.start, b.end)}`).join('; ')}.`);
       setChanging(false);
@@ -273,10 +287,10 @@ export function LabBook() {
 
   if (!ready) {
     return (
-      <LabShell kicker="Your lab visits" title="First, tell us who you are." intro={<p>Your details find your record, so we can show your visits and the times you can book.</p>} hideContinue hideBack>
+      <LabShell kicker="Your lab visits" title="First, tell us who you are." intro={<p>Your participant ID, or your details, find your record, so we can show your visits and the times you can book.</p>} hideContinue hideBack>
         <div className="mpmb-actions">
           <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'participant-id' })}>
-            Enter my details
+            Find my visits
           </Button>
         </div>
       </LabShell>
@@ -362,7 +376,7 @@ export function LabBook() {
               {confirmed.kind === 'moved' ? 'Changed' : 'Booked'}: {confirmed.booked.length > 1 ? 'your two lab visits' : `your ${visitName(confirmed.booked[0].visit)}`}, {both(confirmed.booked)}.
             </strong>{' '}
             {confirmed.email === 'sent'
-              ? `We have emailed the details and ${confirmed.booked.length > 1 ? 'calendar files' : 'a calendar file'} to ${email.trim() || 'you'}, with a copy to the research team.`
+              ? `We have emailed the details and ${confirmed.booked.length > 1 ? 'calendar files' : 'a calendar file'} to ${sentTo || email.trim() || 'you'}, with a copy to the research team.`
               : 'Your booking is made, but we could not email you just now. Add your visits to your calendar below, and the team will be in touch.'}{' '}
             {confirmed.sms === 'sent' ? 'We have also sent you a text, and will text you reminders.' : ''}
           </p>
@@ -471,7 +485,18 @@ export function LabBook() {
           </p>
           {VISITS.filter((v) => changing || toBook.length === 2 || toBook.includes(v) || role(v) === 'fixed').map(visitBlock)}
 
-          {anyTimes && (
+          {anyTimes && keepContact && onFile && (
+            <div className="mpmb-fields mpmb-booking__contact">
+              <h3 className="mpmb-h3">Where to send the confirmation</h3>
+              <p>
+                We will email the {changing ? 'new times' : 'details'} to <strong>{onFile.email}</strong>, the address you gave before{onFile.smsReminders && onFile.mobileEnding ? `, and text the mobile number ending ${onFile.mobileEnding}` : ''}.
+              </p>
+              <Button variant="link" onClick={() => setNewAddress(true)}>
+                Use a different email address
+              </Button>
+            </div>
+          )}
+          {anyTimes && !keepContact && (
             <div className="mpmb-fields mpmb-booking__contact">
               <h3 className="mpmb-h3">Where to send the confirmation</h3>
               <TextField
@@ -496,7 +521,18 @@ export function LabBook() {
                   <CheckboxField id="lab-sms" checked={smsReminders} onChange={(checked) => dispatch({ type: 'booking-contact', patch: { smsReminders: checked } })} label="Text me reminders" hint="The day before and on the day of each visit, and a nudge for each weekly check-in during the break." />
                 </>
               )}
-              <p className="mpmb-hint">Used only to send you your bookings and reminders for this study, and kept with your consent record, not with your data.</p>
+              <p className="mpmb-hint">Used only to send you your bookings and reminders for this study, and kept with your consent record, not with your data.{onFile ? ' We will also let the address you gave before know that it has changed.' : ''}</p>
+              {onFile && (
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    setNewAddress(false);
+                    setErrors((x) => x.filter((f) => f.field !== 'lab-email' && f.field !== 'lab-mobile'));
+                  }}
+                >
+                  Keep sending to {onFile.email}
+                </Button>
+              )}
             </div>
           )}
           <div className="mpmb-actions">

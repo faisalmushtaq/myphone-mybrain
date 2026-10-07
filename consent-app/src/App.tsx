@@ -17,12 +17,14 @@ import { OptOut } from './steps/OptOut';
 import { ParentMore, ParentQuestions } from './steps/ParentQuestions';
 import { PhoneSource } from './steps/PhoneSource';
 import { PhoneUse } from './steps/PhoneUse';
+import { Resume } from './steps/Resume';
 import { Check } from './steps/Check';
 import { Welcome } from './steps/Welcome';
 
 const steps: Record<StepId, ComponentType> = {
   welcome: Welcome,
   'opt-out': OptOut,
+  resume: Resume,
   'child-details': ChildDetails,
   'parent-details': ParentDetails,
   'parent-consent': ParentConsent,
@@ -97,7 +99,10 @@ function SyncManager() {
   const { sendConsent, dirty } = useSync();
   const { stepId } = state;
   const { consentStage } = state.submission;
-  const ready = (stepId === 'phone-use' || stepId === 'parent-more' || stepId === 'check') && firstIncomplete(state) === null;
+  const ready = state.resume
+    ? // Carrying on later: a yes goes on the way to the screenshots; a no goes when they press Finish (src/steps/AssentDeclined.tsx), so it can still be changed until then.
+      state.resume.canAgree && stepId === 'phone-use' && firstIncomplete(state) === null
+    : (stepId === 'phone-use' || stepId === 'parent-more' || stepId === 'check') && firstIncomplete(state) === null;
   // Changes after the first send go as one amendment from the check page, not one per answer.
   const due = ready && (consentStage === 'idle' || (consentStage === 'sent' && dirty && stepId === 'check'));
   useEffect(() => {
@@ -112,7 +117,7 @@ function Shell() {
   const { state } = useStore();
   useHistorySync();
   const Step = steps[state.stepId];
-  const showProgress = state.stepId !== 'welcome' && state.stepId !== 'done' && state.stepId !== 'opt-out';
+  const showProgress = state.stepId !== 'welcome' && state.stepId !== 'done' && state.stepId !== 'opt-out' && state.stepId !== 'resume' && !state.resume;
   const showHandover = state.handover !== null;
 
   return (

@@ -1,0 +1,145 @@
+import { useState } from 'react';
+import { getApi } from '../api';
+import { ApiError } from '../api/types';
+import { StepShell } from '../components/StepShell';
+import { Button } from '../components/ui/Button';
+import { Callout } from '../components/ui/Callout';
+import { DateField, TextField } from '../components/ui/Field';
+import { study } from '../config/study';
+import { dateOfBirthRange, partsToDate } from '../lib/dates';
+import { forgetFinishReference, normaliseReference, peekFinishReference, REFERENCE } from '../lib/entryLink';
+import type { FieldError } from '../lib/validation';
+import { decidesAlone } from '../model/journey';
+import type { DateParts } from '../model/types';
+import { useStore } from '../state/context';
+import { clearState } from '../state/persistence';
+
+/**
+ * Carrying on later with a record sent earlier, before or after the workshop:
+ * the reference from the thank-you page (or the copy of the record) and the
+ * young person's date of birth find it, on any device. Then only what can
+ * still be added is asked: the young person's answer, if it was put off, and
+ * the screenshots. Nothing already sent is shown or can be changed here.
+ */
+export function Resume() {
+  const { state, dispatch } = useStore();
+  const [reference, setReference] = useState(() => peekFinishReference());
+  const [dob, setDob] = useState<DateParts>({ day: '', month: '', year: '' });
+  const [errors, setErrors] = useState<FieldError[]>([]);
+  const [busy, setBusy] = useState(false);
+  const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
+  const range = dateOfBirthRange(study.minAge, study.maxAge + 1);
+  const found = state.resume;
+
+  const startAgain = () => {
+    forgetFinishReference();
+    clearState();
+    dispatch({ type: 'reset' });
+  };
+
+  const find = async () => {
+    const code = normaliseReference(reference);
+    const problems: FieldError[] = [];
+    if (!REFERENCE.test(code)) problems.push({ field: 'resume-reference', message: 'Enter the reference as it is on your thank-you page or your copy of the record, such as MPMB-ABCD-EF2.' });
+    if (!partsToDate(dob)) problems.push({ field: 'resume-dob', message: 'Enter the young person’s date of birth.' });
+    setErrors(problems);
+    if (problems.length) return;
+    setReference(code);
+    setBusy(true);
+    try {
+      const api = getApi();
+      let session = state.session ?? (await api.startSession());
+      if (!state.session) dispatch({ type: 'session', session });
+      const ask = () => api.resumeLookup(session, { referenceCode: code, dateOfBirth: dob });
+      const summary = await ask().catch(async (error: unknown) => {
+        if (!(error instanceof ApiError && error.code === 'expired')) throw error;
+        session = await api.startSession();
+        dispatch({ type: 'session', session });
+        return ask();
+      });
+      forgetFinishReference();
+      dispatch({ type: 'resume-found', summary, dateOfBirth: dob });
+    } catch (error) {
+      const message = error instanceof ApiError && error.code === 'validation' ? error.message : 'We could not check the reference just now. Check your connection and try again.';
+      setErrors([{ field: 'resume-reference', message }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (found) {
+    const name = state.identity.firstName.trim() || 'the young person';
+    const alone = decidesAlone(state);
+    if (!found.canAgree && !found.canAddScreenshots) {
+      return (
+        <StepShell kicker="Carry on" title="There is nothing to add." hideBack hideContinue secondaryAction={<Button variant="secondary" onClick={startAgain}>Back to the start</Button>}>
+          <Callout tone="info">
+            <p>
+              {found.reason === 'declined'
+                ? `${name} said no to sharing their screen time, so nothing more is needed from this record. If they have changed their mind, email ${study.contact.email} quoting reference ${found.referenceCode}.`
+                : found.reason === 'full'
+                  ? `We have all the screenshots we can take for this record (reference ${found.referenceCode}). Thank you.`
+                  : `This record does not include screen time: the parent or carer said no to sharing it, or chose the questions instead. To change that, email ${study.contact.email} quoting reference ${found.referenceCode}.`}
+            </p>
+          </Callout>
+        </StepShell>
+      );
+    }
+    const next = found.canAgree
+      ? alone
+        ? 'Next, you decide whether to share your screen time.'
+        : `Next, ${name} decides whether to share their screen time: their parent or carer has already said yes. If someone else is holding this phone or computer, please hand it to ${name}.`
+      : found.phoneSource === 'parent'
+        ? `Next, add ${name}’s screenshots from your phone (Apple Family Sharing or Google Family Link).`
+        : `Next, add the screenshots of ${name}’s screen time. ${name} has already said yes to sharing it.`;
+    return (
+      <StepShell kicker="Carry on" title="We found your record." intro={<p>Reference {found.referenceCode}. {next}</p>} onContinue={() => dispatch({ type: 'next' })} continueLabel={found.canAgree ? (alone ? 'Continue' : `Continue to ${name}’s part`) : 'Add the screenshots'} hideBack>
+        <p className="mpmb-hint">
+          What you sent before stays as it is; this only adds to it. {found.imageCount > 0 ? `${found.imageCount} screenshot${found.imageCount === 1 ? ' was' : 's were'} sent before.` : ''}
+        </p>
+        <Button variant="link" onClick={startAgain}>
+          Not your record? Start again
+        </Button>
+      </StepShell>
+    );
+  }
+
+  return (
+    <StepShell
+      kicker="Carry on"
+      title="Carry on with your reference."
+      intro={<p>Started this form before, but didn’t finish? You can add the young person’s part, or the screenshots, at any time: before or after the workshop at school.</p>}
+      errors={errors}
+      onContinue={() => void find()}
+      continueLabel="Find my record"
+      continueLoading={busy}
+      secondaryAction={
+        <Button variant="link" onClick={startAgain}>
+          Start a new form instead
+        </Button>
+      }
+      hideBack
+    >
+      <div className="mpmb-fields">
+        <TextField
+          id="resume-reference"
+          label="Your reference"
+          hint="On your thank-you page and your copy of the record. It looks like MPMB-ABCD-EF2."
+          required
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          maxLength={20}
+          width="half"
+          className="mpmb-input--upper mpmb-mono"
+          value={reference}
+          onChange={(e) => setReference(e.target.value)}
+          onBlur={() => reference.trim() && setReference(normaliseReference(reference))}
+          error={errs['resume-reference']}
+        />
+        <DateField id="resume-dob" label="The young person’s date of birth" hint="To check it is your record." value={dob} onChange={setDob} error={errs['resume-dob']} autofill="off" min={range.min} max={range.max} />
+      </div>
+      <p className="mpmb-hint">No reference? Just start a new form: it takes about five minutes. Or email {study.contact.email} and the team will help.</p>
+    </StepShell>
+  );
+}

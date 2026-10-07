@@ -151,6 +151,29 @@ not a password: the pages only ever let someone add to their record, see
 counts of what was sent, and book; every booking change is emailed to the
 participant and copied to the team, so misuse would be noticed.
 
+## Coming back to change the visits
+
+People can come back to `/break/book/` at any time, on any device, to change
+or cancel their visits (up to 24 hours before each one). They sign in with
+any of:
+
+- the **personal link** in any email (one press to confirm the ID);
+- their **participant ID**, typed ("Use my participant ID instead"). It is in
+  every email. Case, spaces and dashes don't matter, the letters O,
+  I and L are read as 0 and 1 (an ID never contains them), and a missing "MP"
+  is added;
+- the **four details** (first name, last name, date of birth, postcode),
+  which make the same ID.
+
+The change keeps the email address on file, so nothing needs typing again:
+the page shows it masked ("We will email the new times to j•••@example.com,
+the address you gave before", and the last three digits of the mobile
+number for texts). "Use a different email address" asks for a new one; then
+the confirmation goes to the new address, and the old address gets a short
+email saying the address changed (without showing the new one), with the
+visits as they stand and who to contact if it was not them. The team inbox is
+copied on every confirmation as before.
+
 ## Records and the export
 
 | Firestore | |

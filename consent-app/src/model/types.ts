@@ -216,12 +216,29 @@ export interface SubmissionState {
   declinedSentAt: string | null;
 }
 
-export type StepId = 'welcome' | 'opt-out' | 'child-details' | 'parent-details' | 'parent-consent' | 'parent-questions' | 'phone-source' | 'child-assent' | 'assent-declined' | 'phone-use' | 'parent-more' | 'check' | 'done';
+export type StepId = 'welcome' | 'opt-out' | 'resume' | 'child-details' | 'parent-details' | 'parent-consent' | 'parent-questions' | 'phone-source' | 'child-assent' | 'assent-declined' | 'phone-use' | 'parent-more' | 'check' | 'done';
 
 export interface Handover {
   from: Actor;
   to: Actor;
   nextStep: StepId;
+}
+
+/**
+ * Carrying on later with a record sent earlier (often after the workshop):
+ * what the server said can still be added. While this is set, the form is
+ * only the young person's agreement and the screenshots for that record.
+ */
+export interface ResumeState {
+  referenceCode: string;
+  phoneSource: PhoneSource | null;
+  /** The young person's agreement as the record held it when they came back. */
+  assentStatus: AssentStatus;
+  canAgree: boolean;
+  canAddScreenshots: boolean;
+  imageCount: number;
+  maxImages: number;
+  reason: 'declined' | 'no-screen-time' | 'full' | null;
 }
 
 export interface PrototypeFlags {
@@ -252,6 +269,8 @@ export interface AppState {
   phoneSource: PhoneSource | null;
   /** The parent's longer questions, when the young person's screen time is not coming through this form. */
   more: SurveyRecord;
+  /** Set when carrying on later with a record sent earlier (the reference and the date of birth found it). */
+  resume: ResumeState | null;
   submission: SubmissionState;
   session: SessionInfo | null;
   prototype: PrototypeFlags;

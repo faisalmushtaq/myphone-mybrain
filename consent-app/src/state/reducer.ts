@@ -4,9 +4,11 @@ import type { PlatformId } from '../config/walkthroughs';
 import { todayIso } from '../lib/dates';
 import { imageStore } from '../lib/imageStore';
 import { actorFor, buildJourney, isStepComplete, needsHandover, nextStepId, previousStepId, stepDefs } from '../model/journey';
+import type { ResumeSummary } from '../api/types';
 import type {
   AppState,
   AssentStatus,
+  DateParts,
   DonationImage,
   DonationStatus,
   GuardianIdentity,
@@ -60,6 +62,7 @@ export function initialState(): AppState {
     survey: { formId: parentQuestionsForm.id, formVersion: parentQuestionsForm.version, status: 'not-started', responses: {}, startedAt: null, completedAt: null },
     phoneSource: null,
     more: { formId: parentMoreForm.id, formVersion: parentMoreForm.version, status: 'not-started', responses: {}, startedAt: null, completedAt: null },
+    resume: null,
     submission: { referenceCode: null, participantId: null, consentStage: 'idle', consentError: null, consentSentAt: null, consentVersion: 0, sentSnapshot: null, donationStage: 'idle', donationError: null, donationsSent: 0, declinedSentAt: null },
     session: null,
     // Draft-wording markers are part of the preview only, never of a production build.
@@ -75,6 +78,8 @@ function record(statementId: string, version: string, response: StatementRespons
 export type Action =
   | { type: 'hydrate'; state: AppState }
   | { type: 'reset'; reason?: AppState['clearedReason'] }
+  /** Carrying on later: the server found the record; the form becomes what can still be added to it. */
+  | { type: 'resume-found'; summary: ResumeSummary; dateOfBirth: DateParts }
   | { type: 'set-route'; route: Route }
   | { type: 'next' }
   | { type: 'back' }
@@ -157,6 +162,33 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'reset':
       imageStore.clear();
       return { ...initialState(), session: state.session, prototype: state.prototype, clearedReason: action.reason ?? null };
+    case 'resume-found': {
+      const { summary } = action;
+      const fresh = initialState();
+      return {
+        ...fresh,
+        session: state.session,
+        prototype: state.prototype,
+        // The young person does their part (their answer, their phone's screenshots); a parent sends from their family view.
+        route: summary.phoneSource === 'parent' ? 'parent' : 'young',
+        stepId: 'resume',
+        identity: { ...fresh.identity, firstName: summary.firstName, dateOfBirth: action.dateOfBirth },
+        phoneSource: summary.phoneSource,
+        assent: summary.canAgree ? fresh.assent : { ...fresh.assent, status: summary.assentStatus },
+        resume: {
+          referenceCode: summary.referenceCode,
+          phoneSource: summary.phoneSource,
+          assentStatus: summary.assentStatus,
+          canAgree: summary.canAgree,
+          canAddScreenshots: summary.canAddScreenshots,
+          imageCount: summary.imageCount,
+          maxImages: summary.maxImages,
+          reason: summary.reason,
+        },
+        // The record is on the server already; only the young person's answer, if asked, is still to send.
+        submission: { ...fresh.submission, referenceCode: summary.referenceCode, consentStage: summary.canAgree ? 'idle' : 'sent', consentVersion: 1 },
+      };
+    }
     case 'set-route':
       return { ...state, route: action.route, clearedReason: null };
     case 'next': {

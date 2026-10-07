@@ -24,6 +24,7 @@ export interface StepDef {
 export const stepDefs: Record<StepId, StepDef> = {
   welcome: { id: 'welcome', phase: 'details', actor: 'anyone', title: 'Welcome' },
   'opt-out': { id: 'opt-out', phase: 'details', actor: 'anyone', title: 'Opting out of the workshop' },
+  resume: { id: 'resume', phase: 'details', actor: 'anyone', title: 'Carry on with your reference' },
   'child-details': { id: 'child-details', phase: 'details', actor: 'route', title: 'Details' },
   'parent-details': { id: 'parent-details', phase: 'details', actor: 'parent', title: 'Parent or carer details' },
   'parent-consent': { id: 'parent-consent', phase: 'consent', actor: 'parent', title: 'Parent or carer permission' },
@@ -76,6 +77,8 @@ export function parentInvolved(state: AppState): boolean {
  *   then); after the parent's no: nowhere.
  */
 export function phoneSourceOf(state: AppState): PhoneSource | null {
+  // Carrying on later: as the record that was sent says.
+  if (state.resume) return state.resume.phoneSource;
   if (decidesAlone(state)) return 'child';
   const answer = state.consent.responses['phone-use']?.response;
   if (answer === 'declined') return 'none';
@@ -86,16 +89,20 @@ export function phoneSourceOf(state: AppState): PhoneSource | null {
 
 /** Whether the parent chooses where an under-16's screen time comes from (parent route, after a yes). */
 export function phoneSourceApplies(state: AppState): boolean {
+  if (state.resume) return false;
   return state.route === 'parent' && !decidesAlone(state) && state.consent.responses['phone-use']?.response === 'agreed';
 }
 
 /** Whether the young person's own agreement is asked: whenever the screenshots are to come from their phone, unless it was put off (not there, or deciding later). */
 export function assentApplies(state: AppState): boolean {
+  if (state.resume) return state.resume.canAgree;
   return phoneSourceOf(state) === 'child' && state.assent.status !== 'deferred';
 }
 
 /** Whether the screenshots step applies: from the parent's own phone, or from the young person's with their agreement. */
 export function phoneUseApplies(state: AppState): boolean {
+  // Carrying on later: screenshots when the record takes them, or once the young person has just said yes.
+  if (state.resume) return state.resume.canAddScreenshots || (state.resume.canAgree && state.assent.status === 'completed');
   const source = phoneSourceOf(state);
   if (source === 'parent') return true;
   return source === 'child' && state.assent.status === 'completed';
@@ -108,7 +115,7 @@ export function phoneUseApplies(state: AppState): boolean {
  * said no, was not there, put it off, or skipped the screenshots.
  */
 export function parentMoreApplies(state: AppState): boolean {
-  if (!parentInvolved(state)) return false;
+  if (state.resume || !parentInvolved(state)) return false;
   const source = phoneSourceOf(state);
   if (source === 'none') return true;
   if (source === 'parent') return state.donation.status === 'skipped';
@@ -124,10 +131,23 @@ export function parentMoreApplies(state: AppState): boolean {
  *
  * On the parent route the parent enters the young person's details and their
  * own on one screen, so there is no separate parent-details step. The opt-out
- * pages stand apart: they record nothing.
+ * pages stand apart: they record nothing. Carrying on later with a record
+ * sent earlier is only what can still be added to it: the young person's
+ * answer (if it was put off), then the screenshots.
  */
 export function buildJourney(state: AppState): StepId[] {
   if (state.stepId === 'opt-out') return ['welcome', 'opt-out'];
+  if (state.resume) {
+    const steps: StepId[] = ['welcome', 'resume'];
+    if (state.resume.canAgree) {
+      steps.push('child-assent');
+      if (state.assent.status === 'declined') return [...steps, 'assent-declined', 'done'];
+    }
+    if (phoneUseApplies(state)) steps.push('phone-use');
+    steps.push('done');
+    return steps;
+  }
+  if (state.stepId === 'resume') return ['welcome', 'resume'];
   const steps: StepId[] = ['welcome', 'child-details'];
   if (youngAlone(state)) {
     steps.push('child-assent');
@@ -152,7 +172,7 @@ export function buildJourney(state: AppState): StepId[] {
 
 /** Steps that count towards "Step n of m" (welcome and the confirmation screen are not steps). */
 export function countedSteps(state: AppState): StepId[] {
-  return buildJourney(state).filter((s) => s !== 'done' && s !== 'welcome' && s !== 'opt-out');
+  return buildJourney(state).filter((s) => s !== 'done' && s !== 'welcome' && s !== 'opt-out' && s !== 'resume');
 }
 
 export function nextStepId(state: AppState): StepId | null {
@@ -177,6 +197,8 @@ export function isStepComplete(stepId: StepId, state: AppState): boolean {
       return state.route !== null;
     case 'opt-out':
       return true;
+    case 'resume':
+      return state.resume !== null && (state.resume.canAgree || state.resume.canAddScreenshots);
     case 'child-details':
       return isValidChildDetails(state.identity) && (state.route !== 'parent' || isValidGuardian(state.guardian));
     case 'parent-details':
@@ -210,7 +232,8 @@ export function isStepComplete(stepId: StepId, state: AppState): boolean {
  * person can never open the other's section unannounced.
  */
 export function needsHandover(from: StepId, to: StepId, state: AppState): boolean {
-  if (from === 'welcome' || from === 'opt-out') return false;
+  // Carrying on later, whoever came back does the rest: the parent's permission is already in the record.
+  if (from === 'welcome' || from === 'opt-out' || state.resume) return false;
   const a = actorFor(from, state);
   const b = actorFor(to, state);
   return b !== 'anyone' && a !== b;

@@ -402,6 +402,42 @@ export async function contactOf(db: Firestore, code: string): Promise<Contact> {
 
 const wantsTexts = (c: Contact) => Boolean(c.smsReminders && c.mobile);
 
+/** An email address with only its first letter and its domain showing: j•••@example.com. */
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf('@');
+  return at < 1 ? '•••' : `${email.slice(0, 1)}•••@${email.slice(at + 1)}`;
+}
+
+/** The contact on file as the booking page shows it: enough to recognise, not to read. */
+export function maskedContact(c: Contact): { email: string; mobileEnding: string | null; smsReminders: boolean } | null {
+  if (!c.email) return null;
+  return { email: maskEmail(c.email), mobileEnding: c.mobile ? c.mobile.replace(/\D/g, '').slice(-3) : null, smsReminders: wantsTexts(c) };
+}
+
+/**
+ * To the address on file when visits are booked or changed with a different
+ * one: the new address is not shown, only that it changed, the visits as
+ * they stand, and who to contact if it was not them.
+ */
+export function addressChangedEmail(visits: BookingRecord[]): { subject: string; text: string } {
+  const sorted = byVisit(visits).filter((b) => b.status === 'booked' || b.status === 'attended');
+  const code = sorted[0]?.participantCode ?? '';
+  return {
+    subject: 'MyPhone/MyBrain: your lab visit emails now go to a different address',
+    text: [
+      'Hello,',
+      '',
+      `Your lab visits for the ${labStudy.name} were just booked or changed, and the confirmation went to a different email address from this one. From now on, emails about your visits go to that address.`,
+      '',
+      ...(sorted.length ? ['Your visits now:', ...sorted.map((b) => `${visitTitle(b.visit)}: ${ukSpan(b.start, b.end)} (UK time)`), ''] : []),
+      `Participant ID: ${code}`,
+      '',
+      `If this was you, there is nothing to do. If it was not, please ${contactLine} straight away.`,
+      ...signOff,
+    ].join('\n'),
+  };
+}
+
 /**
  * Emails the participant about booked, changed or cancelled visits, with a
  * calendar file per visit, copied to the study's contact and the team inbox;
@@ -602,12 +638,15 @@ export function validateBookingPayload(input: unknown): string[] {
     }
     if (new Set(visits.map((v) => (isObj(v) ? v.visit : null))).size !== visits.length) problems.push('Choose one time for each visit.');
   }
-  if (!str(input.email, 254) || !EMAIL.test(String(input.email).trim())) problems.push('Enter an email address in the format name@example.com.');
+  // null: keep the email address and text settings already on file (changing visits on another device, without typing them again).
+  const keep = input.email === null;
+  if (!keep && (!str(input.email, 254) || !EMAIL.test(String(input.email).trim()))) problems.push('Enter an email address in the format name@example.com.');
   if (input.mobile !== null && input.mobile !== undefined && input.mobile !== '') {
-    if (!str(input.mobile, 30) || !ukMobile(String(input.mobile))) problems.push('Enter a UK mobile number, such as 07700 900123, or leave it empty.');
+    if (keep) problems.push('A new mobile number needs the email address too.');
+    else if (!str(input.mobile, 30) || !ukMobile(String(input.mobile))) problems.push('Enter a UK mobile number, such as 07700 900123, or leave it empty.');
   }
   if (typeof input.smsReminders !== 'boolean') problems.push('Say whether you want text reminders.');
-  else if (input.smsReminders && !input.mobile) problems.push('Enter your mobile number for text reminders, or untick them.');
+  else if (input.smsReminders && !input.mobile && !keep) problems.push('Enter your mobile number for text reminders, or untick them.');
   validateClient(input.client, problems);
   return problems;
 }
@@ -641,6 +680,8 @@ export const labBookingOptions = onCall(callOptions, async (request) => {
     gap: { min: GAP.min, max: GAP.max },
     smsAvailable: await smsReady(),
     rules: { minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours },
+    // Where confirmations go now, masked: a change can keep it without typing it again.
+    contact: maskedContact(await contactOf(db, code)),
   };
 });
 
@@ -650,16 +691,24 @@ export const bookLabSlot = onCall(callOptions, async (request) => {
   if (!uid) throw new HttpsError('unauthenticated', 'Please try again.');
   const problems = validateBookingPayload(request.data);
   if (problems.length) throw new HttpsError('invalid-argument', problems[0], { problems });
-  const p = request.data as { participantCode: string; visits: VisitChoice[]; email: string; mobile?: string | null; smsReminders: boolean; client: ClientInfo };
+  const p = request.data as { participantCode: string; visits: VisitChoice[]; email: string | null; mobile?: string | null; smsReminders: boolean; client: ClientInfo };
   const code = normaliseCode(p.participantCode)!;
   const db = getFirestore();
   await rateLimitLookups(db, uid, 'lab-booking', BOOKINGS_PER_HOUR);
+  const onFile = await contactOf(db, code);
+  if (p.email === null && !onFile.email) throw new HttpsError('invalid-argument', 'Enter your email address, so we can send you the details.');
   const now = new Date();
   const result = await placeVisits(db, { code, choices: p.visits.map((v) => ({ visit: v.visit, slotId: v.slotId })), by: 'participant', uid, client: p.client }, now);
   const mobile = p.mobile ? ukMobile(p.mobile) : null;
-  const contact: Contact = { email: p.email.trim(), mobile, smsReminders: Boolean(p.smsReminders && mobile) };
-  await db.collection('labContacts').doc(code).set({ participantCode: code, ...contact, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  const contact: Contact = p.email === null ? onFile : { email: p.email.trim(), mobile, smsReminders: Boolean(p.smsReminders && mobile) };
+  if (p.email !== null) await db.collection('labContacts').doc(code).set({ participantCode: code, ...contact, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   const kind = result.replaced.length ? 'moved' : 'booked';
+  // Anyone with the participant ID can change the visits, so a new address never silences the old one: it hears about the change once.
+  if (onFile.email && contact.email && onFile.email.trim().toLowerCase() !== contact.email.trim().toLowerCase()) {
+    const told = await sendMail({ to: onFile.email, replyTo: labStudy.contactEmail, ...addressChangedEmail(result.standing) });
+    await db.collection('labContacts').doc(code).set({ addressChanges: FieldValue.arrayUnion({ from: onFile.email, at: new Date(), told }) }, { merge: true });
+    logger.info('Old address told of a new one', { participantCode: code, email: told });
+  }
   const outcome = await notifyVisits(kind, result.standing, contact, { changed: result.booked.map((b) => b.id) });
   await Promise.all(result.booked.map((b) => db.collection('labBookings').doc(b.id).set({ confirmation: { at: new Date(), ...outcome } }, { merge: true })));
   logger.info(kind === 'moved' ? 'Lab visits moved' : 'Lab visits booked', { participantCode: code, bookingIds: result.booked.map((b) => b.id), ...outcome });

@@ -4,7 +4,7 @@ import { connectAuthEmulator, getAuth, signInAnonymously, type Auth, type User }
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, deleteObject, getStorage, ref, uploadBytesResumable, type FirebaseStorage } from 'firebase/storage';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabStoryPayload, type LabStoryResult, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabStoryPayload, type LabStoryResult, type LateAgreementPayload, type LateAgreementResult, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
 
 /**
  * Firebase implementation of the API boundary.
@@ -166,6 +166,14 @@ export class FirebaseConsentApi implements ConsentApi {
 
   submitDonation(session: SessionInfo, payload: DonationPayload): Promise<DonationResult> {
     return this.call<DonationPayload, DonationResult>(session, 'submitDonation', payload);
+  }
+
+  resumeLookup(session: SessionInfo, payload: ResumeLookupPayload): Promise<ResumeSummary> {
+    return this.call<ResumeLookupPayload & { action: 'lookup' }, ResumeSummary>(session, 'resumeRecord', { action: 'lookup', ...payload });
+  }
+
+  resumeAgree(session: SessionInfo, payload: LateAgreementPayload): Promise<LateAgreementResult> {
+    return this.call<LateAgreementPayload & { action: 'agree' }, LateAgreementResult>(session, 'resumeRecord', { action: 'agree', ...payload });
   }
 
   submitLabConsent(session: SessionInfo, payload: LabConsentPayload): Promise<LabConsentResult> {

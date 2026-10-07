@@ -1,4 +1,4 @@
-import type { AssentRecord, ConsentRecord, GuardianIdentity, ParticipantIdentity, PhoneSource, SessionInfo, SignatureRecord, StatementRecord, SurveyRecord } from '../model/types';
+import type { AssentRecord, ConsentRecord, DateParts, GuardianIdentity, ParticipantIdentity, PhoneSource, SessionInfo, SignatureRecord, StatementRecord, SurveyRecord } from '../model/types';
 import type { PlatformId } from '../config/walkthroughs';
 
 /**
@@ -217,6 +217,8 @@ export interface LabBookingOptions {
   /** Whether text reminders are set up. */
   smsAvailable: boolean;
   rules: { minNoticeHours: number; changeUntilHours: number };
+  /** Where confirmations go now, masked (j•••@example.com, the mobile's last three digits); null before the first booking. */
+  contact: { email: string; mobileEnding: string | null; smsReminders: boolean } | null;
 }
 
 export interface LabVisitChoice {
@@ -228,7 +230,8 @@ export interface LabBookPayload {
   participantCode: string;
   /** One time for each visit being booked or moved: both at the first booking. */
   visits: LabVisitChoice[];
-  email: string;
+  /** null: keep the email address and text settings on file (changing visits without typing them again). */
+  email: string | null;
   mobile: string | null;
   smsReminders: boolean;
   client: ClientInfo;
@@ -326,9 +329,55 @@ export interface LabReminderResult {
   followUpAt: string;
 }
 
+/**
+ * Carrying on later (firebase/functions/src/resume.ts): the reference and the
+ * young person's date of birth find a record sent earlier, and say what can
+ * still be added to it.
+ */
+export interface ResumeSummary {
+  referenceCode: string;
+  /** The young person's first name, for the wording. */
+  firstName: string;
+  /** 16 or 17 when the record was made: they decided for themselves. */
+  selfConsent: boolean;
+  phoneSource: PhoneSource | null;
+  assentStatus: AssentRecord['status'];
+  imageCount: number;
+  maxImages: number;
+  /** The young person's agreement can be added (it was put off), then their screenshots. */
+  canAgree: boolean;
+  /** Screenshots can be added: from the parent's phone, or from the young person's once they have agreed. */
+  canAddScreenshots: boolean;
+  /** Why nothing can be added, when nothing can. */
+  reason: 'declined' | 'no-screen-time' | 'full' | null;
+}
+
+export interface ResumeLookupPayload {
+  referenceCode: string;
+  dateOfBirth: DateParts;
+}
+
+/** The young person's answer, given later: a signed yes or a no. */
+export interface LateAgreementPayload {
+  referenceCode: string;
+  assent: Pick<AssentRecord, 'formId' | 'formVersion' | 'responses' | 'signature' | 'startedAt' | 'completedAt'> & { status: 'completed' | 'declined' };
+  client: ClientInfo;
+}
+
+export interface LateAgreementResult {
+  referenceCode: string;
+  receivedAt: string;
+  version: number;
+  status: 'completed' | 'declined';
+}
+
 export interface ConsentApi {
   startSession(): Promise<SessionInfo>;
   submitConsent(session: SessionInfo, payload: ConsentPayload): Promise<ConsentResult>;
+  /** Carrying on later: find a record by its reference and the young person's date of birth; this session may then add to it. */
+  resumeLookup(session: SessionInfo, payload: ResumeLookupPayload): Promise<ResumeSummary>;
+  /** Carrying on later: the young person's answer, given now. */
+  resumeAgree(session: SessionInfo, payload: LateAgreementPayload): Promise<LateAgreementResult>;
   requestUploadSlot(sessionId: string, meta: UploadMeta): Promise<UploadSlot>;
   uploadImage(slot: UploadSlot, blob: Blob, onProgress?: (fraction: number) => void): Promise<void>;
   deleteUpload(sessionId: string, uploadId: string): Promise<void>;

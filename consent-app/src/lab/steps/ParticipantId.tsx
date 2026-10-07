@@ -6,7 +6,7 @@ import { DateField, TextField } from '../../components/ui/Field';
 import { announce } from '../../lib/announce';
 import { formatTimestamp, isoYearsAgo } from '../../lib/dates';
 import { describeError, labSession } from '../api';
-import { ageFrom, buildParticipantId, formatPostcode, idName, isoDateOf, isUkPostcode, labPages, labStudy } from '../config';
+import { ageFrom, buildParticipantId, formatPostcode, idName, isoDateOf, isUkPostcode, labPages, labStudy, normaliseParticipantCode, PARTICIPANT_CODE } from '../config';
 import { LabShell } from '../LabShell';
 import { namesOf } from '../PlatformChecklist';
 import { nextFilesStep, phaseHave, platformsToDo, resumeStep } from '../reducer';
@@ -24,25 +24,25 @@ const words = {
   checkin: {
     kicker: 'Mid-break check-in',
     title: 'Your mid-break check-in.',
-    lead: 'A few quick questions about how your break is going: about two minutes. First, enter the details you gave at the start so we can find your record. You gave your consent then, so there is nothing to sign.',
+    lead: 'A few quick questions about how your break is going: about two minutes. First, enter the details you gave at the start, or your participant ID, so we can find your record. You gave your consent then, so there is nothing to sign.',
     leadKnown: 'A few quick questions about how your break is going: about two minutes. You gave your consent at the start, so there is nothing to sign.',
   },
   after: {
     kicker: 'After your break',
     title: 'Welcome back after your break.',
-    lead: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, from after the break. First, enter the details you gave at the start so we can find your record. There is nothing to sign.',
+    lead: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, from after the break. First, enter the details you gave at the start, or your participant ID, so we can find your record. There is nothing to sign.',
     leadKnown: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, from after the break. There is nothing to sign.',
   },
   book: {
     kicker: 'Your lab visits',
-    title: 'Book your lab visits.',
-    lead: 'Choose a time for each of your two lab visits, or change one you booked. First, enter the details you gave at the start so we can find your record.',
-    leadKnown: 'Choose a time for each of your two lab visits, or change one you booked.',
+    title: 'Book or change your lab visits.',
+    lead: 'Choose a time for each of your two lab visits, or change or cancel the ones you booked. First, enter your participant ID (it is in our emails) or the details you gave at the start, so we can find your record.',
+    leadKnown: 'Choose a time for each of your two lab visits, or change or cancel the ones you booked.',
   },
   story: {
     kicker: 'MyStory',
     title: 'MyStory.',
-    lead: 'A few minutes, in your own words. First, enter the details you gave at the start so your story joins up with the rest of your data, labelled with your participant ID, not your name.',
+    lead: 'A few minutes, in your own words. First, enter the details you gave at the start, or your participant ID, so your story joins up with the rest of your data, labelled with your participant ID, not your name.',
     leadKnown: 'A few minutes, in your own words. Your story is labelled with your participant ID, not your name.',
   },
 } as const;
@@ -51,10 +51,12 @@ const words = {
  * Who the person is: four details they always know, from which the
  * participant ID is built exactly as the study's survey platform builds it
  * (see PARTICIPANT_CODE in ../config). The same details find the person again
- * on any device, so nobody has to remember a code; a link from a progress
- * email, or this device, can also carry the ID, and then one press confirms
- * it. The server then says what it already holds, so the person carries on
- * where they left off.
+ * on any device, so nobody has to remember a code; someone who has their ID
+ * (it is in every email) can type it instead, for example to change their
+ * lab visits; a link from an email, or this device, can also carry the ID,
+ * and then one press confirms it. The server then says what it already
+ * holds, so the person carries on where they left off. Signing up needs the
+ * four details themselves.
  */
 export function ParticipantId() {
   const { state, dispatch } = useLab();
@@ -63,6 +65,9 @@ export function ParticipantId() {
   const [welcome, setWelcome] = useState(false);
   // No consent on file: for four details nobody signed up with, or for an ID from a link or this device (then the details are asked instead).
   const [notFound, setNotFound] = useState<null | { kind: 'details' } | { kind: 'id'; id: string }>(null);
+  // Signing in with the participant ID, typed, instead of the four details.
+  const [byId, setById] = useState(false);
+  const [typedId, setTypedId] = useState('');
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
   const parts = state.codeParts;
   const firstPage = state.flow === 'baseline';
@@ -85,22 +90,35 @@ export function ParticipantId() {
     return found;
   };
 
+  const validateTypedId = (): FieldError[] => {
+    if (!typedId.trim()) return [{ field: 'lab-id', message: 'Enter your participant ID.' }];
+    if (!PARTICIPANT_CODE.test(normaliseParticipantCode(typedId))) return [{ field: 'lab-id', message: 'Enter your participant ID as it is in our emails: MP and then 12 letters and numbers, such as MP2670FF90A5F2.' }];
+    return [];
+  };
+
+  const switchTo = (id: boolean) => {
+    setById(id);
+    setErrors([]);
+    setNotFound(null);
+  };
+
   const next = async () => {
     setNotFound(null);
-    const found = known ? [] : validateDetails();
+    const typed = !known && byId;
+    const found = known ? [] : typed ? validateTypedId() : validateDetails();
     setErrors(found);
     if (found.length) return;
     setBusy(true);
     try {
-      const code = known ? state.code : await buildParticipantId(parts);
+      const code = known ? state.code : typed ? normaliseParticipantCode(typedId) : await buildParticipantId(parts);
       if (!code) throw new Error('Your details could not be turned into a participant ID.');
       const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
       const lookup = await getApi().lookupLabParticipant(session, code);
       if (!lookup.exists) {
         // Signing up needs the four details themselves (they are kept with the consent), so an ID alone cannot start the study.
-        if (known) {
+        if (known || typed) {
           setNotFound({ kind: 'id', id: code });
-          dispatch({ type: 'code', code: '', returning: false });
+          if (known) dispatch({ type: 'code', code: '', returning: false });
           return;
         }
         if (!firstPage) {
@@ -111,7 +129,7 @@ export function ParticipantId() {
         dispatch({ type: 'go-to', stepId: 'information' });
         return;
       }
-      dispatch({ type: 'confirm-code', code, returning: known, lookup });
+      dispatch({ type: 'confirm-code', code, returning: known || typed, lookup });
       if (firstPage) {
         setWelcome(true);
         announce('We already have your consent. You can carry on where you left off.');
@@ -119,7 +137,7 @@ export function ParticipantId() {
       }
       dispatch({ type: 'go-to', stepId: resumeStep({ ...state, progress: lookup }) });
     } catch (error) {
-      setErrors([{ field: known ? 'lab-known' : 'lab-first-name', message: describeError(error, 'your details') }]);
+      setErrors([{ field: known ? 'lab-known' : typed ? 'lab-id' : 'lab-first-name', message: describeError(error, typed ? 'your participant ID' : 'your details') }]);
     } finally {
       setBusy(false);
     }
@@ -172,9 +190,15 @@ export function ParticipantId() {
       )}
       {notFound?.kind === 'id' && (
         <Callout tone="important" role="alert">
-          <p>
-            We have no consent on file for participant ID <strong className="mpmb-mono">{notFound.id}</strong>. Enter your details below instead{firstPage ? ' to sign up' : ''}. Stuck? Contact {contact}.
-          </p>
+          {byId ? (
+            <p>
+              We could not find anyone with participant ID <strong className="mpmb-mono">{notFound.id}</strong>. Check it against the emails we sent you, or use your details instead{firstPage ? ', which is also how you sign up' : ''}. Stuck? Contact {contact}.
+            </p>
+          ) : (
+            <p>
+              We have no consent on file for participant ID <strong className="mpmb-mono">{notFound.id}</strong>. Enter your details below instead{firstPage ? ' to sign up' : ''}. Stuck? Contact {contact}.
+            </p>
+          )}
         </Callout>
       )}
       {known ? (
@@ -187,8 +211,36 @@ export function ParticipantId() {
             Not mine: enter my details instead
           </Button>
         </div>
+      ) : byId ? (
+        <div className="mpmb-fields">
+          <TextField
+            id="lab-id"
+            label="Participant ID"
+            hint="MP and then 12 letters and numbers, such as MP2670FF90A5F2. It is in every email we have sent you."
+            required
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            maxLength={24}
+            width="half"
+            className="mpmb-input--upper mpmb-mono"
+            value={typedId}
+            onChange={(e) => setTypedId(e.target.value)}
+            onBlur={() => typedId.trim() && setTypedId(normaliseParticipantCode(typedId))}
+            error={errs['lab-id']}
+          />
+          <Button variant="link" onClick={() => switchTo(false)}>
+            Use my details instead
+          </Button>
+        </div>
       ) : (
         <div className="mpmb-fields">
+          <p className="mpmb-hint mpmb-id-switch">
+            {firstPage ? 'Already taking part and have your participant ID?' : 'Have your participant ID? It is in our emails.'}{' '}
+            <Button variant="link" onClick={() => switchTo(true)}>
+              Use my participant ID instead
+            </Button>
+          </p>
           <TextField id="lab-first-name" label="First name" hint="As on official documents, not a nickname. Just your first name, no middle names." required autoComplete="given-name" maxLength={60} width="half" value={parts.firstName} onChange={(e) => dispatch({ type: 'code-parts', parts: { firstName: e.target.value } })} error={errs['lab-first-name']} />
           <TextField id="lab-last-name" label="Last name" required autoComplete="family-name" maxLength={60} width="half" value={parts.lastName} onChange={(e) => dispatch({ type: 'code-parts', parts: { lastName: e.target.value } })} error={errs['lab-last-name']} />
           <DateField id="lab-dob" label="Date of birth" value={parts.dateOfBirth} onChange={(dateOfBirth) => dispatch({ type: 'code-parts', parts: { dateOfBirth } })} error={errs['lab-dob']} autofill="self" min={isoYearsAgo(100)} max={isoYearsAgo(labStudy.minAge)} />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageFrom, buildParticipantId, formatPostcode, idDetails, idName, isoDateOf, isUkPostcode, participantIdKey, PARTICIPANT_CODE } from './config';
+import { ageFrom, buildParticipantId, formatPostcode, idDetails, idName, isoDateOf, isUkPostcode, normaliseParticipantCode, participantIdKey, PARTICIPANT_CODE } from './config';
 
 const dob = (iso: string) => {
   const [year, month, day] = iso.split('-');
@@ -48,6 +48,16 @@ describe('participant ID', () => {
     const yasmin = await buildParticipantId(person('Yasmin', 'Khan', '2004-07-09', 'BD1 1AA'));
     expect(amira).toBe('MP4B89BF282A5D');
     expect(yasmin).toBe('MP33CE17327FF2');
+  });
+
+  it('reads a typed ID forgivingly: case, spaces, the letters O, I and L for 0 and 1, and a missing MP', () => {
+    expect(normaliseParticipantCode(' mp2670ff90a5f2 ')).toBe('MP2670FF90A5F2');
+    expect(normaliseParticipantCode('MP 2670 FF90 A5F2')).toBe('MP2670FF90A5F2');
+    expect(normaliseParticipantCode('MP-532156113CO3')).toBe('MP532156113C03');
+    expect(normaliseParticipantCode('mp532l56ii3c03')).toBe('MP532156113C03');
+    expect(normaliseParticipantCode('2670FF90A5F2')).toBe('MP2670FF90A5F2');
+    expect(PARTICIPANT_CODE.test(normaliseParticipantCode('MP2670'))).toBe(false);
+    expect(PARTICIPANT_CODE.test(normaliseParticipantCode('jane smith'))).toBe(false);
   });
 
   it('needs every detail', async () => {

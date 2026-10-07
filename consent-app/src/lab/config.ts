@@ -424,6 +424,15 @@ export function isUkPostcode(input: string): boolean {
   return UK_POSTCODE.test(formatPostcode(input));
 }
 
+/**
+ * A participant ID as typed or carried by a link: upper case, letters and
+ * digits only. After the "MP", the letters O, I and L (never in an ID) are
+ * read as the digits 0 and 1 they are usually mistaken for, and twelve digits
+ * typed without the "MP" get it added.
+ */
 export function normaliseParticipantCode(code: string): string {
-  return code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const compact = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const prefixed = compact.startsWith('MP');
+  const body = (prefixed ? compact.slice(2) : compact).replace(/O/g, '0').replace(/[IL]/g, '1');
+  return prefixed || /^[0-9A-F]{12}$/.test(body) ? `MP${body}` : compact;
 }

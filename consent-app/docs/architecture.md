@@ -283,9 +283,10 @@ compliance claims.
   impact assessment.
 * Ethics-approved wording for every statement and information section (all
   current wording is marked *draft* in the interface).
-* Whether 16–17-year-olds may consent for themselves (`study.selfConsentAge`
-  is provided as a configuration point but not enabled).
-* Whether assent can be deferred to school, and how a deferred journey is
-  resumed (this prototype records the status; a resume link is not built).
+* 16–17-year-olds deciding about their screen time for themselves
+  (`study.selfConsentAge`, 16 since 7 October 2026; to confirm with ethics).
+* A deferred agreement is resumed with the reference and the young person's
+  date of birth (`src/steps/Resume.tsx`, `resumeRecord`; see `journey.md`,
+  "Carrying on later").
 * Whether a typed signature is acceptable as an accessibility alternative to
   a drawn one (`study.allowTypedSignature`).

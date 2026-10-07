@@ -60,22 +60,22 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
 
     <div class="participant-next-step">
       <h3>Ready to take part?</h3>
-      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube and Instagram data. Downloads can take a few days to arrive. Once your data is in, you book both lab visits on this site at the same sitting: the first starts your break, and the second, 28 to 35 days later, ends it. You get a confirmation with calendar files, and reminders. We can email you a link that brings you back to the right page, on any device; or just come back and enter the same name, date of birth and postcode.</p>
+      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube and Instagram data. Downloads can take a few days to arrive. Once your data is in, you book both lab visits on this site at the same sitting: the first starts your break, and the second, 28 to 35 days later, ends it. You get a confirmation with calendar files, and reminders. We can email you a link that brings you back to the right page, on any device; or just come back and enter your participant ID (it is in our emails), or the same name, date of birth and postcode.</p>
       <a class="btn btn-primary" href="{{ '/break/take-part/' | relative_url }}">Take part &nbsp;→</a>
       <a class="text-link" href="{{ '/break/take-part/?step=guide' | relative_url }}">Just show me how to download my data &nbsp;→</a>
     </div>
 
     <h3 class="participant-later-heading">Already taking part?</h3>
-    <p class="participant-later-visits">Your lab visits: <a class="text-link" href="{{ '/break/book/' | relative_url }}">book, change or add them to your calendar &nbsp;→</a></p>
+    <p class="participant-later-visits">Need to change your lab visits? <a class="text-link" href="{{ '/break/book/' | relative_url }}">Book, change or cancel them &nbsp;→</a> Sign in with your participant ID (it is in our emails) or the same name, date of birth and postcode, up to 24 hours before a visit.</p>
     <div class="participant-info-grid">
       <div class="info-panel">
         <h3>During your break</h3>
-        <p>Once a week, a quick check-in of about two minutes: a few questions about how it is going, and a screenshot of your screen time if you can. Then, if you like, MyStory: a moment from your week in your own words, and a few quick questions about it. We email (or text) you a link each week, or just enter the same name, date of birth and postcode as at the start.</p>
+        <p>Once a week, a quick check-in of about two minutes: a few questions about how it is going, and a screenshot of your screen time if you can. Then, if you like, MyStory: a moment from your week in your own words, and a few quick questions about it. We email (or text) you a link each week, or just enter your participant ID, or the same name, date of birth and postcode as at the start.</p>
         <a class="text-link" href="{{ '/break/check-in/' | relative_url }}">Mid-break check-in &nbsp;→</a>
       </div>
       <div class="info-panel info-panel-alt">
         <h3>After your break</h3>
-        <p>On the last day of your break, before you unlock your apps, take your screen-time screenshots and send them on the after-break page. Once your apps are unlocked, request a new data download from each app and send it there too. It is shorter than the first time: nothing to sign again, just the same name, date of birth and postcode as at the start.</p>
+        <p>On the last day of your break, before you unlock your apps, take your screen-time screenshots and send them on the after-break page. Once your apps are unlocked, request a new data download from each app and send it there too. It is shorter than the first time: nothing to sign again, just your participant ID, or the same name, date of birth and postcode as at the start.</p>
         <a class="text-link" href="{{ '/break/after/' | relative_url }}">After your break &nbsp;→</a>
       </div>
     </div>
