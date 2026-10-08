@@ -5,7 +5,7 @@ import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { Icon } from '../components/ui/Icon';
-import { assentApplies, lastCall, parentInvolved, phoneUseApplies } from '../model/journey';
+import { assentApplies, lastCall, parentInvolved, phoneUseApplies, youngFinishes } from '../model/journey';
 import { useStore } from '../state/context';
 import { firstIncomplete, useSync } from '../state/useSync';
 
@@ -14,6 +14,10 @@ import { firstIncomplete, useSync } from '../state/useSync';
  * chance to change it. Changes are saved too; a change to the permission or
  * the agreement keeps the original. Sent screenshots cannot be removed here
  * (the team can do that on request), but more can be added.
+ *
+ * When the young person has the phone at the end (youngFinishes), this is
+ * their short "Nearly done" page instead: no parent's details, just Finish,
+ * which sends everything. The phone never goes back to the parent.
  */
 export function Check() {
   const { state, dispatch } = useStore();
@@ -58,7 +62,7 @@ export function Check() {
   };
 
   if (asking) {
-    const own = !parentInvolved(state);
+    const own = !parentInvolved(state) || youngFinishes(state);
     const why = `The screenshots are the most useful part of the study: they show how long ${own ? 'you spend' : `${childName} spends`} on ${own ? 'your' : 'their'} phone, and on which apps. It takes about two minutes.`;
     const copy =
       asking === 'here'
@@ -94,6 +98,23 @@ export function Check() {
         </div>
         {submission.consentStage === 'failed' && <SaveStatus />}
       </div>
+    );
+  }
+
+  if (youngFinishes(state)) {
+    const shared = sentImages > 0;
+    return (
+      <StepShell
+        kicker="Nearly done"
+        title={<>Nearly done, {childName}.</>}
+        intro={<p>{state.assent.status === 'declined' ? 'Tap Finish to send your answer.' : shared ? 'Tap Finish to send your answer and your screenshots.' : 'Tap Finish to send your answer.'} That’s all: you don’t need to give the phone back first.</p>}
+        onContinue={finish}
+        continueLabel="Finish"
+        continueLoading={saving}
+        hideBack
+      >
+        <SaveStatus />
+      </StepShell>
     );
   }
 

@@ -3,7 +3,7 @@ import { parentConsentForm } from '../config/statements';
 import { study } from '../config/study';
 import { initialState, reducer, type Action } from '../state/reducer';
 import { buildConsentPayload, firstIncomplete } from '../state/useSync';
-import { buildJourney, decidesAlone, lastCall, parentMoreApplies, phoneSourceOf } from './journey';
+import { buildJourney, decidesAlone, lastCall, parentMoreApplies, phoneSourceOf, youngFinishes } from './journey';
 import type { AppState } from './types';
 
 /** A date of birth that makes someone `age` today. */
@@ -84,17 +84,21 @@ describe('the family form after 7 October 2026: who decides, and where the scree
     expect(buildJourney(fromParent)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'phone-use', 'check', 'done']);
     expect(firstIncomplete(fromParent)).toBeNull();
     expect(buildJourney(reducer(fromParent, { type: 'donation-status', status: 'skipped' }))).toContain('parent-more');
-    // From the young person's phone: their agreement first; a no, or not being there, brings the longer questions.
+    // From the young person's phone: their agreement, then the young person finishes; the phone never goes back to the parent.
     const fromChild = reducer(s, { type: 'set-phone-source', source: 'child' });
     expect(buildJourney(fromChild)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'child-assent', 'check', 'done']);
     expect(firstIncomplete(fromChild)).toBeNull();
     // A signature drawn but not confirmed stays on the device: nothing of the young person's is sent before they answer.
     const drawing = reducer(fromChild, { type: 'assent-signature', signature });
     expect(buildConsentPayload(drawing).assent).toMatchObject({ status: 'not-started', signature: null, responses: {} });
-    expect(buildJourney(reducer(fromChild, { type: 'assent-decline' }))).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'child-assent', 'assent-declined', 'parent-more', 'check', 'done']);
+    const declined = reducer(fromChild, { type: 'assent-decline' });
+    expect(buildJourney(declined)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'child-assent', 'assent-declined', 'check', 'done']);
+    expect(youngFinishes(declined)).toBe(true);
+    // Not there: the parent sends them a link and finishes; no longer questions instead.
     const away = reducer(fromChild, { type: 'set-child-present', present: false });
-    expect(parentMoreApplies(away)).toBe(true);
-    expect(buildJourney(away)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'parent-more', 'check', 'done']);
+    expect(parentMoreApplies(away)).toBe(false);
+    expect(youngFinishes(away)).toBe(false);
+    expect(buildJourney(away)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'check', 'done']);
     expect(firstIncomplete(away)).toBeNull();
     // Neither: straight to the longer questions.
     expect(buildJourney(reducer(s, { type: 'set-phone-source', source: 'none' }))).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'parent-more', 'check', 'done']);
@@ -122,9 +126,9 @@ describe('the family form after 7 October 2026: who decides, and where the scree
     const skipped = apply(signed, { type: 'set-phone-source', source: 'parent' }, { type: 'donation-status', status: 'skipped' });
     expect(lastCall(skipped)).toBe('add');
     expect(lastCall(reducer(skipped, { type: 'share-prompted' }))).toBeNull();
-    // The young person was not there when they were asked.
+    // The young person was not there: they have been sent the link, so the parent is not asked again.
     const away = apply(signed, { type: 'set-phone-source', source: 'child' }, { type: 'set-child-present', present: false });
-    expect(lastCall(away)).toBe('here');
+    expect(lastCall(away)).toBeNull();
     // The parent said no: perhaps after all.
     expect(lastCall(reducer(signed, { type: 'set-phone-source', source: 'none' }))).toBe('after-all');
     // Never after the young person's own no, or when they chose to decide later.

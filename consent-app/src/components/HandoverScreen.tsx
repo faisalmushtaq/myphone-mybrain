@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { study } from '../config/study';
 import { decidesAlone, stepDefs } from '../model/journey';
 import { useStore } from '../state/context';
+import { CarryOnLink } from './CarryOnLink';
 import { ParentLinkPanel } from './ParentLink';
 import { Button } from './ui/Button';
 import { Icon } from './ui/Icon';
@@ -15,6 +16,7 @@ export function HandoverScreen() {
   const { state, dispatch } = useStore();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [noParent, setNoParent] = useState(false);
+  const [notHere, setNotHere] = useState(false);
   const handover = state.handover;
 
   useEffect(() => {
@@ -100,20 +102,28 @@ export function HandoverScreen() {
             My parent or carer isn’t here
           </Button>
         )}
-        {parentRouteChoice && (
-          <>
+        {parentRouteChoice && !notHere && (
+          <Button variant="ghost" onClick={() => setNotHere(true)}>
+            {childName} isn’t here
+          </Button>
+        )}
+        {parentRouteChoice && notHere && (
+          <div className="mpmb-handover__link">
+            <p>
+              <strong>Send {childName} a link</strong> to do their part on their own phone. It asks for their date of birth.
+            </p>
+            {state.submission.referenceCode ? <CarryOnLink referenceCode={state.submission.referenceCode} childName={childName} /> : <p className="mpmb-hint">Saving your answers: the link appears in a moment.</p>}
             <Button
-              variant="ghost"
+              variant="primary"
               onClick={() => {
                 dispatch({ type: 'set-child-present', present: false });
                 dispatch({ type: 'cancel-handover' });
                 dispatch({ type: 'next' });
               }}
             >
-              {childName} isn’t here right now
+              Finish my part
             </Button>
-            <p className="mpmb-handover__note">If {childName} isn’t with you, nothing is shared from their phone: we ask you some more questions about their phone use instead.</p>
-          </>
+          </div>
         )}
         <Button variant="link" className="mpmb-btn--onhandover" onClick={() => dispatch({ type: 'cancel-handover' })}>
           ← Go back

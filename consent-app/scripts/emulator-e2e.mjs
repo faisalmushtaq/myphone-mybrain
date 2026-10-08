@@ -239,9 +239,9 @@ async function inner() {
     ok('saved as soon as the parent signs: the permission, with where the screen time comes from and the young person’s answer still to come', signedOnly?.submission.version === 1 && Boolean(signedOnly?.submission.consentId) && signedOnly?.submission.phoneSource === null && signedAssent?.status === 'not-started' && signedAssent?.signature === null && signedOnly?.submission.surveyId === null, JSON.stringify(signedOnly?.submission ?? null).slice(0, 300));
     const code = signedOnly?.code ?? '';
     const firstConsentId = signedOnly?.submission.consentId;
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 1 of 4' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 1 of 5' }).waitFor();
     await page.getByRole('button', { name: 'Somewhat', exact: true }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of 4' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of 5' }).waitFor();
     let partWay = null;
     let partWayId = null;
     for (let i = 0; i < 30 && !partWay?.responses?.concern; i += 1) {
@@ -250,11 +250,11 @@ async function inner() {
       partWay = partWayId ? (await db.collection('surveys').doc(partWayId).get()).data() : null;
     }
     ok('an answer is saved as soon as it is given, before the questions are finished', partWay?.status === 'in-progress' && partWay?.responses?.concern?.value === 'somewhat' && (await db.collection('submissions').doc(code).get()).data()?.version === 1, JSON.stringify(partWay?.responses ?? null));
-    for (const [i, label] of [[2, 'About the same'], [3, 'Sometimes']]) {
-      await page.locator('.mpmb-quiz__count', { hasText: `Question ${i} of 4` }).waitFor();
+    for (const [i, label] of [[2, 'About the same'], [3, 'Sometimes'], [4, '1 to 2 hours']]) {
+      await page.locator('.mpmb-quiz__count', { hasText: `Question ${i} of 5` }).waitFor();
       await page.getByRole('button', { name: label, exact: true }).click();
     }
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 4 of 4' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 5 of 5' }).waitFor();
     await page.getByRole('textbox').fill('Mostly YouTube, often late at night.');
     await page.getByRole('button', { name: 'Finish', exact: true }).click();
     await page.getByRole('heading', { name: /Can we have Kai’s screen time/ }).waitFor();
@@ -285,28 +285,21 @@ async function inner() {
     await page.getByRole('button', { name: 'Apply changes' }).click();
     await page.getByText('Parts hidden').waitFor();
     await page.getByRole('button', { name: /Send these 2 screenshots/ }).click();
-    await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor({ timeout: 90000 });
-    ok('browser uploaded both images and submitDonation accepted them', await page.getByText(/2 sent/).count() > 0);
-
-    // 3. A change on the check page is saved too: the details are updated, and the permission is kept as it was.
-    await page.getByRole('button', { name: /Change parent or carer$/i }).click();
-    await page.getByRole('heading', { name: /Your details/ }).waitFor();
-    await page.getByLabel('Your phone number').fill('07700 900123');
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
-    for (let i = 0; i < 40 && (await db.collection('submissions').doc(code).get()).data()?.version !== atScreenshots + 1; i += 1) await new Promise((r) => setTimeout(r, 500));
+    // 3. Once the phone is with the young person, they finish it: no check page with the parent's details, and no handing back.
+    await page.getByRole('heading', { name: /Nearly done, Kai\./ }).waitFor({ timeout: 90000 });
+    ok('after their part, the young person finishes and sends it: no handing the phone back, no parent’s details shown', (await page.getByText(/send your answer and your screenshots/).count()) === 1 && (await page.getByRole('button', { name: /Change parent or carer/i }).count()) === 0 && (await page.getByText('1 Long Lane').count()) === 0);
     await page.locator('.mpmb-save', { hasText: 'Everything so far is saved.' }).waitFor({ timeout: 60000 });
-    await page.getByRole('button', { name: /Everything is right/ }).click();
+    await page.getByRole('button', { name: 'Finish', exact: true }).click();
     await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
     ok('thank-you page shows the same reference', (await page.locator('.mpmb-done__ref strong').innerText()).trim() === code);
     ok('no browser errors', errors.length === 0, errors.join(' | '));
 
     // What did the functions store?
     submission = (await db.collection('submissions').doc(code).get()).data();
-    ok('the change is one more version, with two images and one donation', submission.version === atScreenshots + 1 && submission.imageCount === 2 && submission.donationIds?.length === 1 && submission.versions?.length === submission.version, String(submission.version));
+    ok('browser uploaded both images and submitDonation accepted them: two images and one donation, with no new version for the screenshots', submission.version === atScreenshots && submission.imageCount === 2 && submission.donationIds?.length === 1 && submission.versions?.length === submission.version, String(submission.version));
     ok('the permission is not copied for later saves: the record still points at the one signed', submission.consentId === firstConsentId);
     const participant = (await db.collection('participants').doc(submission.participantId).get()).data();
-    ok('participant record holds identity, with the home address and postcode, updated by the change', participant?.firstName === 'Kai' && participant?.dateOfBirth === '2013-03-14' && participant?.guardian?.email === 'priya@example.com' && participant?.guardian?.phone === '07700 900123' && participant?.guardian?.address === '1 Long Lane, Leeds' && participant?.guardian?.postcode === 'LS6 1AB' && participant?.guardian?.hasParentalResponsibility === undefined && participant?.version === submission.version, JSON.stringify({ guardian: participant?.guardian, version: participant?.version }));
+    ok('participant record holds identity, with the home address and postcode', participant?.firstName === 'Kai' && participant?.dateOfBirth === '2013-03-14' && participant?.guardian?.email === 'priya@example.com' && participant?.guardian?.phone === null && participant?.guardian?.address === '1 Long Lane, Leeds' && participant?.guardian?.postcode === 'LS6 1AB' && participant?.guardian?.hasParentalResponsibility === undefined && participant?.version === submission.version, JSON.stringify({ guardian: participant?.guardian, version: participant?.version }));
     const consents = await db.collection('consents').where('participantId', '==', submission.participantId).get();
     const consent = (await db.collection('consents').doc(submission.consentId).get()).data();
     ok('one permission record, from the moment of signing', consents.size === 1 && consent?.version === 1 && consent?.supersedes === null);
@@ -316,7 +309,7 @@ async function inner() {
     ok('assent record signed, screenshot agreement by action', assent?.status === 'completed' && assent?.responses?.['take-part']?.via === 'signature' && assent?.responses?.['phone-use']?.via === 'action');
     const survey = (await db.collection('surveys').doc(submission.surveyId).get()).data();
     const surveys = await db.collection('surveys').where('participantId', '==', submission.participantId).get();
-    ok('parent’s questions stored as research data without names, in one record that the answers filled as they came', survey && !JSON.stringify(survey).includes('Patel') && survey.status === 'completed' && survey.responses?.concern?.value === 'somewhat' && survey.responses?.['anything-else']?.value === 'Mostly YouTube, often late at night.' && Object.keys(survey.responses).length === 4 && survey.version === submission.version && surveys.size === 1 && submission.surveyId === partWayId && surveys.docs[0].id === submission.surveyId, JSON.stringify({ version: survey?.version, n: surveys.size, same: submission.surveyId === partWayId }));
+    ok('parent’s questions stored as research data without names, in one record that the answers filled as they came', survey && !JSON.stringify(survey).includes('Patel') && survey.status === 'completed' && survey.responses?.concern?.value === 'somewhat' && survey.responses?.['anything-else']?.value === 'Mostly YouTube, often late at night.' && survey.responses?.['social-media-time']?.value === '1-2' && Object.keys(survey.responses).length === 5 && survey.version === submission.version && surveys.size === 1 && submission.surveyId === partWayId && surveys.docs[0].id === submission.surveyId, JSON.stringify({ version: survey?.version, n: surveys.size, same: submission.surveyId === partWayId }));
     const donation = (await db.collection('donations').doc(submission.donationIds[0]).get()).data();
     ok('donation record has no names, carries the agreement and quality checks', donation && !JSON.stringify(donation).includes('Patel') && donation.images.length === 2 && donation.images[0].redacted === true && donation.agreement?.via === 'action' && ['accepted', 'review'].includes(donation.images[0].quality?.verdict));
     const [quarantine] = await bucket.getFiles({ prefix: 'quarantine/' });
@@ -479,16 +472,17 @@ async function inner() {
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.locator('#phone-source-child').check();
     await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('button', { name: 'Noah isn’t here right now' }).click();
-    await page.getByRole('heading', { name: /Some more questions about Noah’s phone use/ }).waitFor({ timeout: 30000 });
-    await page.getByRole('button', { name: 'Skip these questions' }).click();
+    await page.getByRole('button', { name: 'Noah isn’t here' }).click();
+    await page.locator('.mpmb-handover__link .mpmb-carryon__url').waitFor({ timeout: 60000 });
+    const handoverLink = (await page.locator('.mpmb-handover__link .mpmb-carryon__url').innerText()).trim();
+    ok('when Noah isn’t there, the handover offers a link to send him, to do his part on his own phone', /\?finish=MPMB-/.test(handoverLink) && (await page.getByRole('button', { name: /Share the link|Copy the link/ }).count()) === 1);
+    await page.getByRole('button', { name: 'Finish my part' }).click();
     await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
+    ok('no longer questions for the parent instead: Noah can still do his part with the link', (await page.getByText(/Some more questions about Noah/).count()) === 0);
     await page.locator('.mpmb-save', { hasText: 'Everything so far is saved.' }).waitFor({ timeout: 60000 });
     const noahCode = (await page.locator('.mpmb-save strong').innerText()).trim();
+    ok('the link sent is the one for this record', handoverLink.endsWith(`?finish=${noahCode}`));
     await page.getByRole('button', { name: /Everything is right/ }).click();
-    await page.getByRole('heading', { name: 'Is Noah with you now?' }).waitFor();
-    ok('one last prompt before finishing without the screen time: Noah can still do his part now', (await page.getByRole('button', { name: 'Yes, Noah is here' }).count()) === 1);
-    await page.getByRole('button', { name: 'Finish: they will do it later' }).click();
     await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
     const carryOnUrl = (await page.locator('.mpmb-carryon__url').innerText()).trim();
     ok('the thank-you page gives the link to finish, asking for it as soon as possible (never “later” or “after the workshop”)', carryOnUrl.endsWith(`?finish=${noahCode}`) && (await page.getByText(/Noah still has their part to do\. Nothing from Noah’s phone has been sent yet\. Please ask them to do it as soon as possible/).count()) === 1 && (await page.getByText(/the team will send|after the workshop/).count()) === 0, carryOnUrl);
@@ -568,19 +562,22 @@ async function inner() {
     await page.locator('#phone-source-none').check();
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: /Some more questions about Lily’s phone use/ }).waitFor();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Time and apps · Question 1 of 8' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Time and apps · Question 1 of 9' }).waitFor();
     ok('the age at their own phone goes down to “Under 5”, year by year, with “I can’t remember / I don’t know”', (await page.locator('.mpmb-quiz__option').count()) === 14 && (await page.getByRole('button', { name: 'Under 5', exact: true }).count()) === 1 && (await page.getByRole('button', { name: '7', exact: true }).count()) === 1 && (await page.getByRole('button', { name: 'I can’t remember / I don’t know', exact: true }).count()) === 1);
     await page.getByRole('button', { name: '12', exact: true }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of 8' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of 9' }).waitFor();
+    ok('the longer questions ask when they started on social media, in plain words', (await page.getByRole('heading', { name: /How old was Lily when they started using social media\?/ }).count()) === 1);
+    await page.getByRole('button', { name: '11', exact: true }).click();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 3 of 9' }).waitFor();
     await page.getByRole('button', { name: '3 to 4 hours', exact: true }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 3 of 8' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 4 of 9' }).waitFor();
     await page.getByRole('button', { name: 'Skip this question' }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 4 of 8' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 5 of 9' }).waitFor();
     await page.getByRole('button', { name: 'TikTok', exact: true }).click();
     await page.getByRole('button', { name: 'YouTube', exact: true }).click();
-    ok('more than one app can be chosen: both stay ticked, and the question waits for Next', (await page.locator('.mpmb-quiz__count', { hasText: 'Question 4 of 8' }).count()) === 1 && (await page.getByRole('button', { name: 'TikTok', exact: true }).getAttribute('aria-pressed')) === 'true' && (await page.getByRole('button', { name: 'YouTube', exact: true }).getAttribute('aria-pressed')) === 'true');
+    ok('more than one app can be chosen: both stay ticked, and the question waits for Next', (await page.locator('.mpmb-quiz__count', { hasText: 'Question 5 of 9' }).count()) === 1 && (await page.getByRole('button', { name: 'TikTok', exact: true }).getAttribute('aria-pressed')) === 'true' && (await page.getByRole('button', { name: 'YouTube', exact: true }).getAttribute('aria-pressed')) === 'true');
     await page.getByRole('button', { name: 'Next', exact: true }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 5 of 8' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 6 of 9' }).waitFor();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
     await page.locator('.mpmb-save', { hasText: 'Everything so far is saved.' }).waitFor({ timeout: 60000 });
@@ -589,7 +586,7 @@ async function inner() {
     const noConsent = no?.consentId ? (await db.collection('consents').doc(no.consentId).get()).data() : null;
     const noMore = no?.moreSurveyId ? (await db.collection('surveys').doc(no.moreSurveyId).get()).data() : null;
     const noAssent = no?.assentId ? (await db.collection('assents').doc(no.assentId).get()).data() : null;
-    ok('after the parent’s no: no screen time, no agreement asked of the young person, and the longer answers kept, apps and all', no?.phoneSource === 'none' && no?.selfConsent === false && !noConsent?.responses?.['phone-use'] && noAssent?.status === 'not-started' && noMore?.formId === 'mpmb-parent-phone-use' && noMore?.formVersion === '0.3-draft' && noMore?.responses?.['own-phone-age']?.value === '12' && noMore?.responses?.['school-day-time']?.value === '3-4' && noMore?.responses?.['top-app']?.value === 'tiktok;youtube' && !noMore?.responses?.['weekend-time'] && !JSON.stringify(noMore).includes('Brown'), JSON.stringify({ phoneSource: no?.phoneSource, more: noMore?.responses }));
+    ok('after the parent’s no: no screen time, no agreement asked of the young person, and the longer answers kept, apps and all', no?.phoneSource === 'none' && no?.selfConsent === false && !noConsent?.responses?.['phone-use'] && noAssent?.status === 'not-started' && noMore?.formId === 'mpmb-parent-phone-use' && noMore?.formVersion === '0.4-draft' && noMore?.responses?.['own-phone-age']?.value === '12' && noMore?.responses?.['social-media-age']?.value === '11' && noMore?.responses?.['school-day-time']?.value === '3-4' && noMore?.responses?.['top-app']?.value === 'tiktok;youtube' && !noMore?.responses?.['weekend-time'] && !JSON.stringify(noMore).includes('Brown'), JSON.stringify({ phoneSource: no?.phoneSource, more: noMore?.responses }));
     await page.getByRole('button', { name: /Everything is right/ }).click();
     await page.getByRole('heading', { name: 'Would you share Lily’s screen time after all?' }).waitFor();
     ok('one last prompt after the parent’s no, which can stay a no', (await page.getByRole('button', { name: 'Yes, share it' }).count()) === 1);
@@ -1269,7 +1266,7 @@ async function inner() {
     ok('MyStory is exported by phase, the triangle over three columns', midTsv.split('\n')[0].includes('pull_habit\tpull_people_and_connection\tpull_boredom_or_stress\tpull_status') && midTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && midTsv.includes('\tThe bus\t') && midTsv.includes('\tnot-sure\t') && postTsv.includes('\tQuiet evenings\t') && preTsv.includes('sub-MP2670FF90A5F2\tses-pre\t') && preTsv.includes('\tLate nights\t') && finalManifest.counts?.labStories === 3, JSON.stringify(finalManifest.counts));
     ok('the visits and contact details are exported to identifying/, the visit date to the research table', visitsTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\t1\t') && visitsTsv.includes('\tmoved\t') && visitsTsv.includes('day-before-email:not-configured') && contactsTsv.includes('jane.smith@example.org\t+447700900123\ttrue') && labPeople.includes(`\t${v1a.toISOString().slice(0, 10)}\tbooked\t`) && !labPeople.includes('jane@'));
     ok('the opt-out is flagged on the school’s list and listed in identifying/ with the UPN it names', unmatchedTsv.split('\n').some((l) => l.startsWith('DUA\tA123456789013\tOla\tNowak') && l.includes('\ttrue\t')) && optOutsTsv.includes('\tactive\t') && optOutsTsv.includes('\tOla\tNowak\t') && optOutsTsv.includes('\tEwa Nowak\t') && optOutsTsv.includes('\tA123456789013\tname-only'), optOutsTsv.split('\n')[1]);
-    ok('the research table says who decided, where the screen time came from, and the longer answers have their own table', familiesTsv.split('\n')[0].includes('\tself_consent\tphone_source\t') && familiesTsv.split('\n')[0].endsWith('\tadded_later_on\topted_out') && familiesTsv.includes(`\t${new Date().toISOString().slice(0, 10)}\tfalse`) && familiesTsv.includes('\ttrue\tchild\tcompleted\t') && familiesTsv.includes('\tfalse\tnone\tnot-started\t') && phoneUseTsv.split('\n')[0].startsWith('participant_id\town_phone_age\tschool_day_time') && phoneUseTsv.includes('\t12\t3-4\t'), familiesTsv);
+    ok('the research table says who decided, where the screen time came from, and the longer answers have their own table', familiesTsv.split('\n')[0].includes('\tself_consent\tphone_source\t') && familiesTsv.split('\n')[0].endsWith('\tadded_later_on\topted_out') && familiesTsv.includes(`\t${new Date().toISOString().slice(0, 10)}\tfalse`) && familiesTsv.includes('\ttrue\tchild\tcompleted\t') && familiesTsv.includes('\tfalse\tnone\tnot-started\t') && phoneUseTsv.split('\n')[0].startsWith('participant_id\town_phone_age\tsocial_media_age\tschool_day_time') && phoneUseTsv.includes('\t12\t11\t3-4\t'), familiesTsv);
     ok('the school’s file and what was read sit in schools/upn-uploads/, and the UPN is matched to the family’s record', finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/\d{4}-\d{2}-\d{2}_[0-9a-f]{8}_Year 8\.csv$/.test(n)) && finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/.*_pupils\.tsv$/.test(n)) && matchesTsv.includes('\tKai\tPatel\t2013-03-14\t') && matchesTsv.includes('\tA123456789012\tname-and-dob\t') && unmatchedTsv.includes('DUA\tA123456789013\tOla\tNowak') && finalManifest.counts?.upnUploads === 1 && finalManifest.counts?.upnMatched === 1, JSON.stringify(finalManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {

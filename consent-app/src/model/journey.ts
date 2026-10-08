@@ -105,18 +105,24 @@ export function phoneUseApplies(state: AppState): boolean {
 }
 
 /**
- * The longer questions for the parent, whenever the young person's screen
- * time is not coming through this form: the parent said no or chose
- * "neither"; or could not send it from their own phone; or the young person
- * said no, was not there, put it off, or skipped the screenshots.
+ * The longer questions for the parent, while the parent still has the
+ * phone and the young person's screen time is not coming through this form:
+ * the parent said no, or could not send it from their own phone. Never once
+ * the phone has gone to the young person (decided 8 October 2026: one run
+ * for the parent, then the rest is the young person's to finish, with no
+ * handing back), nor when the parent sent them a link to do it later.
  */
 export function parentMoreApplies(state: AppState): boolean {
   if (state.resume || !parentInvolved(state)) return false;
   const source = phoneSourceOf(state);
   if (source === 'none') return true;
   if (source === 'parent') return state.donation.status === 'skipped';
-  if (source === 'child') return state.assent.status === 'declined' || state.assent.status === 'deferred' || state.donation.status === 'skipped';
   return false;
+}
+
+/** The young person has the phone for the end of the form: they answered after the parent's part, so they finish and send it, with no handing back. */
+export function youngFinishes(state: AppState): boolean {
+  return !state.resume && parentInvolved(state) && phoneSourceOf(state) === 'child' && (state.assent.status === 'completed' || state.assent.status === 'declined');
 }
 
 /**
@@ -130,7 +136,7 @@ export function lastCall(state: AppState): 'add' | 'here' | 'after-all' | null {
   if (state.sharePrompted || state.donation.images.some((i) => i.status === 'sent')) return null;
   if (phoneUseApplies(state)) return 'add';
   const source = phoneSourceOf(state);
-  if (source === 'child' && state.assent.status === 'deferred' && state.assent.deferredBy === 'parent') return 'here';
+  // A young person who was not there has been sent the link (on the handover screen), so the parent is not asked again.
   if (source === 'none' && parentInvolved(state)) return 'after-all';
   return null;
 }

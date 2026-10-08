@@ -52,7 +52,8 @@ export const multiValues = (value: string | undefined): string[] => (value ? val
 
 export const parentQuestionsForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-perceptions',
-  version: '0.2-draft',
+  // 0.3: one question about social media (8 October 2026).
+  version: '0.3-draft',
   draft: true,
   questions: [
     {
@@ -99,6 +100,21 @@ export const parentQuestionsForm: { id: string; version: string; draft: boolean;
       ],
     },
     {
+      id: 'social-media-time',
+      version: '0.1-draft',
+      type: 'choice',
+      label: 'Time on social media',
+      text: 'On a normal day, how long is {child} on social media, like TikTok, Snapchat, Instagram or YouTube?',
+      options: [
+        { value: 'none', label: 'They don’t use it' },
+        { value: 'under-1', label: 'Less than 1 hour' },
+        { value: '1-2', label: '1 to 2 hours' },
+        { value: '2-4', label: '2 to 4 hours' },
+        { value: 'over-4', label: 'More than 4 hours' },
+        { value: 'unsure', label: 'I don’t know' },
+      ],
+    },
+    {
       id: 'anything-else',
       version: '0.1-draft',
       type: 'text',
@@ -137,8 +153,9 @@ const hours = [
  */
 export const parentMoreForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-phone-use',
+  // 0.4: when they started on social media (8 October 2026).
   // 0.3: without the questions the quick questions already ask (8 October 2026): the effect on sleep ("gets in the way of sleep, schoolwork or family time"), good or bad overall ("how concerned are you"), and a second "anything else".
-  version: '0.3-draft',
+  version: '0.4-draft',
   draft: true,
   questions: [
     {
@@ -154,6 +171,22 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
         ...['5', '6', '7', '8', '9', '10', '11', '12', '13', '14'].map((age) => ({ value: age, label: age })),
         { value: '15-plus', label: '15 or older' },
         { value: 'none', label: 'They don’t have their own' },
+        { value: 'unsure', label: 'I can’t remember / I don’t know' },
+      ],
+    },
+    {
+      id: 'social-media-age',
+      version: '0.1-draft',
+      type: 'choice',
+      topic: 'Time and apps',
+      label: 'Age at first social media',
+      text: 'How old was {child} when they started using social media?',
+      compact: true,
+      options: [
+        { value: 'under-8', label: 'Under 8' },
+        ...['8', '9', '10', '11', '12', '13', '14'].map((age) => ({ value: age, label: age })),
+        { value: '15-plus', label: '15 or older' },
+        { value: 'none', label: 'They don’t use it' },
         { value: 'unsure', label: 'I can’t remember / I don’t know' },
       ],
     },
