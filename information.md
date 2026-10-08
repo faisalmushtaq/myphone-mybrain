@@ -28,7 +28,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <details class="info-fold" id="about">
       <summary><h2>About the study</h2></summary>
       <div class="info-fold__body">
-    <p class="section-subheading">We are researchers from the University of Leeds. We are visiting your child’s school to run a two-hour neuroscience workshop, during normal school hours, as part of a research study.</p>
+    <p class="section-subheading">We are researchers from the University of Leeds. We are visiting your child’s school to run a neuroscience workshop, during normal school hours, as part of a research study.</p>
     <div class="prose">
       <p>MyPhone/MyBrain looks at how young people’s phones and digital lives relate to brain development, attention, learning and wellbeing as they grow up. In the workshop, young people learn how the brain works and how scientists study it, and can take part in a short, safe brain recording, a simple computer task and some questionnaires.</p>
     </div>
@@ -62,7 +62,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <details class="info-fold" id="workshop">
       <summary><h2>What happens at the workshop</h2></summary>
       <div class="info-fold__body">
-    <p class="section-subheading">About two hours, at school, during the school day, in a group of up to 30 young people, with at least two researchers.</p>
+    <p class="section-subheading">At school, during the school day, in a group of up to 30 young people, with at least two researchers.</p>
     <figure class="section-photo-banner section-photo-banner--short illustration-banner">
       <img src="{{ '/assets/images/silhouettes/study.jpg' | relative_url }}" alt="Simple silhouettes of a young person wearing an EEG headset and a researcher during a workshop" loading="lazy">
     </figure>

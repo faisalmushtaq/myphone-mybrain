@@ -5,7 +5,7 @@ description: "See how MyPhone/MyBrain research participation works in schools."
 permalink: /participation/
 title_main: "What taking part"
 title_accent: "involves."
-page_intro: "A two-hour workshop at school, run by our researchers, stage by stage."
+page_intro: "A workshop at school, run by our researchers, stage by stage."
 ---
 
 {% include page_hero.html %}
