@@ -559,6 +559,7 @@ fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin
 .participant-next-step .parents-actions .btn { margin: 0; }
 .participant-info-section .narrow-content > .parents-hub__topics { margin-top: 1.5rem; }
 .participant-info-section .narrow-content > .parents-hub__read { margin-top: 1.25rem; }
+.parents-hub__read .btn { margin: 0 .75rem .75rem 0; }
 .parents-hub__read p { max-width: 62ch; margin: 1.1rem 0 0; color: #45666b; }
 .parents-hub__read p a { color: var(--mpb-teal); font-weight: 700; text-decoration: underline; text-underline-offset: .18em; }
 .faq-group-title { margin: 0 0 .75rem; color: var(--mpb-teal); font-size: 1.4rem; scroll-margin-top: 110px; }

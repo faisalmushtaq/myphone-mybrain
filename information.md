@@ -16,7 +16,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <div class="info-sheet__start">
       <div class="participant-next-step" id="share">
         <h3>What we need from you: share your child’s screen time.</h3>
-        <a class="btn btn-primary" href="{{ '/take-part/consent/?who=parent' | relative_url }}">Share screen time online &nbsp;→</a>
+        <a class="btn btn-primary" href="{{ '/take-part/consent/?who=parent' | relative_url }}">Start now &nbsp;→</a>
         <p>Five minutes online: a few questions about your child’s phone and, if you are happy to, their screen time. Please do it as soon as you can. Nothing else is needed: your child is already invited to the workshop.</p>
         <a class="text-link" href="{{ '/take-part/consent/?finish' | relative_url }}">Started already? Finish with your reference &nbsp;→</a>
         <p class="participant-next-step__optout">Don’t want your child to take part? <a href="#opting-out">How to opt out</a></p>
