@@ -1234,8 +1234,8 @@ async function inner() {
     const alert = (await db.collection('meta').doc('address-alert').get()).data();
     ok('when the account runs out of credit, families are asked to type and the team is told', emptyAccount.status === 'unavailable' && alert?.reason === 'no-credit');
     const answers = [];
-    for (let i = 0; i < 10; i += 1) answers.push((await finder({ postcode: 'ZZ9 9ZZ' })).status);
-    ok('one browser session gets ten lookups an hour, then is asked to type', answers.slice(0, 9).every((a) => a === 'not-found') && answers[9] === 'unavailable', answers.join(','));
+    for (let i = 0; i < 5; i += 1) answers.push((await finder({ postcode: 'ZZ9 9ZZ' })).status);
+    ok('one browser session gets five lookups an hour, then is asked to type', answers.slice(0, 4).every((a) => a === 'not-found') && answers[4] === 'unavailable', answers.join(','));
     const unknownPick = await finder({ pick: 'paf_99' });
     ok('…and a chosen address counts as a lookup too', unknownPick.status === 'unavailable');
     const suggestions = await finder({ search: 'flat 1 long', near: 'LS6' });

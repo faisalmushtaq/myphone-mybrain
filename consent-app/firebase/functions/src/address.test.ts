@@ -61,8 +61,8 @@ test('suggestions: only sensible searches go out, near the postcode given, and o
 test('the site allows ten times as many suggestions as lookups a day', () => {
   const before = process.env.MPMB_ADDRESS_DAILY_CAP;
   delete process.env.MPMB_ADDRESS_DAILY_CAP;
-  assert.equal(dailyCap('lookup'), 300);
-  assert.equal(dailyCap('suggestion'), 3000);
+  assert.equal(dailyCap('lookup'), 1500);
+  assert.equal(dailyCap('suggestion'), 15000);
   process.env.MPMB_ADDRESS_DAILY_CAP = '50';
   assert.equal(dailyCap('suggestion'), 500);
   if (before === undefined) delete process.env.MPMB_ADDRESS_DAILY_CAP;

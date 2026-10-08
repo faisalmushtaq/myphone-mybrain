@@ -83,7 +83,7 @@ jobs:
             echo "MPMB_SMTP_SECRET=mpmb-smtp-password"
             echo "MPMB_EXPORT_BUCKET=${{ vars.MPMB_EXPORT_BUCKET || 'myphone-mybrain-exports' }}"
             echo "MPMB_SMS_FROM=${{ vars.MPMB_SMS_FROM || 'MyPhoneStdy' }}"
-            echo "MPMB_ADDRESS_DAILY_CAP=${{ vars.MPMB_ADDRESS_DAILY_CAP || '300' }}"
+            echo "MPMB_ADDRESS_DAILY_CAP=${{ vars.MPMB_ADDRESS_DAILY_CAP || '1500' }}"
           } > consent-app/firebase/functions/.env
 
       - uses: google-github-actions/auth@v2

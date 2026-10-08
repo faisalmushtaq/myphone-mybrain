@@ -21,9 +21,9 @@ import { isObj } from './validate.js';
  *
  * A postcode's list or a chosen address costs a credit. Suggestions are free,
  * but Ideal Postcodes suspends accounts that ask for many without fetching
- * addresses. So one browser session may have 10 lookups and 60 suggestions an
- * hour, and the whole site MPMB_ADDRESS_DAILY_CAP lookups a day (300 unless
- * set) and ten times as many suggestions. Nothing typed is ever logged.
+ * addresses. So one browser session may have 5 lookups and 60 suggestions an
+ * hour, and the whole site MPMB_ADDRESS_DAILY_CAP lookups a day (1,500 unless
+ * set, for 600 or more families on a busy day) and ten times as many suggestions. Nothing typed is ever logged.
  */
 
 const REGION = 'europe-west2';
@@ -35,7 +35,7 @@ const OUTWARD = /^[A-Z]{1,2}\d[A-Z\d]?$/;
 const SUGGESTION_ID = /^[A-Za-z0-9_|.:-]{1,80}$/;
 
 type Kind = 'lookup' | 'suggestion';
-const PER_SESSION_PER_HOUR: Record<Kind, number> = { lookup: 10, suggestion: 60 };
+const PER_SESSION_PER_HOUR: Record<Kind, number> = { lookup: 5, suggestion: 60 };
 /** Suggestions are counted on five documents, so families typing at the same moment do not queue on one. */
 const SUGGESTION_SHARDS = 5;
 
@@ -136,9 +136,9 @@ export function outcomeOf(status: number, body: unknown): { kind: 'found' | 'not
   return { kind: 'unavailable', reason: 'provider' };
 }
 
-/** The site's allowance for a day: MPMB_ADDRESS_DAILY_CAP lookups (300 unless set), and ten times as many suggestions. */
+/** The site's allowance for a day: MPMB_ADDRESS_DAILY_CAP lookups (1,500 unless set), and ten times as many suggestions. */
 export function dailyCap(kind: Kind): number {
-  const lookups = Number(process.env.MPMB_ADDRESS_DAILY_CAP) || 300;
+  const lookups = Number(process.env.MPMB_ADDRESS_DAILY_CAP) || 1500;
   return kind === 'lookup' ? lookups : lookups * 10;
 }
 

@@ -35,7 +35,7 @@ type the address; nothing is lost.
    Cost). In the dashboard, on the API key:
    * **Allowed URLs: leave empty.** Requests come from the study's server,
      not from browsers, so a web-address restriction would refuse them all.
-   * **Daily limit:** set one, for example 300, as a second guard beside the
+   * **Daily limit:** set one, for example 1,500, as a second guard beside the
      site's own (below).
    * **Usage history:** set the period after which Ideal Postcodes redacts
      personal data from the key's usage log (the search terms) to **0
@@ -68,10 +68,11 @@ allow about 1,500 lookups.
 
 ## Limits, and when it stops
 
-* **Per browser session:** 10 lookups and 60 suggestions an hour.
-* **For the whole site, per day:** `MPMB_ADDRESS_DAILY_CAP` lookups (300
+* **Per browser session:** 5 lookups and 60 suggestions an hour.
+* **For the whole site, per day:** `MPMB_ADDRESS_DAILY_CAP` lookups (1,500
   unless the repository variable of that name says otherwise; the deploy
-  workflow passes it on), and ten times as many suggestions. Ideal Postcodes
+  workflow passes it on), enough for 600 or more families on a busy day,
+  and ten times as many suggestions. Ideal Postcodes
   suspends accounts that ask for many suggestions without fetching
   addresses, so the suggestions' cap matters as much as the lookups'.
 
