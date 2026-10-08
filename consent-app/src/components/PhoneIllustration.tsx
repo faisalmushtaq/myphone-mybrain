@@ -10,12 +10,23 @@ const LINE = '#c8ddda';
 const INK = '#113b3f';
 
 function Row({ y, label, highlight = false, icon }: { y: number; label: string; highlight?: boolean; icon?: string }) {
+  // About 18 characters fit beside the chevron; longer labels break at the word nearest the middle.
+  const words = label.split(' ');
+  // Never start the second line with "&".
+  const mid = Math.ceil(words.length / 2);
+  const half = words[mid] === '&' ? mid + 1 : mid;
+  const lines = label.length > 18 ? [words.slice(0, half).join(' '), words.slice(half).join(' ')] : [label];
   return (
     <g>
       {highlight && <rect x="14" y={y - 11} width="92" height="22" fill={YELLOW} />}
       {icon && <rect x="19" y={y - 6} width="12" height="12" rx="3" fill={icon} />}
-      <text x={icon ? 36 : 19} y={y + 4} fontSize="7.5" fontFamily="Atkinson Hyperlegible, Arial, sans-serif" fontWeight={highlight ? 700 : 400} fill={INK}>
-        {label}
+      {/* A label too long for the row ("See All App & Website Activity") goes on two lines, so it stays inside the phone. */}
+      <text x={icon ? 36 : 19} y={lines.length > 1 ? y - 1 : y + 4} fontSize={lines.length > 1 ? 7 : 7.5} fontFamily="Atkinson Hyperlegible, Arial, sans-serif" fontWeight={highlight ? 700 : 400} fill={INK}>
+        {lines.map((line, i) => (
+          <tspan key={i} x={icon ? 36 : 19} dy={i === 0 ? 0 : 8}>
+            {line}
+          </tspan>
+        ))}
       </text>
       <path d={`M98 ${y - 3} l3 3 -3 3`} stroke={highlight ? INK : LINE} strokeWidth="1.2" fill="none" />
     </g>

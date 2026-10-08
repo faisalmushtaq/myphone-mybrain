@@ -233,7 +233,7 @@ test('when the parent says no to sharing, there is no screen time, and the longe
   p.route = 'parent';
   p.phoneSource = 'none';
   p.assent = notAsked();
-  p.more = { formId: 'mpmb-parent-phone-use', formVersion: '0.2-draft', status: 'completed', responses: { 'school-day-time': { questionId: 'school-day-time', version: '0.1-draft', value: '2-3', answeredAt: now }, 'more-notes': { questionId: 'more-notes', version: '0.1-draft', value: 'Late nights.', answeredAt: now } }, startedAt: now, completedAt: now };
+  p.more = { formId: 'mpmb-parent-phone-use', formVersion: '0.3-draft', status: 'completed', responses: { 'school-day-time': { questionId: 'school-day-time', version: '0.1-draft', value: '2-3', answeredAt: now }, 'after-bedtime': { questionId: 'after-bedtime', version: '0.1-draft', value: 'sometimes', answeredAt: now } }, startedAt: now, completedAt: now };
   assert.deepEqual(validateConsentPayload(p), []);
   assert.deepEqual(validateConsentPayload({ ...p, more: { ...p.more, status: 'in-progress', completedAt: null } }), [], 'part-way through the longer questions');
   // The age at their own smartphone, year by year from under 5, or not remembered.

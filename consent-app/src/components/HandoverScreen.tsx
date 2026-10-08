@@ -50,7 +50,7 @@ export function HandoverScreen() {
             </p>
           ) : handover.nextStep === 'parent-more' ? (
             <p>
-              <strong>For the parent or carer:</strong> {childName}’s screen time won’t be shared from this form, so the next part has some more questions for you about {childName}’s phone use. About three minutes.
+              <strong>For the parent or carer:</strong> {childName}’s screen time won’t be shared from this form, so the next part has some more questions for you about {childName}’s phone use. About two minutes.
             </p>
           ) : (
             <p>

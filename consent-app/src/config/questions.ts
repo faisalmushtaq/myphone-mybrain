@@ -137,7 +137,8 @@ const hours = [
  */
 export const parentMoreForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-phone-use',
-  version: '0.2-draft',
+  // 0.3: without the questions the quick questions already ask (8 October 2026): the effect on sleep ("gets in the way of sleep, schoolwork or family time"), good or bad overall ("how concerned are you"), and a second "anything else".
+  version: '0.3-draft',
   draft: true,
   questions: [
     {
@@ -209,21 +210,6 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
       ],
     },
     {
-      id: 'sleep-effect',
-      version: '0.1-draft',
-      type: 'choice',
-      topic: 'Night-time and sleep',
-      label: 'Effect on sleep',
-      text: 'How much do you think {child}’s phone use affects their sleep?',
-      options: [
-        { value: 'not-at-all', label: 'Not at all' },
-        { value: 'a-little', label: 'A little' },
-        { value: 'somewhat', label: 'Somewhat' },
-        { value: 'a-lot', label: 'A lot' },
-        dontKnow,
-      ],
-    },
-    {
       id: 'mood-after',
       version: '0.1-draft',
       type: 'choice',
@@ -253,32 +239,6 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
         { value: 'a-lot', label: 'A lot' },
         dontKnow,
       ],
-    },
-    {
-      id: 'good-or-bad',
-      version: '0.1-draft',
-      type: 'choice',
-      topic: 'Effects',
-      label: 'Good or bad overall',
-      text: 'Overall, do you think {child}’s phone use is good or bad for them?',
-      options: [
-        { value: 'very-bad', label: 'Very bad' },
-        { value: 'quite-bad', label: 'Quite bad' },
-        { value: 'neither', label: 'Neither' },
-        { value: 'quite-good', label: 'Quite good' },
-        { value: 'very-good', label: 'Very good' },
-        dontKnow,
-      ],
-    },
-    {
-      id: 'more-notes',
-      version: '0.1-draft',
-      type: 'text',
-      topic: 'Effects',
-      label: 'Anything else',
-      text: 'Is there anything else about {child}’s phone use, their sleep or how it affects them that you would like to tell us?',
-      hint: 'Optional. Please don’t include names or anything that could identify someone else.',
-      maxLength: 500,
     },
   ],
 };
