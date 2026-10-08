@@ -194,7 +194,6 @@ async function inner() {
     await page.getByLabel('Your year group').selectOption('Year 8');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('button', { name: /I’m the parent or carer/ }).click();
-    await page.getByLabel('Your full name', { exact: true }).fill('Priya Patel');
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     ok('no parental-responsibility tick: only a parent or carer fills this in', (await page.getByLabel(/parental responsibility for/).count()) === 0);
     ok('email and phone are folded away until asked for', (await page.getByLabel('Your email address').count()) === 0);
@@ -210,6 +209,8 @@ async function inner() {
     ok('the permission asks nothing about the workshop, record linkage, the screenshots or future contact: no choices to make', (await page.locator('#stmt-link-records-agreed, #stmt-phone-use-agreed, #stmt-recontact-agreed').count()) === 0 && (await page.getByText(/agree to my child taking part/).count()) === 0 && (await page.getByRole('heading', { name: 'Your choices' }).count()) === 0);
     await page.getByLabel(/I confirm all of the above/).check();
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.35, 0.3], [0.55, 0.7], [0.8, 0.4]]);
+    // The parent's name is the one they sign with (it is no longer asked on the details page).
+    await page.getByLabel('Your full name', { exact: true }).fill('Priya Patel');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
     const usageCalls = await page.evaluate(() => window.__usageCalls);
@@ -423,7 +424,6 @@ async function inner() {
     await page.getByLabel('Date of birth', { exact: true }).fill('2012-09-02');
     await page.getByLabel('School', { exact: true }).selectOption('DUA');
     await page.getByLabel('Year group').selectOption('Year 9');
-    await page.getByLabel('Your full name', { exact: true }).fill('Sara Khan');
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     await page.getByLabel('Your home address').fill('22 Park Road, Bradford');
     await page.getByLabel('Postcode').fill('BD7 1AB');
@@ -431,6 +431,8 @@ async function inner() {
     await page.getByLabel(/I confirm all of the above/).check();
     await page.getByRole('button', { name: /I can’t draw my signature/ }).click();
     await page.getByLabel(/Type your full name as your signature/).fill('Sara Khan');
+    // The parent's name is the one they sign with (it is no longer asked on the details page).
+    await page.getByLabel('Your full name', { exact: true }).fill('Sara Khan');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.getByRole('heading', { name: /Can we have Amira’s screen time/ }).waitFor();
@@ -464,7 +466,6 @@ async function inner() {
     await page.getByLabel('Date of birth', { exact: true }).fill('2013-03-14');
     await page.getByLabel('School', { exact: true }).selectOption('GSAL');
     await page.getByLabel('Year group').selectOption('Year 9');
-    await page.getByLabel('Your full name', { exact: true }).fill('Jo Clarke');
     await page.getByLabel('Your relationship to the young person').selectOption('father');
     await page.getByLabel('Your home address').fill('5 Mill Street, Leeds');
     await page.getByLabel('Postcode').fill('LS9 8AB');
@@ -472,6 +473,8 @@ async function inner() {
     await page.getByLabel(/I confirm all of the above/).check();
     await page.getByRole('button', { name: /I can’t draw my signature/ }).click();
     await page.getByLabel(/Type your full name as your signature/).fill('Jo Clarke');
+    // The parent's name is the one they sign with (it is no longer asked on the details page).
+    await page.getByLabel('Your full name', { exact: true }).fill('Jo Clarke');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.locator('#phone-source-child').check();
@@ -549,7 +552,6 @@ async function inner() {
     await page.getByLabel('Last name', { exact: true }).fill('Brown');
     await page.getByLabel('Date of birth', { exact: true }).fill(yearsAgo(14));
     await page.getByLabel('Year group').selectOption('Year 9');
-    await page.getByLabel('Your full name', { exact: true }).fill('Grace Brown');
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     await page.getByLabel('Your home address').fill('9 Hill View, Leeds');
     await page.getByLabel('Postcode').fill('LS2 9JT');
@@ -557,6 +559,8 @@ async function inner() {
     await page.getByRole('heading', { name: /Your permission: Lily’s phone use/ }).waitFor();
     await page.getByLabel(/I confirm all of the above/).check();
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.6]]);
+    // The parent's name is the one they sign with (it is no longer asked on the details page).
+    await page.getByLabel('Your full name', { exact: true }).fill('Grace Brown');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
@@ -1183,7 +1187,6 @@ async function inner() {
     await page.getByLabel('Last name', { exact: true }).fill('Hughes');
     await page.getByLabel('Date of birth', { exact: true }).fill(yearsAgo(13));
     await page.getByLabel('Year group').selectOption('Year 8');
-    await page.getByLabel('Your full name', { exact: true }).fill('Sam Hughes');
     await page.getByLabel('Your relationship to the young person').selectOption('father');
     await page.getByLabel('Your postcode').fill('ls6 1ab');
     await page.getByRole('button', { name: 'Find your address' }).click();
@@ -1203,6 +1206,8 @@ async function inner() {
     await page.getByRole('heading', { name: /Your permission: Mia’s phone use/ }).waitFor();
     await page.getByLabel(/I confirm all of the above/).check();
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.6]]);
+    // The parent's name is the one they sign with (it is no longer asked on the details page).
+    await page.getByLabel('Your full name', { exact: true }).fill('Sam Hughes');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
     await page.getByRole('button', { name: 'Skip these questions' }).click();

@@ -1,3 +1,4 @@
+import { guardianFields } from '../config/fields';
 import { parentMoreForm, parentQuestionsForm } from '../config/questions';
 import { childAssentForm, parentConsentForm } from '../config/statements';
 import type { PlatformId } from '../config/walkthroughs';
@@ -252,7 +253,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, consent: withConsentResponses(state, responses) };
     }
     case 'consent-typed-name':
-      return { ...state, consent: { ...state.consent, typedName: action.name, completedAt: null } };
+      // The name signed with is the parent's name on the record, unless the details page asks for it separately (guardianFields.fullName).
+      return { ...state, consent: { ...state.consent, typedName: action.name, completedAt: null }, ...(guardianFields.fullName.enabled ? {} : { guardian: { ...state.guardian, fullName: action.name } }) };
     case 'consent-signature':
       return { ...state, consent: { ...state.consent, signature: action.signature, completedAt: null } };
     case 'consent-date':

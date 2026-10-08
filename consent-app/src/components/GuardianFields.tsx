@@ -30,7 +30,7 @@ export function GuardianFields({ guardian, update, errors: errs, childName }: Pr
 
   return (
     <div className="mpmb-fields">
-      <TextField id="guardian-name" label={guardianFields.fullName.label} required autoComplete="name" maxLength={limits.name} value={guardian.fullName} onChange={(e) => update({ fullName: e.target.value })} error={errs['guardian-name']} />
+      {guardianFields.fullName.enabled && <TextField id="guardian-name" label={guardianFields.fullName.label} required autoComplete="name" maxLength={limits.name} value={guardian.fullName} onChange={(e) => update({ fullName: e.target.value })} error={errs['guardian-name']} />}
       <SelectField
         id="guardian-relationship"
         label={guardianFields.relationship.label}

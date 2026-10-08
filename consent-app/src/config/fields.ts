@@ -27,7 +27,8 @@ export const childFields = {
 } satisfies Record<string, FieldConfig>;
 
 export const guardianFields = {
-  fullName: { enabled: true, required: true, label: 'Your full name', autocomplete: 'name' },
+  /** Not asked on the details page any more (decided 8 October 2026): the parent's name is the one they sign with, on the permission step. */
+  fullName: { enabled: false, required: false, label: 'Your full name', autocomplete: 'name' },
   relationship: { enabled: true, required: true, label: 'Your relationship to the young person' },
   /** Required with the postcode (decided 7 October 2026): the home address, for linking the young person's records. */
   address: {

@@ -1,3 +1,4 @@
+import { guardianFields } from '../config/fields';
 import { useState } from 'react';
 import { SignaturePad } from '../components/SignaturePad';
 import { StepShell } from '../components/StepShell';
@@ -33,7 +34,7 @@ export function ParentConsent() {
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
   const consent = state.consent;
   const childName = state.identity.firstName.trim() || 'the young person';
-  const nameWarning = consent.typedName && namesLookDifferent(consent.typedName, state.guardian.fullName);
+  const nameWarning = guardianFields.fullName.enabled && consent.typedName && namesLookDifferent(consent.typedName, state.guardian.fullName);
   const age = childAge(state);
   const asked = statementsFor(parentConsentForm, age, study.selfConsentAge);
   const required = asked.filter((s) => s.kind === 'required');
