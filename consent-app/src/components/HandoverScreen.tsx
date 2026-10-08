@@ -15,14 +15,15 @@ import { Icon } from './ui/Icon';
 export function HandoverScreen() {
   const { state, dispatch } = useStore();
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const [noParent, setNoParent] = useState(false);
+  // The young person has chosen to pass this phone to their parent or carer, rather than send them a link.
+  const [passing, setPassing] = useState(false);
   const handover = state.handover;
 
   useEffect(() => {
     document.title = 'Pass the phone – MyPhone/MyBrain';
     window.scrollTo({ top: 0, behavior: 'auto' });
     headingRef.current?.focus({ preventScroll: true });
-  }, [handover]);
+  }, [handover, passing]);
 
   if (!handover) return null;
 
@@ -70,6 +71,37 @@ export function HandoverScreen() {
     );
   }
 
+  // An under-16 who started the form has entered their details and their parent or carer's part comes next. The parent may not be there, so
+  // passing them this phone and sending them a link are offered side by side (decided 8 October 2026).
+  const youngRouteChoice = state.route === 'young' && toParent && handover.nextStep === 'parent-details' && !state.consent.completedAt;
+  if (youngRouteChoice && !passing) {
+    return (
+      <section className="mpmb-handover mpmb-handover--young" aria-labelledby="mpmb-handover-title">
+        <div className="mpmb-handover__icon" aria-hidden="true">
+          <Icon name="parent" size={44} />
+        </div>
+        <p className="mpmb-kicker mpmb-kicker--onhandover">Your parent or carer’s turn</p>
+        <h1 className="mpmb-h1 mpmb-handover__title" id="mpmb-handover-title" tabIndex={-1} ref={headingRef}>
+          Now your parent or carer does their part.
+        </h1>
+        <div className="mpmb-handover__body">
+          <p>You’re under 16, so your parent or carer says yes or no first. It takes them about five minutes. Then it’s your turn.</p>
+        </div>
+        <div className="mpmb-handover__actions">
+          <Button variant="primary" arrow onClick={() => setPassing(true)}>
+            They’re with me: pass them this phone
+          </Button>
+        </div>
+        <ParentLinkPanel />
+        <div className="mpmb-handover__actions">
+          <Button variant="link" className="mpmb-btn--onhandover" onClick={() => dispatch({ type: 'cancel-handover' })}>
+            ← Go back
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className={`mpmb-handover mpmb-handover--${handover.to}`} aria-labelledby="mpmb-handover-title">
       <div className="mpmb-handover__icon" aria-hidden="true">
@@ -97,12 +129,6 @@ export function HandoverScreen() {
             </p>
           )}
           {handover.nextStep !== 'parent-more' && <p>You will be asked to answer each permission separately and to sign with your finger.</p>}
-          {state.route === 'young' && !noParent && (
-            <p className="mpmb-handover__note">
-              <strong>For {childName}:</strong> not with your parent or carer now? Please don’t fill in their part for them: tap “My parent or carer isn’t here”.
-            </p>
-          )}
-          {state.route === 'young' && noParent && <ParentLinkPanel tone="dark" />}
         </div>
       ) : (
         <div className="mpmb-handover__body">
@@ -134,12 +160,7 @@ export function HandoverScreen() {
         <Button variant="primary" arrow onClick={() => dispatch({ type: 'confirm-handover' })}>
           {toParent ? 'I’m the parent or carer — continue' : `I’m ${childName} — continue`}
         </Button>
-        {toParent && state.route === 'young' && !noParent && (
-          <Button variant="ghost" onClick={() => setNoParent(true)}>
-            My parent or carer isn’t here
-          </Button>
-        )}
-        <Button variant="link" className="mpmb-btn--onhandover" onClick={() => dispatch({ type: 'cancel-handover' })}>
+        <Button variant="link" className="mpmb-btn--onhandover" onClick={() => (passing ? setPassing(false) : dispatch({ type: 'cancel-handover' }))}>
           ← Go back
         </Button>
       </div>

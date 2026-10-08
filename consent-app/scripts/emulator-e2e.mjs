@@ -193,6 +193,11 @@ async function inner() {
     ok('the year group is required, and not marked optional', !(await page.locator('label[for="child-year-group"]').textContent()).includes('optional'));
     await page.getByLabel('Your year group').selectOption('Year 8');
     await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: /Now your parent or carer does their part/ }).waitFor();
+    const parentLink = page.getByRole('region', { name: 'Send your parent or carer a link' });
+    const parentWhatsApp = decodeURIComponent((await parentLink.getByRole('link', { name: 'WhatsApp' }).getAttribute('href')) ?? '');
+    ok('a young person under 16 can pass this phone to their parent or send them a link, both shown at once', (await page.getByRole('button', { name: /They’re with me: pass them this phone/ }).count()) === 1 && /\?who=parent/.test(parentWhatsApp) && parentWhatsApp.includes('University of Leeds') && (await parentLink.getByRole('link', { name: 'Text message' }).count()) === 1 && (await parentLink.getByRole('link', { name: 'Email' }).count()) === 1, parentWhatsApp);
+    await page.getByRole('button', { name: /They’re with me: pass them this phone/ }).click();
     await page.getByRole('button', { name: /I’m the parent or carer/ }).click();
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     ok('no parental-responsibility tick: only a parent or carer fills this in', (await page.getByLabel(/parental responsibility for/).count()) === 0);
