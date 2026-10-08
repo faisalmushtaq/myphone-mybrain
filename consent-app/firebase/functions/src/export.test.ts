@@ -34,7 +34,7 @@ test('labels, ages and file names follow the BIDS pattern', () => {
 test('participants.tsv holds only consenting participants, de-identified, with age at consent and screenshot counts', () => {
   const snap = empty();
   snap.participants = [
-    { id: 'p1', data: { kind: 'consent', firstName: 'Kai', lastName: 'Patel', dateOfBirth: '2013-03-14', schoolId: 'BRD-001', yearGroup: 'Year 8', studyNumber: 1 } },
+    { id: 'p1', data: { kind: 'consent', referenceCode: 'MPMB-AAAA-AAA', firstName: 'Kai', lastName: 'Patel', dateOfBirth: '2013-03-14', schoolId: 'BRD-001', yearGroup: 'Year 8', studyNumber: 1, guardian: { fullName: 'Asha Patel', relationship: 'mother', address: '14 Long Lane, Leeds', postcode: 'LS6 1AB', uprn: '72000014', email: null, phone: '07700 900123' } } },
     { id: 'p2', data: { kind: 'declined', firstName: 'Sam', lastName: 'Lee' } },
   ];
   snap.labels = new Map([['p1', 'sub-00001']]);
@@ -55,6 +55,12 @@ test('participants.tsv holds only consenting participants, de-identified, with a
   const key = participantsKey(snap);
   assert.equal(key[0].participant_id, 'sub-00001');
   assert.equal(key[0].first_name, 'Kai');
+  // Everything needed to match a family to the workshop's records sits on one row, with the label that joins it to their answers.
+  assert.deepEqual(
+    [key[0].reference_code, key[0].last_name, key[0].date_of_birth, key[0].school_id, key[0].year_group, key[0].guardian_name, key[0].relationship, key[0].address, key[0].postcode, key[0].uprn, key[0].phone],
+    ['MPMB-AAAA-AAA', 'Patel', '2013-03-14', 'BRD-001', 'Year 8', 'Asha Patel', 'mother', '14 Long Lane, Leeds', 'LS6 1AB', '72000014', '07700 900123'],
+  );
+  assert.ok(!JSON.stringify(rows).includes('Long Lane') && !JSON.stringify(rows).includes('72000014'), 'the address and UPRN stay out of the research dataset');
   assert.equal(key[1].participant_id, null, 'declined families have no label');
 });
 
