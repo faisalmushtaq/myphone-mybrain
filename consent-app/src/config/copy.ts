@@ -99,7 +99,7 @@ export const parentInformation: InfoSection[] = [
     summary: 'Separate from this form: every young person in the classes taking part is invited, unless a parent or carer opts them out by email.',
     detail: [
       'In the workshop, young people wear a lightweight headset that records brain activity (EEG) while they do simple tasks on a computer. It doesn’t hurt, and they can stop at any time.',
-      'As part of the same study, information about young people who take part may be linked, through Connected West Yorkshire, with records already held about them (NHS health records and education records such as attendance and results), using a code rather than a name and only with the approvals in place.',
+      'As part of the same study, information about young people who take part may be linked, through Connected West Yorkshire, with records already held about them (NHS health records, and education records such as attendance and results, held by the Department for Education), using a code rather than a name and only with the approvals in place.',
       'To opt your child out of the workshop, and so out of the linking, a parent or carer emails the team: see “Opt out of the workshop” at the start of this form. This form does not change anything about the workshop.',
     ],
     draft: true, // PLACEHOLDER — confirm the wording, the approvals and their references with the governance team

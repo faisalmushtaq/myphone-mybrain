@@ -28,7 +28,8 @@ export interface LabStatement {
 
 export const labConsentForm: { id: string; version: string; title: string; statements: LabStatement[] } = {
   id: 'mpmb-lab-consent',
-  version: '2.0-draft',
+  // 2.1: "data-kept" covers machine learning, "link-records" names the Department for Education (8 October 2026).
+  version: '2.1-draft',
   title: 'Participant consent form',
   statements: [
     { id: 'read-information', version: '1.0', kind: 'required', label: 'Read the information', text: 'I confirm that I have read and understood the Participant Information Sheet.' },
@@ -42,10 +43,10 @@ export const labConsentForm: { id: string; version: string; title: string; state
     { id: 'voluntary', version: '1.0', kind: 'required', label: 'Voluntary', text: 'I understand that participation is voluntary and that I may withdraw at any time without giving a reason.' },
     {
       id: 'data-kept',
-      version: '0.1-draft',
+      version: '0.2-draft',
       kind: 'required',
       label: 'What I send is kept unless I withdraw',
-      text: 'I understand that everything I send, including screen-time screenshots, cleaned data files and questionnaire answers, is kept and may be used in the research even if I do not finish the study. Stopping, or not coming back, does not remove it. To have it removed, I must contact the research team and ask to withdraw, within one month of my final session.',
+      text: 'I understand that everything I send, including screen-time screenshots, cleaned data files and questionnaire answers, is kept and may be used in the research, including analysis using machine learning (computers finding patterns in data), even if I do not finish the study. Stopping, or not coming back, does not remove it. To have it removed, I must contact the research team and ask to withdraw, within one month of my final session.',
       draft: 'Draft wording, to be confirmed with the ethics committee. It matches the information sheet: removal of identifiable data can be requested within one month of the final session.',
     },
     {
@@ -59,10 +60,10 @@ export const labConsentForm: { id: string; version: string; title: string; state
     { id: 'data-protection', version: '1.0', kind: 'required', label: 'Data protection', text: 'I understand that my data will be stored securely and handled in accordance with UK data protection legislation.' },
     {
       id: 'link-records',
-      version: '0.1-draft',
+      version: '0.2-draft',
       kind: 'optional',
       label: 'Linking with records already held',
-      text: 'My study information may be linked, through Connected West Yorkshire, with records already held about me: NHS health records, education records, and other routinely collected records.',
+      text: 'My study information may be linked, through Connected West Yorkshire, with records already held about me: NHS health records, education records (including those held by the Department for Education), and other routinely collected records.',
       note: 'Optional: you can take part without this. Linking means adding information from records that already exist, so the study can look at longer-term patterns in health, learning and wellbeing. It happens only with the approvals in place (the study’s ethics approval, NHS Research Ethics Committee approval for NHS records, permission from each record holder, and Connected West Yorkshire’s own data access process). Linked information is labelled with your participant ID, not your name.',
       draft: 'Draft wording, to be confirmed with the governance team, matching the approval held for the schools study.',
     },
@@ -164,7 +165,7 @@ export const labInformation: LabInfoSection[] = [
     title: 'Confidentiality and data protection',
     summary: 'The University of Leeds is the data controller. Research data are labelled with a study ID code and reported only in group form.',
     detail: [
-      'The University of Leeds acts as the Data Controller for this research. Identifiable information will be stored separately from research data. Data will be labelled using a study ID code rather than your name. Results will be analysed and reported anonymously at the group level. Anonymised findings may be published in academic journals, conference presentations, reports, or academic theses.',
+      'The University of Leeds acts as the Data Controller for this research. Identifiable information will be stored separately from research data. Data will be labelled using a study ID code rather than your name. Results will be analysed, including with machine learning (computers finding patterns in data), and reported anonymously at the group level. Anonymised findings may be published in academic journals, conference presentations, reports, or academic theses.',
       'You may request removal of your identifiable research data within one month after your final session. After this period, your data may have been anonymised, making it impossible to identify and remove your individual data.',
       'The University Research Participant Privacy Notice is available from the University of Leeds. This study has received ethical approval from the University of Leeds School of Psychology Research Ethics Committee (ethics reference SoPREC 4202).',
     ],

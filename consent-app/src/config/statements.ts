@@ -58,7 +58,8 @@ export const parentConsentForm: StatementForm = {
   id: 'mpmb-parent-consent',
   // 0.7: no optional choices (7 October 2026). Sharing the screen time is the parent's answer on the "where from" step; recontact is gone.
   // 0.8: the same statements in very plain English, for parents with little time or reading confidence (8 October 2026).
-  version: '0.8-draft', // PLACEHOLDER — ethics-approved version identifier
+  // 0.9: "My answers" also covers linking with Department for Education records and machine learning (8 October 2026).
+  version: '0.9-draft', // PLACEHOLDER — ethics-approved version identifier
   title: 'Parent or carer permission',
   statements: [
     {
@@ -71,10 +72,10 @@ export const parentConsentForm: StatementForm = {
     },
     {
       id: 'answers',
-      version: '0.2-draft',
+      version: '0.3-draft',
       kind: 'required',
       label: 'My answers',
-      text: 'My answers about my child’s phone use can be used in the study, with a code instead of a name.',
+      text: 'My answers about my child’s phone use can be used in the study, with a code instead of a name. This includes linking them with my child’s education records from the Department for Education, and research using machine learning (computers finding patterns in data).',
       draft: true,
     },
     {
@@ -98,15 +99,16 @@ export const parentConsentForm: StatementForm = {
 
 export const childAssentForm: StatementForm = {
   id: 'mpmb-child-assent',
-  version: '0.5-draft', // PLACEHOLDER — ethics-approved version identifier
+  // 0.6: "understand" also covers linking with Department for Education records and machine learning (8 October 2026).
+  version: '0.6-draft', // PLACEHOLDER — ethics-approved version identifier
   title: 'Young person’s agreement',
   statements: [
     {
       id: 'understand',
-      version: '0.4-draft',
+      version: '0.5-draft',
       kind: 'required',
       label: 'Understanding what sharing means',
-      text: 'I know what sharing my screen time means, and I can ask questions.',
+      text: 'I know what sharing my screen time means: it can be linked with my school records from the Department for Education, and studied using machine learning (computers finding patterns in data). I can ask questions.',
       coveredBySignature: true,
       draft: true,
     },

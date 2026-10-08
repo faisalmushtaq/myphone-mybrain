@@ -21,11 +21,11 @@ function valid(): ConsentPayload {
     guardian: { fullName: 'Priya Patel', relationship: 'mother', relationshipOther: '', address: '1 Long Lane, Leeds', postcode: 'LS6 1AB', email: '', phone: '' },
     consent: {
       formId: 'mpmb-parent-consent',
-      formVersion: '0.8-draft',
+      formVersion: '0.9-draft',
       informationVersion: '0.6-draft',
       responses: {
         'read-information': r('read-information', 'agreed', 'group', '0.5-draft'),
-        answers: r('answers', 'agreed', 'group', '0.2-draft'),
+        answers: r('answers', 'agreed', 'group', '0.3-draft'),
         'understand-withdraw': r('understand-withdraw', 'agreed', 'group', '0.5-draft'),
         'records-checked': r('records-checked', 'agreed', 'group', '0.4-draft'),
       },
@@ -37,10 +37,10 @@ function valid(): ConsentPayload {
     },
     assent: {
       formId: 'mpmb-child-assent',
-      formVersion: '0.5-draft',
+      formVersion: '0.6-draft',
       status: 'completed',
       deferredBy: null,
-      responses: { understand: r('understand', 'agreed', 'signature', '0.4-draft'), 'can-stop': r('can-stop', 'agreed', 'signature'), 'take-part': r('take-part', 'agreed', 'signature', '0.4-draft') },
+      responses: { understand: r('understand', 'agreed', 'signature', '0.5-draft'), 'can-stop': r('can-stop', 'agreed', 'signature'), 'take-part': r('take-part', 'agreed', 'signature', '0.4-draft') },
       signature,
       handoverConfirmedAt: now,
       startedAt: now,
@@ -60,7 +60,7 @@ function valid(): ConsentPayload {
   };
 }
 
-const notAsked = (): ConsentPayload['assent'] => ({ formId: 'mpmb-child-assent', formVersion: '0.5-draft', status: 'not-started', deferredBy: null, responses: {}, signature: null, handoverConfirmedAt: null, startedAt: null, completedAt: null });
+const notAsked = (): ConsentPayload['assent'] => ({ formId: 'mpmb-child-assent', formVersion: '0.6-draft', status: 'not-started', deferredBy: null, responses: {}, signature: null, handoverConfirmedAt: null, startedAt: null, completedAt: null });
 
 function validDonation(): DonationPayload {
   return {

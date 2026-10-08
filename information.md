@@ -140,7 +140,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <div class="info-fold__body">
     <p class="section-subheading">For young people who take part in the workshop, the study links their information with records that already exist about them, to look at longer-term patterns in learning, health and wellbeing.</p>
     <div class="prose">
-      <p>The records are education records, such as attendance and results, and NHS health records. The linking is done through Connected West Yorkshire, using your child’s Unique Pupil Number, which the school gives us, and only with the approvals in place.</p>
+      <p>The records are education records, such as attendance and results, held by the Department for Education, and NHS health records. The linking is done through Connected West Yorkshire, using your child’s Unique Pupil Number, which the school gives us, and only with the approvals in place.</p>
       <p>It happens inside a secure research environment: names and other details that identify someone directly are removed before researchers see anything, the analysis stays inside that environment, and only results about groups of people come out. Linking is part of the workshop, so opting out of the workshop also opts your child out of linking.</p>
     </div>
       </div>
@@ -149,7 +149,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <details class="info-fold" id="information">
       <summary><h2>What happens to your child’s information</h2></summary>
       <div class="info-fold__body">
-    <p class="section-subheading">It is kept securely by the University of Leeds, labelled with a study code instead of a name, and used only for research.</p>
+    <p class="section-subheading">It is kept securely by the University of Leeds, labelled with a study code instead of a name, and used only for research, including research using machine learning (computers finding patterns in data).</p>
     <div class="info-panel">
       <ul class="info-checklist">
         <li><strong>What is collected:</strong> at the workshop, the EEG recording, the computer task and the questionnaire answers. From the school, your child’s name, date of birth, year group, class and Unique Pupil Number, so that their information can be matched and linked. If you use the online form, the details and answers you give there, and any screenshots.</li>

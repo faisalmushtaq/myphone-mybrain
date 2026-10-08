@@ -6,9 +6,9 @@ import { mayAddTo, normaliseReference, resumeSummary, validateLateAgreement } fr
 const now = new Date().toISOString();
 const signature = { method: 'drawn' as const, imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=', typedName: null, strokeCount: 2, pointerType: 'touch', capturedAt: now };
 const r = (statementId: string, response: 'agreed' | 'declined', via: 'individual' | 'signature', version: string) => ({ statementId, version, response, respondedAt: now, via });
-const signed = { understand: r('understand', 'agreed', 'signature', '0.4-draft'), 'can-stop': r('can-stop', 'agreed', 'signature', '0.3-draft'), 'take-part': r('take-part', 'agreed', 'signature', '0.4-draft') };
+const signed = { understand: r('understand', 'agreed', 'signature', '0.5-draft'), 'can-stop': r('can-stop', 'agreed', 'signature', '0.3-draft'), 'take-part': r('take-part', 'agreed', 'signature', '0.4-draft') };
 const client = { userAgent: 'test', submittedAt: now, timezoneOffset: 0 };
-const yes = { referenceCode: 'MPMB-ABCD-EF2', assent: { formId: 'mpmb-child-assent', formVersion: '0.5-draft', status: 'completed', responses: signed, signature, startedAt: now, completedAt: now }, client };
+const yes = { referenceCode: 'MPMB-ABCD-EF2', assent: { formId: 'mpmb-child-assent', formVersion: '0.6-draft', status: 'completed', responses: signed, signature, startedAt: now, completedAt: now }, client };
 
 test('a reference as typed: case, spaces and dashes do not matter; anything else is refused', () => {
   assert.equal(normaliseReference('MPMB-ABCD-EF2'), 'MPMB-ABCD-EF2');
@@ -51,7 +51,7 @@ test('the young person’s answer given later: a signed yes, or a no', () => {
   assert.deepEqual(validateLateAgreement(no), []);
   assert.match(validateLateAgreement({ ...yes, assent: { ...yes.assent, status: 'deferred' } }).join(' '), /answer is missing/, 'putting it off again sends nothing');
   assert.match(validateLateAgreement({ ...yes, assent: { ...yes.assent, signature: null } }).join(' '), /signature/i);
-  assert.match(validateLateAgreement({ ...yes, assent: { ...yes.assent, formVersion: '0.4-draft' } }).join(' '), /must be mpmb-child-assent 0\.5-draft/);
+  assert.match(validateLateAgreement({ ...yes, assent: { ...yes.assent, formVersion: '0.4-draft' } }).join(' '), /must be mpmb-child-assent 0\.6-draft/);
   assert.match(validateLateAgreement({ ...no, assent: { ...no.assent, responses: {} } }).join(' '), /record the young person’s no/);
   assert.match(validateLateAgreement({ ...yes, referenceCode: 'nope' }).join(' '), /reference is malformed/);
   assert.match(validateLateAgreement({ ...yes, client: null }).join(' '), /Client information/);
