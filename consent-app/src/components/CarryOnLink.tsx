@@ -15,7 +15,10 @@ export function CarryOnLink({ referenceCode, childName, forYoung = false }: { re
   const [status, setStatus] = useState<'idle' | 'copied' | 'shared' | 'failed'>('idle');
   const url = finishLink(referenceCode, forYoung);
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
-  const message = forYoung ? `Hi ${childName}! Your part of MyPhone/MyBrain is ready. Tap the link and type your birthday:` : `To finish ${childName}’s screen time for MyPhone/MyBrain (it asks for their date of birth):`;
+  // Sent by the parent, so written in their voice, and saying what the study is: the young person may not have heard of it.
+  const message = forYoung
+    ? `Hi ${childName}! Your school is taking part in MyPhone/MyBrain, a University of Leeds study about how young people use their phones. I’ve filled in my part. If you want to, you can share your phone’s screen time with them: it’s your choice. Tap the link and type your birthday to see what it means:`
+    : `To finish ${childName}’s screen time for MyPhone/MyBrain (it asks for their date of birth):`;
   const text = `${message} ${url}`;
 
   const share = async () => {

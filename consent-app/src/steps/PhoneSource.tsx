@@ -37,7 +37,7 @@ export function PhoneSource() {
       value: 'child',
       title: `Yes, from ${childName}’s phone`,
       body: parentRoute
-        ? `${childName} sends the screenshots from their own phone, if they want to: it is their choice. Do this when ${childName} is with you.`
+        ? `${childName} sends the screenshots from their own phone, if they want to: it is their choice. You send them a link next; they don’t need to be with you.`
         : `${childName} sends the screenshots from this phone next, if they want to: it is their choice.`,
     },
     {

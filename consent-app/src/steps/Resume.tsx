@@ -115,7 +115,12 @@ export function Resume() {
       <StepShell
         kicker="Your part"
         title="Hi! It’s your turn."
-        intro={<p>Your parent or carer has done their part. Type your birthday so we know it’s you. Then you decide whether to share your screen time.</p>}
+        intro={
+          <>
+            <p>MyPhone/MyBrain is a University of Leeds study at your school, about how young people use their phones. Your parent or carer has done their part.</p>
+            <p>Type your birthday so we know it’s you. Then you decide whether to share your screen time. It’s up to you.</p>
+          </>
+        }
         errors={errors}
         onContinue={() => void find()}
         continueLabel="Carry on"

@@ -472,11 +472,13 @@ async function inner() {
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.locator('#phone-source-child').check();
     await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('button', { name: 'Noah isn’t here' }).click();
+    // Young people are rarely beside their parent: the link comes first, passing the phone second.
+    await page.getByRole('heading', { name: 'Now send Noah their link.' }).waitFor({ timeout: 30000 });
+    ok('after the parent’s part, sending Noah his link comes first; passing the phone is the second option', (await page.getByRole('button', { name: 'Noah is with me: pass them this phone' }).count()) === 1);
     await page.locator('.mpmb-handover__link .mpmb-carryon__url').waitFor({ timeout: 60000 });
     const handoverLink = (await page.locator('.mpmb-handover__link .mpmb-carryon__url').innerText()).trim();
-    ok('when Noah isn’t there, the handover offers a link to send him, to do his part on his own phone, by WhatsApp, text, email or copy', /\?finish=MPMB-.*&for=young$/.test(handoverLink) && (await page.getByRole('link', { name: 'WhatsApp' }).count()) === 1 && (await page.getByRole('link', { name: 'Text message' }).count()) === 1 && (await page.getByRole('button', { name: 'Copy the link' }).count()) === 1);
-    await page.getByRole('button', { name: 'Finish my part' }).click();
+    ok('the handover gives a link to send Noah, to do his part on his own phone, by WhatsApp, text, email or copy', /\?finish=MPMB-.*&for=young$/.test(handoverLink) && (await page.getByRole('link', { name: 'WhatsApp' }).count()) === 1 && (await page.getByRole('link', { name: 'Text message' }).count()) === 1 && (await page.getByRole('button', { name: 'Copy the link' }).count()) === 1);
+    await page.getByRole('button', { name: 'I’ve sent it: finish my part' }).click();
     await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
     ok('no longer questions for the parent instead: Noah can still do his part with the link', (await page.getByText(/Some more questions about Noah/).count()) === 0);
     await page.locator('.mpmb-save', { hasText: 'Everything so far is saved.' }).waitFor({ timeout: 60000 });
