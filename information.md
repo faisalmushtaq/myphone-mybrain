@@ -130,7 +130,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     </div>
     <div class="prose">
       <p>If the screen time isn’t shared, we ask the parent or carer a few more questions about their child’s phone use instead. On the form, a parent or carer gives their name, their relationship to the young person and their home address and postcode, so that records can be matched correctly; an email address and phone number are optional. What you give is saved from the moment you sign, so it counts even if you can’t finish, and you can finish later with the reference on your thank-you page.</p>
-      <p><a class="text-link" href="{{ '/take-part/consent/?who=parent' | relative_url }}">Share screen time online &nbsp;→</a></p>
+      <p><a class="text-link" href="{{ '/take-part/consent/?who=parent' | relative_url }}">Start now &nbsp;→</a></p>
     </div>
       </div>
     </details>
