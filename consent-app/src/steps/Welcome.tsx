@@ -84,7 +84,7 @@ export function Welcome() {
           </li>
           <li>
             <Icon name="shield" size={20} />
-            <span>We ask for your name, birthday and school, and keep them locked away, apart from your screenshots.</span>
+            <span>We ask for your name, birthday and school, and keep them locked away, separate from your screenshots.</span>
           </li>
         </ul>
         <div className="mpmb-actions">
