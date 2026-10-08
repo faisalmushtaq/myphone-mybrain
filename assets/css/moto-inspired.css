@@ -134,6 +134,27 @@ p { max-width: 70ch; }
 .section-subheading { margin-top: .9rem; }
 /* The information sheet (/information/): contents, the two choices, and a clear break between topics. */
 .info-sheet [id] { scroll-margin-top: calc(var(--nav-h) + 1rem); }
+.info-sheet__start .participant-next-step { margin-top: 1.25rem; }
+.section.info-sheet { padding-top: clamp(1.75rem, 4vw, 3rem); }
+.info-sheet__start .section-subheading { margin-top: 0; }
+.participant-next-step__optout { margin: 1.25rem 0 0; font-size: .95rem; }
+.info-sheet__start .participant-next-step .btn + p { margin-top: 1rem; }
+.participant-next-step__optout a { color: var(--mpb-teal); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+/* The information sheet's sections, folded: one tappable heading each (8 October 2026). */
+.participant-info-section .narrow-content > .info-sheet__more-heading { margin-top: clamp(2.5rem, 6vw, 3.5rem); color: var(--mpb-teal); font-size: clamp(1.4rem, 2.6vw, 1.8rem); }
+.participant-info-section .narrow-content > .info-sheet__more-hint { margin-top: .35rem; color: #365d62; }
+.participant-info-section .narrow-content > .info-fold { margin-top: 0; }
+.participant-info-section .narrow-content > .info-sheet__more-hint + .info-fold { margin-top: 1rem; }
+.info-fold { border-top: 1px solid #c8ddda; }
+.info-fold:last-of-type { border-bottom: 1px solid #c8ddda; }
+.info-fold > summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem .25rem; cursor: pointer; list-style: none; min-height: 48px; }
+.info-fold > summary::-webkit-details-marker { display: none; }
+.info-fold > summary h2 { margin: 0; font-size: clamp(1.1rem, 2.2vw, 1.3rem); line-height: 1.3; color: var(--mpb-teal); }
+.info-fold > summary::after { content: '+'; flex: none; width: 1.9rem; height: 1.9rem; border-radius: 50%; background: var(--mpb-mist); color: var(--mpb-teal); font-size: 1.35rem; font-weight: 700; line-height: 1.9rem; text-align: center; }
+.info-fold[open] > summary::after { content: '−'; }
+.info-fold > summary:focus-visible { outline: 3px solid var(--mpb-teal); outline-offset: 2px; }
+.info-fold__body { padding: 0 .25rem 2rem; }
+.info-fold__body > * + * { margin-top: 1.25rem; }
 .info-sheet__contents { padding: 1.1rem 1.25rem; border-left: 4px solid var(--mpb-yellow); background: #fff; }
 .info-sheet__contents p { margin: 0 0 .55rem; color: var(--mpb-teal); font-family: var(--f-mono); font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; }
 .info-sheet__contents ol { display: flex; flex-wrap: wrap; gap: .45rem 1.25rem; margin: 0; padding: 0; list-style: none; }

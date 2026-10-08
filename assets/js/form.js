@@ -203,3 +203,31 @@ document.addEventListener('click', async (e) => {
     if (status) status.textContent = 'Your browser did not allow copying. The text is selected: copy it yourself.';
   }
 });
+
+/* ── Folded sections (the information sheet) ─────────────────
+   A link to a section folded inside <details> (for example /information/#opting-out,
+   from another page or from within the page) opens it and scrolls to it. */
+(() => {
+  const openTarget = () => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    const target = id && document.getElementById(id);
+    if (!target) return;
+    let el = target;
+    let opened = false;
+    while (el) {
+      if (el.tagName === 'DETAILS' && !el.open) {
+        el.open = true;
+        opened = true;
+      }
+      el = el.parentElement;
+    }
+    if (opened) target.scrollIntoView({ block: 'start' });
+  };
+  window.addEventListener('hashchange', openTarget);
+  openTarget();
+  // A link to the section already in the address bar does not change the hash: open it anyway.
+  document.addEventListener('click', (e) => {
+    const a = e.target instanceof Element ? e.target.closest('a[href^="#"]') : null;
+    if (a && a.getAttribute('href') === window.location.hash) window.setTimeout(openTarget, 0);
+  });
+})();

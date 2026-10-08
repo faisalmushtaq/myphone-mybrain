@@ -3,47 +3,41 @@ layout: default
 title: "Information sheet | MyPhone/MyBrain"
 description: "The information sheet for parents, carers and young people at schools taking part in MyPhone/MyBrain: what happens at the workshop, how taking part and opting out work, sharing screen time, linking with records, and what happens to your child’s information."
 permalink: /information/
-title_main: "Information sheet"
+title_main: "Information"
 title_accent: "for parents and carers."
-page_intro: "You’re reading this because your child’s school is taking part in MyPhone/MyBrain, a University of Leeds study to understand the impact of smartphones on our brain health and wellbeing. Here is what happens, how taking part and opting out work, and what happens to your child’s information. Please read it with your child if you can."
+page_intro: "You’re reading this because your child’s school is taking part in MyPhone/MyBrain, a University of Leeds study to understand the impact of smartphones on our brain health and wellbeing."
 ---
 
 {% include page_hero.html %}
 
-<!-- The participant information sheet approved with the ethics application (SoPREC 4202), on the web, brought up to date with the consent process decided on 7 October 2026: the workshop and linking are opt-out by email, screen time is opt-in online. consent-app/docs/content-placeholders.md lists what differs from the approved documents, for the master ethics update. -->
+<!-- The participant information sheet approved with the ethics application (SoPREC 4202), on the web, brought up to date with the consent process decided on 7 October 2026: the workshop and linking are opt-out by email, screen time is opt-in online. Since 8 October 2026 every section is folded away, so the only thing open is the box saying what to do. consent-app/docs/content-placeholders.md lists what differs from the approved documents, for the master ethics update. -->
 <section class="section participant-info-section info-sheet">
   <div class="container narrow-content">
-    <h2 id="about">About the study.</h2>
+    <div class="info-sheet__start">
+      <div class="participant-next-step" id="share">
+        <h3>What we need from you: share your child’s screen time.</h3>
+        <a class="btn btn-primary" href="{{ '/take-part/consent/?who=parent' | relative_url }}">Share screen time online &nbsp;→</a>
+        <p>Five minutes online: a few questions about your child’s phone and, if you are happy to, their screen time. Please do it as soon as you can. Nothing else is needed: your child is already invited to the workshop.</p>
+        <a class="text-link" href="{{ '/take-part/consent/?finish' | relative_url }}">Started already? Finish with your reference &nbsp;→</a>
+        <p class="participant-next-step__optout">Don’t want your child to take part? <a href="#opting-out">How to opt out</a></p>
+      </div>
+    </div>
+
+    <h2 class="info-sheet__more-heading">Want to know more?</h2>
+    <p class="info-sheet__more-hint">Tap a heading to read it.</p>
+    <details class="info-fold" id="about">
+      <summary><h2>About the study</h2></summary>
+      <div class="info-fold__body">
     <p class="section-subheading">We are researchers from the University of Leeds. We are visiting your child’s school to run a two-hour neuroscience workshop, during normal school hours, as part of a research study.</p>
     <div class="prose">
       <p>MyPhone/MyBrain looks at how young people’s phones and digital lives relate to brain development, attention, learning and wellbeing as they grow up. In the workshop, young people learn how the brain works and how scientists study it, and can take part in a short, safe brain recording, a simple computer task and some questionnaires.</p>
-      <p><strong>What we need from you:</strong> a few minutes online. You answer a few questions about your child’s phone habits and, if you are happy to, share screenshots of their screen time, which show which apps they use and for how long. It is the most useful thing you can do for the study. You don’t need to do anything for your child to take part in the workshop.</p>
     </div>
+      </div>
+    </details>
 
-    <div class="participant-next-step" id="share">
-      <h3>Share your child’s screen time.</h3>
-      <p>Online, in about five minutes. Please do it as soon as you can.</p>
-      <a class="btn btn-primary" href="{{ '/take-part/consent/?who=parent' | relative_url }}">Share screen time online &nbsp;→</a>
-      <a class="text-link" href="{{ '/take-part/consent/?finish' | relative_url }}">Started already? Finish with your reference &nbsp;→</a>
-    </div>
-
-    <nav class="info-sheet__contents" aria-label="On this page">
-      <p>On this page</p>
-      <ol>
-        <li><a href="#taking-part">How taking part works</a></li>
-        <li><a href="#workshop">The workshop</a></li>
-        <li><a href="#safety">Safety and preparing</a></li>
-        <li><a href="#screen-time">Screen time and phone habits</a></li>
-        <li><a href="#linking">Linking with records</a></li>
-        <li><a href="#information">Your child’s information</a></li>
-        <li><a href="#more">More about the study</a></li>
-        <li><a href="#changing-your-mind">Changing your mind</a></li>
-        <li><a href="#opting-out">Opting out</a></li>
-        <li><a href="#questions">Questions and approval</a></li>
-      </ol>
-    </nav>
-
-    <h2 id="taking-part">How taking part works.</h2>
+    <details class="info-fold" id="taking-part">
+      <summary><h2>How taking part works</h2></summary>
+      <div class="info-fold__body">
     <p class="section-subheading">There are two separate choices: the workshop at school, which is opt-out, and which your child can still say no to on the day; and your answers about their screen time and phone habits, which are opt-in.</p>
     <ol class="consent-routes" role="list">
       <li class="consent-route">
@@ -62,7 +56,12 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <a class="text-link" href="#screen-time">More about screen time and phone habits &nbsp;→</a>
       </li>
     </ol>
-    <h2 id="workshop">What happens at the workshop.</h2>
+      </div>
+    </details>
+
+    <details class="info-fold" id="workshop">
+      <summary><h2>What happens at the workshop</h2></summary>
+      <div class="info-fold__body">
     <p class="section-subheading">About two hours, at school, during the school day, in a group of up to 30 young people, with at least two researchers.</p>
     <figure class="section-photo-banner section-photo-banner--short illustration-banner">
       <img src="{{ '/assets/images/silhouettes/study.jpg' | relative_url }}" alt="Simple silhouettes of a young person wearing an EEG headset and a researcher during a workshop" loading="lazy">
@@ -84,8 +83,12 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <p>EEG cannot read thoughts, feelings or personality, and the study does not diagnose anything. It is a research tool, not a medical test, and nobody receives individual results.</p>
       </div>
     </div>
+      </div>
+    </details>
 
-    <h2 id="safety">Safety and preparing.</h2>
+    <details class="info-fold" id="safety">
+      <summary><h2>Safety and preparing</h2></summary>
+      <div class="info-fold__body">
     <p class="section-subheading">EEG is safe, painless and non-invasive, and is widely used in research.</p>
     <div class="participant-info-grid">
       <div class="info-panel">
@@ -107,8 +110,12 @@ page_intro: "You’re reading this because your child’s school is taking part 
         </ul>
       </div>
     </div>
+      </div>
+    </details>
 
-    <h2 id="screen-time">Screen time and phone habits.</h2>
+    <details class="info-fold" id="screen-time">
+      <summary><h2>Screen time and phone habits</h2></summary>
+      <div class="info-fold__body">
     <p class="section-subheading">Separate from the workshop, and only if you choose: online, on this website, you answer a few questions about your child’s phone habits and can share screenshots of their phone’s screen-time summary. It takes about five minutes.</p>
     <div class="participant-info-grid">
       <div class="info-panel">
@@ -125,15 +132,23 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <p>If the screen time isn’t shared, we ask the parent or carer a few more questions about their child’s phone use instead. On the form, a parent or carer gives their name, their relationship to the young person and their home address and postcode, so that records can be matched correctly; an email address and phone number are optional. What you give is saved from the moment you sign, so it counts even if you can’t finish, and you can finish later with the reference on your thank-you page.</p>
       <p><a class="text-link" href="{{ '/take-part/consent/?who=parent' | relative_url }}">Share screen time online &nbsp;→</a></p>
     </div>
+      </div>
+    </details>
 
-    <h2 id="linking">Linking with education and health records.</h2>
+    <details class="info-fold" id="linking">
+      <summary><h2>Linking with education and health records</h2></summary>
+      <div class="info-fold__body">
     <p class="section-subheading">For young people who take part in the workshop, the study links their information with records that already exist about them, to look at longer-term patterns in learning, health and wellbeing.</p>
     <div class="prose">
       <p>The records are education records, such as attendance and results, and NHS health records. The linking is done through Connected West Yorkshire, using your child’s Unique Pupil Number, which the school gives us, and only with the approvals in place.</p>
       <p>It happens inside a secure research environment: names and other details that identify someone directly are removed before researchers see anything, the analysis stays inside that environment, and only results about groups of people come out. Linking is part of the workshop, so opting out of the workshop also opts your child out of linking.</p>
     </div>
+      </div>
+    </details>
 
-    <h2 id="information">What happens to your child’s information.</h2>
+    <details class="info-fold" id="information">
+      <summary><h2>What happens to your child’s information</h2></summary>
+      <div class="info-fold__body">
     <p class="section-subheading">It is kept securely by the University of Leeds, labelled with a study code instead of a name, and used only for research.</p>
     <div class="info-panel">
       <ul class="info-checklist">
@@ -146,15 +161,23 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <li><strong>The law:</strong> the University of Leeds is the data controller. It uses the information because research is a task in the public interest (UK GDPR Article 6(1)(e)) and, for sensitive information such as health records and information about wellbeing, because the processing is for research in the public interest (Article 9(2)(j)). The University’s research participant privacy notice explains your rights; ask us if you would like a copy. More on our <a href="{{ '/privacy/' | relative_url }}">data and privacy</a> page.</li>
       </ul>
     </div>
+      </div>
+    </details>
 
-    <h2 id="more">More about the study.</h2>
+    <details class="info-fold" id="more">
+      <summary><h2>More about the study</h2></summary>
+      <div class="info-fold__body">
     <p class="section-subheading">Who runs it, who funds it, and how long it lasts.</p>
     <div class="prose">
       <p>Your child’s school has agreed to take part for up to three school years, so that we can see how things change as young people grow up. Each year is a fresh choice, and you can opt your child out at any time.</p>
       <p>The study is funded by the Huo Family Foundation and led by Professor Faisal Mushtaq at the University of Leeds, working with Born in Bradford and the Centre for Applied Education Research. There is a <a href="{{ '/young-people/' | relative_url }}">version of this information for young people</a>.</p>
     </div>
+      </div>
+    </details>
 
-    <h2 id="changing-your-mind">Changing your mind.</h2>
+    <details class="info-fold" id="changing-your-mind">
+      <summary><h2>Changing your mind</h2></summary>
+      <div class="info-fold__body">
     <p class="section-subheading">You and your child can change your minds at any time, without giving a reason.</p>
     <div class="info-panel">
       <ul class="info-checklist">
@@ -164,8 +187,12 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <li>None of this affects your child’s education or their relationship with school.</li>
       </ul>
     </div>
+      </div>
+    </details>
 
-    <h2 id="opting-out">Opting out.</h2>
+    <details class="info-fold" id="opting-out">
+      <summary><h2>Opting out</h2></summary>
+      <div class="info-fold__body">
     <p class="section-subheading">If you don’t want your child to take part in the workshop, one email from a parent or carer is all it takes.</p>
     <div class="info-panel">
       <h3>How to opt out</h3>
@@ -175,8 +202,12 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <h3>Why the workshop is opt-out</h3>
       <p>We want the study to include young people from every background. When families have to return a form before their child can take part, young people from busier households, or from families who hear less from school, are often left out, and the findings would not reflect them. So every young person in the classes taking part is invited, and the choice stays with families and young people: any parent or carer can opt their child out, every young person decides for themselves on the day, and your answers about their phone are a separate yes.</p>
     </div>
+      </div>
+    </details>
 
-    <h2 id="questions">Questions and approval.</h2>
+    <details class="info-fold" id="questions">
+      <summary><h2>Questions and approval</h2></summary>
+      <div class="info-fold__body">
     <p class="section-subheading">We are happy to answer any question, before or after the workshop.</p>
     <div class="prose">
       <p>Email the MyPhone/MyBrain team at <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a>; we aim to reply within five working days. You can also contact Kate Hiley at <a href="mailto:K.E.Hiley@leeds.ac.uk">K.E.Hiley@leeds.ac.uk</a>, or the study lead, Professor Faisal Mushtaq, at <a href="mailto:F.Mushtaq@leeds.ac.uk">F.Mushtaq@leeds.ac.uk</a>, both at the School of Psychology, University of Leeds. To opt out, please use the team’s address, brainpop@leeds.ac.uk.</p>
@@ -184,5 +215,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <p>This study has been approved by the University of Leeds School of Psychology Research Ethics Committee, reference SoPREC 4202, on 11 June 2026. The University’s data protection team signed off its data protection impact assessment in May 2026.</p>
       <p class="info-sheet__updated">Last updated 7 October 2026.</p>
     </div>
+      </div>
+    </details>
   </div>
 </section>
