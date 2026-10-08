@@ -15,7 +15,7 @@
 (() => {
   const OFF_KEY = 'mpmb-usage';
   const LIVE = ['https://myphonemybrain.com', 'https://www.myphonemybrain.com'];
-  const QUERY = { who: /^(parent|young)$/, school: /^[a-z0-9-]{1,30}$/, optout: /^1$/, flow: /^[a-z]{1,12}$/, phase: /^(pre|mid|post)$/, step: /^guide$/, at: /^lab$/ };
+  const QUERY = { who: /^(parent|young)$/, school: /^[a-z0-9-]{1,30}$/, optout: /^1$/, flow: /^[a-z]{1,12}$/, phase: /^(pre|mid|post)$/, step: /^guide$/, at: /^lab$/, for: /^young$/ };
   const script = document.currentScript;
   const endpoint = window.MPMB_USAGE_ENDPOINT || (LIVE.includes(window.location.origin) && script && script.dataset.endpoint) || '';
   const browserSaysNo = navigator.globalPrivacyControl === true || navigator.doNotTrack === '1' || window.doNotTrack === '1';

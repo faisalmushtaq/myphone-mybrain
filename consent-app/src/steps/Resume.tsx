@@ -7,7 +7,7 @@ import { Callout } from '../components/ui/Callout';
 import { DateField, TextField } from '../components/ui/Field';
 import { study } from '../config/study';
 import { dateOfBirthRange, partsToDate } from '../lib/dates';
-import { forgetFinishReference, normaliseReference, peekFinishReference, REFERENCE } from '../lib/entryLink';
+import { forgetFinishReference, normaliseReference, peekFinishForYoung, peekFinishReference, REFERENCE } from '../lib/entryLink';
 import type { FieldError } from '../lib/validation';
 import { decidesAlone } from '../model/journey';
 import type { DateParts } from '../model/types';
@@ -24,6 +24,8 @@ import { clearState } from '../state/persistence';
 export function Resume() {
   const { state, dispatch } = useStore();
   const [reference, setReference] = useState(() => peekFinishReference());
+  // The link a parent sent the young person (&for=young): it speaks to them, asks only their birthday, and goes straight to their part.
+  const [forYoung] = useState(() => peekFinishForYoung() && REFERENCE.test(normaliseReference(peekFinishReference())));
   const [dob, setDob] = useState<DateParts>({ day: '', month: '', year: '' });
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [busy, setBusy] = useState(false);
@@ -41,7 +43,7 @@ export function Resume() {
     const code = normaliseReference(reference);
     const problems: FieldError[] = [];
     if (!REFERENCE.test(code)) problems.push({ field: 'resume-reference', message: 'Enter the reference as it is on your thank-you page or your copy of the record, such as MPMB-ABCD-EF2.' });
-    if (!partsToDate(dob)) problems.push({ field: 'resume-dob', message: 'Enter the young person’s date of birth.' });
+    if (!partsToDate(dob)) problems.push({ field: 'resume-dob', message: forYoung ? 'Type your birthday.' : 'Enter the young person’s date of birth.' });
     setErrors(problems);
     if (problems.length) return;
     setReference(code);
@@ -59,9 +61,11 @@ export function Resume() {
       });
       forgetFinishReference();
       dispatch({ type: 'resume-found', summary, dateOfBirth: dob });
+      // Sent to the young person for their part: straight to it, without the "we found your record" page.
+      if (forYoung && summary.canAgree) dispatch({ type: 'next' });
     } catch (error) {
-      const message = error instanceof ApiError && error.code === 'validation' ? error.message : 'We could not check the reference just now. Check your connection and try again.';
-      setErrors([{ field: 'resume-reference', message }]);
+      const message = error instanceof ApiError && error.code === 'validation' ? (forYoung ? 'That birthday doesn’t match. Check it, or ask the person who sent you the link.' : error.message) : 'We could not check the reference just now. Check your connection and try again.';
+      setErrors([{ field: forYoung ? 'resume-dob' : 'resume-reference', message }]);
     } finally {
       setBusy(false);
     }
@@ -102,6 +106,29 @@ export function Resume() {
         <Button variant="link" onClick={startAgain}>
           Not your record? Start again
         </Button>
+      </StepShell>
+    );
+  }
+
+  if (forYoung) {
+    return (
+      <StepShell
+        kicker="Your part"
+        title="Hi! It’s your turn."
+        intro={<p>Your parent or carer has done their part. Type your birthday so we know it’s you. Then you decide whether to share your screen time.</p>}
+        errors={errors}
+        onContinue={() => void find()}
+        continueLabel="Carry on"
+        continueLoading={busy}
+        secondaryAction={
+          <Button variant="link" onClick={startAgain}>
+            Not you? Start a new form
+          </Button>
+        }
+        hideBack
+      >
+        <DateField id="resume-dob" label="Your date of birth" hint="So we know it’s you." value={dob} onChange={setDob} error={errs['resume-dob']} autofill="self" min={range.min} max={range.max} />
+        <p className="mpmb-hint">Reference {normaliseReference(reference)}.</p>
       </StepShell>
     );
   }

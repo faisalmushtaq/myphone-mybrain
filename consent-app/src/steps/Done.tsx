@@ -177,7 +177,7 @@ export function Done() {
         ))}
       </ol>
 
-      {(partLater || shotsLater) && submission.referenceCode && <CarryOnLink referenceCode={submission.referenceCode} childName={childName} />}
+      {(partLater || shotsLater) && submission.referenceCode && <CarryOnLink referenceCode={submission.referenceCode} childName={childName} forYoung={partLater && state.assent.deferredBy === 'parent'} />}
 
       <div className="mpmb-card mpmb-card--mist">
         <h2 className="mpmb-h3">Changing your mind</h2>

@@ -32,6 +32,11 @@ export function loadState(): { state: AppState; expired: boolean } | null {
   const store = storage();
   if (!store) return null;
   try {
+    // A carry-on link (?finish=…, often the one a parent sent the young person) is a fresh start: whatever an earlier visit left on this device is not restored over it.
+    if (new URLSearchParams(window.location.search).has('finish')) {
+      store.removeItem(KEY);
+      return null;
+    }
     const raw = store.getItem(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<Persisted>;

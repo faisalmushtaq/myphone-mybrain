@@ -3,10 +3,13 @@ export interface EntryLink {
   optOut: boolean;
   /** Carrying on with a record: ?finish=MPMB-… from the thank-you page or the copy of the record, or ?finish alone (from the FAQ) with the reference still to type. */
   finish: string | null;
+  /** &for=young: the link a parent sent the young person to do their part (it speaks to them and asks only their birthday). */
+  forYoung: boolean;
 }
 
 /** The reference a ?finish= link carried, kept for the carry-on step until it has read it. */
 let pendingReference: string | null = null;
+let pendingForYoung = false;
 
 /**
  * The website's buttons open the form with ?who=parent, ?who=young or
@@ -20,13 +23,17 @@ let pendingReference: string | null = null;
 export function takeEntryLink(): EntryLink {
   const params = new URLSearchParams(window.location.search);
   const who = params.get('who');
-  const link: EntryLink = { who: who === 'parent' || who === 'young' ? who : null, optOut: params.get('optout') === '1', finish: params.has('finish') ? (params.get('finish') ?? '').slice(0, 40) : null };
+  const link: EntryLink = { who: who === 'parent' || who === 'young' ? who : null, optOut: params.get('optout') === '1', finish: params.has('finish') ? (params.get('finish') ?? '').slice(0, 40) : null, forYoung: params.get('for') === 'young' };
   // Kept until forgotten (not cleared by reading), so a second look in development's double render still finds it.
-  if (link.finish) pendingReference = link.finish;
+  if (link.finish) {
+    pendingReference = link.finish;
+    pendingForYoung = link.forYoung;
+  }
   if (params.has('who') || params.has('optout') || params.has('finish')) {
     params.delete('who');
     params.delete('optout');
     params.delete('finish');
+    params.delete('for');
     const rest = params.toString();
     window.history.replaceState(window.history.state, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
   }
@@ -38,9 +45,15 @@ export function peekFinishReference(): string {
   return pendingReference ?? '';
 }
 
+/** Whether that link was the one sent to the young person (&for=young). */
+export function peekFinishForYoung(): boolean {
+  return pendingForYoung && Boolean(pendingReference);
+}
+
 /** Forgets that reference: once the record is found, or when the device is cleared for the next person. */
 export function forgetFinishReference(): void {
   pendingReference = null;
+  pendingForYoung = false;
 }
 
 /** A reference as typed: upper case, spaces gone, the dashes put back (MPMB-ABCD-EF2). Anything else is returned tidied but unchanged. */
@@ -51,7 +64,7 @@ export function normaliseReference(input: string): string {
 
 export const REFERENCE = /^MPMB-[A-Z2-9]{4}-[A-Z2-9]{3}$/;
 
-/** The link that brings a family back to carry on with their record: this page, with ?finish=<reference>. */
-export function finishLink(referenceCode: string): string {
-  return `${window.location.origin}${window.location.pathname}?finish=${encodeURIComponent(referenceCode)}`;
+/** The link that brings a family back to carry on with their record: this page, with ?finish=<reference>; &for=young when it is for the young person to do their part. */
+export function finishLink(referenceCode: string, forYoung = false): string {
+  return `${window.location.origin}${window.location.pathname}?finish=${encodeURIComponent(referenceCode)}${forYoung ? '&for=young' : ''}`;
 }

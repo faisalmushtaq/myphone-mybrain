@@ -112,7 +112,7 @@ export function HandoverScreen() {
             <p>
               <strong>Send {childName} a link</strong> to do their part on their own phone. It asks for their date of birth.
             </p>
-            {state.submission.referenceCode ? <CarryOnLink referenceCode={state.submission.referenceCode} childName={childName} /> : <p className="mpmb-hint">Saving your answers: the link appears in a moment.</p>}
+            {state.submission.referenceCode ? <CarryOnLink referenceCode={state.submission.referenceCode} childName={childName} forYoung /> : <p className="mpmb-hint">Saving your answers: the link appears in a moment.</p>}
             <Button
               variant="primary"
               onClick={() => {

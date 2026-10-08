@@ -47,6 +47,7 @@ export const QUERY_KEYS: Record<string, RegExp> = {
   phase: /^(pre|mid|post)$/,
   step: /^guide$/,
   at: /^lab$/,
+  for: /^young$/,
 };
 const APPS = ['family', 'break'] as const;
 const DEVICES = ['phone', 'tablet', 'computer'] as const;

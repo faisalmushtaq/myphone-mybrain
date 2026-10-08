@@ -3692,3 +3692,15 @@
 .mpmb-handover__link .mpmb-card {
   color: var(--mpb-ink);
 }
+
+/* Ways to send the carry-on link: the phone's share menu, WhatsApp, a text, email, copy (8 October 2026). */
+.mpmb-carryon__send {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.mpmb-carryon__send .mpmb-btn {
+  flex: 1 1 9rem;
+  text-decoration: none;
+}
