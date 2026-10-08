@@ -68,54 +68,54 @@ describe('the family form after 7 October 2026: who decides, and where the scree
     expect(buildConsentPayload(partWay).survey).toMatchObject({ status: 'in-progress', responses: { concern: { value: 'somewhat' } } });
   });
 
-  it('a parent who says no to sharing the screen time answers the longer questions instead', () => {
+  it('a parent who says no to sharing the screen time answers the longer questions too', () => {
     const s = reducer(permission(family('parent', 13)), { type: 'set-phone-source', source: 'none' });
     expect(phoneSourceOf(s)).toBe('none');
-    expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'parent-more', 'check', 'done']);
+    expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'parent-more', 'phone-source', 'check', 'done']);
     expect(firstIncomplete(s)).toBeNull();
     expect(buildConsentPayload(s).more).not.toBeNull();
   });
 
   it('a parent who says yes chooses where the screen time comes from', () => {
     const s = permission(family('parent', 13));
-    expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'check', 'done']);
+    expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'parent-more', 'phone-source', 'check', 'done']);
     // From the parent's own phone: no agreement asked of the young person; the longer questions only if the screenshots are skipped.
     const fromParent = reducer(s, { type: 'set-phone-source', source: 'parent' });
-    expect(buildJourney(fromParent)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'phone-use', 'check', 'done']);
+    expect(buildJourney(fromParent)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'parent-more', 'phone-source', 'phone-use', 'check', 'done']);
     expect(firstIncomplete(fromParent)).toBeNull();
     expect(buildJourney(reducer(fromParent, { type: 'donation-status', status: 'skipped' }))).toContain('parent-more');
     // From the young person's phone: their agreement, then the young person finishes; the phone never goes back to the parent.
     const fromChild = reducer(s, { type: 'set-phone-source', source: 'child' });
-    expect(buildJourney(fromChild)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'child-assent', 'check', 'done']);
+    expect(buildJourney(fromChild)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'parent-more', 'phone-source', 'child-assent', 'check', 'done']);
     expect(firstIncomplete(fromChild)).toBeNull();
     // A signature drawn but not confirmed stays on the device: nothing of the young person's is sent before they answer.
     const drawing = reducer(fromChild, { type: 'assent-signature', signature });
     expect(buildConsentPayload(drawing).assent).toMatchObject({ status: 'not-started', signature: null, responses: {} });
     const declined = reducer(fromChild, { type: 'assent-decline' });
-    expect(buildJourney(declined)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'child-assent', 'assent-declined', 'check', 'done']);
+    expect(buildJourney(declined)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'parent-more', 'phone-source', 'child-assent', 'assent-declined', 'check', 'done']);
     expect(youngFinishes(declined)).toBe(true);
     // Not there: the parent sends them a link and finishes; no longer questions instead.
     const away = reducer(fromChild, { type: 'set-child-present', present: false });
-    expect(parentMoreApplies(away)).toBe(false);
+    expect(parentMoreApplies(away)).toBe(true);
     expect(youngFinishes(away)).toBe(false);
-    expect(buildJourney(away)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'check', 'done']);
+    expect(buildJourney(away)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'parent-more', 'phone-source', 'check', 'done']);
     expect(firstIncomplete(away)).toBeNull();
     // Neither: straight to the longer questions.
-    expect(buildJourney(reducer(s, { type: 'set-phone-source', source: 'none' }))).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'phone-source', 'parent-more', 'check', 'done']);
+    expect(buildJourney(reducer(s, { type: 'set-phone-source', source: 'none' }))).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'parent-more', 'phone-source', 'check', 'done']);
   });
 
   it('a young person under 16 hands over to their parent first, who says whether it comes from the young person’s phone', () => {
     const s = family('young', 14);
-    expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-details', 'parent-consent', 'parent-questions', 'phone-source', 'check', 'done']);
+    expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-details', 'parent-consent', 'parent-questions', 'parent-more', 'phone-source', 'check', 'done']);
     const yes = reducer(permission(s), { type: 'set-phone-source', source: 'child' });
     expect(phoneSourceOf(yes)).toBe('child');
-    expect(buildJourney(yes)).toEqual(['welcome', 'child-details', 'parent-details', 'parent-consent', 'parent-questions', 'phone-source', 'child-assent', 'check', 'done']);
+    expect(buildJourney(yes)).toEqual(['welcome', 'child-details', 'parent-details', 'parent-consent', 'parent-questions', 'parent-more', 'phone-source', 'child-assent', 'check', 'done']);
   });
 
   it('a parent of a young person of 16 or over: their answers, then the young person decides for themselves', () => {
     const s = permission(family('parent', 17));
     expect(phoneSourceOf(s)).toBe('child');
-    expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'child-assent', 'check', 'done']);
+    expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'parent-more', 'child-assent', 'check', 'done']);
     expect(firstIncomplete(s)).toBeNull();
     expect(buildConsentPayload(s).phoneSource).toBe('child');
   });

@@ -207,7 +207,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
         source === 'parent' || (source === 'child' && assent.status === 'completed') ? 'phone-use' : null,
         'research',
         source === 'none' ? (
-          <p className="mpmb-summary__note">Not shared: you chose to answer more questions instead. You can change this later by contacting the team.</p>
+          <p className="mpmb-summary__note">Not shared: you chose not to share it. You can change this later by contacting the team.</p>
         ) : source === 'child' && assent.status !== 'completed' ? (
           <p className="mpmb-summary__note">Not shared from {childName}’s phone.</p>
         ) : source === null ? (

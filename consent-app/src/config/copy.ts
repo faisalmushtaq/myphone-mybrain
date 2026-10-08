@@ -88,7 +88,7 @@ export const parentInformation: InfoSection[] = [
     summary: 'Sharing your child’s screen time, if you agree, and a few questions for you about their phone use. Both are optional.',
     detail: [
       'Screen time means screenshots of the phone’s Screen Time or Digital Wellbeing page: the list of apps and the time spent on each. How a phone is used matters as much as how much. If you can see your child’s screen time on your own phone (Apple Family Sharing or Google Family Link), you can send it from there; otherwise your child can send it from their phone, if they want to.',
-      'Your answers to the questions are used in the study too, labelled with a code rather than a name. If the screen time is not shared, we ask you a few more questions instead.',
+      'Your answers to the questions are used in the study too, labelled with a code rather than a name. There are two short sets of questions, and you can skip any of them.',
       'Young people aged 16 or over decide for themselves about sharing their own screen time.',
     ],
     draft: true,

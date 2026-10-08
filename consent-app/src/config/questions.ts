@@ -138,12 +138,12 @@ const hours = [
 ];
 
 /**
- * The longer questions for the parent or carer, asked whenever the young
- * person's screen time is not coming through this form: the parent said no
- * to the screenshots, or could not send them from their own phone, or the
- * young person said no, was not there, or skipped them (decided 7 October
+ * The longer questions for the parent or carer, asked of every parent
+ * straight after the quick ones, before the screen time and the handover
+ * (8 October 2026), so the parent's answers arrive whatever the young person
+ * does. Topics decided 7 October
  * 2026: time and apps, night-time and sleep, and effects; not rules at
- * home). Every question can be skipped. PLACEHOLDER wording, to be replaced
+ * home. Every question can be skipped. PLACEHOLDER wording, to be replaced
  * with the team's own (validated) items. Keep in step with the server, which
  * reads this file at build time.
  *

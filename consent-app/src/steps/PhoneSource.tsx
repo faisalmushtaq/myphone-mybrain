@@ -43,7 +43,7 @@ export function PhoneSource() {
     {
       value: 'none',
       title: 'No',
-      body: `We ask you some more questions about ${childName}’s phone use instead. About two minutes.`,
+      body: `That’s fine: your answers already help the study.`,
     },
   ];
 

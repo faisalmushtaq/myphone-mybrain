@@ -105,19 +105,13 @@ export function phoneUseApplies(state: AppState): boolean {
 }
 
 /**
- * The longer questions for the parent, while the parent still has the
- * phone and the young person's screen time is not coming through this form:
- * the parent said no, or could not send it from their own phone. Never once
- * the phone has gone to the young person (decided 8 October 2026: one run
- * for the parent, then the rest is the young person's to finish, with no
- * handing back), nor when the parent sent them a link to do it later.
+ * The longer questions for the parent: always, straight after the quick
+ * ones and before the screen time is decided or handed over (decided 8
+ * October 2026), so that the parent's answers are in even if the young
+ * person never does their part. Every question can be skipped.
  */
 export function parentMoreApplies(state: AppState): boolean {
-  if (state.resume || !parentInvolved(state)) return false;
-  const source = phoneSourceOf(state);
-  if (source === 'none') return true;
-  if (source === 'parent') return state.donation.status === 'skipped';
-  return false;
+  return !state.resume && parentInvolved(state);
 }
 
 /** The young person has the phone for the end of the form: they answered after the parent's part, so they finish and send it, with no handing back. */
@@ -177,13 +171,13 @@ export function buildJourney(state: AppState): StepId[] {
   if (state.route !== 'parent') steps.push('parent-details');
   steps.push('parent-consent');
   if (study.parentQuestions) steps.push('parent-questions');
+  if (parentMoreApplies(state)) steps.push('parent-more');
   if (phoneSourceApplies(state)) steps.push('phone-source');
   if (assentApplies(state)) {
     steps.push('child-assent');
     if (state.assent.status === 'declined') steps.push('assent-declined');
   }
   if (phoneUseApplies(state)) steps.push('phone-use');
-  if (parentMoreApplies(state)) steps.push('parent-more');
   steps.push('check', 'done');
   return steps;
 }

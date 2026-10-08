@@ -285,7 +285,7 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
   }
 
   w.heading('Screen time and apps');
-  if (source === 'none') w.paragraph('Not shared: you chose to answer more questions instead. You can change this later by contacting the team.');
+  if (source === 'none') w.paragraph('Not shared: you chose not to share it. You can change this later by contacting the team.');
   else if (source === 'child' && assent.status === 'deferred') w.paragraph(`Not shared from ${childName}’s phone yet. Please ask ${childName} to do their part as soon as possible: go to ${finishLink(reference)} and enter ${childName}’s date of birth.`);
   else if (source === 'child' && assent.status !== 'completed') w.paragraph(`Not shared from ${childName}’s phone.`);
   else if (donation.status === 'skipped' || sent === 0) w.paragraph(`No screenshots were added yet. Please add them as soon as you can: go to ${finishLink(reference)} and enter ${childName}’s date of birth.`);
