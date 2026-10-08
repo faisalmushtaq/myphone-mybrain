@@ -57,39 +57,40 @@ export interface StatementForm {
 export const parentConsentForm: StatementForm = {
   id: 'mpmb-parent-consent',
   // 0.7: no optional choices (7 October 2026). Sharing the screen time is the parent's answer on the "where from" step; recontact is gone.
-  version: '0.7-draft', // PLACEHOLDER — ethics-approved version identifier
+  // 0.8: the same statements in very plain English, for parents with little time or reading confidence (8 October 2026).
+  version: '0.8-draft', // PLACEHOLDER — ethics-approved version identifier
   title: 'Parent or carer permission',
   statements: [
     {
       id: 'read-information',
-      version: '0.4-draft',
+      version: '0.5-draft',
       kind: 'required',
       label: 'Reading the information',
-      text: 'I have read and understood the information above about sharing my child’s screen time and answering questions about their phone use, and I have been able to ask questions.',
+      text: 'I know what this is about, and I could ask questions if I wanted to.',
       draft: true,
     },
     {
       id: 'answers',
-      version: '0.1-draft',
+      version: '0.2-draft',
       kind: 'required',
       label: 'My answers',
-      text: 'My answers to the questions about my child’s phone use may be used in the study, labelled with a code rather than a name.',
+      text: 'My answers about my child’s phone use can be used in the study, with a code instead of a name.',
       draft: true,
     },
     {
       id: 'understand-withdraw',
-      version: '0.4-draft',
+      version: '0.5-draft',
       kind: 'required',
       label: 'Changing my mind',
-      text: 'I understand that I can change my mind at any time, without giving a reason, by contacting the research team.',
+      text: 'I can change my mind at any time by contacting the team. I don’t have to say why.',
       draft: true,
     },
     {
       id: 'records-checked',
-      version: '0.3-draft',
+      version: '0.4-draft',
       kind: 'required',
       label: 'Checks on the study',
-      text: 'I understand that authorised people from the University of Leeds, or from bodies that regulate research, may look at study records to check the study is being run properly.',
+      text: 'People who check that research is done properly may look at the study’s records.',
       draft: true,
     },
   ],

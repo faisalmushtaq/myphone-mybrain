@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { addressFinder } from '../config/features';
 import { guardianFields, relationships } from '../config/fields';
 import { study } from '../config/study';
@@ -23,6 +24,9 @@ interface Props {
  */
 export function GuardianFields({ guardian, update, errors: errs, childName }: Props) {
   const needsCareNote = guardian.relationship === 'foster-carer';
+  // Email and phone are optional, so they stay folded away (fewer boxes for a busy parent) unless one is given or asked for (8 October 2026).
+  const [showContact, setShowContact] = useState(Boolean(guardian.email || guardian.phone || errs['guardian-email'] || errs['guardian-phone']));
+  const contactShown = showContact || Boolean(errs['guardian-email'] || errs['guardian-phone']);
 
   return (
     <div className="mpmb-fields">
@@ -72,10 +76,15 @@ export function GuardianFields({ guardian, update, errors: errs, childName }: Pr
           />
         </>
       )}
-      {guardianFields.email.enabled && (
+      {(guardianFields.email.enabled || guardianFields.phone.enabled) && !contactShown && (
+        <button type="button" className="mpmb-linkbutton" onClick={() => setShowContact(true)}>
+          + Add an email or phone number (optional)
+        </button>
+      )}
+      {guardianFields.email.enabled && contactShown && (
         <TextField id="guardian-email" type="email" inputMode="email" label={guardianFields.email.label} hint={guardianFields.email.hint} required={guardianFields.email.required} autoComplete="email" maxLength={limits.email} value={guardian.email} onChange={(e) => update({ email: e.target.value })} error={errs['guardian-email']} />
       )}
-      {guardianFields.phone.enabled && (
+      {guardianFields.phone.enabled && contactShown && (
         <TextField id="guardian-phone" type="tel" inputMode="tel" label={guardianFields.phone.label} hint={guardianFields.phone.hint} required={guardianFields.phone.required} autoComplete="tel" maxLength={limits.phone} width="half" value={guardian.phone} onChange={(e) => update({ phone: e.target.value })} error={errs['guardian-phone']} />
       )}
     </div>

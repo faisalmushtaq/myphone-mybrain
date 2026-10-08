@@ -197,6 +197,8 @@ async function inner() {
     await page.getByLabel('Your full name', { exact: true }).fill('Priya Patel');
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     ok('no parental-responsibility tick: only a parent or carer fills this in', (await page.getByLabel(/parental responsibility for/).count()) === 0);
+    ok('email and phone are folded away until asked for', (await page.getByLabel('Your email address').count()) === 0);
+    await page.getByRole('button', { name: /Add an email or phone number/ }).click();
     await page.getByLabel('Your email address').fill('priya@example.com');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByText('Enter your home address.').first().waitFor();

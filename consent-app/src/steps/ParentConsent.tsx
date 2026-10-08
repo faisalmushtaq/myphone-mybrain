@@ -20,8 +20,9 @@ import { useStore } from '../state/context';
  * for the opt-in part: their answers, and, for an under-16, sharing the
  * screen time (from 16 the young person decides that themselves).
  *
- * The information sits at the top as six one-line summaries, each opening to
- * the full wording, so it is all available without a separate page. The
+ * The information sits at the top as two plain sentences, with the summaries
+ * (each opening to the full wording) behind one "Read more" (8 October 2026),
+ * so it is all available without a separate page or a long scroll. The
  * required statements are listed under one confirmation tick (each still
  * recorded individually); the optional permissions are compact Yes/No rows.
  */
@@ -65,8 +66,11 @@ export function ParentConsent() {
 
       <section className="mpmb-info-compact" aria-labelledby="info-heading">
         <h2 className="mpmb-h3" id="info-heading">
-          What you need to know <Draft />
+          In short <Draft />
         </h2>
+        <p>This is to share {childName}’s screen time, if you agree, and to answer a few questions. It is all optional, and you can stop at any time. It is separate from the workshop at school.</p>
+        <details className="mpmb-info-compact__more">
+          <summary>Read more</summary>
         <ul role="list">
           {parentInformation.map((section) => (
             <li key={section.id}>
@@ -85,6 +89,7 @@ export function ParentConsent() {
             </li>
           ))}
         </ul>
+        </details>
         <p className="mpmb-hint">
           Full documents:{' '}
           <a href={study.contact.informationSheetUrl} target="_blank" rel="noopener">

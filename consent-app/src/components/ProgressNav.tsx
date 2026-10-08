@@ -51,12 +51,13 @@ export function ProgressNav() {
           );
         })}
       </ol>
-      <div className="mpmb-progress__bar" role="progressbar" aria-valuemin={1} aria-valuemax={total} aria-valuenow={stepNumber} aria-valuetext={`Step ${stepNumber} of ${total}: ${stepDefs[state.stepId].title}`}>
+      <div className="mpmb-progress__bar" role="progressbar" aria-valuemin={1} aria-valuemax={total} aria-valuenow={stepNumber} aria-valuetext={`Step ${stepNumber}: ${stepDefs[state.stepId].title}`}>
         <span className="mpmb-progress__fill" style={{ transform: `scaleX(${fraction})` }} />
       </div>
       <div className="mpmb-progress__meta">
         <span className="mpmb-progress__count">
-          Step {stepNumber} of {total}
+          {/* No "of N": the number of steps depends on the answers, and a total that grows reads as the form getting longer (8 October 2026). */}
+          Step {stepNumber}
           {!confirming && (
             <button type="button" className="mpmb-progress__clear" onClick={() => setConfirming(true)} aria-expanded={confirming} aria-controls="mpmb-clear-confirm">
               Clear and start again

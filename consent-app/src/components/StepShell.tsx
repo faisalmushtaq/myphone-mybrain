@@ -35,7 +35,7 @@ export function StepShell({ kicker, title, intro, children, errors = [], onConti
     // Name the page for the browser tab and history, then move focus to the heading.
     const steps = countedSteps(state);
     const n = steps.indexOf(state.stepId) + 1;
-    document.title = `${n > 0 ? `Step ${n} of ${steps.length}: ` : ''}${stepDefs[state.stepId].title} – MyPhone/MyBrain`;
+    document.title = `${n > 0 ? `Step ${n}: ` : ''}${stepDefs[state.stepId].title} – MyPhone/MyBrain`;
     const el = headingRef.current;
     if (!el) return;
     // Show the progress band (step number and whose turn it is) just below the site's sticky header, not under it.

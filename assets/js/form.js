@@ -186,3 +186,20 @@ if (menuToggle && mobileNav) {
     });
   });
 })();
+
+/* ── Copy buttons (the school pages' messages for staff to send families) ── */
+document.addEventListener('click', async (e) => {
+  const button = e.target instanceof Element ? e.target.closest('[data-copy-from]') : null;
+  if (!button) return;
+  const source = document.getElementById(button.dataset.copyFrom);
+  const status = button.parentElement.querySelector('.copy-status');
+  if (!source) return;
+  try {
+    await navigator.clipboard.writeText(source.value || source.textContent);
+    if (status) status.textContent = 'Copied. Paste it into your message to families.';
+  } catch {
+    // No clipboard access: select the text so it can be copied by hand.
+    if (source.select) source.select();
+    if (status) status.textContent = 'Your browser did not allow copying. The text is selected: copy it yourself.';
+  }
+});

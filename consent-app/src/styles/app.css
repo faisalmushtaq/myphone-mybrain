@@ -3652,3 +3652,31 @@
   outline: 3px solid var(--mpb-yellow);
   outline-offset: -3px;
 }
+
+/* The permission page's information, folded behind one "Read more" (8 October 2026). */
+.mpmb-info-compact__more > summary {
+  display: inline-block;
+  margin: 0.25rem 0 0.75rem;
+  font-weight: 700;
+  color: var(--mpb-teal);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.mpmb-info-compact__more[open] > summary {
+  margin-bottom: 0.5rem;
+}
+
+/* A link-like button, for "Add an email or phone number (optional)". */
+.mpmb-linkbutton {
+  align-self: flex-start;
+  padding: 0.5rem 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--mpb-teal);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}

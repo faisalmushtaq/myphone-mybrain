@@ -61,5 +61,32 @@ layout: default
       </ul>
       <p class="school-landing__hint">Prefer paper, or need the information in another language or format? <a href="{{ '/contact/' | relative_url }}">Contact the team</a> and we will send you what works for you.</p>
     </div>
+
+    {% comment %} For school staff: ready-made messages to send families, with this page's short address (decided 8 October 2026). Folded away so parents are not distracted by it. {% endcomment %}
+    {% capture short_link %}myphonemybrain.com/{{ school.slug }}{% endcapture %}
+    <details class="info-panel school-staff" id="for-staff">
+      <summary><h2>For school staff: messages to send to families</h2></summary>
+      <p>Copy one of these into your usual way of contacting families: a text, the school app, an email or the newsletter. Short and plain works best: most families will read it on a phone.</p>
+      <div class="school-staff__message">
+        <label for="staff-message-short"><strong>Short</strong> (a text message or the school app)</label>
+        <textarea id="staff-message-short" rows="6" readonly>{{ school.name }}: your child’s class is taking part in MyPhone/MyBrain, a University of Leeds study about phones and the brain. Please fill in this short form now. It takes 5 minutes: {{ short_link }}</textarea>
+        <div class="school-staff__actions"><button type="button" class="btn btn-secondary" data-copy-from="staff-message-short">Copy</button><span class="copy-status" aria-live="polite"></span></div>
+      </div>
+      <div class="school-staff__message">
+        <label for="staff-message-long"><strong>Longer</strong> (an email or the newsletter)</label>
+        <textarea id="staff-message-long" rows="10" readonly>Dear parents and carers,
+
+In the coming weeks, your child’s class will take part in MyPhone/MyBrain, a University of Leeds study about young people’s phones, brains and wellbeing. Researchers will run a two-hour workshop at school.
+
+Please fill in a short online form as soon as you can. It takes about five minutes: {{ short_link }}
+
+That page also explains what the study involves, and how to opt your child out if you don’t want them to take part.
+
+Thank you,
+{{ school.name }}</textarea>
+        <div class="school-staff__actions"><button type="button" class="btn btn-secondary" data-copy-from="staff-message-long">Copy</button><span class="copy-status" aria-live="polite"></span></div>
+      </div>
+      <p class="school-landing__hint">The link goes straight to this page, with {{ school.name }} filled in on the form. Questions: <a href="{{ '/contact/' | relative_url }}">contact the team</a>.</p>
+    </details>
   </div>
 </section>

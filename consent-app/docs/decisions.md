@@ -10,6 +10,9 @@ each is implemented. Newest first.
 | The form takes young people aged **11 to 18** (some colleges have 18-year-olds). From 16 they decide for themselves, so an 18-year-old is never asked for a parent. | `study.maxAge` (`src/config/study.ts`), the server's copy (`firebase/functions/src/forms.ts`) |
 | A young person of **16 or over doing the form on their own must give their home postcode**, so their records can be matched like everyone else's. | `src/steps/ChildDetails.tsx`, `validateChildDetails`; `validate.ts`; stored as `postcode` on the participant, exported in `participants_key.tsv` (the parent's postcode, or theirs) |
 | The address finder allows **5 lookups per browser an hour** and **1,500 a day** for the site (600 or more parents may come on one day). | `firebase/functions/src/address.ts`; `docs/address-lookup.md` |
+| **The permission page in very plain English** (`mpmb-parent-consent 0.8-draft`): the four statements rewritten for a reading age of about 9, and the information folded into two sentences and one "Read more". For the master ethics update. | `src/config/statements.ts`, `src/steps/ParentConsent.tsx` |
+| **Email and phone folded away** behind "Add an email or phone number (optional)"; **no "of N"** on the step counter (the total depends on the answers). | `src/components/GuardianFields.tsx`, `src/components/ProgressNav.tsx` |
+| **Ready-made messages for school staff** to send families (a short one for texts and the school app, a longer one for email), with Copy buttons, folded at the bottom of each school's page. | `_layouts/school.html`, `assets/js/form.js` |
 | Plainer words for parents with little time: the details, permission, quick-questions and screen-time steps say what to do in fewer, shorter sentences. | `ChildDetails.tsx`, `ParentConsent.tsx`, `ParentQuestions.tsx`, `PhoneSource.tsx` |
 
 ## 7 October 2026

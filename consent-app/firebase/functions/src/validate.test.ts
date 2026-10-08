@@ -21,13 +21,13 @@ function valid(): ConsentPayload {
     guardian: { fullName: 'Priya Patel', relationship: 'mother', relationshipOther: '', address: '1 Long Lane, Leeds', postcode: 'LS6 1AB', email: '', phone: '' },
     consent: {
       formId: 'mpmb-parent-consent',
-      formVersion: '0.7-draft',
+      formVersion: '0.8-draft',
       informationVersion: '0.6-draft',
       responses: {
-        'read-information': r('read-information', 'agreed', 'group', '0.4-draft'),
-        answers: r('answers', 'agreed', 'group', '0.1-draft'),
-        'understand-withdraw': r('understand-withdraw', 'agreed', 'group', '0.4-draft'),
-        'records-checked': r('records-checked', 'agreed', 'group'),
+        'read-information': r('read-information', 'agreed', 'group', '0.5-draft'),
+        answers: r('answers', 'agreed', 'group', '0.2-draft'),
+        'understand-withdraw': r('understand-withdraw', 'agreed', 'group', '0.5-draft'),
+        'records-checked': r('records-checked', 'agreed', 'group', '0.4-draft'),
       },
       typedName: 'Priya Patel',
       signature,
