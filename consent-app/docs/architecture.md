@@ -232,7 +232,7 @@ compliance claims.
      pointing at the one it supersedes (an unchanged one is kept as it is),
   3. writes the **assent record** in the same way,
   4. issues (or keeps) the family's reference code.
-  It is called the moment the parent signs (or a 16- or 17-year-old on their
+  It is called the moment the parent signs (or a young person of 16 or over on their
   own agrees), and again as answers come in, so whatever a family gives is on
   record even if they stop part-way.
 * `submitDonation` links accepted uploads to the participant's study id in

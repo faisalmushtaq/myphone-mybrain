@@ -199,7 +199,7 @@ export function participantsTable(snap: Snapshot): Row[] {
       const consent = submission?.data.consentId ? consentBy.get(String(submission.data.consentId)) : undefined;
       const assent = submission?.data.assentId ? assentBy.get(String(submission.data.assentId)) : undefined;
       const mine = sessions.filter((s) => s.participantId === p.id);
-      // A 16- or 17-year-old deciding alone has no permission record: their own agreement dates the record.
+      // A young person of 16 or over deciding alone has no permission record: their own agreement dates the record.
       const agreedOn = consent?.data.confirmedDate ?? (typeof assent?.data.completedAt === 'string' ? assent.data.completedAt.slice(0, 10) : null);
       return {
         participant_id: snap.labels.get(p.id),
@@ -303,7 +303,8 @@ export function participantsKey(snap: Snapshot): Row[] {
       relationship: d.guardian?.relationship,
       relationship_other: d.guardian?.relationshipOther,
       address: d.guardian?.address ?? null,
-      postcode: d.guardian?.postcode,
+      // The parent's postcode, or the young person's own when they decided alone.
+      postcode: d.guardian?.postcode ?? d.postcode ?? null,
       uprn: d.guardian?.uprn ?? null,
       email: d.guardian?.email,
       phone: d.guardian?.phone,
@@ -421,9 +422,9 @@ export function participantsDictionary(): Record<string, unknown> {
     year_group: { Description: 'School year group at consent (England)' },
     site: { Description: 'School identifier from the study’s school list; "other" when the school was typed in (the name is in identifying/)' },
     route: { Description: 'Who started the form', Levels: { parent: 'A parent or carer started it', young: 'The young person started it' } },
-    consented_on: { Description: 'Date of the record: the parent or carer’s confirmed date, or, for a 16- or 17-year-old deciding alone, the day they agreed' },
+    consented_on: { Description: 'Date of the record: the parent or carer’s confirmed date, or, for a young person of 16 or over deciding alone, the day they agreed' },
     consent_version: { Description: 'Version of the parent’s permission form agreed to; n/a when the young person decided alone' },
-    self_consent: { Description: 'Whether the young person (16 or 17) decided about sharing their screen time themselves (from 7 October 2026)' },
+    self_consent: { Description: 'Whether the young person (16 or over) decided about sharing their screen time themselves (from 7 October 2026)' },
     phone_source: { Description: 'Where the screen time was to come from (from 7 October 2026)', Levels: { child: 'The young person’s own phone, with their agreement', parent: 'The parent or carer’s phone (Apple Family Sharing or Google Family Link), with the parent’s permission', none: 'Not shared: the parent said no or chose the longer questions instead' } },
     assent_status: { Description: 'The young person’s own agreement to share their screen time, in the app', Levels: { completed: 'Signed in the app', deferred: 'Put off: not there, or deciding later', declined: 'Said no to sharing', 'not-started': 'Not asked (the screen time came from the parent’s phone, or was not shared)' } },
     questions_status: { Description: 'The parent or carer’s quick questions (phenotype/parent_perceptions.tsv)', Levels: { completed: 'Answered', 'in-progress': 'Partly answered', skipped: 'Skipped', 'not-started': 'Not reached' } },
@@ -542,7 +543,7 @@ participants_key.tsv       the key from participant labels (sub-00001...) to
                            names, date of birth, school, parent or carer and
                            contact details (with the address's UPRN when it was
                            picked with the address finder), whether the young
-                           person decided alone (16 or 17), and whether they
+                           person decided alone (16 or over), and whether they
                            are opted out
 consents.tsv               every parent permission record; an amendment is a
                            new row and supersedes points at the one before
@@ -570,8 +571,8 @@ its own folder, social-media-break/, with the same layout.
 const SCHOOLS_README = `# MyPhone/MyBrain: the young people's study
 
 What families in Bradford and Leeds schools gave online: since 7 October
-2026, the opt-in for screen time (parents of under-16s, and 16- and
-17-year-olds for themselves), the parents' answers about phone use, and the
+2026, the opt-in for screen time (parents of under-16s, and young people
+of 16 or over for themselves), the parents' answers about phone use, and the
 screen-time screenshots; and the opt-outs from the workshop parents emailed,
 as the team logged them. Regenerated automatically every hour; do not edit
 or add files here.

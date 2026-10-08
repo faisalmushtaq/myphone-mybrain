@@ -86,6 +86,6 @@ export function isoYearsAgo(years: number): string {
 }
 
 /** The dates of birth that fit the study's age range, for a date picker's min and max. */
-export function dateOfBirthRange(minAge = 11, maxAge = 17): { min: string; max: string } {
+export function dateOfBirthRange(minAge = 11, maxAge = 18): { min: string; max: string } {
   return { min: isoYearsAgo(maxAge + 1), max: isoYearsAgo(minAge) };
 }

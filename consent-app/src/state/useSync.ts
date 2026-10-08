@@ -35,13 +35,13 @@ function clientInfo(): ClientInfo {
  * once it can. Decided 7 October 2026: everything a family gives after the
  * parent signs is kept and used, even if they stop part-way, so the record
  * is saved from the moment the parent signs (with the young person's and
- * the parent's details), then again as answers come in. A 16- or
- * 17-year-old on their own sends nothing until they have agreed to share.
+ * the parent's details), then again as answers come in. A young person of
+ * 16 or over on their own sends nothing until they have agreed to share.
  */
 export function firstIncomplete(state: AppState): StepId | null {
   // Carrying on later: the record is on the server; only the young person's answer may still be needed.
   if (state.resume) return state.resume.canAgree && (state.assent.status === 'not-started' || (state.assent.status === 'completed' && validateAssent(state.assent).length)) ? 'child-assent' : null;
-  if (validateChildDetails(state.identity).length) return 'child-details';
+  if (validateChildDetails(state.identity, state.route === 'young', youngAlone(state)).length) return 'child-details';
   if (youngAlone(state)) return state.assent.status === 'completed' && !validateAssent(state.assent).length ? null : 'child-assent';
   if (validateGuardian(state.guardian).length) return state.route === 'parent' ? 'child-details' : 'parent-details';
   if (validateConsent(state.consent, parentConsentForm, undefined, childAge(state)).length || !state.consent.completedAt) return 'parent-consent';
@@ -65,7 +65,8 @@ export function buildConsentPayload(state: AppState): ConsentPayload {
   return {
     ...base,
     kind: 'consent',
-    identity: state.identity,
+    // Their own postcode only when the young person does this on their own; otherwise the parent's is the one used.
+    identity: { ...state.identity, postcode: alone ? state.identity.postcode.trim().toUpperCase() : '' },
     guardian: alone ? blankGuardian : state.guardian,
     consent: alone ? null : state.consent,
     assent,

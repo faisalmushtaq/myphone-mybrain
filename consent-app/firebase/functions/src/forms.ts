@@ -80,7 +80,8 @@ export const study = {
   studyId: 'MPMB',
   siteIds: ['LEEDS-BRADFORD'],
   minAge: 11,
-  maxAge: 17,
+  // Some colleges have 18-year-olds (decided 8 October 2026); from 16 they decide alone.
+  maxAge: 18,
   /** From this age the young person decides about sharing their own screen time, without a parent (src/config/study.ts, decided 7 October 2026); null: never alone. */
   selfConsentAge: generated.selfConsentAge as number | null,
   maxImages: 6,

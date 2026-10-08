@@ -90,7 +90,7 @@ function useHistorySync() {
 
 /**
  * Saves the record in the background: first the moment the parent signs (or
- * a 16- or 17-year-old on their own agrees), then again shortly after each
+ * a young person of 16 or over on their own agrees), then again shortly after each
  * answer or change, on whichever step it is made (decided 7 October 2026:
  * everything a family gives after signing is kept and used, even if they
  * stop part-way). Leaving the page or switching apps saves straight away.

@@ -114,7 +114,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   const intro =
     which === 'more'
       ? `We won’t have ${childName}’s screen time from this form, so these questions help us understand their phone use instead: time and apps, night-time and sleep, and how it affects them. About three minutes. Answer what you can: you can skip any question. Your answers are kept with ${childName}’s code, not your name.`
-      : `Optional, and about a minute. These questions are for you, not ${childName}: if ${childName} is next to you, you can skip them. Tap an answer to move to the next question. Your answers are kept with ${childName}’s code, not your name.`;
+      : `About a minute. Tap an answer to go to the next question. You can skip any of them, or all of them if ${childName} is next to you. Your answers are kept with ${childName}’s code, not your name.`;
 
   if (!asking) {
     return (

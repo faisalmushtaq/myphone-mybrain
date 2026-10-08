@@ -29,7 +29,8 @@ function blank(value: string): boolean {
 }
 
 /** Messages speak to the young person when they are the one filling in their details (`young`). */
-export function validateChildDetails(identity: ParticipantIdentity, young = false): FieldError[] {
+/** `alone`: a young person of 16 or over doing this on their own, who gives their own home postcode. */
+export function validateChildDetails(identity: ParticipantIdentity, young = false, alone = false): FieldError[] {
   const errors: FieldError[] = [];
 
   if (childFields.firstName.enabled && childFields.firstName.required && blank(identity.firstName)) {
@@ -58,8 +59,8 @@ export function validateChildDetails(identity: ParticipantIdentity, young = fals
           errors.push({
             field: 'child-dob',
             message: young
-              ? `This date of birth is for an adult. Are you a parent or carer? Use the parent form instead (the button below). If you are a young person aged 18 or over, please contact the team and we will send the right form.`
-              : `This form is for young people aged ${study.minAge} to ${study.maxAge}. Someone aged 18 or over gives their own consent — please contact the team and we will send the right form.`,
+              ? `This date of birth is for an adult. Are you a parent or carer? Use the parent form instead (the button below).`
+              : `This form is for young people aged ${study.minAge} to ${study.maxAge}. Check the date of birth, or contact us if you think this is wrong.`,
           });
         } else if (age < study.minAge) {
           errors.push({
@@ -69,6 +70,12 @@ export function validateChildDetails(identity: ParticipantIdentity, young = fals
         }
       }
     }
+  }
+
+  if (alone) {
+    const postcode = (identity.postcode ?? '').trim();
+    if (!postcode) errors.push({ field: 'child-postcode', message: 'Type your home postcode.' });
+    else if (!UK_POSTCODE.test(postcode)) errors.push({ field: 'child-postcode', message: 'Type your full postcode, for example LS2 9JT.' });
   }
 
   if (childFields.school.enabled && childFields.school.required) {
@@ -165,7 +172,7 @@ function signatureErrors(signature: ConsentRecord['signature'], field: string, m
   return [];
 }
 
-export const isValidChildDetails = (identity: ParticipantIdentity) => validateChildDetails(identity).length === 0;
+export const isValidChildDetails = (identity: ParticipantIdentity, young = false, alone = false) => validateChildDetails(identity, young, alone).length === 0;
 export const isValidGuardian = (guardian: GuardianIdentity) => validateGuardian(guardian).length === 0;
 
 /** Case- and whitespace-insensitive comparison used for the "does the typed name match" warning. */

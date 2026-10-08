@@ -58,7 +58,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <span class="consent-route__tag">Opt-in</span>
         <h3>Your answers about their phone</h3>
         <p>Online, on this website, and only if you choose: you answer a few questions about your child’s phone habits, and can share screenshots of their screen time. <strong>It takes about five minutes.</strong></p>
-        <p>If the screenshots come from your child’s own phone, it is their choice too. At 16 or 17, young people can do this themselves.</p>
+        <p>If the screenshots come from your child’s own phone, it is their choice too. From 16, young people can do this themselves.</p>
         <a class="text-link" href="#screen-time">More about screen time and phone habits &nbsp;→</a>
       </li>
     </ol>
@@ -118,7 +118,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <div class="info-panel info-panel-alt">
         <h3>Who decides</h3>
         <p><strong>Under 16:</strong> a parent or carer gives permission first, on the form, and says where the screen time can come from. If you can see your child’s screen time on your own phone, with Apple Family Sharing or Google Family Link, you can send it from there. Otherwise your child sends it from their own phone, if they want to: it is their choice too.</p>
-        <p><strong>16 or 17:</strong> young people decide for themselves, without a parent.</p>
+        <p><strong>16 or over:</strong> young people decide for themselves, without a parent.</p>
       </div>
     </div>
     <div class="prose">

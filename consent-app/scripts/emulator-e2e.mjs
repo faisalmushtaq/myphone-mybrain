@@ -604,6 +604,10 @@ async function inner() {
     await page.getByLabel('Your year group').selectOption('Year 12');
     ok('at 16 the young person is told no parent is needed', (await page.getByText(/You are 16 or over, so you can decide for yourself/).count()) === 1);
     await page.getByRole('button', { name: 'Continue' }).click();
+    await page.locator('#child-postcode-error').waitFor();
+    ok('on their own, they must give their home postcode', (await page.locator('#child-postcode-error').innerText()).includes('Type your home postcode'));
+    await page.getByLabel('Your home postcode').fill('ls6 1ab');
+    await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: /Do you want to share your screen time/ }).waitFor();
     ok('no parent steps, and no “decide later” on their own', (await page.getByText(/At 16 or over, you decide for yourself/).count()) === 1 && (await page.getByRole('button', { name: 'I’d like to decide later' }).count()) === 0);
     await draw(page.locator('#assent-signature'), [[0.2, 0.6], [0.5, 0.35], [0.8, 0.6]]);
@@ -618,7 +622,7 @@ async function inner() {
     await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor({ timeout: 90000 });
     const alone = (await db.collection('submissions').doc(aloneCode).get()).data();
     const aloneParticipant = alone ? (await db.collection('participants').doc(alone.participantId).get()).data() : null;
-    ok('16 on their own: no parent, no permission record, their own agreement, and their screenshot accepted', alone?.selfConsent === true && alone?.consentId === null && alone?.phoneSource === 'child' && alone?.imageCount === 1 && aloneParticipant?.guardian === null && aloneParticipant?.selfConsent === true, JSON.stringify({ selfConsent: alone?.selfConsent, consentId: alone?.consentId, imageCount: alone?.imageCount }));
+    ok('16 on their own: their postcode kept, no parent, no permission record, their own agreement, and their screenshot accepted', alone?.selfConsent === true && alone?.consentId === null && alone?.phoneSource === 'child' && alone?.imageCount === 1 && aloneParticipant?.guardian === null && aloneParticipant?.selfConsent === true && aloneParticipant?.postcode === 'LS6 1AB', JSON.stringify({ selfConsent: alone?.selfConsent, consentId: alone?.consentId, imageCount: alone?.imageCount }));
     ok('the screenshot record says it came from the young person’s own phone', (await db.collection('donations').doc(alone?.donationIds?.[0] ?? 'x').get()).data()?.from === 'young-person-phone');
     await page.getByRole('button', { name: /Everything is right/ }).click();
     await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });

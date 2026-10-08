@@ -182,22 +182,29 @@ test('there is no "declined" record any more: a young person’s no is part of t
   assert.ok(validateConsentPayload(q).some((m) => m.includes('must record the young person’s no')));
 });
 
-test('16 or 17 on their own: no parent, no permission record, their own signed agreement', () => {
+test('16 or over on their own: their own postcode, no parent, no permission record, their own signed agreement', () => {
   const p = valid();
   p.identity.dateOfBirth = dobFor(16);
+  p.identity.postcode = 'LS6 1AB';
   p.guardian = { fullName: '', relationship: '', relationshipOther: '', address: '', postcode: '', email: '', phone: '' };
   p.consent = null;
   p.survey = null;
   assert.deepEqual(validateConsentPayload(p), []);
   assert.ok(validateConsentPayload({ ...p, guardian: { ...p.guardian, fullName: 'Priya Patel' } }).some((m) => m.includes('no parent or carer details')));
+  assert.ok(validateConsentPayload({ ...p, identity: { ...p.identity, postcode: '' } }).some((m) => m.includes('postcode is missing')));
+  assert.ok(validateConsentPayload({ ...p, identity: { ...p.identity, postcode: 'LS6' } }).some((m) => m.includes('postcode is not valid')));
+  // 18-year-olds at college take part too, on their own.
+  assert.deepEqual(validateConsentPayload({ ...p, identity: { ...p.identity, dateOfBirth: dobFor(18) } }), []);
+  assert.ok(validateConsentPayload({ ...p, identity: { ...p.identity, dateOfBirth: dobFor(19) } }).some((m) => m.includes('aged 11 to 18')));
   assert.ok(validateConsentPayload({ ...p, consent: valid().consent }).some((m) => m.includes('no permission record')));
   assert.ok(validateConsentPayload({ ...p, survey: valid().survey }).some((m) => m.includes('no questions')));
   assert.ok(validateConsentPayload({ ...p, assent: { ...p.assent, status: 'deferred', deferredBy: 'young', signature: null } }).some((m) => m.includes('only once they have agreed')));
-  // Under 16 the same record needs the parent.
+  // Under 16 the same record needs the parent, and the parent's postcode is the one kept.
   assert.ok(validateConsentPayload({ ...p, identity: { ...p.identity, dateOfBirth: dobFor(15) } }).some((m) => m.includes('permission record is missing')));
+  assert.ok(validateConsentPayload({ ...valid(), identity: { ...valid().identity, postcode: 'LS6 1AB' } }).some((m) => m.includes('Only a young person deciding alone')));
 });
 
-test('the parent of a 16- or 17-year-old is not asked about the screenshots: the young person decides, from their own phone', () => {
+test('the parent of a young person of 16 or over is not asked about the screenshots: the young person decides, from their own phone', () => {
   const p = valid();
   p.route = 'parent';
   p.identity.dateOfBirth = dobFor(17);

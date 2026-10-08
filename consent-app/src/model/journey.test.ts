@@ -14,7 +14,7 @@ const signature = { method: 'typed' as const, imageDataUrl: null, typedName: 'Sa
 /** A family part-way through: details in, for a young person of this age, on this route. */
 function family(route: 'parent' | 'young', age: number): AppState {
   let s = reducer(initialState(), { type: 'set-route', route });
-  s = reducer(s, { type: 'update-identity', patch: { firstName: 'Kai', lastName: 'Patel', dateOfBirth: dobFor(age), schoolId: 'DUA', yearGroup: 'Year 9' } });
+  s = reducer(s, { type: 'update-identity', patch: { firstName: 'Kai', lastName: 'Patel', dateOfBirth: dobFor(age), schoolId: 'DUA', yearGroup: 'Year 9', ...(route === 'young' && age >= 16 ? { postcode: 'LS6 1AB' } : {}) } });
   s = reducer(s, { type: 'update-guardian', patch: { fullName: 'Sam Patel', relationship: 'mother', address: '1 Long Lane, Leeds', postcode: 'LS6 1AB' } });
   return s;
 }
@@ -108,7 +108,7 @@ describe('the family form after 7 October 2026: who decides, and where the scree
     expect(buildJourney(yes)).toEqual(['welcome', 'child-details', 'parent-details', 'parent-consent', 'parent-questions', 'phone-source', 'child-assent', 'check', 'done']);
   });
 
-  it('a parent of a 16- or 17-year-old: their answers, then the young person decides for themselves', () => {
+  it('a parent of a young person of 16 or over: their answers, then the young person decides for themselves', () => {
     const s = permission(family('parent', 17));
     expect(phoneSourceOf(s)).toBe('child');
     expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'child-assent', 'check', 'done']);

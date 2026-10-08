@@ -33,7 +33,7 @@ export interface ResumeSummary {
   referenceCode: string;
   /** The young person's first name, for the wording. */
   firstName: string;
-  /** 16 or 17 when the record was made: they decided for themselves. */
+  /** 16 or over when the record was made: they decided for themselves. */
   selfConsent: boolean;
   phoneSource: PhoneSource | null;
   assentStatus: 'not-started' | 'completed' | 'deferred' | 'declined';

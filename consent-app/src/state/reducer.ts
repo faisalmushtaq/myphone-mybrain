@@ -34,7 +34,7 @@ export function initialState(): AppState {
     clearedReason: null,
     childPresent: null,
     returnTo: null,
-    identity: { firstName: '', lastName: '', dateOfBirth: { day: '', month: '', year: '' }, schoolId: '', schoolOther: '', yearGroup: '' },
+    identity: { firstName: '', lastName: '', dateOfBirth: { day: '', month: '', year: '' }, schoolId: '', schoolOther: '', yearGroup: '', postcode: '' },
     guardian: { fullName: '', relationship: '', relationshipOther: '', address: '', postcode: '', email: '', phone: '' },
     consent: {
       formId: parentConsentForm.id,

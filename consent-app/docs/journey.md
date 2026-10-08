@@ -31,7 +31,7 @@ Decided by the study lead (`decisions.md`):
 * **The parent's details:** name, relationship, **home address and postcode
   (required)**, email and phone (optional). No parental-responsibility tick:
   only a parent or carer fills the form in.
-* **Saved from the moment the parent signs** (or a 16- or 17-year-old on
+* **Saved from the moment the parent signs** (or a young person of 16 or over on
   their own agrees), and again shortly after every answer or change, on
   whichever step: everything given after signing is kept and used, even if
   the family stops part-way and never reaches the check page.

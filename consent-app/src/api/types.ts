@@ -48,9 +48,9 @@ export interface ConsentPayload {
   siteId: string;
   route: 'parent' | 'young';
   identity: ParticipantIdentity;
-  /** Blank when a 16- or 17-year-old does this on their own. */
+  /** Blank when a young person of 16 or over does this on their own. */
   guardian: GuardianIdentity;
-  /** The parent's permission; null when a 16- or 17-year-old does this on their own. */
+  /** The parent's permission; null when a young person of 16 or over does this on their own. */
   consent: ConsentRecord | null;
   assent: AssentRecord;
   /** The parent's quick questions; null when there is no parent. */
@@ -341,7 +341,7 @@ export interface ResumeSummary {
   referenceCode: string;
   /** The young person's first name, for the wording. */
   firstName: string;
-  /** 16 or 17 when the record was made: they decided for themselves. */
+  /** 16 or over when the record was made: they decided for themselves. */
   selfConsent: boolean;
   phoneSource: PhoneSource | null;
   assentStatus: AssentRecord['status'];

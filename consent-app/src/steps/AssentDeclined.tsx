@@ -11,7 +11,7 @@ import { useSync } from '../state/useSync';
  * A calm answer when the young person does not want to share their screen
  * time. With a parent or carer there, the form carries on to them (their
  * permission and answers still count, and they are asked a few more
- * questions instead); a 16- or 17-year-old on their own has sent nothing, so
+ * questions instead); a young person of 16 or over on their own has sent nothing, so
  * finishing clears the device. Carrying on later with a record, the no is
  * sent to that record when they finish, so they can still change it until
  * then.

@@ -32,7 +32,7 @@ export const aboutStudy = {
       },
       {
         title: 'What this form is for',
-        body: 'Sharing screenshots of your child’s screen-time summary (which apps they use, and for how long) and a few questions for you about their phone use. Both are optional. Young people aged 16 or 17 can share their own screen time.',
+        body: 'Sharing screenshots of your child’s screen-time summary (which apps they use, and for how long) and a few questions for you about their phone use. Both are optional. Young people aged 16 or over can share their own screen time.',
       },
       {
         title: 'What we are not doing',
@@ -89,7 +89,7 @@ export const parentInformation: InfoSection[] = [
     detail: [
       'Screen time means screenshots of the phone’s Screen Time or Digital Wellbeing page: the list of apps and the time spent on each. How a phone is used matters as much as how much. If you can see your child’s screen time on your own phone (Apple Family Sharing or Google Family Link), you can send it from there; otherwise your child can send it from their phone, if they want to.',
       'Your answers to the questions are used in the study too, labelled with a code rather than a name. If the screen time is not shared, we ask you a few more questions instead.',
-      'Young people aged 16 or 17 decide for themselves about sharing their own screen time.',
+      'Young people aged 16 or over decide for themselves about sharing their own screen time.',
     ],
     draft: true,
   },

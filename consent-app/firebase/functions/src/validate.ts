@@ -8,12 +8,12 @@ import { childAssentForm, earlierInformationVersions, parentConsentForm, parentM
  * Two payloads arrive at different moments (see src/api/types.ts in the app):
  *   - the record (validateConsentPayload): the parent's permission and
  *     answers, and the young person's agreement when they are asked for it,
- *     sent from the moment the parent signs (or a 16- or 17-year-old on
+ *     sent from the moment the parent signs (or a young person of 16 or over on
  *     their own agrees) and again as answers are added or changed, so what
  *     a family gives counts even if they stop part-way (decided 7 October
  *     2026). Since 7 October 2026 the workshop is opt-out (by
- *     email) and this form is the opt-in for screen time: 16- and
- *     17-year-olds decide alone (no parent, no permission record); for
+ *     email) and this form is the opt-in for screen time: young people of
+ *     16 or over decide alone (no parent, no permission record); for
  *     under-16s the parent's yes comes first, and the screen time comes from
  *     the parent's own phone, the young person's (with their agreement), or
  *     nowhere (the parent answers the longer questions instead);
@@ -63,7 +63,7 @@ export interface ConsentPayload {
   studyId: string;
   siteId: string;
   route: 'parent' | 'young';
-  identity: { firstName: string; lastName: string; dateOfBirth: { day: string; month: string; year: string }; schoolId: string; schoolOther: string; yearGroup: string };
+  identity: { firstName: string; lastName: string; dateOfBirth: { day: string; month: string; year: string }; schoolId: string; schoolOther: string; yearGroup: string; postcode?: string };
   /** The home address and postcode are required (7 October 2026); email and phone are optional. No parental-responsibility tick: only a parent or carer fills it in. */
   guardian: { fullName: string; relationship: string; relationshipOther: string; address: string; postcode: string; email: string; phone: string; uprn?: string };
   consent: {
@@ -256,8 +256,16 @@ export function validateConsentPayload(input: unknown): string[] {
   }
   const selfConsent = isObj(id) ? selfConsentOf(p as ConsentPayload) : false;
   const alone = selfConsent && p.route === 'young';
+  // A young person doing this on their own gives their home postcode (decided 8 October 2026), for matching their records; anyone else's comes from the parent.
+  if (isObj(id)) {
+    const postcode = id.postcode ?? '';
+    if (typeof postcode !== 'string' || postcode.length > limits.postcode) problems.push('The postcode is malformed.');
+    else if (alone && blank(postcode)) problems.push('The young person’s postcode is missing.');
+    else if (alone && !UK_POSTCODE.test(postcode.trim())) problems.push('The young person’s postcode is not valid.');
+    else if (!alone && !blank(postcode)) problems.push('Only a young person deciding alone gives their own postcode.');
+  }
 
-  // Guardian: none when a 16- or 17-year-old decides alone. The email address is optional; when given it must be valid. Nothing is emailed to families.
+  // Guardian: none when a young person of 16 or over decides alone. The email address is optional; when given it must be valid. Nothing is emailed to families.
   const g = p.guardian;
   if (!isObj(g)) problems.push('Parent or carer details are missing.');
   else if (alone) {

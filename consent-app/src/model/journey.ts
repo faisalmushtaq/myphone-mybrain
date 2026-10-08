@@ -53,13 +53,13 @@ export function childAge(state: Pick<AppState, 'identity'>): number | null {
   return dob ? ageOn(dob) : null;
 }
 
-/** 16 or 17 (study.selfConsentAge): the young person decides about sharing their own screen time. */
+/** 16 or over (study.selfConsentAge): the young person decides about sharing their own screen time. */
 export function decidesAlone(state: Pick<AppState, 'identity'>): boolean {
   const age = childAge(state);
   return study.selfConsentAge !== null && age !== null && age >= study.selfConsentAge;
 }
 
-/** A 16- or 17-year-old doing this on their own: no parent or carer steps at all. */
+/** A young person of 16 or over doing this on their own: no parent or carer steps at all. */
 export function youngAlone(state: AppState): boolean {
   return state.route === 'young' && decidesAlone(state);
 }
@@ -212,7 +212,7 @@ export function isStepComplete(stepId: StepId, state: AppState): boolean {
     case 'resume':
       return state.resume !== null && (state.resume.canAgree || state.resume.canAddScreenshots);
     case 'child-details':
-      return isValidChildDetails(state.identity) && (state.route !== 'parent' || isValidGuardian(state.guardian));
+      return isValidChildDetails(state.identity, state.route === 'young', youngAlone(state)) && (state.route !== 'parent' || isValidGuardian(state.guardian));
     case 'parent-details':
       return isValidGuardian(state.guardian);
     case 'parent-consent':

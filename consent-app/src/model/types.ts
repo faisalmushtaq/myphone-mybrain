@@ -34,6 +34,8 @@ export interface ParticipantIdentity {
   /** Free-text school name when schoolId is "other". */
   schoolOther: string;
   yearGroup: string;
+  /** The young person's own home postcode: asked only when they do this on their own (16 or over), for matching their records; otherwise the parent's postcode is used. */
+  postcode: string;
 }
 
 export interface GuardianIdentity {

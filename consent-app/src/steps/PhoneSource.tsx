@@ -29,7 +29,7 @@ export function PhoneSource() {
           {
             value: 'parent' as Source,
             title: 'Yes, from my phone',
-            body: `I can see ${childName}’s screen time on my own phone, with Apple Family Sharing or Google Family Link. You send the screenshots now, in a few minutes; ${childName} doesn’t need to be here.`,
+            body: `I can see ${childName}’s screen time on my own phone, with Apple Family Sharing or Google Family Link (apps that show you your child’s phone use). You send the screenshots now; ${childName} doesn’t need to be here.`,
           },
         ]
       : []),

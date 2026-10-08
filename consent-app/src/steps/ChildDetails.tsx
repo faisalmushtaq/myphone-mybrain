@@ -8,7 +8,7 @@ import { dateOfBirthRange, schoolYearFor } from '../lib/dates';
 import { Icon } from '../components/ui/Icon';
 import { childFields, yearGroups } from '../config/fields';
 import { OTHER_SCHOOL_ID, schoolFromLink, schools } from '../config/schools';
-import { decidesAlone } from '../model/journey';
+import { decidesAlone, youngAlone } from '../model/journey';
 import { useStore } from '../state/context';
 import { limits, validateChildDetails, validateGuardian, type FieldError } from '../lib/validation';
 
@@ -29,7 +29,8 @@ export function ChildDetails() {
   const childName = identity.firstName.trim() || 'your child';
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
 
-  const validate = (nextIdentity = identity, nextGuardian = guardian) => [...validateChildDetails(nextIdentity, young), ...(withGuardian ? validateGuardian(nextGuardian) : [])];
+  const alone = youngAlone(state);
+  const validate = (nextIdentity = identity, nextGuardian = guardian) => [...validateChildDetails(nextIdentity, young, young && decidesAlone({ identity: nextIdentity })), ...(withGuardian ? validateGuardian(nextGuardian) : [])];
   // A parent who pressed the young person's button and gave their own (adult) date of birth.
   const adultOnYoungRoute = young && errors.some((e) => e.field === 'child-dob' && e.message.startsWith('This date of birth is for an adult'));
 
@@ -70,7 +71,7 @@ export function ChildDetails() {
         <p>
           {young
             ? 'So the team can match you with your school and your answers. Your name and date of birth are kept in a separate, locked-away list; your answers get a code number instead.'
-            : 'So the team can match your child with their school and the rest of the study, and record who gave permission. Names and contact details are kept apart from research information, which is labelled with a code.'}
+            : 'We need these to match your answers to your child. Names and addresses are kept locked away, separate from the answers.'}
         </p>
       }
       errors={errors}
@@ -101,6 +102,22 @@ export function ChildDetails() {
             <SelectField id="child-year-group" label={young ? 'Your year group' : childFields.yearGroup.label} required={childFields.yearGroup.required} hint={yearHint} options={yearGroups.map((y) => ({ value: y, label: y }))} placeholder="Choose" value={identity.yearGroup} onChange={(e) => updateIdentity({ yearGroup: e.target.value })} error={errs['child-year-group']} />
           )}
         </div>
+        {alone && (
+          <TextField
+            id="child-postcode"
+            label="Your home postcode"
+            hint="For example LS2 9JT. So we can match you with your records."
+            required
+            autoComplete="postal-code"
+            autoCapitalize="characters"
+            maxLength={limits.postcode}
+            width="short"
+            className="mpmb-input--upper"
+            value={identity.postcode}
+            onChange={(e) => updateIdentity({ postcode: e.target.value })}
+            error={errs['child-postcode']}
+          />
+        )}
         {identity.schoolId === OTHER_SCHOOL_ID && (
           <TextField id="child-school-other" label="Name of the school" required maxLength={limits.school} value={identity.schoolOther} onChange={(e) => updateIdentity({ schoolOther: e.target.value })} error={errs['child-school-other']} />
         )}

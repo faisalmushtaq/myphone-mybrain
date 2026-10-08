@@ -3,6 +3,15 @@
 Decisions the study lead made on the questions this code raised, and where
 each is implemented. Newest first.
 
+## 8 October 2026
+
+| Decision | Where |
+| --- | --- |
+| The form takes young people aged **11 to 18** (some colleges have 18-year-olds). From 16 they decide for themselves, so an 18-year-old is never asked for a parent. | `study.maxAge` (`src/config/study.ts`), the server's copy (`firebase/functions/src/forms.ts`) |
+| A young person of **16 or over doing the form on their own must give their home postcode**, so their records can be matched like everyone else's. | `src/steps/ChildDetails.tsx`, `validateChildDetails`; `validate.ts`; stored as `postcode` on the participant, exported in `participants_key.tsv` (the parent's postcode, or theirs) |
+| The address finder allows **5 lookups per browser an hour** and **1,500 a day** for the site (600 or more parents may come on one day). | `firebase/functions/src/address.ts`; `docs/address-lookup.md` |
+| Plainer words for parents with little time: the details, permission, quick-questions and screen-time steps say what to do in fewer, shorter sentences. | `ChildDetails.tsx`, `ParentConsent.tsx`, `ParentQuestions.tsx`, `PhoneSource.tsx` |
+
 ## 7 October 2026
 
 **Ethics:** no piecemeal approvals while the changes are being made. Once
@@ -18,7 +27,7 @@ they are all in, the ethics forms get **one master update**;
 | An opt-out that arrives **after** the workshop withdraws the data too, as far as is still possible. | Opt-out wording; the staff page's Opt-outs tab ("it came after the workshop") |
 | A family that opts out gives **no data at all**: the phone form is not for them. | Opt-out wording |
 | The team **records each opt-out email on the staff page**; the export lists them and flags them in the UPN matches. | Staff page → Opt-outs (`optOuts/`); export: `schools/identifying/opt_outs.tsv`, `opted_out` in `participants_key.tsv`, `participants.tsv` and the UPN tables |
-| The phone data (screen-time screenshots) is **opt-in**. **16- and 17-year-olds** can agree for themselves. For **under-16s** a parent or carer gives permission. | `study.selfConsentAge` (16); `src/model/journey.ts`; the server checks it again (`validate.ts`) |
+| The phone data (screen-time screenshots) is **opt-in**. **young people of 16 or over** can agree for themselves. For **under-16s** a parent or carer gives permission. | `study.selfConsentAge` (16); `src/model/journey.ts`; the server checks it again (`validate.ts`) |
 | Under-16s: when the parent can see the young person's screen time on their **own phone** (Apple Family Sharing, Google Family Link), the parent's permission is enough and the parent sends the screenshots. Otherwise the young person sends them from their phone, if they are willing. If not (or neither is possible), the parent answers **longer questions**: time and apps, night-time and sleep, effects. Every parent answers the quick questions. | `src/steps/PhoneSource.tsx`, `familyWalkthroughs`, `parentMoreForm` (`src/config/questions.ts`, draft wording) |
 | The draft markers and the preview controls come off the live site now. | Deploy workflow (`MPMB_PROTOTYPE` defaults to false) |
 | Families can still complete the form **after the workshop**, if they didn't at the time: the team chases them. But nothing says so: the parent letter says only that "in the coming weeks your child will take part in…" (no dates), and the letter and the site ask for the form **as soon as they get it**, with no "you can do it later". The form stays open, and a family that stopped part-way (the young person wasn't there or wanted to decide later, or no screenshots were sent) **carries on later** with the reference from their thank-you page and the young person's date of birth, on any device: the young person adds their answer and screenshots, or the family adds screenshots, to the same record. | `src/steps/Resume.tsx` (`?finish=<reference>`, or "Carry on with your reference" on the first page); `resumeRecord` in `firebase/functions/src/resume.ts`; the thank-you page's link (`CarryOnLink`); `added_later_on` in `participants.tsv`, `added_later` in the sessions files |

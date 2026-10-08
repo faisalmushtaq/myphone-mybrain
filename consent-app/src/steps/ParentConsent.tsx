@@ -51,7 +51,7 @@ export function ParentConsent() {
     <StepShell
       kicker="Parent or carer"
       title={<>Your permission: {childName}’s phone use.</>}
-      intro={<p>Read the short summary, confirm the statements and sign. About two minutes. This is separate from the workshop at school.</p>}
+      intro={<p>Read the summary, tick the box and sign. About two minutes.</p>}
       errors={errors}
       onContinue={next}
       continueLabel="Confirm and sign"

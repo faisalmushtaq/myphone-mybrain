@@ -62,7 +62,7 @@ const digest = (value: unknown) => createHash('sha256').update(canonical(value))
 
 /**
  * Records the family's form: the parent's permission and answers, and the
- * young person's agreement when they were asked for it (a 16- or 17-year-old
+ * young person's agreement when they were asked for it (a young person of 16 or over
  * deciding alone sends no parent details and no permission record). Called
  * from the moment the parent signs (decided 7 October 2026: whatever a
  * family gives after signing is kept and used, even if they stop part-way),
@@ -153,6 +153,8 @@ export const submitConsent = onCall(callOptions, async (request) => {
         dateOfBirth: dob ? dob.toISOString().slice(0, 10) : null,
         schoolOther: payload.identity.schoolOther.trim() || null,
         yearGroup: payload.identity.yearGroup || null,
+        // Their own home postcode when they decided alone (16 or over); otherwise the parent's, under guardian.
+        postcode: alone && typeof payload.identity.postcode === 'string' ? payload.identity.postcode.trim().toUpperCase() : null,
         selfConsent,
         phoneSource,
         guardian: alone
@@ -311,7 +313,7 @@ async function acceptUpload(uid: string, participantId: string, upload: Donation
 
 /**
  * Records screenshots against a record this session created. Who may share
- * is checked on the server's own copy of the records: a 16- or 17-year-old's
+ * is checked on the server's own copy of the records: a young person of 16 or over's
  * own agreement; for an under-16, the parent's yes, and, when the
  * screenshots come from the young person's phone, the young person's
  * agreement too (from the parent's own phone, the parent's yes is enough).

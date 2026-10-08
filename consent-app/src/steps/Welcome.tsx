@@ -76,7 +76,7 @@ export function Welcome() {
           </li>
           <li>
             <Icon name="parent" size={20} />
-            <span>16 or 17? You can do this on your own. Under 16? You need your parent or carer with you: they say yes first, then you decide for yourself.</span>
+            <span>16 or over? You can do this on your own. Under 16? You need your parent or carer with you: they say yes first, then you decide for yourself.</span>
           </li>
           <li>
             <Icon name="phone" size={20} />
@@ -169,7 +169,7 @@ export function Welcome() {
             I’m the young person
           </span>
           <span className="mpmb-route__body" id="route-young-body">
-            16 or 17: you can do this on your own. Under 16: do it when your parent or carer is with you; they say yes first, then you decide.
+            16 or over: you can do this on your own. Under 16: do it when your parent or carer is with you; they say yes first, then you decide.
           </span>
           <span className="mpmb-route__cta" aria-hidden="true">
             Start →

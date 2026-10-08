@@ -12,13 +12,13 @@ export const study = {
   organisation: 'University of Leeds',
 
   /**
-   * Age range for this parental-consent journey (inclusive). The study works
-   * with 11–18-year-olds, but a parent cannot consent on behalf of an adult, so
-   * this flow stops at 17; 18-year-olds must consent for themselves through a
-   * separate process.
+   * Age range for this form (inclusive): 11 to 18, as some colleges have
+   * 18-year-olds (decided 8 October 2026). From selfConsentAge (16) the young
+   * person decides for themselves, so an 18-year-old is never asked for a
+   * parent's permission.
    */
   minAge: 11,
-  maxAge: 17,
+  maxAge: 18,
 
   /**
    * Age from which a young person decides for themselves about sharing their
