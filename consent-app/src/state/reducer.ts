@@ -1,5 +1,5 @@
 import { guardianFields } from '../config/fields';
-import { parentMoreForm, parentQuestionsForm } from '../config/questions';
+import { parentMoreForm, parentNoPhoneForm, parentQuestionsForm } from '../config/questions';
 import { childAssentForm, parentConsentForm } from '../config/statements';
 import type { PlatformId } from '../config/walkthroughs';
 import { todayIso } from '../lib/dates';
@@ -319,8 +319,12 @@ export function reducer(state: AppState, action: Action): AppState {
       const done = action.status === 'completed' || action.status === 'skipped';
       return { ...state, [key]: { ...form, status: action.status, completedAt: done ? new Date().toISOString() : form.completedAt } };
     }
-    case 'set-phone-source':
-      return { ...state, phoneSource: action.source };
+    case 'set-phone-source': {
+      // No phone of their own: the longer questions' slot holds the no-phone questions instead, and back again if that changes.
+      const form = action.source === 'no-phone' ? parentNoPhoneForm : parentMoreForm;
+      const more = state.more.formId === form.id ? state.more : { formId: form.id, formVersion: form.version, status: 'not-started' as SurveyStatus, responses: {}, startedAt: null, completedAt: null };
+      return { ...state, phoneSource: action.source, more };
+    }
     case 'share-prompted':
       return { ...state, sharePrompted: true };
     case 'images-sent':

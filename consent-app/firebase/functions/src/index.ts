@@ -222,6 +222,8 @@ export const submitConsent = onCall(callOptions, async (request) => {
   // 3b. The parent's questions, quick and longer: research data, labelled by participant id only (no names, no reference). One record per form, replaced by the latest answers.
   const saveAnswers = (record: ConsentPayload['survey'], earlier: DocumentSnapshot | null): string | null => {
     if (!record || record.status === 'not-started') return earlier?.exists ? earlier.id : null;
+    // The longer questions' slot can change form (the no-phone questions, from 9 October 2026): a different form is a new record, and the earlier one stays as it was.
+    if (earlier?.exists && earlier.get('formId') !== record.formId) earlier = null;
     const ref = earlier?.exists ? earlier.ref : db.collection('surveys').doc();
     batch.set(ref, {
       studyId: payload.studyId,

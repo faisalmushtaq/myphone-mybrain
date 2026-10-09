@@ -3,7 +3,7 @@ import boldUrl from '../assets/fonts/AtkinsonHyperlegibleNext-Bold.ttf?url';
 import regularUrl from '../assets/fonts/AtkinsonHyperlegibleNext-Regular.ttf?url';
 import { covered } from '../assets/fonts/coverage';
 import { relationships } from '../config/fields';
-import { parentMoreForm, parentQuestionsForm } from '../config/questions';
+import { moreFormFor, parentQuestionsForm } from '../config/questions';
 import { OTHER_SCHOOL_ID, schools } from '../config/schools';
 import { childAssentForm, parentConsentForm, statementsFor } from '../config/statements';
 import { childAge, parentInvolved, parentMoreApplies, phoneSourceOf } from '../model/journey';
@@ -210,7 +210,8 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
   const relationship = guardian.relationship === 'other' ? guardian.relationshipOther : (relationships.find((r) => r.id === guardian.relationship)?.label ?? '');
   const sent = donation.images.filter((i) => i.status === 'sent').length;
   const answered = parentQuestionsForm.questions.filter((q) => survey.responses[q.id]).length;
-  const answeredMore = parentMoreForm.questions.filter((q) => more.responses[q.id]).length;
+  const moreForm = moreFormFor(more.formId);
+  const answeredMore = moreForm.questions.filter((q) => more.responses[q.id]).length;
 
   doc.setProperties({
     title: `MyPhone/MyBrain – your copy of the record (${reference})`,
@@ -256,14 +257,14 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
     w.row('Form version', `${consent.formId} ${consent.formVersion}`);
     w.row('Information version', consent.informationVersion ?? '');
 
-    if (study.parentQuestions) {
+    if (study.parentQuestions && source !== 'no-phone') {
       w.heading('Parent or carer’s quick questions');
       const status = survey.status === 'not-started' ? 'Not answered.' : survey.status === 'skipped' && !answered ? 'Skipped; these questions are optional.' : `${answered} of ${parentQuestionsForm.questions.length} answered.`;
       w.paragraph(`${status} The answers are kept with ${childName}’s code and are not included in this copy.`);
     }
     if (parentMoreApplies(state)) {
-      w.heading('More questions');
-      const status = more.status === 'not-started' ? 'Not answered.' : more.status === 'skipped' && !answeredMore ? 'Skipped; these questions are optional.' : `${answeredMore} of ${parentMoreForm.questions.length} answered.`;
+      w.heading(source === 'no-phone' ? 'Questions about phones and social media' : 'More questions');
+      const status = more.status === 'not-started' ? 'Not answered.' : more.status === 'skipped' && !answeredMore ? 'Skipped; these questions are optional.' : `${answeredMore} of ${moreForm.questions.length} answered.`;
       w.paragraph(`${status} The answers are kept with ${childName}’s code and are not included in this copy.`);
     }
   }

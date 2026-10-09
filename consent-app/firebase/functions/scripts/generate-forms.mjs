@@ -56,6 +56,8 @@ const generated = {
   parentQuestionsForm: questionForm(questions.parentQuestionsForm),
   // The longer questions, when the young person's screen time is not coming through the form.
   parentMoreForm: questionForm(questions.parentMoreForm),
+  // Instead of the quick and the longer questions, when the young person has no phone of their own (from 9 October 2026).
+  parentNoPhoneForm: questionForm(questions.parentNoPhoneForm),
   // From this age a young person decides alone about sharing their screen time (null: never alone).
   selfConsentAge: studyConfig.study.selfConsentAge,
   // The social media break study (adults): required statements plus an optional record-linkage choice.

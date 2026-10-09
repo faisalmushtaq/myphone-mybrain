@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Draft } from '../components/ui/Draft';
-import { CheckboxField } from '../components/ui/Field';
-import { multiValues, parentMoreForm, parentQuestionsForm } from '../config/questions';
+import { moreFormFor, multiValues, parentNoPhoneForm, parentQuestionsForm } from '../config/questions';
 import { announce } from '../lib/announce';
 import { phoneSourceApplies } from '../model/journey';
 import { useStore } from '../state/context';
@@ -30,7 +29,8 @@ export function ParentMore() {
  */
 function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   const { state, dispatch } = useStore();
-  const config = which === 'more' ? parentMoreForm : parentQuestionsForm;
+  const config = which === 'more' ? moreFormFor(state.more.formId) : parentQuestionsForm;
+  const noPhone = config.id === parentNoPhoneForm.id;
   const survey = which === 'more' ? state.more : state.survey;
   const form = which;
   const childName = state.identity.firstName.trim() || 'your child';
@@ -50,19 +50,11 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   const ticked = q.type === 'multi' ? multiValues(survey.responses[q.id]?.value) : [];
   const last = index === total - 1;
   const text = (t: string) => t.replace(/\{child\}/g, childName);
-  // Not every young person has a phone (team feedback, 9 October 2026): a box on the quick questions says so, and then there are no
-  // longer phone questions and no screen time to ask for. Under 16 only: at 16 or over the young person answers for themselves.
-  const noPhoneBox = which === 'quick' && (phoneSourceApplies(state) || state.phoneSource === 'no-phone');
-  const noPhone = state.phoneSource === 'no-phone';
-  const noPhoneField = noPhoneBox ? (
-    <CheckboxField
-      id="no-phone"
-      checked={noPhone}
-      onChange={(checked) => dispatch({ type: 'set-phone-source', source: checked ? 'no-phone' : null })}
-      label={`${childName} doesn’t have a phone of their own`}
-      hint={noPhone ? `Thank you. Please answer about any phone, tablet or computer ${childName} uses, or skip. There are no screen-time questions after this.` : undefined}
-    />
-  ) : null;
+  // Not every young person has a phone (team feedback, 9 October 2026), so the parent is asked first, before any question about it.
+  // "No" gives the no-phone questions (in the longer questions' slot) instead of the quick and the longer ones. Under 16 only: at 16 or
+  // over the young person answers for themselves. Not asked again once the quick questions are under way or the screen time is decided.
+  const [saidYes, setSaidYes] = useState(false);
+  const gate = which === 'quick' && !saidYes && (state.phoneSource === 'no-phone' || (phoneSourceApplies(state) && state.phoneSource === null && survey.status === 'not-started'));
 
   useEffect(
     () => () => {
@@ -122,14 +114,42 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
 
   const title = (
     <>
-      {which === 'more' ? `Some more questions about ${childName}’s phone use.` : `A few quick questions about ${childName}’s phone use.`} {config.draft && <Draft />}
+      {noPhone ? 'Some questions about phones and social media.' : which === 'more' ? `Some more questions about ${childName}’s phone use.` : `A few quick questions about ${childName}’s phone use.`} {config.draft && <Draft />}
     </>
   );
-  const kicker = which === 'more' ? 'More questions' : 'Quick questions';
-  const intro =
-    which === 'more'
+  const kicker = noPhone ? 'Questions' : which === 'more' ? 'More questions' : 'Quick questions';
+  const intro = noPhone
+    ? `${childName} doesn’t have a phone of their own, so these are about what you think of phones and social media, and what ${childName} uses instead. About a minute. You can skip any question. Your answers are kept with ${childName}’s code, not your name.`
+    : which === 'more'
       ? `About ${childName}’s phone and social media: time and apps, night-time and sleep, and how it affects them. About two minutes. Answer what you can: you can skip any question. Your answers are kept with ${childName}’s code, not your name.`
       : `About a minute. Tap an answer to go to the next question. You can skip any of them, or all of them if ${childName} is next to you. Your answers are kept with ${childName}’s code, not your name.`;
+
+  if (gate) {
+    const answer = (has: boolean) => {
+      if (has) {
+        if (state.phoneSource === 'no-phone') dispatch({ type: 'set-phone-source', source: null });
+        setSaidYes(true);
+        window.requestAnimationFrame(() => questionRef.current?.focus());
+        return;
+      }
+      if (state.phoneSource !== 'no-phone') dispatch({ type: 'set-phone-source', source: 'no-phone' });
+      dispatch({ type: 'next' });
+    };
+    return (
+      <StepShell kicker="Quick questions" title={<>First: does {childName} have a phone of their own?</>} intro={<p>A smartphone that is theirs, not shared with anyone else. Not every young person has one, and that’s fine.</p>} hideContinue>
+        <div className="mpmb-quiz__options" role="group" aria-label={`Does ${childName} have a phone of their own?`}>
+          <button type="button" className={`mpmb-quiz__option${saidYes ? ' is-selected' : ''}`} aria-pressed={false} onClick={() => answer(true)}>
+            <span className="mpmb-quiz__dot" aria-hidden="true" />
+            Yes
+          </button>
+          <button type="button" className={`mpmb-quiz__option${state.phoneSource === 'no-phone' ? ' is-selected' : ''}`} aria-pressed={state.phoneSource === 'no-phone'} onClick={() => answer(false)}>
+            <span className="mpmb-quiz__dot" aria-hidden="true" />
+            No, not yet
+          </button>
+        </div>
+      </StepShell>
+    );
+  }
 
   if (!asking) {
     return (
@@ -145,7 +165,6 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
         >
           {answered ? 'Answer them again' : 'Answer the questions'}
         </Button>
-        {noPhoneField}
       </StepShell>
     );
   }
@@ -162,7 +181,6 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
         </Button>
       }
     >
-      {noPhoneField}
       <div className="mpmb-quiz">
         <p className="mpmb-quiz__count">
           {q.topic ? `${q.topic} · ` : ''}Question {index + 1} of {total}

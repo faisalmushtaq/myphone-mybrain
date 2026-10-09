@@ -142,6 +142,12 @@ async function inner() {
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
 
   // Draws on the page the locator belongs to (a second device has its own mouse).
+  /** Under 16, the parent is first asked whether the young person has a phone of their own (9 October 2026): "Yes" for these journeys. */
+  const hasOwnPhone = async (page) => {
+    await page.getByRole('heading', { name: /First: does .* have a phone of their own\?|A few quick questions/ }).waitFor();
+    if (await page.getByRole('heading', { name: /First: does/ }).count()) await page.getByRole('button', { name: 'Yes', exact: true }).click();
+    await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
+  };
   const draw = async (locator, points) => {
     await locator.scrollIntoViewIfNeeded();
     const box = await locator.boundingBox();
@@ -217,6 +223,7 @@ async function inner() {
     // The parent's name is the one they sign with (it is no longer asked on the details page).
     await page.getByLabel('Your full name', { exact: true }).fill('Priya Patel');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await hasOwnPhone(page);
     await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
     const usageCalls = await page.evaluate(() => window.__usageCalls);
     ok(
@@ -439,6 +446,7 @@ async function inner() {
     // The parent's name is the one they sign with (it is no longer asked on the details page).
     await page.getByLabel('Your full name', { exact: true }).fill('Sara Khan');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await hasOwnPhone(page);
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.getByRole('heading', { name: /Some more questions about Amira’s phone use/ }).waitFor();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
@@ -483,6 +491,7 @@ async function inner() {
     // The parent's name is the one they sign with (it is no longer asked on the details page).
     await page.getByLabel('Your full name', { exact: true }).fill('Jo Clarke');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await hasOwnPhone(page);
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.getByRole('heading', { name: /Some more questions about Noah’s phone use/ }).waitFor();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
@@ -577,11 +586,12 @@ async function inner() {
     // The parent's name is the one they sign with (it is no longer asked on the details page).
     await page.getByLabel('Your full name', { exact: true }).fill('Grace Brown');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await hasOwnPhone(page);
     await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.getByRole('heading', { name: /Some more questions about Lily’s phone use/ }).waitFor();
     await page.locator('.mpmb-quiz__count', { hasText: 'Time and apps · Question 1 of 9' }).waitFor();
-    ok('the age at their own phone goes down to “Under 5”, year by year, with “I can’t remember / I don’t know”', (await page.locator('.mpmb-quiz__option').count()) === 14 && (await page.getByRole('button', { name: 'Under 5', exact: true }).count()) === 1 && (await page.getByRole('button', { name: '7', exact: true }).count()) === 1 && (await page.getByRole('button', { name: 'I can’t remember / I don’t know', exact: true }).count()) === 1);
+    ok('the age at their own phone goes down to “Under 5”, year by year, with “I can’t remember / I don’t know”', (await page.locator('.mpmb-quiz__option').count()) === 13 && (await page.getByRole('button', { name: 'They don’t have their own' }).count()) === 0 && (await page.getByRole('button', { name: 'Under 5', exact: true }).count()) === 1 && (await page.getByRole('button', { name: '7', exact: true }).count()) === 1 && (await page.getByRole('button', { name: 'I can’t remember / I don’t know', exact: true }).count()) === 1);
     await page.getByRole('button', { name: '12', exact: true }).click();
     await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of 9' }).waitFor();
     ok('the longer questions ask when they started on social media, in plain words', (await page.getByRole('heading', { name: /How old was Lily when they started using social media\?/ }).count()) === 1);
@@ -607,7 +617,7 @@ async function inner() {
     const noConsent = no?.consentId ? (await db.collection('consents').doc(no.consentId).get()).data() : null;
     const noMore = no?.moreSurveyId ? (await db.collection('surveys').doc(no.moreSurveyId).get()).data() : null;
     const noAssent = no?.assentId ? (await db.collection('assents').doc(no.assentId).get()).data() : null;
-    ok('after the parent’s no: no screen time, no agreement asked of the young person, and the longer answers kept, apps and all', no?.phoneSource === 'none' && no?.selfConsent === false && !noConsent?.responses?.['phone-use'] && noAssent?.status === 'not-started' && noMore?.formId === 'mpmb-parent-phone-use' && noMore?.formVersion === '0.4-draft' && noMore?.responses?.['own-phone-age']?.value === '12' && noMore?.responses?.['social-media-age']?.value === '11' && noMore?.responses?.['school-day-time']?.value === '3-4' && noMore?.responses?.['top-app']?.value === 'tiktok;youtube' && !noMore?.responses?.['weekend-time'] && !JSON.stringify(noMore).includes('Brown'), JSON.stringify({ phoneSource: no?.phoneSource, more: noMore?.responses }));
+    ok('after the parent’s no: no screen time, no agreement asked of the young person, and the longer answers kept, apps and all', no?.phoneSource === 'none' && no?.selfConsent === false && !noConsent?.responses?.['phone-use'] && noAssent?.status === 'not-started' && noMore?.formId === 'mpmb-parent-phone-use' && noMore?.formVersion === '0.5-draft' && noMore?.responses?.['own-phone-age']?.value === '12' && noMore?.responses?.['social-media-age']?.value === '11' && noMore?.responses?.['school-day-time']?.value === '3-4' && noMore?.responses?.['top-app']?.value === 'tiktok;youtube' && !noMore?.responses?.['weekend-time'] && !JSON.stringify(noMore).includes('Brown'), JSON.stringify({ phoneSource: no?.phoneSource, more: noMore?.responses }));
     await page.getByRole('button', { name: /Everything is right/ }).click();
     await page.getByRole('heading', { name: 'Would you share Lily’s screen time after all?' }).waitFor();
     ok('one last prompt after the parent’s no, which can stay a no', (await page.getByRole('button', { name: 'Yes, share it' }).count()) === 1);
@@ -631,19 +641,24 @@ async function inner() {
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.6]]);
     await page.getByLabel('Your full name', { exact: true }).fill('Tom Green');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
-    await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
-    await page.getByText('Ivy doesn’t have a phone of their own').click();
-    ok('a box for a young person with no phone of their own, saying what happens next', (await page.getByText(/There are no screen-time questions after this/).count()) === 1);
-    await page.getByRole('button', { name: 'Not at all', exact: true }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of' }).waitFor();
+    await page.getByRole('heading', { name: /First: does Ivy have a phone of their own\?/ }).waitFor();
+    ok('the first question is whether the young person has a phone of their own', (await page.getByRole('button', { name: 'No, not yet' }).count()) === 1 && (await page.getByRole('button', { name: 'Yes', exact: true }).count()) === 1);
+    await page.getByRole('button', { name: 'No, not yet' }).click();
+    await page.getByRole('heading', { name: /Some questions about phones and social media/ }).waitFor();
+    ok('without a phone, their own questions instead of the quick and the longer ones', (await page.getByRole('heading', { name: /Why doesn’t Ivy have a phone of their own\?/ }).count()) === 1);
+    await page.getByRole('button', { name: 'We think they’re too young' }).click();
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of 8' }).waitFor();
+    await page.getByRole('button', { name: '13', exact: true }).click();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 3 of 8' }).waitFor();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
     await page.locator('.mpmb-save', { hasText: 'Everything so far is saved.' }).waitFor({ timeout: 60000 });
-    ok('no longer phone questions and no screen-time question when there is no phone; the check page says why', (await page.getByText('Ivy doesn’t have a phone of their own, so there is no screen time to share.').count()) === 1);
+    ok('no screen-time question when there is no phone; the check page says why', (await page.getByText('Ivy doesn’t have a phone of their own, so there is no screen time to share.').count()) === 1 && (await page.getByText('Parent or carer’s quick questions').count()) === 0);
     const noPhoneCode = (await page.locator('.mpmb-save strong').innerText()).trim();
     const noPhone = (await db.collection('submissions').doc(noPhoneCode).get()).data();
-    const noPhoneSurvey = noPhone?.surveyId ? (await db.collection('surveys').doc(noPhone.surveyId).get()).data() : null;
-    ok('stored as no phone, with the quick answer kept and no longer questions', noPhone?.phoneSource === 'no-phone' && !noPhone?.moreSurveyId && noPhoneSurvey?.responses?.concern?.value === 'not-at-all', JSON.stringify({ source: noPhone?.phoneSource, more: noPhone?.moreSurveyId ?? null }));
+    const noPhoneAnswers = noPhone?.moreSurveyId ? (await db.collection('surveys').doc(noPhone.moreSurveyId).get()).data() : null;
+    ok('stored as no phone, with the no-phone answers in their own form', noPhone?.phoneSource === 'no-phone' && !noPhone?.surveyId && noPhoneAnswers?.formId === 'mpmb-parent-no-phone' && noPhoneAnswers?.responses?.['why-no-phone']?.value === 'too-young' && noPhoneAnswers?.responses?.['expected-age']?.value === '13' && noPhoneAnswers?.status === 'skipped', JSON.stringify({ source: noPhone?.phoneSource, form: noPhoneAnswers?.formId ?? null, status: noPhoneAnswers?.status }));
     await page.getByRole('button', { name: /Everything is right/ }).click();
     await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
     ok('no last prompt to share screen time when there is no phone', (await page.getByRole('heading', { name: /after all/ }).count()) === 0);
@@ -1261,6 +1276,7 @@ async function inner() {
     // The parent's name is the one they sign with (it is no longer asked on the details page).
     await page.getByLabel('Your full name', { exact: true }).fill('Sam Hughes');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await hasOwnPhone(page);
     await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.getByRole('heading', { name: /Some more questions about Mia’s phone use/ }).waitFor();
@@ -1318,6 +1334,8 @@ async function inner() {
     const optOutsTsv = await readExport('schools/identifying/opt_outs.tsv');
     const familiesTsv = await readExport('schools/donations/participants.tsv');
     const phoneUseTsv = await readExport('schools/donations/phenotype/parent_phone_use.tsv');
+    const noPhoneTsv = await readExport('schools/donations/phenotype/parent_no_phone.tsv');
+    ok('the no-phone answers have their own table, and the research table their own status column', noPhoneTsv.split('\n')[0].startsWith('participant_id\twhy_no_phone\texpected_age\t') && noPhoneTsv.includes('\ttoo-young\t13\t') && familiesTsv.split('\n')[0].includes('\tmore_questions_status\tno_phone_questions_status\t') && familiesTsv.includes('\tno-phone\t'), noPhoneTsv.slice(0, 300));
     ok('MyStory is exported by phase, the triangle over three columns', midTsv.split('\n')[0].includes('pull_habit\tpull_people_and_connection\tpull_boredom_or_stress\tpull_status') && midTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && midTsv.includes('\tThe bus\t') && midTsv.includes('\tnot-sure\t') && postTsv.includes('\tQuiet evenings\t') && preTsv.includes('sub-MP2670FF90A5F2\tses-pre\t') && preTsv.includes('\tLate nights\t') && finalManifest.counts?.labStories === 3, JSON.stringify(finalManifest.counts));
     ok('the visits and contact details are exported to identifying/, the visit date to the research table', visitsTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\t1\t') && visitsTsv.includes('\tmoved\t') && visitsTsv.includes('day-before-email:not-configured') && contactsTsv.includes('jane.smith@example.org\t+447700900123\ttrue') && labPeople.includes(`\t${v1a.toISOString().slice(0, 10)}\tbooked\t`) && !labPeople.includes('jane@'));
     ok('the opt-out is flagged on the school’s list and listed in identifying/ with the UPN it names', unmatchedTsv.split('\n').some((l) => l.startsWith('DUA\tA123456789013\tOla\tNowak') && l.includes('\ttrue\t')) && optOutsTsv.includes('\tactive\t') && optOutsTsv.includes('\tOla\tNowak\t') && optOutsTsv.includes('\tEwa Nowak\t') && optOutsTsv.includes('\tA123456789013\tname-only'), optOutsTsv.split('\n')[1]);

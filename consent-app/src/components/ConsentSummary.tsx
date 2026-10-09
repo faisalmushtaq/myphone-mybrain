@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { parentMoreForm, parentQuestionsForm } from '../config/questions';
+import { moreFormFor, parentQuestionsForm } from '../config/questions';
 import { childAssentForm, parentConsentForm, statementsFor } from '../config/statements';
 import { study } from '../config/study';
 import { relationships } from '../config/fields';
@@ -65,7 +65,8 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
   const [reveal, setReveal] = useState(false);
   const { identity, guardian, consent, assent, donation, survey, more } = state;
   const answered = parentQuestionsForm.questions.filter((q) => survey.responses[q.id]).length;
-  const answeredMore = parentMoreForm.questions.filter((q) => more.responses[q.id]).length;
+  const moreForm = moreFormFor(more.formId);
+  const answeredMore = moreForm.questions.filter((q) => more.responses[q.id]).length;
   const withParent = parentInvolved(state);
   const source = phoneSourceOf(state);
   const asked = statementsFor(parentConsentForm, childAge(state), study.selfConsentAge);
@@ -152,6 +153,7 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
 
       {study.parentQuestions &&
         withParent &&
+        source !== 'no-phone' &&
         section(
           'Parent or carer’s quick questions',
           'parent-questions',
@@ -194,17 +196,17 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
 
       {parentMoreApplies(state) &&
         section(
-          'More questions',
+          source === 'no-phone' ? 'Questions about phones and social media' : 'More questions',
           'parent-more',
           'research',
           <p className="mpmb-summary__note">
-            {more.status === 'not-started' ? 'Not answered yet.' : more.status === 'skipped' && !answeredMore ? 'Skipped — these questions are optional.' : `${answeredMore} of ${parentMoreForm.questions.length} answered.`} The answers are kept with {childName}’s code and are not shown again on this phone.
+            {more.status === 'not-started' ? 'Not answered yet.' : more.status === 'skipped' && !answeredMore ? 'Skipped — these questions are optional.' : `${answeredMore} of ${moreForm.questions.length} answered.`} The answers are kept with {childName}’s code and are not shown again on this phone.
           </p>,
         )}
 
       {section(
         'Screen time and apps',
-        source === 'parent' || (source === 'child' && assent.status === 'completed') ? 'phone-use' : null,
+        source === 'parent' || (source === 'child' && assent.status === 'completed') ? 'phone-use' : source === 'no-phone' ? 'parent-questions' : null,
         'research',
         source === 'no-phone' ? (
           <p className="mpmb-summary__note">{childName} doesn’t have a phone of their own, so there is no screen time to share.</p>

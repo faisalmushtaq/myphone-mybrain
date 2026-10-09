@@ -108,12 +108,12 @@ export function phoneUseApplies(state: AppState): boolean {
 /**
  * The longer questions for the parent: always, straight after the quick
  * ones and before the screen time is decided or handed over (decided 8
- * October 2026), unless the young person has no phone of their own, so that the parent's answers are in even if the young
+ * October 2026), so that the parent's answers are in even if the young
  * person never does their part. Every question can be skipped.
  */
 export function parentMoreApplies(state: AppState): boolean {
-  // Not when the young person has no phone of their own: the longer questions are all about their phone (decided 9 October 2026).
-  return !state.resume && parentInvolved(state) && phoneSourceOf(state) !== 'no-phone';
+  // With no phone of their own, this is the no-phone questions instead (9 October 2026).
+  return !state.resume && parentInvolved(state);
 }
 
 /** The young person has the phone for the end of the form: they answered after the parent's part, so they finish and send it, with no handing back. */
@@ -220,7 +220,8 @@ export function isStepComplete(stepId: StepId, state: AppState): boolean {
     case 'parent-consent':
       return state.consent.completedAt !== null;
     case 'parent-questions':
-      return state.survey.status === 'completed' || state.survey.status === 'skipped';
+      // "No" to "does {child} have a phone of their own?" answers this step: the no-phone questions come next.
+      return state.survey.status === 'completed' || state.survey.status === 'skipped' || state.phoneSource === 'no-phone';
     case 'phone-source':
       return state.phoneSource !== null;
     case 'child-assent':

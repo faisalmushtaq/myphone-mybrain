@@ -62,10 +62,13 @@ const wordingOf = (f: { questions: readonly GeneratedQuestion[] }): Record<strin
 export const parentQuestionsForm = questionForm(generated.parentQuestionsForm as unknown as { id: string; version: string; questions: GeneratedQuestion[] });
 /** The longer questions, when the young person's screen time is not coming through the form. */
 export const parentMoreForm = questionForm(generated.parentMoreForm as unknown as { id: string; version: string; questions: GeneratedQuestion[] });
+/** Instead of the quick and the longer questions, when the young person has no phone of their own (from 9 October 2026); held in the longer questions' slot. */
+export const parentNoPhoneForm = questionForm(generated.parentNoPhoneForm as unknown as { id: string; version: string; questions: GeneratedQuestion[] });
 
 /** The questions' wording and answer labels, for the exported data dictionaries. {child} stands for the young person's name. */
 export const questionWording = wordingOf(generated.parentQuestionsForm as unknown as { questions: GeneratedQuestion[] });
 export const moreQuestionWording = wordingOf(generated.parentMoreForm as unknown as { questions: GeneratedQuestion[] });
+export const noPhoneQuestionWording = wordingOf(generated.parentNoPhoneForm as unknown as { questions: GeneratedQuestion[] });
 /** The topic of each longer question (time and apps, night-time and sleep, effects). */
 export const moreQuestionTopics: Record<string, string> = Object.fromEntries((generated.parentMoreForm.questions as readonly { id: string; topic: string | null }[]).map((q) => [q.id, q.topic ?? '']));
 

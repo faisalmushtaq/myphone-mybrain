@@ -1,4 +1,4 @@
-import { childAssentForm, earlierInformationVersions, parentConsentForm, parentMoreForm, parentQuestionsForm, informationVersion, REFERENCE_CODE, study, type ServedQuestionForm } from './forms.js';
+import { childAssentForm, earlierInformationVersions, parentConsentForm, parentMoreForm, parentNoPhoneForm, parentQuestionsForm, informationVersion, REFERENCE_CODE, study, type ServedQuestionForm } from './forms.js';
 
 /**
  * Server-side validation. Mirrors the browser rules in src/lib/validation.ts
@@ -341,12 +341,14 @@ export function validateConsentPayload(input: unknown): string[] {
   // The parent's questions: none when deciding alone.
   for (const [value, form, what] of [
     [p.survey, parentQuestionsForm, 'questions'],
-    [p.more, parentMoreForm, 'longer questions'],
+    // The longer questions' slot holds the no-phone questions when the young person has no phone of their own (from 9 October 2026).
+    [p.more, isObj(p.more) && p.more.formId === parentNoPhoneForm.id ? parentNoPhoneForm : parentMoreForm, 'longer questions'],
   ] as const) {
     if (value === null || value === undefined) continue;
     if (alone) problems.push(`A young person deciding alone sends no ${what}.`);
     else validateSurvey(value, form, what, problems);
   }
+  if (isObj(p.more) && (p.more.formId === parentNoPhoneForm.id) !== (source === 'no-phone')) problems.push('The questions sent do not match whether the young person has a phone.');
 
   validateClient(p.client, problems);
   return problems;

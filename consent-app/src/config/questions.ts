@@ -153,14 +153,16 @@ const hours = [
  */
 export const parentMoreForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-phone-use',
+  // 0.5: the age at their own smartphone without "They don't have their own" (9 October 2026).
   // 0.4: when they started on social media (8 October 2026).
   // 0.3: without the questions the quick questions already ask (8 October 2026): the effect on sleep ("gets in the way of sleep, schoolwork or family time"), good or bad overall ("how concerned are you"), and a second "anything else".
-  version: '0.4-draft',
+  version: '0.5-draft',
   draft: true,
   questions: [
     {
       id: 'own-phone-age',
-      version: '0.2-draft',
+      // 0.3: without "They don't have their own": families without a phone answer their own questions (9 October 2026).
+      version: '0.3-draft',
       type: 'choice',
       topic: 'Time and apps',
       label: 'Age at own smartphone',
@@ -170,7 +172,6 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
         { value: 'under-5', label: 'Under 5' },
         ...['5', '6', '7', '8', '9', '10', '11', '12', '13', '14'].map((age) => ({ value: age, label: age })),
         { value: '15-plus', label: '15 or older' },
-        { value: 'none', label: 'They don’t have their own' },
         { value: 'unsure', label: 'I can’t remember / I don’t know' },
       ],
     },
@@ -276,3 +277,114 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
   ],
 };
 
+
+/**
+ * Questions for the parent or carer of a young person with no phone of their
+ * own (team feedback, 9 October 2026: not every young person has a phone).
+ * Asked instead of the quick and the longer questions, after the parent
+ * answers "No" to "Does {child} have a phone of their own?": what they think
+ * of phones and social media, and what the young person uses instead. Every
+ * question can be skipped. PLACEHOLDER wording, to be replaced with the
+ * team's own items. Stored in the same slot as the longer questions, under
+ * its own form id; the server reads this file at build time.
+ */
+const goodBad = [
+  { value: 'very-bad', label: 'Very bad' },
+  { value: 'quite-bad', label: 'Quite bad' },
+  { value: 'neither', label: 'Neither good nor bad' },
+  { value: 'quite-good', label: 'Quite good' },
+  { value: 'very-good', label: 'Very good' },
+  dontKnow,
+];
+
+export const parentNoPhoneForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
+  id: 'mpmb-parent-no-phone',
+  version: '0.1-draft',
+  draft: true,
+  questions: [
+    {
+      id: 'why-no-phone',
+      version: '0.1-draft',
+      type: 'multi',
+      label: 'Why no phone',
+      text: 'Why doesn’t {child} have a phone of their own?',
+      hint: 'Choose all that apply.',
+      options: [
+        { value: 'too-young', label: 'We think they’re too young' },
+        { value: 'worried', label: 'We’re worried about what it could do' },
+        { value: 'not-wanted', label: 'They don’t want one' },
+        { value: 'cost', label: 'Cost' },
+        { value: 'broken-lost', label: 'It’s broken, lost or taken away for now' },
+        { value: 'other', label: 'Something else' },
+      ],
+    },
+    {
+      id: 'expected-age',
+      version: '0.1-draft',
+      type: 'choice',
+      label: 'Age they will get one',
+      text: 'How old do you think {child} will be when they get their own phone?',
+      compact: true,
+      options: [
+        ...['11', '12', '13', '14', '15'].map((age) => ({ value: age, label: age })),
+        { value: '16-plus', label: '16 or older' },
+        dontKnow,
+      ],
+    },
+    {
+      id: 'other-devices',
+      version: '0.1-draft',
+      type: 'multi',
+      label: 'Other devices used',
+      text: 'Which of these does {child} use?',
+      hint: 'Choose all that apply.',
+      options: [
+        { value: 'family-phone', label: 'Someone else’s phone' },
+        { value: 'tablet', label: 'A tablet' },
+        { value: 'computer', label: 'A computer or laptop' },
+        { value: 'console', label: 'A games console' },
+        { value: 'none', label: 'None of these' },
+      ],
+    },
+    {
+      id: 'social-media',
+      version: '0.1-draft',
+      type: 'choice',
+      label: 'Social media on any device',
+      text: 'Does {child} use social media, like TikTok, Snapchat, Instagram or YouTube, on any device?',
+      options: [
+        { value: 'no', label: 'No' },
+        { value: 'sometimes', label: 'Sometimes' },
+        { value: 'most-days', label: 'Most days' },
+        dontKnow,
+      ],
+    },
+    {
+      id: 'asks-for-phone',
+      version: '0.1-draft',
+      type: 'choice',
+      label: 'Asks for a phone',
+      text: 'How often does {child} ask for a phone of their own?',
+      options: [
+        { value: 'never', label: 'Never' },
+        { value: 'sometimes', label: 'Sometimes' },
+        { value: 'often', label: 'Often' },
+        { value: 'all-the-time', label: 'All the time' },
+      ],
+    },
+    { id: 'phones-good-bad', version: '0.1-draft', type: 'choice', label: 'Phones: good or bad', text: 'For young people of {child}’s age, do you think having a phone is good or bad?', options: goodBad },
+    { id: 'social-media-good-bad', version: '0.1-draft', type: 'choice', label: 'Social media: good or bad', text: 'For young people of {child}’s age, do you think social media is good or bad?', options: goodBad },
+    {
+      id: 'anything-else',
+      version: '0.1-draft',
+      type: 'text',
+      label: 'Anything else',
+      text: 'Is there anything else you’d like to tell us about {child} and phones or social media?',
+      hint: 'Optional. Please don’t include names or anything that could identify someone else.',
+      maxLength: 500,
+    },
+  ],
+};
+
+/** The form held in the longer questions' slot: the no-phone questions when that is the form recorded there. */
+export const moreFormFor = (formId: string) => (formId === parentNoPhoneForm.id ? parentNoPhoneForm : parentMoreForm);

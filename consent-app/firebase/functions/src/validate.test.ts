@@ -233,13 +233,15 @@ test('when the parent says no to sharing, there is no screen time, and the longe
   p.route = 'parent';
   p.phoneSource = 'none';
   p.assent = notAsked();
-  p.more = { formId: 'mpmb-parent-phone-use', formVersion: '0.4-draft', status: 'completed', responses: { 'school-day-time': { questionId: 'school-day-time', version: '0.1-draft', value: '2-3', answeredAt: now }, 'after-bedtime': { questionId: 'after-bedtime', version: '0.1-draft', value: 'sometimes', answeredAt: now } }, startedAt: now, completedAt: now };
+  p.more = { formId: 'mpmb-parent-phone-use', formVersion: '0.5-draft', status: 'completed', responses: { 'school-day-time': { questionId: 'school-day-time', version: '0.1-draft', value: '2-3', answeredAt: now }, 'after-bedtime': { questionId: 'after-bedtime', version: '0.1-draft', value: 'sometimes', answeredAt: now } }, startedAt: now, completedAt: now };
   assert.deepEqual(validateConsentPayload(p), []);
   assert.deepEqual(validateConsentPayload({ ...p, more: { ...p.more, status: 'in-progress', completedAt: null } }), [], 'part-way through the longer questions');
   // The age at their own smartphone, year by year from under 5, or not remembered.
-  const age = (value: string) => validateConsentPayload({ ...p, more: { ...p.more!, responses: { 'own-phone-age': { questionId: 'own-phone-age', version: '0.2-draft', value, answeredAt: now } } } });
-  for (const value of ['under-5', '7', '14', '15-plus', 'none', 'unsure']) assert.deepEqual(age(value), [], value);
+  const age = (value: string) => validateConsentPayload({ ...p, more: { ...p.more!, responses: { 'own-phone-age': { questionId: 'own-phone-age', version: '0.3-draft', value, answeredAt: now } } } });
+  for (const value of ['under-5', '7', '14', '15-plus', 'unsure']) assert.deepEqual(age(value), [], value);
   assert.ok(age('under-9').some((m) => m.includes('Malformed answer')), 'the old bands are not offered any more');
+  // Families without a phone answer their own questions (9 October 2026), so "They don't have their own" is gone from here.
+  assert.ok(age('none').some((m) => m.includes('Malformed answer')), 'no "they don’t have their own"');
   // More than one app, joined by ";": each from the list, once; "I don't know" on its own.
   const apps = (value: string) => validateConsentPayload({ ...p, more: { ...p.more!, responses: { 'top-app': { questionId: 'top-app', version: '0.2-draft', value, answeredAt: now } } } });
   assert.deepEqual(apps('tiktok'), []);
@@ -292,4 +294,16 @@ test('screenshot record needs a reference and well-formed, distinct uploads', ()
   assert.ok(validateDonationPayload(e).some((m) => m.includes('twice')));
   e.uploads = [{ ...validDonation().uploads[0], acknowledgedWarning: 'yes' as unknown as boolean }];
   assert.ok(validateDonationPayload(e).some((m) => m.includes('malformed')));
+});
+
+test('a young person with no phone of their own: the no-phone questions in the longer questions’ slot, and only then', () => {
+  const p = valid();
+  p.route = 'parent';
+  p.phoneSource = 'no-phone';
+  p.assent = notAsked();
+  p.more = { formId: 'mpmb-parent-no-phone', formVersion: '0.1-draft', status: 'completed', responses: { 'why-no-phone': { questionId: 'why-no-phone', version: '0.1-draft', value: 'too-young;worried', answeredAt: now }, 'expected-age': { questionId: 'expected-age', version: '0.1-draft', value: '13', answeredAt: now } }, startedAt: now, completedAt: now };
+  assert.deepEqual(validateConsentPayload(p), []);
+  assert.ok(validateConsentPayload({ ...p, phoneSource: 'none' }).some((m) => m.includes('do not match whether the young person has a phone')), 'the no-phone questions need "no phone"');
+  assert.ok(validateConsentPayload({ ...p, more: { ...p.more, formId: 'mpmb-parent-phone-use', formVersion: '0.5-draft', responses: {} } }).some((m) => m.includes('do not match whether the young person has a phone')), '"no phone" needs the no-phone questions');
+  assert.ok(validateConsentPayload({ ...p, more: { ...p.more!, responses: { 'expected-age': { questionId: 'expected-age', version: '0.1-draft', value: '9', answeredAt: now } } } }).some((m) => m.includes('Malformed answer')));
 });

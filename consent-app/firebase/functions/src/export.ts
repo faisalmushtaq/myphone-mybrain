@@ -5,7 +5,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { labExport } from './exportLab.js';
 import { optOutFor, optOutsOf, upnExport } from './exportUpn.js';
-import { moreQuestionTopics, moreQuestionWording, parentMoreForm, parentQuestionsForm, questionWording, study, type ServedQuestionForm } from './forms.js';
+import { moreQuestionTopics, moreQuestionWording, noPhoneQuestionWording, parentMoreForm, parentNoPhoneForm, parentQuestionsForm, questionWording, study, type ServedQuestionForm } from './forms.js';
 
 /**
  * The hourly export: everything the studies have recorded, written into a
@@ -191,6 +191,7 @@ export function participantsTable(snap: Snapshot): Row[] {
   const assentBy = new Map(snap.assents.map((a) => [a.id, a]));
   const surveyBy = latestSurveys(snap);
   const moreBy = latestSurveys(snap, parentMoreForm.id);
+  const noPhoneBy = latestSurveys(snap, parentNoPhoneForm.id);
   const optOuts = optOutsOf(snap.optOuts ?? []);
   return snap.participants
     .filter((p) => snap.labels.has(p.id))
@@ -214,6 +215,7 @@ export function participantsTable(snap: Snapshot): Row[] {
         assent_status: assent?.data.status,
         questions_status: surveyBy.get(p.id)?.data.status ?? 'not-started',
         more_questions_status: moreBy.get(p.id)?.data.status ?? 'not-asked',
+        no_phone_questions_status: noPhoneBy.get(p.id)?.data.status ?? 'not-asked',
         sessions_n: mine.length,
         screenshots_n: mine.reduce((n, s) => n + s.images.length, 0),
         platform: mine.length ? mine[mine.length - 1].donation.data.platform : null,
@@ -225,7 +227,7 @@ export function participantsTable(snap: Snapshot): Row[] {
 }
 
 /** The columns of participants.tsv, in order. */
-export const PARTICIPANT_COLUMNS = ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'added_later_on', 'opted_out'];
+export const PARTICIPANT_COLUMNS = ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'no_phone_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'added_later_on', 'opted_out'];
 
 export function phenotypeTable(snap: Snapshot, form: ServedQuestionForm = parentQuestionsForm): Row[] {
   const ids = form.questions.map((q) => q.id);
@@ -429,12 +431,31 @@ export function participantsDictionary(): Record<string, unknown> {
     assent_status: { Description: 'The young person’s own agreement to share their screen time, in the app', Levels: { completed: 'Signed in the app', deferred: 'Put off: not there, or deciding later', declined: 'Said no to sharing', 'not-started': 'Not asked (the screen time came from the parent’s phone, or was not shared)' } },
     questions_status: { Description: 'The parent or carer’s quick questions (phenotype/parent_perceptions.tsv)', Levels: { completed: 'Answered', 'in-progress': 'Partly answered', skipped: 'Skipped', 'not-started': 'Not reached' } },
     more_questions_status: { Description: 'The parent or carer’s longer questions: until 8 October 2026 asked when the screen time was not shared; since then asked of every parent, unless the young person has no phone of their own (phenotype/parent_phone_use.tsv)', Levels: { completed: 'Answered', 'in-progress': 'Partly answered', skipped: 'Skipped', 'not-asked': 'Not asked' } },
+    no_phone_questions_status: { Description: 'The parent or carer’s questions about phones and social media, asked instead of the quick and the longer questions when the young person has no phone of their own (from 9 October 2026; phenotype/parent_no_phone.tsv)', Levels: { completed: 'Answered', 'in-progress': 'Partly answered', skipped: 'Skipped', 'not-asked': 'Not asked' } },
     sessions_n: { Description: 'Occasions on which screenshots were sent; each is a session' },
     screenshots_n: { Description: 'Screenshots accepted in total' },
     platform: { Description: 'Phone type reported at the latest send', Levels: { ios: 'iPhone', android: 'Android', other: 'Something else, or not sure' } },
     added_later_on: { Description: 'Date the family last came back with their reference to add the young person’s agreement or screenshots (often after the workshop); n/a when everything came at once. Each screenshot session’s own time is in the sessions files.' },
     opted_out: { Description: 'Whether a parent or carer has opted the young person out of the workshop and the study by email (identifying/opt_outs.tsv): if true, their data is not to be used, and is withdrawn as far as possible' },
   };
+}
+
+/** The data dictionary for the questions when the young person has no phone of their own (phenotype/parent_no_phone.tsv). */
+export function noPhoneDictionary(): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    MeasurementToolMetadata: { Description: `MyPhone/MyBrain parent questions when the young person has no phone of their own (${parentNoPhoneForm.id} ${parentNoPhoneForm.version}): why not, what they use instead, and what the parent or carer thinks of phones and social media. Asked instead of the quick and the longer questions, from 9 October 2026. Wording is draft until approved by ethics.`, TermURL: CODE_URL },
+    participant_id: { Description: 'Participant label; see participants.tsv' },
+  };
+  for (const q of parentNoPhoneForm.questions) {
+    const wording = noPhoneQuestionWording[q.id];
+    const entry: Record<string, unknown> = { Description: `${(wording?.text ?? q.id).replace(/\{child\}/g, 'the young person')}${q.type === 'multi' ? ' More than one answer can be given: the values are separated by semicolons.' : ''}` };
+    if (q.type !== 'text') entry.Levels = Object.fromEntries(q.options.map((o) => [o, wording?.labels?.[o] ?? o]));
+    out[snake(q.id)] = entry;
+  }
+  out.status = { Description: 'Whether the questions were answered', Levels: { completed: 'All reached and answered or skipped individually', 'in-progress': 'Partly answered', skipped: 'Skipped as a whole' } };
+  out.form_version = { Description: 'Version of the questionnaire wording shown' };
+  out.completed_at = { Description: 'When the questions were finished (ISO 8601, UTC)' };
+  return out;
 }
 
 /** The data dictionary for the longer questions (phenotype/parent_phone_use.tsv). */
@@ -512,8 +533,9 @@ phenotype/                the parent or carer's answers about the young
                           person's phone use, latest per participant, each
                           with a data dictionary: parent_perceptions (the quick
                           questions every parent is asked) and parent_phone_use
-                          (the longer questions, asked when the screen time was
-                          not shared: time and apps, sleep, effects)
+                          (the longer questions: time and apps, sleep, effects)
+                          and parent_no_phone (asked instead, from 9 October
+                          2026, when the young person has no phone of their own)
 sub-<label>/              one session (ses-01, ses-02, ...) per occasion on
                           which the family sent screenshots; each holds
                           beh/*_task-screentime_beh.tsv listing the images with
@@ -705,6 +727,8 @@ export async function runExport(): Promise<Manifest> {
     json(`${B}/phenotype/parent_perceptions.json`, phenotypeDictionary()),
     tsv(`${B}/phenotype/parent_phone_use.tsv`, phenotypeTable(snap, parentMoreForm), ['participant_id', ...parentMoreForm.questions.map((q) => snake(q.id)), 'status', 'form_version', 'completed_at']),
     json(`${B}/phenotype/parent_phone_use.json`, phoneUseDictionary()),
+    tsv(`${B}/phenotype/parent_no_phone.tsv`, phenotypeTable(snap, parentNoPhoneForm), ['participant_id', ...parentNoPhoneForm.questions.map((q) => snake(q.id)), 'status', 'form_version', 'completed_at']),
+    json(`${B}/phenotype/parent_no_phone.json`, noPhoneDictionary()),
     text(`${B}/sourcedata/README.md`, SOURCEDATA_README, 'text/markdown; charset=utf-8'),
     jsonl(`${B}/sourcedata/raw/surveys.jsonl`, surveys),
     jsonl(`${B}/sourcedata/raw/donations.jsonl`, donations),
