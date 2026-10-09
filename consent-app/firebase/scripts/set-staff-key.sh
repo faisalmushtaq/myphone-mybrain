@@ -16,7 +16,9 @@ ok() { printf '  ✓ %s\n' "$*"; }
 
 gcloud services enable secretmanager.googleapis.com --project="$PROJECT" >/dev/null
 # 32 random characters from an alphabet without look-alikes: about 160 bits.
-KEY="$(LC_ALL=C tr -dc 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789' </dev/urandom | head -c 32)"
+# `head` closing the pipe early makes `tr` exit with SIGPIPE, which pipefail would treat as a failure and stop the script silently.
+KEY="$(LC_ALL=C tr -dc 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789' </dev/urandom | head -c 32 || true)"
+[[ ${#KEY} -eq 32 ]] || { echo "Could not make a key; please run the script again."; exit 1; }
 
 if gcloud secrets describe "$SECRET" --project="$PROJECT" >/dev/null 2>&1; then
   printf '%s' "$KEY" | gcloud secrets versions add "$SECRET" --project="$PROJECT" --data-file=- >/dev/null
