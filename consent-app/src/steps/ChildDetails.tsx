@@ -71,7 +71,7 @@ export function ChildDetails() {
         <p>
           {young
             ? 'So the team can match you with your school and your answers. Your name and date of birth are kept in a separate, locked-away list; your answers get a code number instead.'
-            : 'We need these to match your answers to your child. Names and addresses are kept locked away, separate from the answers.'}
+            : 'We need these in order to match your answers to your child. Names and addresses are kept locked away and remain separate from the rest of your answers.'}
         </p>
       }
       errors={errors}
