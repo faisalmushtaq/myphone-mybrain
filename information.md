@@ -24,7 +24,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     </div>
 
     <h2 class="info-sheet__more-heading">Want to know more?</h2>
-    <p class="info-sheet__more-hint">Tap a heading to read it.</p>
+    <p class="info-sheet__more-hint">Tap a heading to read it. Prefer paper? <a href="{{ '/information/myphone-mybrain-information-sheet.pdf' | relative_url }}" download>Download it all as a PDF</a> to print or send.</p>
     <details class="info-fold" id="about">
       <summary><h2>About the study</h2></summary>
       <div class="info-fold__body">

@@ -48,6 +48,16 @@ jobs:
         env:
           JEKYLL_ENV: production
 
+      # The information sheet as PDFs (one for everyone, one per school), made from the built information page
+      # with the runner's Chrome, so the PDF always says what the page says (consent-app/scripts/info-sheet-pdf.mjs).
+      - name: Information sheet PDFs
+        # A failure here must not stop the website going out: the step shows red, and the PDF links 404 until it is fixed.
+        continue-on-error: true
+        run: node scripts/info-sheet-pdf.mjs ../_site
+        working-directory: consent-app
+        env:
+          CHROME_CHANNEL: chrome
+
       - uses: actions/upload-pages-artifact@v3
 
   deploy:

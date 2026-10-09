@@ -55,6 +55,7 @@ layout: default
       <h2>Want to know more first?</h2>
       <ul class="school-links">
         <li><a class="text-link" href="{{ '/information/' | relative_url }}">The information sheet: everything in one place &nbsp;&rarr;</a></li>
+        <li><a class="text-link" href="{{ '/information/myphone-mybrain-information-sheet-' | append: school.slug | append: '.pdf' | relative_url }}" download>The information sheet as a PDF, to print or keep &nbsp;&rarr;</a></li>
         <li><a class="text-link" href="{{ '/young-people/' | relative_url }}">Information for your child &nbsp;&rarr;</a></li>
         <li><a class="text-link" href="{{ '/faq/' | relative_url }}">Questions and answers &nbsp;&rarr;</a></li>
         <li><a class="text-link" href="{{ '/contact/?topic=Participant%20information' | relative_url }}">Ask the research team &nbsp;&rarr;</a></li>
@@ -86,6 +87,7 @@ Thank you,
 {{ school.name }}</textarea>
         <div class="school-staff__actions"><button type="button" class="btn btn-secondary" data-copy-from="staff-message-long">Copy</button><span class="copy-status" aria-live="polite"></span></div>
       </div>
+      <p>To print, or attach to an email: <a href="{{ '/information/myphone-mybrain-information-sheet-' | append: school.slug | append: '.pdf' | relative_url }}" download>the information sheet for {{ school.name }} (PDF)</a>. Its QR code and address go to this page.</p>
       <p class="school-landing__hint">The link goes straight to this page, with {{ school.name }} filled in on the form. Questions: <a href="{{ '/contact/' | relative_url }}">contact the team</a>.</p>
     </details>
   </div>
