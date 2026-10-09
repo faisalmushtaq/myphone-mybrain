@@ -614,6 +614,40 @@ async function inner() {
     await page.getByRole('button', { name: 'No, finish' }).click();
     await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
 
+    // A young person with no phone of their own (team feedback, 9 October 2026): one box on the quick questions, then straight to the check.
+    await page.getByRole('button', { name: 'Finish and clear this device' }).click();
+    await page.getByRole('heading', { name: /Share screen time with MyPhone/ }).waitFor();
+    await page.goto(`http://127.0.0.1:${PORT}/index.html?who=parent&school=dua`);
+    await page.getByLabel('First name', { exact: true }).fill('Ivy');
+    await page.getByLabel('Last name', { exact: true }).fill('Green');
+    await page.getByLabel('Date of birth', { exact: true }).fill(yearsAgo(12));
+    await page.getByLabel('Year group').selectOption('Year 7');
+    await page.getByLabel('Your relationship to the young person').selectOption('father');
+    await page.getByLabel('Your home address').fill('4 Park Road, Leeds');
+    await page.getByLabel('Postcode').fill('LS2 9JT');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: /Your permission: Ivy’s phone use/ }).waitFor();
+    await page.getByLabel(/I confirm all of the above/).check();
+    await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.6]]);
+    await page.getByLabel('Your full name', { exact: true }).fill('Tom Green');
+    await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
+    await page.getByText('Ivy doesn’t have a phone of their own').click();
+    ok('a box for a young person with no phone of their own, saying what happens next', (await page.getByText(/There are no screen-time questions after this/).count()) === 1);
+    await page.getByRole('button', { name: 'Not at all', exact: true }).click();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of' }).waitFor();
+    await page.getByRole('button', { name: 'Skip these questions' }).click();
+    await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
+    await page.locator('.mpmb-save', { hasText: 'Everything so far is saved.' }).waitFor({ timeout: 60000 });
+    ok('no longer phone questions and no screen-time question when there is no phone; the check page says why', (await page.getByText('Ivy doesn’t have a phone of their own, so there is no screen time to share.').count()) === 1);
+    const noPhoneCode = (await page.locator('.mpmb-save strong').innerText()).trim();
+    const noPhone = (await db.collection('submissions').doc(noPhoneCode).get()).data();
+    const noPhoneSurvey = noPhone?.surveyId ? (await db.collection('surveys').doc(noPhone.surveyId).get()).data() : null;
+    ok('stored as no phone, with the quick answer kept and no longer questions', noPhone?.phoneSource === 'no-phone' && !noPhone?.moreSurveyId && noPhoneSurvey?.responses?.concern?.value === 'not-at-all', JSON.stringify({ source: noPhone?.phoneSource, more: noPhone?.moreSurveyId ?? null }));
+    await page.getByRole('button', { name: /Everything is right/ }).click();
+    await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
+    ok('no last prompt to share screen time when there is no phone', (await page.getByRole('heading', { name: /after all/ }).count()) === 0);
+
     // A 16-year-old on their own: no parent at all, their own agreement, then their screenshots.
     await page.getByRole('button', { name: 'Finish and clear this device' }).click();
     await page.getByRole('heading', { name: /Share screen time with MyPhone/ }).waitFor();

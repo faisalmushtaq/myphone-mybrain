@@ -86,7 +86,8 @@ export function phoneSourceOf(state: AppState): PhoneSource | null {
 /** Whether the parent says where an under-16's screen time comes from (or that it won't): on both routes, after their permission. */
 export function phoneSourceApplies(state: AppState): boolean {
   if (state.resume) return false;
-  return !decidesAlone(state);
+  // "Doesn't have a phone of their own", ticked on the quick questions, answers it already.
+  return !decidesAlone(state) && state.phoneSource !== 'no-phone';
 }
 
 /** Whether the young person's own agreement is asked: whenever the screenshots are to come from their phone, unless it was put off (not there, or deciding later). */
@@ -107,11 +108,12 @@ export function phoneUseApplies(state: AppState): boolean {
 /**
  * The longer questions for the parent: always, straight after the quick
  * ones and before the screen time is decided or handed over (decided 8
- * October 2026), so that the parent's answers are in even if the young
+ * October 2026), unless the young person has no phone of their own, so that the parent's answers are in even if the young
  * person never does their part. Every question can be skipped.
  */
 export function parentMoreApplies(state: AppState): boolean {
-  return !state.resume && parentInvolved(state);
+  // Not when the young person has no phone of their own: the longer questions are all about their phone (decided 9 October 2026).
+  return !state.resume && parentInvolved(state) && phoneSourceOf(state) !== 'no-phone';
 }
 
 /** The young person has the phone for the end of the form: they answered after the parent's part, so they finish and send it, with no handing back. */

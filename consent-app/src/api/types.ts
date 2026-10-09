@@ -55,7 +55,7 @@ export interface ConsentPayload {
   assent: AssentRecord;
   /** The parent's quick questions; null when there is no parent. */
   survey: SurveyRecord | null;
-  /** Where the young person's screen time comes from: their own phone ('child'), the parent's family view ('parent'), or nowhere ('none'). */
+  /** Where the young person's screen time comes from: their own phone ('child'), the parent's family view ('parent'), or nowhere ('none'), or the young person has no phone of their own ('no-phone'). */
   phoneSource: PhoneSource | null;
   /** The parent's longer questions, when the screen time is not coming through the form. */
   more: SurveyRecord | null;

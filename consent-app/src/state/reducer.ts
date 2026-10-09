@@ -114,7 +114,7 @@ export type Action =
   | { type: 'answer-question'; questionId: string; version: string; value: string; form?: QuestionsForm }
   | { type: 'skip-question'; questionId: string; form?: QuestionsForm }
   | { type: 'survey-status'; status: SurveyStatus; form?: QuestionsForm }
-  | { type: 'set-phone-source'; source: PhoneSource }
+  | { type: 'set-phone-source'; source: PhoneSource | null }
   /** The last prompt to share the screen time before finishing was shown. */
   | { type: 'share-prompted' }
   | { type: 'images-sent'; ids: string[] }
@@ -271,7 +271,7 @@ export function reducer(state: AppState, action: Action): AppState {
         if (s.coveredBySignature) responses[s.id] = record(s.id, s.version, 'agreed', 'signature');
       }
       const assent = { ...state.assent, responses, status: 'completed' as AssentStatus, deferredBy: null, completedAt: new Date().toISOString() };
-      const donation = (state.donation.status === 'deferred' || state.donation.status === 'not-consented') && state.phoneSource !== 'none' ? { ...state.donation, status: 'not-started' as DonationStatus } : state.donation;
+      const donation = (state.donation.status === 'deferred' || state.donation.status === 'not-consented') && state.phoneSource !== 'none' && state.phoneSource !== 'no-phone' ? { ...state.donation, status: 'not-started' as DonationStatus } : state.donation;
       return { ...state, assent, donation };
     }
     case 'assent-decline': {

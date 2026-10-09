@@ -12,9 +12,11 @@ export type Actor = 'parent' | 'young' | 'anyone';
  * once they have said yes to sharing it: their own phone, where they can see
  * it with Apple Family Sharing or Google Family Link ('parent'); the young
  * person's phone, if the young person agrees ('child'); or neither, when the
- * parent answers the longer questions instead ('none').
+ * parent answers the longer questions instead ('none'); or the young person
+ * has no phone of their own ('no-phone', ticked on the quick questions; from
+ * 9 October 2026).
  */
-export type PhoneSource = 'parent' | 'child' | 'none';
+export type PhoneSource = 'parent' | 'child' | 'none' | 'no-phone';
 
 export interface DateParts {
   day: string;

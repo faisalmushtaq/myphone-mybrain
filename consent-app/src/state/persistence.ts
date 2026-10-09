@@ -64,7 +64,7 @@ export function loadState(): { state: AppState; expired: boolean } | null {
           images: (parsed.donation?.images ?? []).map((img) => (img.status === 'uploaded' || img.status === 'sent' ? img : { ...img, status: 'failed', progress: 0, error: 'This image was lost when the page was refreshed. Please add it again.' })),
         },
         survey: { ...base.survey, ...(parsed.survey ?? {}) },
-        phoneSource: parsed.phoneSource === 'parent' || parsed.phoneSource === 'child' || parsed.phoneSource === 'none' ? parsed.phoneSource : null,
+        phoneSource: parsed.phoneSource === 'parent' || parsed.phoneSource === 'child' || parsed.phoneSource === 'none' || parsed.phoneSource === 'no-phone' ? parsed.phoneSource : null,
         more: { ...base.more, ...(parsed.more ?? {}) },
         resume: parsed.resume && typeof parsed.resume.referenceCode === 'string' ? parsed.resume : null,
         submission: { ...base.submission, ...(parsed.submission ?? {}) },

@@ -54,7 +54,7 @@ export type SurveyPayload = {
 };
 
 /** Where the young person's screen time comes from: their own phone, the parent's family view, or nowhere. */
-export type PhoneSource = 'parent' | 'child' | 'none';
+export type PhoneSource = 'parent' | 'child' | 'none' | 'no-phone';
 
 export interface ConsentPayload {
   kind: 'consent';
@@ -311,7 +311,7 @@ export function validateConsentPayload(input: unknown): string[] {
   }
 
   // Where the screen time comes from: 16 or over, their own phone; under 16, the parent's answer on the "where from" step (since 7 October 2026 the permission has no screenshots question), which is null until it is given: the record is saved from the moment the parent signs.
-  const source: PhoneSource | null = selfConsent ? 'child' : p.phoneSource === 'parent' || p.phoneSource === 'child' || p.phoneSource === 'none' ? p.phoneSource : null;
+  const source: PhoneSource | null = selfConsent ? 'child' : p.phoneSource === 'parent' || p.phoneSource === 'child' || p.phoneSource === 'none' || p.phoneSource === 'no-phone' ? p.phoneSource : null;
   // The parent's own phone is offered only on the parent's route: on the young person's, it is their phone or none.
   if ((p.phoneSource ?? null) !== source || (p.route === 'young' && source === 'parent')) problems.push('Where the screen time comes from does not match the answers.');
 

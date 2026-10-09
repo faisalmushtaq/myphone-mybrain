@@ -213,7 +213,7 @@ export class MockConsentApi implements ConsentApi {
     const room = imageCount < 6;
     const canAgree = source === 'child' && (status === 'deferred' || status === 'not-started');
     const canAddScreenshots = room && (source === 'parent' || (source === 'child' && status === 'completed'));
-    const reason = canAgree || canAddScreenshots ? null : source === null ? 'unfinished' : source === 'none' ? 'no-screen-time' : status === 'declined' ? 'declined' : 'full';
+    const reason = canAgree || canAddScreenshots ? null : source === null ? 'unfinished' : source === 'none' || source === 'no-phone' ? 'no-screen-time' : status === 'declined' ? 'declined' : 'full';
     return { referenceCode: code, firstName: last.identity.firstName.trim(), selfConsent: false, phoneSource: source, assentStatus: status, imageCount, maxImages: 6, canAgree, canAddScreenshots, reason };
   }
 

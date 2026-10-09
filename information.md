@@ -200,7 +200,12 @@ page_intro: "You’re reading this because your child’s school is taking part 
     </div>
     <div class="prose">
       <h3>Why the workshop is opt-out</h3>
-      <p>We want the study to include young people from every background. When families have to return a form before their child can take part, young people from busier households, or from families who hear less from school, are often left out, and the findings would not reflect them. So every young person in the classes taking part is invited, and the choice stays with families and young people: any parent or carer can opt their child out, every young person decides for themselves on the day, and your answers about their phone are a separate yes.</p>
+      <p>We want the study to include young people from every background. When families have to return a form before their child can take part, young people from busier households, or from families who hear less from school, are often left out, and the findings would not reflect them. So every young person in the classes taking part is invited. The choice still stays with you and your child:</p>
+      <ul>
+        <li>you can opt your child out before the workshop;</li>
+        <li>on the day, your child decides for themselves whether to take part;</li>
+        <li>answering our questions and sharing their screen time is a separate choice, made online.</li>
+      </ul>
     </div>
       </div>
     </details>

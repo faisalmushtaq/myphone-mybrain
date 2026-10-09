@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Draft } from '../components/ui/Draft';
+import { CheckboxField } from '../components/ui/Field';
 import { multiValues, parentMoreForm, parentQuestionsForm } from '../config/questions';
 import { announce } from '../lib/announce';
+import { phoneSourceApplies } from '../model/journey';
 import { useStore } from '../state/context';
 
 /** The quick questions every parent or carer is asked. */
@@ -48,6 +50,19 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   const ticked = q.type === 'multi' ? multiValues(survey.responses[q.id]?.value) : [];
   const last = index === total - 1;
   const text = (t: string) => t.replace(/\{child\}/g, childName);
+  // Not every young person has a phone (team feedback, 9 October 2026): a box on the quick questions says so, and then there are no
+  // longer phone questions and no screen time to ask for. Under 16 only: at 16 or over the young person answers for themselves.
+  const noPhoneBox = which === 'quick' && (phoneSourceApplies(state) || state.phoneSource === 'no-phone');
+  const noPhone = state.phoneSource === 'no-phone';
+  const noPhoneField = noPhoneBox ? (
+    <CheckboxField
+      id="no-phone"
+      checked={noPhone}
+      onChange={(checked) => dispatch({ type: 'set-phone-source', source: checked ? 'no-phone' : null })}
+      label={`${childName} doesn’t have a phone of their own`}
+      hint={noPhone ? `Thank you. Please answer about any phone, tablet or computer ${childName} uses, or skip. There are no screen-time questions after this.` : undefined}
+    />
+  ) : null;
 
   useEffect(
     () => () => {
@@ -130,6 +145,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
         >
           {answered ? 'Answer them again' : 'Answer the questions'}
         </Button>
+        {noPhoneField}
       </StepShell>
     );
   }
@@ -146,6 +162,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
         </Button>
       }
     >
+      {noPhoneField}
       <div className="mpmb-quiz">
         <p className="mpmb-quiz__count">
           {q.topic ? `${q.topic} · ` : ''}Question {index + 1} of {total}

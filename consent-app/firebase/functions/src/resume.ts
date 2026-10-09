@@ -27,7 +27,7 @@ const FAILURES_BEFORE_LOCK = 5;
 const LOCK_HOURS = 24;
 const NOT_FOUND = 'We could not find a record with that reference and date of birth. Check both: the reference is on your thank-you page and your copy of the record, and looks like MPMB-ABCD-EF2.';
 
-export type PhoneSource = 'parent' | 'child' | 'none';
+export type PhoneSource = 'parent' | 'child' | 'none' | 'no-phone';
 
 export interface ResumeSummary {
   referenceCode: string;
@@ -70,7 +70,7 @@ export function resumeSummary(code: string, submission: DocumentData, participan
   const room = imageCount < study.maxImages;
   const canAgree = source === 'child' && (status === 'deferred' || status === 'not-started');
   const canAddScreenshots = room && (source === 'parent' || (source === 'child' && status === 'completed'));
-  const reason = canAgree || canAddScreenshots ? null : source === null ? 'unfinished' : source === 'none' ? 'no-screen-time' : status === 'declined' ? 'declined' : 'full';
+  const reason = canAgree || canAddScreenshots ? null : source === null ? 'unfinished' : source === 'none' || source === 'no-phone' ? 'no-screen-time' : status === 'declined' ? 'declined' : 'full';
   return {
     referenceCode: code,
     firstName: typeof participant?.firstName === 'string' ? participant.firstName : '',

@@ -206,7 +206,9 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
         'Screen time and apps',
         source === 'parent' || (source === 'child' && assent.status === 'completed') ? 'phone-use' : null,
         'research',
-        source === 'none' ? (
+        source === 'no-phone' ? (
+          <p className="mpmb-summary__note">{childName} doesn’t have a phone of their own, so there is no screen time to share.</p>
+        ) : source === 'none' ? (
           <p className="mpmb-summary__note">Not shared: you chose not to share it. You can change this later by contacting the team.</p>
         ) : source === 'child' && assent.status !== 'completed' ? (
           <p className="mpmb-summary__note">Not shared from {childName}’s phone.</p>

@@ -343,8 +343,8 @@ export const submitDonation = onCall(callOptions, async (request) => {
   if (submission.kind !== 'consent' || (!submission.consentId && !submission.selfConsent)) throw new HttpsError('failed-precondition', 'Screenshots cannot be added to this record.');
   // The parent's yes to sharing an under-16's screen time is their answer to where it comes from (none until they give it: the record is saved from the moment they sign).
   // Records made before 7 October 2026 have no phoneSource: the parent's yes was a statement on the permission, and the young person's agreement could also be given on paper.
-  const source = (submission.phoneSource ?? null) as 'parent' | 'child' | 'none' | null;
-  if (source === 'none') throw new HttpsError('failed-precondition', 'This record does not include screen time.');
+  const source = (submission.phoneSource ?? null) as 'parent' | 'child' | 'none' | 'no-phone' | null;
+  if (source === 'none' || source === 'no-phone') throw new HttpsError('failed-precondition', 'This record does not include screen time.');
   if (!submission.selfConsent && source === null) {
     const consent = (await db.collection('consents').doc(submission.consentId as string).get()).data();
     if (consent?.responses?.['phone-use']?.response !== 'agreed') throw new HttpsError('failed-precondition', 'The parent or carer has not said yes to sharing the screen time.');

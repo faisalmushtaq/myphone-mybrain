@@ -76,6 +76,17 @@ describe('the family form after 7 October 2026: who decides, and where the scree
     expect(buildConsentPayload(s).more).not.toBeNull();
   });
 
+  it('a young person with no phone of their own: the quick questions only, no screen time, no young person’s part', () => {
+    for (const route of ['parent', 'young'] as const) {
+      const s = reducer(permission(family(route, 13)), { type: 'set-phone-source', source: 'no-phone' });
+      expect(phoneSourceOf(s)).toBe('no-phone');
+      expect(parentMoreApplies(s)).toBe(false);
+      expect(buildJourney(s)).toEqual(['welcome', 'child-details', ...(route === 'young' ? ['parent-details'] : []), 'parent-consent', 'parent-questions', 'check', 'done']);
+      expect(lastCall(s)).toBeNull();
+      expect(buildConsentPayload(s)).toMatchObject({ phoneSource: 'no-phone', more: null });
+    }
+  });
+
   it('a parent who says yes chooses where the screen time comes from', () => {
     const s = permission(family('parent', 13));
     expect(buildJourney(s)).toEqual(['welcome', 'child-details', 'parent-consent', 'parent-questions', 'parent-more', 'phone-source', 'check', 'done']);
