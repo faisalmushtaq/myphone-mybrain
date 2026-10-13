@@ -73,8 +73,16 @@ function chatProtocol(phase) {
   if (!keys.length || !keys.every(([k, q]) => /^[a-z][a-z0-9_]*$/.test(k) && typeof q === 'string')) fail('[summaries.questions] must map snake_case keys to questions');
   const personas = Object.entries(t.summaries?.personas ?? {});
   if (!personas.length || !personas.every(([k, v]) => /^[a-z][a-z0-9_]*$/.test(k) && typeof v === 'string' && v.trim())) fail('[summaries.personas] must map names to persona text');
-  for (const [where, v] of [['intro_and_consent', t.consent?.intro_and_consent], ['intro', t.collection?.intro], ['persona', t.collection?.persona], ...questions.map((q, i) => [`question ${i + 1}`, q])]) {
-    if (/\{[a-z_]+\}/.test(String(v ?? ''))) fail(`${where} uses a {placeholder}; the website does not fill any in`);
+  // Nothing sent to the model may carry a placeholder: as in MySelf, a name is resolved on the participant's device, for the screen only.
+  const promptText = [['persona', t.collection?.persona], ['language_type', t.collection?.language_type], ['topic_restriction', t.collection?.topic_restriction], ...questions.map((q, i) => [`question ${i + 1}`, q]), ...keys.map(([k, q]) => [`[summaries.questions] ${k}`, q]), ...personas.map(([k, v]) => [`[summaries.personas] ${k}`, v]), ['[example]', `${t.example?.conversation ?? ''} ${t.example?.scenario ?? ''}`]];
+  for (const [where, v] of promptText) {
+    if (/\{[a-z_]+\}/.test(String(v ?? ''))) fail(`${where} uses a {placeholder}; nothing sent to the model may`);
+  }
+  // On screen, {first_name} only, filled in on the participant's device (or left out when it is not known).
+  const screenText = [t.consent?.intro_and_consent, t.collection?.intro, m.outro, m.select_text, m.select_lede, m.rate_text, m.rate_lede, m.adapt_text, m.adapt_lede, m.debrief_text, m.debrief_lede, m.fallback_text];
+  for (const v of screenText) {
+    const other = String(v ?? '').match(/\{(?!first_name\})[a-z_]+\}/);
+    if (other) fail(`${other[0]} on screen: the website fills in {first_name} only`);
   }
   const num = (v, fallback, min, max) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback);
   return {

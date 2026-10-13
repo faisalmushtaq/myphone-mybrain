@@ -1136,14 +1136,14 @@ async function inner() {
     const sentMessages = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data()?.messages ?? {};
     ok('a week into the break the check-in reminder goes, and nothing else yet', sentMessages['check-in-1']?.email === 'not-configured' && sentMessages['check-in-1']?.sms === 'not-configured' && Object.keys(sentMessages).length === 1, JSON.stringify(sentMessages));
 
-    // MyStory on its own page, from a personal link, for after the break: the whole chat with Sam (the emulator's stand-in model).
+    // MyStory on its own page, from a personal link, for after the break: the whole chat with Remi, the team's protocol (the emulator's stand-in model).
     await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=post&code=MP2670FF90A5F2`);
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: 'A short chat about your break.', level: 1 }).waitFor({ timeout: 30000 });
     await page.getByRole('button', { name: 'Start the chat' }).click();
-    await page.getByRole('heading', { name: 'Chatting with Sam', level: 1 }).waitFor({ timeout: 30000 });
-    const chatLog = page.getByRole('log', { name: 'Your chat with Sam' });
-    ok('Sam introduces itself as an AI, from the protocol file, then asks the first after-break question', (await chatLog.innerText()).includes('I\'m an AI chatbot') && (await chatLog.innerText()).includes('Looking back over the whole break, what stands out the most?'), (await chatLog.innerText()).slice(0, 300));
+    await page.getByRole('heading', { name: 'Chatting with Remi', level: 1 }).waitFor({ timeout: 30000 });
+    const chatLog = page.getByRole('log', { name: 'Your chat with Remi' });
+    ok('Remi introduces itself as an AI, from the team’s protocol file, with no {first_name} left over when the name is not known, then asks the first after-break question', (await chatLog.innerText()).includes('Hi, I\'m Remi. I\'m an AI bot') && !(await chatLog.innerText()).includes('{first_name}') && (await chatLog.innerText()).includes('Looking back, how has being off social media for 30 days affected you?'), (await chatLog.innerText()).slice(0, 300));
     await page.locator('#chat-input').fill('Mostly the quiet evenings, I think.');
     await snap('mystory-chat-interview');
     await page.locator('#chat-input').fill('');
@@ -1154,27 +1154,27 @@ async function inner() {
       // Sam's next question: two introductions and the first question, then one more per answer.
       if (i < chatAnswers.length - 1) await chatLog.locator('.mpmb-chat__bubble--sam').nth(3 + i).waitFor({ timeout: 30000 });
     }
-    await page.getByRole('heading', { name: /Pick the one that fits you best/, level: 1 }).waitFor({ timeout: 60000 });
+    await page.getByRole('heading', { name: /See if one of them fits you/, level: 1 }).waitFor({ timeout: 60000 });
     await snap('mystory-chat-choose');
-    ok('after the questions, three retellings to choose from, one per persona', (await page.locator('.mpmb-chat__candidate').count()) === 3 && (await page.locator('.mpmb-chat__candidate').nth(1).innerText()).includes('(self)'));
+    ok('after the questions, three retellings to choose from, one per persona', (await page.locator('.mpmb-chat__candidate').count()) === 3 && (await page.locator('.mpmb-chat__candidate').nth(1).innerText()).includes('(casual)'));
     await page.locator('#chat-candidate-1').check();
     await page.getByRole('button', { name: 'This one' }).click();
     await page.getByRole('heading', { name: 'How close is this to what you want to say?', level: 1 }).waitFor({ timeout: 30000 });
     await page.getByRole('button', { name: '7', exact: true }).click();
     await page.getByRole('heading', { name: 'What would you change about it?', level: 1 }).waitFor({ timeout: 30000 });
     await page.locator('#chat-request').fill('Say it was my flatmates in Leeds.');
-    await page.getByRole('button', { name: 'Ask Sam' }).click();
-    await page.getByText('Sam has rewritten it. Check it reads right.').waitFor({ timeout: 30000 });
-    ok('asking Sam for a change rewrites the story, with the previous version a click away', (await page.locator('#chat-story').inputValue()).includes('Say it was my flatmates in Leeds.') && (await page.getByRole('button', { name: 'Put the previous version back' }).count()) === 1);
+    await page.getByRole('button', { name: 'Ask Remi' }).click();
+    await page.getByText('Remi has rewritten it. Check it reads right.').waitFor({ timeout: 30000 });
+    ok('asking Remi for a change rewrites the story, with the previous version a click away', (await page.locator('#chat-story').inputValue()).includes('Say it was my flatmates in Leeds.') && (await page.getByRole('button', { name: 'Put the previous version back' }).count()) === 1);
     await page.locator('#chat-story').fill('Off the apps the evenings were quiet: I slept better and talked to my flatmates in Leeds.');
     await snap('mystory-chat');
     await page.getByRole('button', { name: 'Keep this story' }).click();
     await page.getByRole('heading', { name: 'Thank you. Your story is in.' }).waitFor({ timeout: 30000 });
-    ok('the thank-you shows the story kept, with the protocol’s debrief', (await page.locator('.mpmb-chat__story').innerText()).includes('flatmates in Leeds') && (await page.getByText('Here\'s your story.').count()) === 1);
+    ok('the thank-you shows the story kept, the protocol’s debrief, and the support numbers the protocol points to', (await page.locator('.mpmb-chat__story').innerText()).includes('flatmates in Leeds') && (await page.getByText('Here\'s the story you made.').count()) === 1 && (await page.getByRole('note', { name: 'Where to get help' }).innerText()).includes('Leeds Crisis Assessment Centre 0800 183 1485'));
     const postStory = (await db.collection('labStories').where('phase', '==', 'post').get()).docs.map((d) => d.data())[0];
     const postChat = postStory?.chatId ? (await db.collection('labStoryChats').doc(postStory.chatId).get()).data() : null;
-    ok('the chat’s story is filed under the after-break phase, as edited, with the persona chosen and the rating', postStory?.participantCode === 'MP2670FF90A5F2' && postStory?.mode === 'chat' && postStory?.structureId === 'np.mpmb_break_post' && postStory?.chosenPersona === 'self' && postStory?.rating === 7 && postStory?.ending === 'edited' && postStory?.story.includes('flatmates in Leeds'), JSON.stringify({ mode: postStory?.mode, persona: postStory?.chosenPersona, ending: postStory?.ending }));
-    ok('the whole conversation is kept: every turn, the answers in their own words, each model call, the change asked for and the edit', postChat?.status === 'done' && postChat?.transcript?.filter((m) => m.role === 'user').length === 5 && postChat?.extraction?.what_changed === 'I slept better and talked to my flatmates more.' && postChat?.candidates?.length === 3 && postChat?.requests?.length === 1 && postChat?.edits?.length === 1 && postChat?.calls?.every((c) => c.ok && c.model === 'mock') && postChat?.calls?.length === 6 + 1 + 3 + 1, JSON.stringify({ status: postChat?.status, calls: postChat?.calls?.length }));
+    ok('the chat’s story is filed under the after-break phase, as edited, with the persona chosen and the rating', postStory?.participantCode === 'MP2670FF90A5F2' && postStory?.mode === 'chat' && postStory?.structureId === 'np.sm_abstinence_post' && postStory?.chosenPersona === 'casual' && postStory?.rating === 7 && postStory?.ending === 'edited' && postStory?.story.includes('flatmates in Leeds'), JSON.stringify({ mode: postStory?.mode, persona: postStory?.chosenPersona, ending: postStory?.ending }));
+    ok('the whole conversation is kept: every turn, the answers in their own words, each model call, the change asked for and the edit', postChat?.status === 'done' && postChat?.transcript?.filter((m) => m.role === 'user').length === 5 && postChat?.extraction?.expectations_vs_experience === 'I slept better and talked to my flatmates more.' && postChat?.extraction?.taking_forward === null && postChat?.candidates?.length === 3 && postChat?.requests?.length === 1 && postChat?.edits?.length === 1 && postChat?.calls?.every((c) => c.ok && c.model === 'mock') && postChat?.calls?.length === 6 + 1 + 3 + 1, JSON.stringify({ status: postChat?.status, calls: postChat?.calls?.length }));
     // MyStory at the first visit, on the lab computer: the page forgets the participant once it is sent.
     await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=pre&at=lab&code=MP2670FF90A5F2`);
     await page.getByRole('button', { name: 'Continue' }).click();
@@ -1370,7 +1370,7 @@ async function inner() {
     const phoneUseTsv = await readExport('schools/donations/phenotype/parent_phone_use.tsv');
     const noPhoneTsv = await readExport('schools/donations/phenotype/parent_no_phone.tsv');
     ok('the no-phone answers have their own table, and the research table their own status column', noPhoneTsv.split('\n')[0].startsWith('participant_id\twhy_no_phone\texpected_age\t') && noPhoneTsv.includes('\ttoo-young\t13\t') && familiesTsv.split('\n')[0].includes('\tmore_questions_status\tno_phone_questions_status\t') && familiesTsv.includes('\tno-phone\t'), noPhoneTsv.slice(0, 300));
-    ok('MyStory is exported by phase, the triangle over three columns', midTsv.split('\n')[0].includes('pull_habit\tpull_people_and_connection\tpull_boredom_or_stress\tpull_status') && midTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && midTsv.includes('\tThe bus\t') && midTsv.includes('\tnot-sure\t') && !postTsv.includes('flatmates') && postChatTsv.includes('sub-MP2670FF90A5F2\tses-post\t') && postChatTsv.includes('\tdone\tedited\t') && postChatTsv.includes('\tself\t7\t1\ttrue\t') && finalManifest.counts?.labStoryChats === 1 && preTsv.includes('sub-MP2670FF90A5F2\tses-pre\t') && preTsv.includes('\tLate nights\t') && finalManifest.counts?.labStories === 3, JSON.stringify(finalManifest.counts));
+    ok('MyStory is exported by phase, the triangle over three columns', midTsv.split('\n')[0].includes('pull_habit\tpull_people_and_connection\tpull_boredom_or_stress\tpull_status') && midTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && midTsv.includes('\tThe bus\t') && midTsv.includes('\tnot-sure\t') && !postTsv.includes('flatmates') && postChatTsv.includes('sub-MP2670FF90A5F2\tses-post\t') && postChatTsv.includes('\tdone\tedited\t') && postChatTsv.includes('\tcasual\t7\t1\ttrue\t') && finalManifest.counts?.labStoryChats === 1 && preTsv.includes('sub-MP2670FF90A5F2\tses-pre\t') && preTsv.includes('\tLate nights\t') && finalManifest.counts?.labStories === 3, JSON.stringify(finalManifest.counts));
     ok('the visits and contact details are exported to identifying/, the visit date to the research table', visitsTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\t1\t') && visitsTsv.includes('\tmoved\t') && visitsTsv.includes('day-before-email:not-configured') && contactsTsv.includes('jane.smith@example.org\t+447700900123\ttrue') && labPeople.includes(`\t${v1a.toISOString().slice(0, 10)}\tbooked\t`) && !labPeople.includes('jane@'));
     ok('the opt-out is flagged on the school’s list and listed in identifying/ with the UPN it names', unmatchedTsv.split('\n').some((l) => l.startsWith('DUA\tA123456789013\tOla\tNowak') && l.includes('\ttrue\t')) && optOutsTsv.includes('\tactive\t') && optOutsTsv.includes('\tOla\tNowak\t') && optOutsTsv.includes('\tEwa Nowak\t') && optOutsTsv.includes('\tA123456789013\tname-only'), optOutsTsv.split('\n')[1]);
     ok('the research table says who decided, where the screen time came from, and the longer answers have their own table', familiesTsv.split('\n')[0].includes('\tself_consent\tphone_source\t') && familiesTsv.split('\n')[0].endsWith('\tadded_later_on\topted_out') && familiesTsv.includes(`\t${new Date().toISOString().slice(0, 10)}\tfalse`) && familiesTsv.includes('\ttrue\tchild\tcompleted\t') && familiesTsv.includes('\tfalse\tnone\tnot-started\t') && phoneUseTsv.split('\n')[0].startsWith('participant_id\town_phone_age\tsocial_media_age\tschool_day_time') && phoneUseTsv.includes('\t12\t11\t3-4\t'), familiesTsv);

@@ -9,6 +9,7 @@ import { describeError, labClientInfo, labSession } from '../api';
 import { LabShell } from '../LabShell';
 import { labMyStory, type StoryPhase } from '../mystory';
 import { useLab } from '../store';
+import { chatCharacter, chatSupport, withFirstName } from './chatProtocol';
 
 type Stage = 'ready' | 'interview' | 'choose' | 'rate' | 'adapt' | 'stopped';
 interface Bubble {
@@ -25,11 +26,12 @@ export interface ChatFinished {
 }
 
 /**
- * MyStory as a chat with Sam (src/lab/mystory.ts, mode 'chat'): the MySelf
- * micro-narrative protocol. Sam asks the phase's questions one at a time;
+ * MyStory as a chat with the protocol's character (Remi, in the team's
+ * files; src/lab/mystory.ts, mode 'chat'): the MySelf
+ * micro-narrative protocol. It asks the phase's questions one at a time;
  * then three short retellings of what was said, to pick from; a 0 to 10
  * rating of how well it fits; and, below full marks, a chance to edit it
- * directly or ask Sam to change it. The conversation runs on the server
+ * directly or ask it to change it. The conversation runs on the server
  * (firebase/functions/src/storyChat.ts), which holds the protocol and the
  * key: this page sends only what the participant types and chooses, and
  * every word on screen that is not theirs comes from the protocol file.
@@ -56,7 +58,10 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
   const [note, setNote] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const name = screens?.characterName ?? 'Sam';
+  const character = chatCharacter(phase);
+  const name = screens?.characterName ?? character.name;
+  // Filled in on this device only; never sent anywhere.
+  const say = (text: string) => withFirstName(text, state.codeParts.firstName);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
@@ -77,7 +82,7 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
   };
 
   const finish = (res: LabStoryChatResponse, fallbackStory: string) => {
-    onFinished({ storyId: res.storyId ?? '', receivedAt: res.receivedAt ?? new Date().toISOString(), story: res.story ?? fallbackStory, debriefText: screens?.debriefText ?? '', debriefLede: screens?.debriefLede ?? '' });
+    onFinished({ storyId: res.storyId ?? '', receivedAt: res.receivedAt ?? new Date().toISOString(), story: res.story ?? fallbackStory, debriefText: say(screens?.debriefText ?? ''), debriefLede: say(screens?.debriefLede ?? '') });
   };
 
   /** Applies what the server said to the screen. */
@@ -90,7 +95,7 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
         window.requestAnimationFrame(() => inputRef.current?.focus());
         break;
       case 'choose':
-        setBubbles((b) => [...b, { from: 'sam', text: screens?.outro ?? '' }]);
+        setBubbles((b) => [...b, { from: 'sam', text: say(screens?.outro ?? '') }]);
         setCandidates(res.candidates ?? []);
         setStage('choose');
         announce(screens?.selectText ?? 'Choose a story.');
@@ -101,7 +106,7 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
         break;
       case 'adapt':
         if (req.action === 'adapt') {
-          setNote(res.failed ? `${name} couldn’t make that change just now. You can edit it yourself, or try again.` : res.unchanged ? `${name} couldn’t make that change from what you said, so the story is as it was. You can edit it yourself.` : res.limit ? 'That’s as many changes as Sam can make. You can still edit it yourself.' : `${name} has rewritten it. Check it reads right.`);
+          setNote(res.failed ? `${name} couldn’t make that change just now. You can edit it yourself, or try again.` : res.unchanged ? `${name} couldn’t make that change from what you said, so the story is as it was. You can edit it yourself.` : res.limit ? `That’s as many changes as ${name} can make. You can still edit it yourself.` : `${name} has rewritten it. Check it reads right.`);
           if (!res.failed && !res.limit && res.story && res.story !== story) {
             setHistory((h) => [...h, story]);
             setStory(res.story);
@@ -111,7 +116,7 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
         setStage('adapt');
         break;
       case 'stopped':
-        setBubbles((b) => [...b, { from: 'sam', text: res.text ?? screens?.fallbackText ?? '' }]);
+        setBubbles((b) => [...b, { from: 'sam', text: say(res.text ?? screens?.fallbackText ?? '') }]);
         setStage('stopped');
         break;
       case 'done':
@@ -135,8 +140,8 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
     setChatId(res.chatId);
     setScreens(res.screens);
     setBubbles([
-      { from: 'sam', text: res.screens.introAndConsent },
-      { from: 'sam', text: res.screens.intro },
+      { from: 'sam', text: say(res.screens.introAndConsent) },
+      { from: 'sam', text: say(res.screens.intro) },
       { from: 'sam', text: res.reply ?? '' },
     ]);
     setStage('interview');
@@ -166,13 +171,14 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
 
   if (stage === 'ready') {
     return (
-      <LabShell kicker={labMyStory.name} title="A short chat about your break." intro={<p>MyStory is a chat with Sam, an AI chatbot the research team set up for this study. Sam asks you a few questions, one at a time, then writes back what it heard in three different ways. You pick the one that fits best and can change anything that isn’t right. It takes about ten minutes.</p>} hideContinue hideBack width="wide" secondaryAction={leaveButton}>
-        <Disclosure summary="About Sam">
+      <LabShell kicker={labMyStory.name} title="A short chat about your break." intro={<p>MyStory is a chat with {name}, an AI chatbot the research team set up for this study. {name} asks you a few questions, one at a time, then writes back what it heard in three different ways. You pick the one that fits best and can change anything that isn’t right. It takes about fifteen minutes.</p>} hideContinue hideBack width="wide" secondaryAction={leaveButton}>
+        <Disclosure summary={`About ${name}`}>
           <ul>
-            <li>Sam is an AI, not a person. Nobody is reading this as you type.</li>
-            <li>What you type is sent to the AI service (OpenAI) to write Sam’s replies, with your participant ID and never your name. The service is asked not to keep it.</li>
-            <li>The conversation and your story are kept for the research with your participant ID, never your name.</li>
-            <li>There are no right answers. Please leave out names and anything that could identify someone.</li>
+            {character.about.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+            <li>What you type is sent to an AI service (OpenAI) to write {name}’s replies, without your name or your participant ID. The service is asked not to keep it.</li>
+            <li>Please leave out names and anything that could identify someone.</li>
           </ul>
         </Disclosure>
         {error && (
@@ -263,6 +269,7 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
           <p className="mpmb-hint">What you wrote is kept as your story for this time.</p>
         </div>
       )}
+      {stage === 'stopped' && <ChatSupport />}
 
       {stage === 'choose' && (
         <>
@@ -351,5 +358,19 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
         </>
       )}
     </LabShell>
+  );
+}
+
+/** Where to get help: the numbers the protocols point to at the end of the chat. */
+export function ChatSupport() {
+  return (
+    <div className="mpmb-chat__support" role="note" aria-label="Where to get help">
+      <p>{chatSupport.intro}</p>
+      <ul>
+        {chatSupport.lines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    </div>
   );
 }

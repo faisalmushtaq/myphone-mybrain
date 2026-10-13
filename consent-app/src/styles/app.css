@@ -3839,3 +3839,18 @@
 .mpmb-chat__debrief {
   margin-bottom: 1rem;
 }
+.mpmb-app .mpmb-chat__support {
+  margin: 1rem 0;
+  padding: 0.9rem 1.1rem;
+  border-left: 4px solid var(--mpb-yellow);
+  background: var(--mpb-important-bg);
+  color: var(--mpb-ink);
+  font-size: 0.95rem;
+}
+.mpmb-app .mpmb-chat__support p {
+  margin: 0 0 0.4rem;
+}
+.mpmb-app .mpmb-chat__support ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}

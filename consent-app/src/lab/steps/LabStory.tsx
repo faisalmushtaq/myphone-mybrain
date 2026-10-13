@@ -11,7 +11,7 @@ import { clearLabState } from '../persistence';
 import { LabShell } from '../LabShell';
 import { labMyStory, storyLimits, storyStructures, storySurveyUrl, type StoryPhase } from '../mystory';
 import { Dyad, Triad, type Shares } from '../story/Signifiers';
-import { StoryChat, type ChatFinished } from '../story/StoryChat';
+import { ChatSupport, StoryChat, type ChatFinished } from '../story/StoryChat';
 import { useLab } from '../store';
 import type { FieldError } from '../validation';
 
@@ -164,6 +164,7 @@ export function LabStory() {
       {chatDone.debriefText && <p className="mpmb-lead">{chatDone.debriefText}</p>}
       <blockquote className="mpmb-chat__story">{chatDone.story}</blockquote>
       {chatDone.debriefLede && <p className="mpmb-hint">{chatDone.debriefLede}</p>}
+      <ChatSupport />
     </div>
   ) : null;
 

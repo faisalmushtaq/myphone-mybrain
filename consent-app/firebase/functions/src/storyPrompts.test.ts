@@ -6,15 +6,17 @@ import { adaptPrompt, extractionPrompt, interviewerPrompt, matchesSchema, mockMo
 test('each phase has its own chat protocol, read from its TOML file', () => {
   assert.deepEqual(
     (['pre', 'mid', 'post'] as const).map((p) => storyChats[p].key),
-    ['np.mpmb_break_pre', 'np.mpmb_break_mid', 'np.mpmb_break_post'],
+    ['np.sm_abstinence_pre', 'np.sm_abstinence_mid', 'np.sm_abstinence_post'],
   );
   for (const p of ['pre', 'mid', 'post'] as const) {
     const c = storyChats[p];
     assert.equal(c.model, 'gpt-4o');
-    assert.equal(c.interview.questions.length, 5);
-    assert.equal(c.extractionKeys.length, 5);
-    assert.deepEqual(c.personas.map((x) => x.key), ['friend', 'self', 'psychologist']);
-    assert.ok(c.screens.introAndConsent.includes('AI chatbot'));
+    assert.ok(c.interview.questions.length >= 4);
+    assert.ok(c.extractionKeys.length >= 10);
+    assert.deepEqual(c.personas.map((x) => x.key), ['plain', 'casual', 'reflective']);
+    assert.ok(c.screens.introAndConsent.includes("I'm Remi. I'm an AI bot"));
+    assert.equal(c.screens.characterName, 'Remi');
+    assert.equal(c.maxTurns, 20);
   }
   assert.notEqual(storyChats.pre.interview.questions[0], storyChats.mid.interview.questions[0], 'different questions per phase');
 });
@@ -23,8 +25,10 @@ test('the interviewer is told the persona, the numbered questions and when to st
   const c = storyChats.mid;
   const opening = interviewerPrompt(c, []);
   assert.ok(opening.system.startsWith(c.interview.persona));
-  assert.ok(opening.system.includes(`1. ${c.interview.questions[0]}`) && opening.system.includes(`5. ${c.interview.questions[4]}`));
-  assert.ok(opening.system.includes('Once you have collected answers to all 5 questions, set interviewDone to true.'));
+  assert.ok(opening.system.includes(`1. ${c.interview.questions[0]}`) && opening.system.includes(`4. ${c.interview.questions[3]}`));
+  assert.ok(opening.system.includes(`Once you have collected answers to all ${c.interview.questions.length} questions, set interviewDone to true.`));
+  assert.ok(opening.system.includes('Leeds Crisis Assessment Centre 0800 183 1485'), 'the team’s safeguarding instructions reach the interviewer');
+  assert.ok(!opening.system.includes('{first_name}'), 'no name, and no placeholder, goes to the model');
   assert.ok(!opening.system.includes('FINISHED'));
   assert.deepEqual(opening.messages, [{ role: 'user', content: '(the participant is ready)' }]);
   const later = interviewerPrompt(c, [{ role: 'assistant', content: 'Q?' }, { role: 'user', content: 'A.' }]);
@@ -35,14 +39,14 @@ test('extraction asks for the researcher’s keys, every one required and nullab
   const c = storyChats.pre;
   const p = extractionPrompt(c, [{ role: 'assistant', content: 'What apps?' }, { role: 'user', content: 'TikTok.' }]);
   assert.ok(p.messages[0]!.content.includes('Human: TikTok.') && p.messages[0]!.content.includes('AI: What apps?'));
-  assert.ok(p.system.includes('`how_they_use_it`'));
+  assert.ok(p.system.includes('`gratifications`') && p.system.includes('`fear_of_missing_out`'));
   assert.deepEqual((p.schema.schema as { required: string[] }).required, c.extractionKeys.map((k) => k.key));
   assert.ok((p.temperature ?? 1) <= 0.1);
 });
 
 test('each persona writes from the extraction, told what was not said rather than left to fill the gap', () => {
   const c = storyChats.post;
-  const p = scenarioPrompt(c, c.personas[2]!, { what_stands_out: 'Sleeping better', what_changed: null, going_back_on: null, harder_or_easier: null, what_they_will_do_differently: null });
+  const p = scenarioPrompt(c, c.personas[2]!, Object.fromEntries(c.extractionKeys.map((k, i) => [k.key, i === 0 ? 'Sleeping better' : null])));
   assert.ok(p.system.startsWith(c.personas[2]!.text));
   assert.ok(p.system.includes('The scenario based on these responses:'), 'the one-shot example sets the register');
   assert.ok(p.messages[0]!.content.includes('Answer: Sleeping better') && p.messages[0]!.content.includes('Answer: (they did not say)'));
@@ -53,6 +57,7 @@ test('each persona writes from the extraction, told what was not said rather tha
 test('safeguarding words raise a flag for the team; ordinary words do not', () => {
   const c = storyChats.mid;
   assert.deepEqual(safeguardingHits(c, 'Honestly some days I want to die'), [{ rule: 'distress_lexicon', tier: 'safeguarding_review', matched: 'want to die' }]);
+  assert.deepEqual(safeguardingHits(c, 'People kept leaving me out'), [{ rule: 'online_harm_lexicon', tier: 'team_notification', matched: 'leaving me out' }]);
   assert.deepEqual(safeguardingHits(c, 'It was a good week'), []);
 });
 
@@ -69,6 +74,7 @@ test('the stand-in model walks the whole protocol: questions in order, then rete
   assert.equal(last.output.interviewDone, true);
   const ex = await mockModel<Record<string, string | null>>(extractionPrompt(c, transcript), c);
   assert.equal(ex.output.how_its_going, 'answer 1');
+  assert.equal(ex.output[c.extractionKeys[c.interview.questions.length]!.key], null, 'more keys than answers: the rest are null, not invented');
   const sc = await mockModel<{ scenario: string }>(scenarioPrompt(c, c.personas[0]!, ex.output), c);
   assert.ok(sc.output.scenario.includes('answer 2'));
 });
