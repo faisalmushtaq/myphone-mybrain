@@ -129,6 +129,16 @@ logged by rule (never the words) for the team to review. Nothing is shown to
 the participant and nobody is contacted automatically, as the protocol's
 declaration says; the chat shows the protocol's disclosure line, and the protocol's own instructions tell Remi to stop the questions and give the support numbers if someone discloses distress.
 
+**Pacing, as in MySelf** (14 October 2026). Remi's messages arrive one at a
+time, each after the "…" dots, with "typing…" in the header: the dots stay up
+about as long as it takes to type the message (9 ms a character over half a
+second, at most 3.8 seconds, MySelf's `typingPause`), and the time already
+spent waiting for the server counts towards it. The opening messages, the
+lead-in to the three versions, and the versions themselves (a shorter pause,
+as they are handed over rather than typed) arrive one after another. Nothing
+can be sent while Remi is "typing". `typingPause`/`deliver` in
+`src/lab/story/StoryChat.tsx`.
+
 **Keeping the stories to what they said** (14 October 2026, from the live
 test, where the reflective retelling added "this new routine has lasted" and "a
 healthier relationship"). Done the way the method's authors designed and
