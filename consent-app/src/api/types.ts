@@ -331,6 +331,20 @@ export interface LabStoryChatResponse {
   receivedAt?: string;
 }
 
+/** A spoken answer for MyStory's chat, turned into words by the server (storyChat.ts → labStoryVoice). */
+export interface LabStoryVoiceRequest {
+  chatId: string;
+  /** The recording, base64. */
+  audio: string;
+  mimeType: string;
+  seconds: number;
+}
+export interface LabStoryVoiceResponse {
+  text: string;
+  clipId: string;
+  kept: boolean;
+}
+
 export interface LabUploadMeta {
   kind: 'archive' | 'screenshot';
   name: string;
@@ -485,6 +499,7 @@ export interface ConsentApi {
   cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingIds?: string[] | null }): Promise<LabCancelResult>;
   submitLabStory(session: SessionInfo, payload: LabStoryPayload): Promise<LabStoryResult>;
   labStoryChat(session: SessionInfo, request: LabStoryChatRequest): Promise<LabStoryChatResponse>;
+  labStoryVoice(session: SessionInfo, request: LabStoryVoiceRequest): Promise<LabStoryVoiceResponse>;
   /** The staff page and the schools' upload page: one callable each, with an action (firebase/functions/src/staff.ts, schoolUpload.ts). */
   callTool<Res>(session: SessionInfo, name: 'staffApi' | 'schoolUpload', payload: Record<string, unknown>): Promise<Res>;
 }

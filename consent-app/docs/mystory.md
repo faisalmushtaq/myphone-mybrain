@@ -66,8 +66,7 @@ refuses more). Wording fixes in `0.1.1` (14 October 2026): the before-break intr
 "what's not quite right it" corrected; every pointer to support ("the
 participant information sheet", "the last page", "the study information
 page") now says to tap **Help** at the top of the chat, which shows the
-numbers (they are also on the last page); Remi "cannot see or hear you" (there
-is no recording on this site); the mid-break question "Can you take me
+numbers (they are also on the last page); the mid-break question "Can you take me
 through a moment…" asked as "Can you tell me about a moment…", as the
 protocol's own language rule asks; "take a break, stop here, or carry on" in
 all three; "secret code" replaced by "participant ID"; the select text no
@@ -98,6 +97,25 @@ interviewer's closing reply is discarded; extraction runs cold and uses only
 the participant's words; the three personas write at the same time; a 10 skips
 the changes. If the model fails, the participant's own answers are kept as
 their story (`continue_without_model`).
+
+**Speaking instead of typing** (14 October 2026, MySelf's voice feature,
+ported from `apps/mystory-lab/web/main.ts` and `apps/functions/src/transcribe.ts`).
+With the reply box empty, the microphone shows in its place. **Hold** it to
+talk, as in WhatsApp: slide left to cancel, slide up to lock it on; let go and
+it is written down. A quick **tap** starts a recording that stays on, for
+anyone the hold does not suit; tap again (the square) to stop. While
+recording: a timer, a live waveform of their voice, Cancel, and a send button
+that stops, writes it down and sends in one press. Otherwise the words arrive
+in the reply box, highlighted, to be read and corrected before sending; the
+sent answer shows the recording as a voice note they can play back. Clips are
+capped at 2 minutes and 4 MB, 40 per conversation. The clip goes to the
+site's own server (`labStoryVoice` in `storyChat.ts`), which keeps it in
+Storage at `labStoryVoice/{chatId}/{clipId}` (readable by nobody through the
+website) and has OpenAI's `gpt-4o-mini-transcribe` write it down: never the
+browser's own recogniser, which would send the voice to Apple or Google. Each
+clip is recorded on the conversation (`voiceClips`: length, size, what it was
+written down as); the export copies the recordings to
+`sourcedata/voice/<participant>/` and counts them in `voice_clips`.
 
 **Settings and limits.** Model, temperature, token and time limits come from
 the TOML file (`gpt-4o`, 0.7, 400 tokens, 30 seconds, 3 attempts, 20 turns). OpenAI is

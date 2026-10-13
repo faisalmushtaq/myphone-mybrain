@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { FieldValue, getFirestore, type DocumentReference, type Firestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { labStudy, storyChats, type ChatProtocol, type StoryPhase } from './forms.js';
@@ -356,3 +358,105 @@ async function fallback(ref: DocumentReference, protocol: ChatProtocol, reason: 
   await ref.update({ status: 'stopped', fallback: reason, ...(extraction ? { extraction } : {}), updatedAt: FieldValue.serverTimestamp() });
   return { stage: 'stopped', text: protocol.screens.fallbackText };
 }
+
+/* ── Voice: speak an answer instead of typing it (MySelf's transcribe, 14 October 2026) ── */
+
+/**
+ * A recording of the participant's answer, turned into words for the reply
+ * box, as in MySelf's MyStory (apps/functions/src/transcribe.ts): the same
+ * model, the same limits, the same containers. Transcribed by OpenAI, the
+ * provider the chat already uses, not the browser's own recogniser (which
+ * would send the voice to Apple or Google). The words come back to the box
+ * to be read and corrected before they are sent; the recording is kept,
+ * under the conversation, for the team (labStoryVoice/{chatId}/{clipId}),
+ * readable by nobody through the website.
+ */
+const TRANSCRIBE_MODEL = 'gpt-4o-mini-transcribe';
+const MAX_CLIP_BYTES = 4_000_000;
+const CLIPS_PER_CHAT = 40;
+const CLIP_EXTENSIONS: Record<string, string> = {
+  'audio/mp4': 'mp4',
+  'audio/m4a': 'm4a',
+  'audio/x-m4a': 'm4a',
+  'audio/aac': 'm4a',
+  'audio/mpeg': 'mp3',
+  'audio/webm': 'webm',
+  'audio/ogg': 'ogg',
+  'audio/wav': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/flac': 'flac',
+};
+
+/** "audio/webm;codecs=opus" is what MediaRecorder reports. */
+export function clipExtension(mimeType: string): string | null {
+  return CLIP_EXTENSIONS[mimeType.split(';')[0]!.trim().toLowerCase()] ?? null;
+}
+
+/** What the emulator's stand-in transcriber hears: always the same words. */
+export const MOCK_TRANSCRIPT = 'Going back on felt strange and a bit boring.';
+
+async function transcribeClip(apiKey: string, audio: Buffer, mimeType: string, extension: string): Promise<string> {
+  const form = new FormData();
+  form.append('file', new Blob([new Uint8Array(audio)], { type: mimeType }), `speech.${extension}`);
+  form.append('model', TRANSCRIBE_MODEL);
+  form.append('language', 'en');
+  form.append('response_format', 'json');
+  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { authorization: `Bearer ${apiKey}` }, body: form });
+  // The provider's own message is not passed on: it can quote the request back, and the request is somebody's voice.
+  if (!response.ok) throw new ModelError(response.status === 429 ? 'rate_limit' : 'transport', `HTTP ${response.status}`);
+  const { text } = (await response.json()) as { text?: string };
+  return (text ?? '').trim();
+}
+
+export const labStoryVoice = onCall({ ...callOptions, memory: '512MiB' as const, timeoutSeconds: 120 }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Please try again.');
+  const data = request.data as Record<string, unknown>;
+  const chatId = isObj(data) && typeof data.chatId === 'string' && DOC_ID.test(data.chatId) ? data.chatId : null;
+  const mimeType = isObj(data) && typeof data.mimeType === 'string' && data.mimeType.length <= 80 ? data.mimeType : '';
+  const seconds = isObj(data) && typeof data.seconds === 'number' && data.seconds >= 0 && data.seconds <= 600 ? Math.round(data.seconds) : null;
+  if (!chatId || !isObj(data) || typeof data.audio !== 'string' || data.audio.length < 32 || data.audio.length > Math.ceil(MAX_CLIP_BYTES * 1.4)) {
+    throw new HttpsError('invalid-argument', 'Something went wrong sending that. Try again, or type your answer instead.');
+  }
+  const extension = clipExtension(mimeType);
+  if (!extension) throw new HttpsError('invalid-argument', 'Your phone recorded that in a way I can’t read. You can type your answer instead.');
+  const audio = Buffer.from(data.audio, 'base64');
+  if (audio.byteLength === 0) throw new HttpsError('invalid-argument', 'I didn’t catch any sound there. Try again, or type your answer instead.');
+  if (audio.byteLength > MAX_CLIP_BYTES) throw new HttpsError('invalid-argument', 'That was a bit too long to send. Try a shorter one, or type your answer.');
+
+  const db = getFirestore();
+  const ref = db.collection('labStoryChats').doc(chatId);
+  const chat = (await ref.get()).data() as (ChatDoc & { voiceClips?: unknown[] }) | undefined;
+  if (!chat || chat.sessionUid !== uid) throw new HttpsError('not-found', 'That recording could not be sent. You can type your answer instead.');
+  if (chat.status !== 'interview' && chat.status !== 'adapt') throw new HttpsError('failed-precondition', 'That recording could not be sent. You can type your answer instead.');
+  if ((chat.voiceClips?.length ?? 0) >= CLIPS_PER_CHAT) throw new HttpsError('resource-exhausted', 'That’s as many recordings as this chat can take. You can type your answer instead.');
+
+  const emulator = process.env.FUNCTIONS_EMULATOR === 'true';
+  const apiKey = emulator ? null : await readSecret(OPENAI_SECRET);
+  if (!emulator && !apiKey) throw new HttpsError('unavailable', 'Recording isn’t available just now. You can type your answer instead.');
+  try {
+    await spendCall(db);
+  } catch {
+    throw new HttpsError('resource-exhausted', 'Recording isn’t available just now. You can type your answer instead.');
+  }
+
+  const clipId = randomUUID();
+  const path = `labStoryVoice/${chatId}/${clipId}.${extension}`;
+  const [kept, written] = await Promise.allSettled([
+    getStorage().bucket().file(path).save(audio, { contentType: mimeType.split(';')[0]!.trim(), resumable: false, metadata: { metadata: { chatId, clipId, participantCode: chat.participantCode } } }),
+    emulator ? Promise.resolve(MOCK_TRANSCRIPT) : transcribeClip(apiKey!, audio, mimeType, extension),
+  ]);
+  if (kept.status === 'rejected') logger.error('MyStory voice: the recording could not be kept', { chatId, reason: String((kept.reason as Error)?.message ?? kept.reason).slice(0, 200) });
+  const said = written.status === 'fulfilled' ? written.value : null;
+  await ref.update({
+    voiceClips: FieldValue.arrayUnion({ clipId, path: kept.status === 'fulfilled' ? path : null, bytes: audio.byteLength, seconds, mimeType, stage: chat.status, model: emulator ? 'mock' : TRANSCRIBE_MODEL, transcript: said, ok: said !== null, at: new Date().toISOString() }),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  // Only that it happened: no words, no audio.
+  logger.info('MyStory voice', { chatId, ok: said !== null, seconds });
+  if (said === null) {
+    throw new HttpsError('unavailable', kept.status === 'fulfilled' ? 'I’ve kept your recording, but I couldn’t turn it into words. Could you type what you said?' : 'I couldn’t turn that into words just now. Try again, or type it instead.');
+  }
+  if (!said) throw new HttpsError('invalid-argument', 'Nothing came through on that one. Have another go, or type your answer.');
+  return { text: said, clipId, kept: kept.status === 'fulfilled' };
+});

@@ -172,7 +172,7 @@ test('the lab dataset is labelled by participant ID, has one session per phase, 
     ['lab/MP2670FF90A5F2/u4.jpg', 'social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-post/sub-MP2670FF90A5F2_ses-post_run-01_screenshot.jpg'],
     ['signatures/lab/MP2670FF90A5F2/c1.png', 'social-media-break/identifying/signatures/sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_consent-v1_signature.png'],
   ]);
-  assert.deepEqual(out.counts, { labParticipants: 2, labConsents: 2, labDonations: 4, labArchives: 1, labScreenshots: 3, labSignatures: 1, labCheckIns: 1, labStories: 0, labStoryChats: 0, labBookings: 0 });
+  assert.deepEqual(out.counts, { labParticipants: 2, labConsents: 2, labDonations: 4, labArchives: 1, labScreenshots: 3, labSignatures: 1, labCheckIns: 1, labStories: 0, labStoryChats: 0, labStoryVoiceClips: 0, labBookings: 0 });
   const checkins = out.files.find((f) => f.path === 'social-media-break/donations/phenotype/checkin.tsv')!.body;
   assert.equal(checkins, 'participant_id\tsession_id\tcheck_in_id\tcheck_in_n\tsubmitted_at\tform_version\tweek\tapps_used\tmood\tdifficulty\tmissed\tnotes\nsub-MP2670FF90A5F2\tses-mid\tk1\t1\t2026-10-20T10:00:00.000Z\t0.1-draft\t2\tnever\t4\t3\t2\tBrick held up fine\n');
   const checkinDictionary = JSON.parse(out.files.find((f) => f.path === 'social-media-break/donations/phenotype/checkin.json')!.body);

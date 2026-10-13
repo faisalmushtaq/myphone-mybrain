@@ -216,7 +216,7 @@ export function labStoryTable(phase: StoryPhase, stories: Doc[]): Row[] {
 /* ── MyStory's AI chat ─────────────────────────────────────────────────── */
 
 export function labStoryChatColumns(phase: StoryPhase): string[] {
-  return ['participant_id', 'session_id', 'chat_id', 'story_id', 'started_at', 'finished_at', 'protocol', 'protocol_version', 'source', 'check_in_id', 'status', 'ending', 'turns', 'interview_closed', ...storyChats[phase].extractionKeys.map((k) => `said_${k.key}`), 'candidates_n', 'chosen_persona', 'rating', 'requests_n', 'edited', 'final_story', 'flags', 'model_calls', 'failed_calls', 'input_tokens', 'output_tokens'];
+  return ['participant_id', 'session_id', 'chat_id', 'story_id', 'started_at', 'finished_at', 'protocol', 'protocol_version', 'source', 'check_in_id', 'status', 'ending', 'turns', 'interview_closed', ...storyChats[phase].extractionKeys.map((k) => `said_${k.key}`), 'candidates_n', 'chosen_persona', 'rating', 'requests_n', 'edited', 'voice_clips', 'final_story', 'flags', 'model_calls', 'failed_calls', 'input_tokens', 'output_tokens'];
 }
 
 /** One phase's chat conversations, finished or not: one row each, the participant's own words by question, the retelling chosen, rated and corrected. */
@@ -248,6 +248,7 @@ export function labStoryChatTable(phase: StoryPhase, chats: Doc[]): Row[] {
         rating: d.rating ?? null,
         requests_n: ((d.requests ?? []) as unknown[]).length,
         edited: ((d.edits ?? []) as unknown[]).length > 0,
+        voice_clips: ((d.voiceClips ?? []) as unknown[]).length,
         final_story: d.status === 'done' ? d.finalScenario : null,
         flags: ((d.flags ?? []) as { rule: string; tier: string }[]).map((f) => `${f.rule}:${f.tier}`).join(',') || null,
         model_calls: calls.length,
@@ -284,6 +285,7 @@ export function labStoryChatDictionary(phase: StoryPhase): Record<string, unknow
     rating: { Description: 'How close the chosen retelling was to what they wanted to say, 0 (not at all) to 10 (exactly right)' },
     requests_n: { Description: 'Changes asked of the AI' },
     edited: { Description: 'Whether the participant edited the words themselves' },
+    voice_clips: { Description: 'Answers spoken rather than typed: the recordings are in sourcedata/voice/<participant>/, each written down by gpt-4o-mini-transcribe into the reply box for the participant to check before sending (the words sent are in the conversation, the transcription with each clip in labStoryChats.jsonl)' },
     final_story: { Description: 'The story as filed' },
     flags: { Description: 'Safeguarding rules matched (rule:tier), for the team to review; nothing was shown to the participant' },
     model_calls: { Description: 'Model calls made' },
@@ -886,6 +888,12 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
       if (tables.length) derived.push({ source: file.path, paths: tables.flatMap((t) => [`${t.base}.tsv`, `${t.base}.json`]), build: (buffer) => buildArchiveTables(buffer, tables) });
     });
   }
+  // MyStory's spoken answers: the recordings, by conversation, beside the transcripts in labStoryChats.jsonl.
+  for (const chat of snap.storyChats ?? []) {
+    for (const clip of (chat.data.voiceClips ?? []) as { clipId: string; path: string | null }[]) {
+      if (typeof clip.path === 'string') copies.set(clip.path, `${B}/sourcedata/voice/${labLabel(String(chat.data.participantCode))}/${chat.id}_${clip.path.split('/').pop()}`);
+    }
+  }
   for (const c of snap.consents) {
     const path = c.data.signature?.image?.path;
     if (typeof path === 'string') copies.set(path, `${I}/${labSignatureFile(String(c.data.participantCode), c.data.version)}`);
@@ -902,6 +910,7 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     labCheckIns: snap.checkIns.length,
     labStories: (snap.stories ?? []).length,
     labStoryChats: (snap.storyChats ?? []).length,
+    labStoryVoiceClips: (snap.storyChats ?? []).reduce((n, c) => n + ((c.data.voiceClips ?? []) as unknown[]).length, 0),
     labBookings: (snap.bookings ?? []).filter((b) => b.data.status !== 'cancelled').length,
   };
   return { files, copies, derived, counts };

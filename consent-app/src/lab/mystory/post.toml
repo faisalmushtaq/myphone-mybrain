@@ -128,7 +128,7 @@ look = "neutral"
 about = [
   "Remi is an AI, not a person. Nobody is sitting somewhere reading this as you type.",
   "Remi stands for Reflecting on Everyday Media Interactions. It asks about your life and then writes back what it heard, so you can say whether it got it right.",
-  "It can only read and write. It cannot see or hear you.",
+  "It can only read and write. It cannot see you, and it only hears you if you send a recording.",
   "What you say is kept for the research. Your name is not stored with it.",
   "There are no right answers and nothing here is marked.",
 ]

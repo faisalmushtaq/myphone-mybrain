@@ -128,8 +128,9 @@ async function inner() {
   const finderServer = spawn('python3', ['-m', 'http.server', String(FINDER_PORT), '-d', path.join(root, 'dist-emulator-finder')], { stdio: 'ignore' });
   await new Promise((r) => setTimeout(r, 1200));
 
-  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+  // A fake microphone (a test tone), for MyStory's spoken answers.
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, permissions: ['microphone'] });
   const page = await context.newPage();
   await page.addInitScript(() => {
     window.__usageCalls = [];
@@ -1153,8 +1154,24 @@ async function inner() {
     await page.locator('#chat-input').fill('');
     const chatAnswers = ['The quiet evenings stood out the most.', 'I slept better and talked to my flatmates more.', 'Going back on felt strange and a bit boring.', 'Easier than I expected, honestly.', 'I will keep my phone out of the bedroom.'];
     for (const [i, answer] of chatAnswers.entries()) {
-      await page.locator('#chat-input').fill(answer);
-      await page.locator('#chat-input').press('Enter');
+      if (i === 2) {
+        // The third answer spoken, as in MySelf: tap the microphone, talk, tap again; the words land in the box to check, then send.
+        ok('an empty reply box offers the microphone', (await page.getByRole('button', { name: 'Speak your answer' }).count()) === 1);
+        await page.getByRole('button', { name: 'Speak your answer' }).click();
+        await page.getByRole('timer').waitFor({ timeout: 15000 });
+        await page.waitForTimeout(1500);
+        await snap('mystory-chat-recording');
+        ok('while recording: a timer, a live waveform, a way to cancel, and a button to stop and send', (await page.locator('.mpmb-chat__rec-wave i').count()) > 0 && (await page.getByRole('button', { name: 'Cancel' }).count()) === 1 && (await page.getByRole('button', { name: 'Stop recording and send it' }).count()) === 1);
+        await page.getByRole('button', { name: 'Stop and write it down' }).click();
+        await page.waitForFunction((text) => document.querySelector('#chat-input')?.value === text, answer, { timeout: 30000 });
+        ok('what was said is written into the reply box, to read and correct before sending', (await page.locator('#chat-input').inputValue()) === answer);
+        await page.locator('#chat-input').press('Enter');
+        await chatLog.locator('.mpmb-chat__voice').first().waitFor({ timeout: 15000 });
+        ok('the sent answer shows the recording as a voice note that can be played back', (await chatLog.getByRole('button', { name: 'Play your recording' }).count()) === 1);
+      } else {
+        await page.locator('#chat-input').fill(answer);
+        await page.locator('#chat-input').press('Enter');
+      }
       // Sam's next question: two introductions and the first question, then one more per answer.
       if (i < chatAnswers.length - 1) await chatLog.locator('.mpmb-chat__bubble--bot').nth(3 + i).waitFor({ timeout: 30000 });
     }
@@ -1178,6 +1195,9 @@ async function inner() {
     const postStory = (await db.collection('labStories').where('phase', '==', 'post').get()).docs.map((d) => d.data())[0];
     const postChat = postStory?.chatId ? (await db.collection('labStoryChats').doc(postStory.chatId).get()).data() : null;
     ok('the chat’s story is filed under the after-break phase, as edited, with the persona chosen and the rating', postStory?.participantCode === 'MP2670FF90A5F2' && postStory?.mode === 'chat' && postStory?.structureId === 'np.sm_abstinence_post' && postStory?.chosenPersona === 'casual' && postStory?.rating === 7 && postStory?.ending === 'edited' && postStory?.story.includes('flatmates in Leeds'), JSON.stringify({ mode: postStory?.mode, persona: postStory?.chosenPersona, ending: postStory?.ending }));
+    const clip = postChat?.voiceClips?.[0];
+    const [clipStored] = clip?.path ? await bucket.file(clip.path).exists() : [false];
+    ok('the spoken answer is kept: the recording in storage under the conversation, with what it was written down as', postChat?.voiceClips?.length === 1 && clip?.ok === true && clip?.transcript === chatAnswers[2] && clip?.stage === 'interview' && clipStored === true, JSON.stringify(clip ?? null));
     ok('the whole conversation is kept: every turn, the answers in their own words, each model call, the change asked for and the edit', postChat?.status === 'done' && postChat?.transcript?.filter((m) => m.role === 'user').length === 5 && postChat?.extraction?.expectations_vs_experience === 'I slept better and talked to my flatmates more.' && postChat?.extraction?.taking_forward === null && postChat?.candidates?.length === 3 && postChat?.requests?.length === 1 && postChat?.edits?.length === 1 && postChat?.calls?.every((c) => c.ok && c.model === 'mock') && postChat?.calls?.length === 6 + 1 + 3 + 1, JSON.stringify({ status: postChat?.status, calls: postChat?.calls?.length }));
     // MyStory at the first visit, on the lab computer: the page forgets the participant once it is sent.
     await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=pre&at=lab&code=MP2670FF90A5F2`);
@@ -1374,7 +1394,7 @@ async function inner() {
     const phoneUseTsv = await readExport('schools/donations/phenotype/parent_phone_use.tsv');
     const noPhoneTsv = await readExport('schools/donations/phenotype/parent_no_phone.tsv');
     ok('the no-phone answers have their own table, and the research table their own status column', noPhoneTsv.split('\n')[0].startsWith('participant_id\twhy_no_phone\texpected_age\t') && noPhoneTsv.includes('\ttoo-young\t13\t') && familiesTsv.split('\n')[0].includes('\tmore_questions_status\tno_phone_questions_status\t') && familiesTsv.includes('\tno-phone\t'), noPhoneTsv.slice(0, 300));
-    ok('MyStory is exported by phase, the triangle over three columns', midTsv.split('\n')[0].includes('pull_habit\tpull_people_and_connection\tpull_boredom_or_stress\tpull_status') && midTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && midTsv.includes('\tThe bus\t') && midTsv.includes('\tnot-sure\t') && !postTsv.includes('flatmates') && postChatTsv.includes('sub-MP2670FF90A5F2\tses-post\t') && postChatTsv.includes('\tdone\tedited\t') && postChatTsv.includes('\tcasual\t7\t1\ttrue\t') && finalManifest.counts?.labStoryChats === 1 && preTsv.includes('sub-MP2670FF90A5F2\tses-pre\t') && preTsv.includes('\tLate nights\t') && finalManifest.counts?.labStories === 3, JSON.stringify(finalManifest.counts));
+    ok('MyStory is exported by phase, the triangle over three columns', midTsv.split('\n')[0].includes('pull_habit\tpull_people_and_connection\tpull_boredom_or_stress\tpull_status') && midTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && midTsv.includes('\tThe bus\t') && midTsv.includes('\tnot-sure\t') && !postTsv.includes('flatmates') && postChatTsv.includes('sub-MP2670FF90A5F2\tses-post\t') && postChatTsv.includes('\tdone\tedited\t') && postChatTsv.includes('\tcasual\t7\t1\ttrue\t') && finalManifest.counts?.labStoryChats === 1 && finalManifest.counts?.labStoryVoiceClips === 1 && postChatTsv.split('\n')[0].includes('\tvoice_clips\t') && preTsv.includes('sub-MP2670FF90A5F2\tses-pre\t') && preTsv.includes('\tLate nights\t') && finalManifest.counts?.labStories === 3, JSON.stringify(finalManifest.counts));
     ok('the visits and contact details are exported to identifying/, the visit date to the research table', visitsTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\t1\t') && visitsTsv.includes('\tmoved\t') && visitsTsv.includes('day-before-email:not-configured') && contactsTsv.includes('jane.smith@example.org\t+447700900123\ttrue') && labPeople.includes(`\t${v1a.toISOString().slice(0, 10)}\tbooked\t`) && !labPeople.includes('jane@'));
     ok('the opt-out is flagged on the school’s list and listed in identifying/ with the UPN it names', unmatchedTsv.split('\n').some((l) => l.startsWith('DUA\tA123456789013\tOla\tNowak') && l.includes('\ttrue\t')) && optOutsTsv.includes('\tactive\t') && optOutsTsv.includes('\tOla\tNowak\t') && optOutsTsv.includes('\tEwa Nowak\t') && optOutsTsv.includes('\tA123456789013\tname-only'), optOutsTsv.split('\n')[1]);
     ok('the research table says who decided, where the screen time came from, and the longer answers have their own table', familiesTsv.split('\n')[0].includes('\tself_consent\tphone_source\t') && familiesTsv.split('\n')[0].endsWith('\tadded_later_on\topted_out') && familiesTsv.includes(`\t${new Date().toISOString().slice(0, 10)}\tfalse`) && familiesTsv.includes('\ttrue\tchild\tcompleted\t') && familiesTsv.includes('\tfalse\tnone\tnot-started\t') && phoneUseTsv.split('\n')[0].startsWith('participant_id\town_phone_age\tsocial_media_age\tschool_day_time') && phoneUseTsv.includes('\t12\t11\t3-4\t'), familiesTsv);

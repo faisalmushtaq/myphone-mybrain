@@ -13,6 +13,7 @@ rules_version = '2';
 // signatures/{participantId}/...    signature images from consent records
 // signatures/lab/{participantCode}/ the lab study's signature images
 // schoolupns/{school}/{uploadId}/   the UPN lists schools send (the function writes them)
+// labStoryVoice/{chatId}/{clipId}  MyStory chat voice recordings (the function writes them)
 //   Only reachable through the Admin SDK and signed-in admin tooling.
 service firebase.storage {
   match /b/{bucket}/o {

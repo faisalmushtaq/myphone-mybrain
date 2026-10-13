@@ -11,6 +11,7 @@ import { LabShell } from '../LabShell';
 import { labMyStory, type StoryPhase } from '../mystory';
 import { useLab } from '../store';
 import { chatCharacter, chatSupport, withFirstName } from './chatProtocol';
+import { base64Of, LIVE_BARS, useVoice, type VoiceNote } from './useVoice';
 
 type Stage = 'ready' | 'interview' | 'choose' | 'rate' | 'adapt' | 'stopped';
 interface Bubble {
@@ -20,6 +21,8 @@ interface Bubble {
   story?: boolean;
   /** A short note from the app, centred in the thread. */
   note?: boolean;
+  /** Spoken answers: the recordings, played back from this device only. */
+  voice?: VoiceNote[];
 }
 
 export interface ChatFinished {
@@ -67,6 +70,11 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
   const [picked, setPicked] = useState<number | null>(null);
   const [story, setStory] = useState('');
   const [history, setHistory] = useState<string[]>([]);
+  const [heard, setHeard] = useState(false);
+  const [voiceTrouble, setVoiceTrouble] = useState<string | null>(null);
+  const pendingNotes = useRef<VoiceNote[]>([]);
+  const draftRef = useRef('');
+  draftRef.current = draft;
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const character = chatCharacter(phase);
@@ -185,13 +193,46 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
   };
 
   /** What the reply box does depends on where the conversation is: an answer, or a change to the story. */
-  const submit = () => {
-    const text = draft.trim();
+  const submitText = (raw: string) => {
+    const text = raw.trim();
     if (!text || !chatId || busy) return;
-    setBubbles((b) => [...b, { from: 'me', text }]);
+    const voice = pendingNotes.current;
+    pendingNotes.current = [];
+    setBubbles((b) => [...b, { from: 'me', text, ...(voice.length ? { voice } : {}) }]);
     setDraft('');
+    setVoiceTrouble(null);
     if (stage === 'interview') void run({ action: 'reply', chatId, text });
     else if (stage === 'adapt') void run({ action: 'adapt', chatId, request: text, story });
+  };
+  const voice = useVoice({
+    transcribe: async (clip, mimeType, seconds) => {
+      const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
+      const res = await getApi().labStoryVoice(session, { chatId: chatId ?? '', audio: await base64Of(clip), mimeType, seconds });
+      return res.text;
+    },
+    onText: (text, note, andSend) => {
+      pendingNotes.current = [...pendingNotes.current, note];
+      const had = draftRef.current.replace(/\s+$/, '');
+      const full = had ? `${had} ${text}` : text;
+      setVoiceTrouble(null);
+      if (andSend) {
+        submitText(full);
+        return;
+      }
+      // The words arrive in the box, to be read and corrected before they are sent.
+      setDraft(full);
+      setHeard(true);
+      window.setTimeout(() => setHeard(false), 1400);
+      focusInput();
+    },
+    onTrouble: (message) => setVoiceTrouble(message),
+  });
+  const submit = () => {
+    if (voice.state === 'recording') {
+      voice.finish(true);
+      return;
+    }
+    submitText(draft);
   };
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -288,10 +329,13 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
                 </div>
               ) : (
                 <div key={i} className={`mpmb-chat__row mpmb-chat__row--${b.from}`}>
-                  <p className={`mpmb-chat__bubble mpmb-chat__bubble--${b.from}`}>
-                    <span className="mpmb-sr-only">{b.from === 'bot' ? `${name}: ` : 'You: '}</span>
-                    {b.text}
-                  </p>
+                  <div className={`mpmb-chat__bubble mpmb-chat__bubble--${b.from}`}>
+                    {b.voice?.map((note) => <VoiceNoteBubble key={note.url} note={note} />)}
+                    <p>
+                      <span className="mpmb-sr-only">{b.from === 'bot' ? `${name}: ` : 'You: '}</span>
+                      {b.text}
+                    </p>
+                  </div>
                 </div>
               ),
             )}
@@ -377,28 +421,81 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
               Finish
             </Button>
           )}
+          {composer && voiceTrouble && (
+            <p className="mpmb-chat__voice-trouble" role="alert">
+              {voiceTrouble}
+            </p>
+          )}
           {composer && (
             <div className="mpmb-chat__composer">
-              <label className="mpmb-sr-only" htmlFor={stage === 'adapt' ? 'chat-request' : 'chat-input'}>
-                {stage === 'adapt' ? `Ask ${name} to change it` : `Your reply to ${name}`}
-              </label>
-              <textarea
-                id={stage === 'adapt' ? 'chat-request' : 'chat-input'}
-                ref={inputRef}
-                className="mpmb-chat__input"
-                rows={1}
-                maxLength={screens?.maxChars ?? 2000}
-                value={draft}
-                placeholder={stage === 'adapt' ? `Or ask ${name} to change something…` : 'Message'}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={onKey}
-                disabled={busy}
-              />
-              <button type="button" className="mpmb-chat__send" aria-label={stage === 'adapt' ? `Ask ${name}` : 'Send'} disabled={busy || !draft.trim()} onClick={submit}>
-                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
-                  <path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" fill="currentColor" />
-                </svg>
-              </button>
+              {voice.state === 'idle' ? (
+                <>
+                  <label className="mpmb-sr-only" htmlFor={stage === 'adapt' ? 'chat-request' : 'chat-input'}>
+                    {stage === 'adapt' ? `Ask ${name} to change it` : `Your reply to ${name}`}
+                  </label>
+                  <textarea
+                    id={stage === 'adapt' ? 'chat-request' : 'chat-input'}
+                    ref={inputRef}
+                    className={`mpmb-chat__input${heard ? ' is-heard' : ''}`}
+                    rows={1}
+                    maxLength={screens?.maxChars ?? 2000}
+                    value={draft}
+                    placeholder={stage === 'adapt' ? `Or ask ${name} to change something…` : voice.supported ? 'Message, or hold the mic to talk' : 'Message'}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={onKey}
+                    disabled={busy}
+                  />
+                </>
+              ) : (
+                <div className={`mpmb-chat__recording${voice.cancelling ? ' is-cancelling' : ''}`} role="status">
+                  {voice.state === 'recording' ? (
+                    <>
+                      <button type="button" className="mpmb-chat__rec-cancel" onClick={voice.cancel}>
+                        Cancel
+                      </button>
+                      <span className="mpmb-chat__rec-dot" aria-hidden="true" />
+                      <span className="mpmb-chat__rec-time" role="timer" aria-live="off">
+                        {Math.floor(voice.seconds / 60)}:{String(voice.seconds % 60).padStart(2, '0')}
+                      </span>
+                      <span className="mpmb-chat__rec-wave" aria-hidden="true">
+                        {Array.from({ length: LIVE_BARS }, (_, i) => {
+                          const level = voice.wave[i - (LIVE_BARS - voice.wave.length)] ?? 0;
+                          return <i key={i} style={{ height: `${Math.max(8, Math.round(level * 100))}%` }} />;
+                        })}
+                      </span>
+                      <span className="mpmb-chat__rec-hint">{voice.cancelling ? 'Let go to cancel' : voice.locked ? 'Recording' : '‹ Slide to cancel · slide up to lock'}</span>
+                    </>
+                  ) : (
+                    <span className="mpmb-chat__rec-hint">Writing it down…</span>
+                  )}
+                </div>
+              )}
+              {(voice.state === 'recording' && voice.locked) || (voice.state === 'idle' && (draft.trim() || !voice.supported)) ? (
+                <button type="button" className="mpmb-chat__send" aria-label={voice.state === 'recording' ? 'Stop recording and send it' : stage === 'adapt' ? `Ask ${name}` : 'Send'} disabled={busy || (voice.state === 'idle' && !draft.trim())} onClick={submit}>
+                  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+                    <path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" fill="currentColor" />
+                  </svg>
+                </button>
+              ) : null}
+              {voice.supported && (voice.state !== 'idle' || !draft.trim()) && (
+                <button
+                  type="button"
+                  className={`mpmb-chat__mic${voice.state === 'recording' ? ' is-listening' : ''}`}
+                  aria-label={voice.state === 'recording' ? 'Stop and write it down' : 'Speak your answer'}
+                  disabled={busy || voice.state === 'writing'}
+                  {...voice.mic}
+                >
+                  {voice.state === 'recording' && voice.locked ? (
+                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+                      <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+                      <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z" fill="currentColor" />
+                    </svg>
+                  )}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -418,6 +515,39 @@ export function ChatSupport() {
           <li key={line}>{line}</li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** A recording, as messaging apps show one: play, the shape of what was said, and how long. */
+function VoiceNoteBubble({ note }: { note: VoiceNote }) {
+  const audio = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [at, setAt] = useState(0);
+  const mmss = (n: number) => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
+  const progress = note.seconds ? Math.min(1, at / note.seconds) : 0;
+  return (
+    <div className="mpmb-chat__voice">
+      <button
+        type="button"
+        className="mpmb-chat__voice-play"
+        aria-label={playing ? 'Pause your recording' : 'Play your recording'}
+        onClick={() => {
+          const a = audio.current;
+          if (!a) return;
+          if (a.paused) void a.play();
+          else a.pause();
+        }}
+      >
+        {playing ? '❚❚' : '▶'}
+      </button>
+      <span className="mpmb-chat__voice-wave" aria-hidden="true">
+        {note.shape.map((h, i) => (
+          <i key={i} className={i / note.shape.length < progress ? 'is-played' : ''} style={{ height: `${Math.round(h * 100)}%` }} />
+        ))}
+      </span>
+      <span className="mpmb-chat__voice-time">{mmss(playing || at ? at : note.seconds)}</span>
+      <audio ref={audio} src={note.url} preload="metadata" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => { setPlaying(false); setAt(0); }} onTimeUpdate={(e) => setAt(e.currentTarget.currentTime)} />
     </div>
   );
 }

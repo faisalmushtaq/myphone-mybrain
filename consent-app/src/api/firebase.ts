@@ -4,7 +4,7 @@ import { connectAuthEmulator, getAuth, signInAnonymously, type Auth, type User }
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, deleteObject, getStorage, ref, uploadBytesResumable, type FirebaseStorage } from 'firebase/storage';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type AddressLookup, type AddressSuggestions, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabStoryChatRequest, type LabStoryChatResponse, type LabStoryPayload, type LabStoryResult, type LateAgreementPayload, type LateAgreementResult, type PickedAddress, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type AddressLookup, type AddressSuggestions, type ConsentApi, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabStoryChatRequest, type LabStoryChatResponse, type LabStoryVoiceRequest, type LabStoryVoiceResponse, type LabStoryPayload, type LabStoryResult, type LateAgreementPayload, type LateAgreementResult, type PickedAddress, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
 
 /**
  * Firebase implementation of the API boundary.
@@ -246,6 +246,10 @@ export class FirebaseConsentApi implements ConsentApi {
 
   labStoryChat(session: SessionInfo, request: LabStoryChatRequest): Promise<LabStoryChatResponse> {
     return this.call<LabStoryChatRequest, LabStoryChatResponse>(session, 'labStoryChat', request);
+  }
+
+  labStoryVoice(session: SessionInfo, request: LabStoryVoiceRequest): Promise<LabStoryVoiceResponse> {
+    return this.call<LabStoryVoiceRequest, LabStoryVoiceResponse>(session, 'labStoryVoice', request);
   }
 
   callTool<Res>(session: SessionInfo, name: 'staffApi' | 'schoolUpload', payload: Record<string, unknown>): Promise<Res> {

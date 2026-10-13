@@ -3,7 +3,7 @@ import { referenceCode } from '../lib/ids';
 import type { SessionInfo } from '../model/types';
 import { labBooking } from '../lab/booking';
 import { addDays, atUkTime, daysBetween, previewIcs, ukIsoDay } from '../lab/calendar';
-import { ApiError, type AddressLookup, type AddressSuggestions, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBooking, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabSlot, type LabStoryChatRequest, type LabStoryChatResponse, type LabStoryPayload, type LabStoryResult, type LabVisit, type LateAgreementPayload, type LateAgreementResult, type PickedAddress, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type AddressLookup, type AddressSuggestions, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBooking, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabSlot, type LabStoryChatRequest, type LabStoryChatResponse, type LabStoryVoiceResponse, type LabStoryPayload, type LabStoryResult, type LabVisit, type LateAgreementPayload, type LateAgreementResult, type PickedAddress, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
 
 export interface MockFlags {
   failUploads: boolean;
@@ -527,6 +527,11 @@ export class MockConsentApi implements ConsentApi {
     this.checkSession(session);
     if (request.action !== 'start') throw new ApiError('validation', 'This conversation could not be found. Please start again.');
     return { available: false };
+  }
+
+  async labStoryVoice(): Promise<LabStoryVoiceResponse> {
+    await sleep(200);
+    throw new ApiError('server', 'Recording needs the live study database; you can type your answer instead.');
   }
 
   async callTool<Res>(): Promise<Res> {
