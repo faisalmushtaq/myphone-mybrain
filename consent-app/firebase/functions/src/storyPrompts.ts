@@ -226,22 +226,57 @@ export function adaptPrompt(scenario: string, request: string): Prompt {
  */
 export const CHECK_SYSTEM = [
   "You check a short first-person story written from a participant's answers in a research interview.",
-  'You are given the interview, and the story. Only the Human lines are what the participant said.',
-  'List each thing the story says that the participant did not say or clearly mean: added feelings, details, events,',
-  'outcomes, reasons, lessons or judgements; anything tied to the wrong thing or the wrong time (for example, a feeling',
-  'they described about social media written as a feeling about the break, or about now written as about then); and',
-  'anything made stronger, weaker or more certain than they put it (for example "definitely" where they said "I want to",',
-  'or "it made me anxious" where they said "probably").',
-  'Joining words, tone, first person and rewording that keeps the meaning are fine: do not list them.',
-  'Quote each added part briefly. If everything in the story comes from what they said, return an empty list.',
+  'You are given the interview, and the story. Only the Human lines are what the participant said; each answers the AI',
+  'line before it, and a short answer ("Not really", "It was fine") means only that, about that question and nothing else.',
+  'Go through the story one sentence at a time. For each sentence, quote the Human words that say it. Mark it unfaithful',
+  'if any part of it is not in what they said, or is changed: an added feeling, detail, event, outcome, reason, lesson or',
+  'judgement; something tied to the wrong thing or the wrong time (for example, a feeling they described about social',
+  'media written as a feeling about the break, or about now written as about then); or something made stronger, weaker',
+  'or more certain than they put it (for example "definitely" where they said "I want to", or "it made me anxious" where',
+  'they said "probably"). Joining words, tone, first person and rewording that keeps the meaning are fine.',
 ].join('\n');
 
 export const CHECK_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['added'],
-  properties: { added: { type: 'array', items: { type: 'string' }, description: 'Each part of the story the participant did not say.' } },
+  required: ['sentences'],
+  properties: {
+    sentences: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['sentence', 'theySaid', 'faithful', 'problem'],
+        properties: {
+          sentence: { type: 'string', description: 'The sentence, exactly as it is in the story.' },
+          theySaid: { type: 'string', description: 'The Human words that say it, quoted; empty if none.' },
+          faithful: { type: 'boolean', description: 'False if any part of the sentence is not in what they said, or is changed.' },
+          problem: { type: 'string', description: 'What was added or changed; empty if faithful.' },
+        },
+      },
+    },
+  },
 } as const;
+
+export interface CheckedSentence {
+  sentence: string;
+  theySaid: string;
+  faithful: boolean;
+  problem: string;
+}
+
+/** The sentences the check found not to be what they said, with what is wrong with each. */
+export const unfaithful = (sentences: CheckedSentence[]): CheckedSentence[] => sentences.filter((x) => !x.faithful && x.sentence.trim());
+
+/** Takes the given sentences out of a story, word for word; what the model could not fix is not shown. */
+export function withoutSentences(story: string, sentences: string[]): string {
+  return sentences
+    .reduce((t, x) => t.split(x.trim()).join(''), story)
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ +([.,;:!?])/g, '$1')
+    .replace(/\s*\n\s*/g, '\n')
+    .trim();
+}
 
 export const REVISE_SYSTEM = [
   "You are given a short first-person story written from a participant's answers, and a list of things in it that they did not say.",
@@ -495,11 +530,17 @@ export const mockModel: ModelCall = async <T>(prompt: Prompt, protocol: ChatProt
     // Anything in capitals the participant never typed counts as added, so the tests can plant some.
     const [, interview = '', story = ''] = /The interview:\n([\s\S]*)\n\nThe story:\n([\s\S]*)/.exec(prompt.messages[0]?.content ?? '') ?? [];
     const said = interview.split('\n').filter((l) => l.startsWith('Human: ')).join(' ');
-    output = { added: (story.match(/\b[A-Z]{4,}\b/g) ?? []).filter((w) => !said.includes(w)) };
+    output = {
+      sentences: (story.match(/[^.!?]+[.!?]*/g) ?? []).map((x) => x.trim()).filter(Boolean).map((sentence) => {
+        const planted = (sentence.match(/\b[A-Z]{4,}\b/g) ?? []).filter((w) => !said.includes(w));
+        return { sentence, theySaid: planted.length ? '' : sentence, faithful: !planted.length, problem: planted.join(', ') };
+      }),
+    };
   } else if (prompt.key === 'pt.revise') {
     const [, story = '', list = ''] = /The story:\n([\s\S]*)\n\nThings they did not say:\n([\s\S]*)/.exec(prompt.messages[0]?.content ?? '') ?? [];
-    const added = list.split('\n').map((l) => l.replace(/^- /, ''));
-    output = { scenario: added.reduce((t, a) => t.split(a).join(''), story).replace(/\s+/g, ' ').trim() };
+    // Fixes a planted word by dropping it, unless it is planted twice in one sentence (then it cannot, so the tests can see a sentence cut).
+    const words = list.split('\n').flatMap((l) => (/: (.*)$/.exec(l)?.[1] ?? '').split(', ')).filter(Boolean);
+    output = { scenario: words.reduce((t, w) => (t.split(w).length > 2 ? t : t.split(w).join('')), story).replace(/ +/g, ' ').replace(/ \./g, '.').trim() };
   } else if (prompt.key === 'pt.adaptation') {
     const [, account = '', request = ''] = /The account:\n([\s\S]*)\n\nWhat they want changed:\n([\s\S]*)/.exec(prompt.messages[0]?.content ?? '') ?? [];
     output = { newScenario: `${account} ${request}`.trim(), changed: true };

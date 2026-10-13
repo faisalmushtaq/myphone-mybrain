@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { storyChats } from './forms.js';
-import { adaptPrompt, checkPrompt, cleanAdaptation, cosine, endedEarly, mockEmbedder, openAiEmbedder, revisePrompt, extractionPrompt, interviewerPrompt, matchesSchema, mockModel, openAiModel, safeguardingHits, scenarioPrompt, type ChatMessage } from './storyPrompts.js';
+import { adaptPrompt, checkPrompt, unfaithful, withoutSentences, type CheckedSentence, cleanAdaptation, cosine, endedEarly, mockEmbedder, openAiEmbedder, revisePrompt, extractionPrompt, interviewerPrompt, matchesSchema, mockModel, openAiModel, safeguardingHits, scenarioPrompt, type ChatMessage } from './storyPrompts.js';
 
 test('each phase has its own chat protocol, read from its TOML file', () => {
   assert.deepEqual(
@@ -138,17 +138,19 @@ test('the adaptation’s label is not kept as part of the story', () => {
   assert.equal(cleanAdaptation('I slept better. The account: was fine.'), 'I slept better. The account: was fine.');
 });
 
-test('a retelling is checked against what was said, and what was added is taken out', async () => {
+test('a retelling is checked sentence by sentence against what was said; what is not is fixed, or cut', async () => {
   const c = storyChats.post;
   const transcript: ChatMessage[] = [{ role: 'assistant', content: 'How did it go?' }, { role: 'user', content: 'I slept better.' }];
-  const check = checkPrompt(transcript, 'I slept better. My HEALTHIER routine has lasted.');
+  const story = 'I slept better. My HEALTHIER routine has lasted.';
+  const check = checkPrompt(transcript, story);
   assert.ok(check.messages[0]!.content.includes('Human: I slept better.') && check.messages[0]!.content.includes('The story:\nI slept better.'));
   assert.equal(check.temperature, 0);
-  const found = await mockModel<{ added: string[] }>(check, c);
-  assert.deepEqual(found.output.added, ['HEALTHIER']);
-  const revised = await mockModel<{ scenario: string }>(revisePrompt('I slept better. My HEALTHIER routine has lasted.', found.output.added), c);
+  const found = unfaithful((await mockModel<{ sentences: CheckedSentence[] }>(check, c)).output.sentences);
+  assert.deepEqual(found.map((x) => [x.sentence, x.problem]), [['My HEALTHIER routine has lasted.', 'HEALTHIER']]);
+  const revised = await mockModel<{ scenario: string }>(revisePrompt(story, found.map((x) => `"${x.sentence}": ${x.problem}`)), c);
   assert.equal(revised.output.scenario, 'I slept better. My routine has lasted.');
-  assert.deepEqual((await mockModel<{ added: string[] }>(checkPrompt(transcript, 'I slept better.'), c)).output.added, []);
+  assert.deepEqual(unfaithful((await mockModel<{ sentences: CheckedSentence[] }>(checkPrompt(transcript, revised.output.scenario), c)).output.sentences), []);
+  assert.equal(withoutSentences('I slept better. It was GREAT and GREAT. Then I went out.', ['It was GREAT and GREAT.']), 'I slept better. Then I went out.');
 });
 
 test('similarity to their own words, measured as the original team did, by embedding', async () => {

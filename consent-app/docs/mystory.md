@@ -149,8 +149,12 @@ code, `llm_config.py` and `scenario.py`; and the social media harms preprint,
   was gaps, which the model either filled or recited ("I haven't mentioned..."),
   so the gaps are no longer sent.
 - *Each retelling, and each rewrite asked for, is checked before it is shown.* A second call (`pt.check`,
-  temperature 0) lists anything in it the participant did not say; if there is
-  anything, it is taken out (`pt.revise`) and checked once more. The draft, what
+  temperature 0) goes through it sentence by sentence, quoting the participant's
+  words for each, and marks any sentence that adds something, ties it to the
+  wrong thing or time, or makes it more or less certain. Those sentences are
+  fixed (`pt.revise`) and checked once more; any still not right are cut, word
+  for word, and a version with nothing left is not offered. (A first version
+  that only listed what was added missed some on the live site.) The draft, what
   was found and what is still there are kept on each retelling, and exported
   (`retellings_added`, `retellings_still_added`); a rewrite is checked against
   everything they said, asked for or wrote themselves, and what was found is

@@ -20,9 +20,12 @@ import {
   openAiEmbedder,
   openAiModel,
   revisePrompt,
+  unfaithful,
+  withoutSentences,
   safeguardingHits,
   scenarioPrompt,
   type ChatMessage,
+  type CheckedSentence,
   type Embedder,
   type ModelCall,
   type Prompt,
@@ -78,6 +81,8 @@ interface Candidate {
   added?: string[];
   stillAdded?: string[];
   draft?: string;
+  /** The fixed version, before the sentences still not right were cut. */
+  beforeCut?: string;
   /** Cosine similarity of the retelling to the participant's own words. */
   similarity?: number | null;
 }
@@ -137,20 +142,22 @@ async function similarities(db: Firestore, ref: DocumentReference, transcript: C
 }
 
 /**
- * A retelling is checked against the interview before it is shown: anything
- * the participant did not say is taken out, and checked once more. A check
- * that cannot run leaves the draft as it is (it is still the participant's to
- * choose, rate and correct, as in the original).
+ * A retelling is checked against the interview, sentence by sentence, before
+ * it is shown. Sentences that are not what the participant said are fixed
+ * once by the model and checked again; any still not right are cut, word for
+ * word. A check that cannot run leaves the draft as it is (it is still the
+ * participant's to choose, rate and correct, as in the original).
  */
 async function faithful(db: Firestore, ref: DocumentReference, model: ModelCall, protocol: ChatProtocol, transcript: ChatMessage[], draft: string) {
   try {
-    const first = await call<{ added: string[] }>(db, ref, model, checkPrompt(transcript, draft), protocol, 'check');
-    const added = first.added.map((a) => a.trim()).filter(Boolean);
-    if (!added.length) return { text: draft, added: [], stillAdded: [] };
-    const revised = (await call<{ scenario: string }>(db, ref, model, revisePrompt(draft, added), protocol, 'revise')).scenario.trim();
-    if (!revised) return { text: draft, added, stillAdded: added, draft };
-    const again = await call<{ added: string[] }>(db, ref, model, checkPrompt(transcript, revised), protocol, 'check');
-    return { text: revised, added, stillAdded: again.added.map((a) => a.trim()).filter(Boolean), draft };
+    const check = async (story: string) => unfaithful((await call<{ sentences: CheckedSentence[] }>(db, ref, model, checkPrompt(transcript, story), protocol, 'check')).sentences);
+    const first = await check(draft);
+    if (!first.length) return { text: draft, added: [], stillAdded: [] };
+    const added = first.map((x) => `"${x.sentence.trim()}": ${x.problem}`);
+    const revised = (await call<{ scenario: string }>(db, ref, model, revisePrompt(draft, added), protocol, 'revise')).scenario.trim() || draft;
+    const again = await check(revised);
+    const text = again.length ? withoutSentences(revised, again.map((x) => x.sentence)) : revised;
+    return { text, added, stillAdded: again.map((x) => `"${x.sentence.trim()}": ${x.problem}`), draft, ...(again.length ? { beforeCut: revised } : {}) };
   } catch {
     return { text: draft };
   }
@@ -202,7 +209,9 @@ async function retell(db: Firestore, ref: DocumentReference, model: ModelCall, p
         const out = await call<{ scenario: string; confidence: string }>(db, ref, model, scenarioPrompt(protocol, persona, extraction), protocol, 'generate');
         const draft = out.scenario.trim();
         if (!draft) return null;
-        return { index, persona: persona.key, confidence: out.confidence, ...(await faithful(db, ref, model, protocol, transcript, draft)) };
+        const checked = await faithful(db, ref, model, protocol, transcript, draft);
+        // Nothing left once what they did not say is cut: this voice is not offered.
+        return checked.text ? { index, persona: persona.key, confidence: out.confidence, ...checked } : null;
       } catch {
         return null;
       }
@@ -411,7 +420,8 @@ export const labStoryChat = onCall(callOptions, async (request) => {
           { role: 'user', content: ask },
         ];
         const checked = rewritten === base ? { text: base } : await faithful(db, ref, model, protocol, said, rewritten);
-        const { text: revised, ...found } = checked;
+        const { text: kept, ...found } = checked;
+        const revised = kept || base;
         await ref.update({ requests: FieldValue.arrayUnion({ request: ask, before: base, after: revised, changed: out.changed, ...found, at: new Date().toISOString() }), finalScenario: revised, updatedAt: FieldValue.serverTimestamp() });
         return { stage: 'adapt', story: revised, unchanged: out.changed === false };
       } catch {
