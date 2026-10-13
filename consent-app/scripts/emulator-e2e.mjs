@@ -767,11 +767,11 @@ async function inner() {
     await page.getByLabel('Postcode').fill('ls29jt');
     await page.getByLabel('Postcode').blur();
     ok('the postcode is tidied into its standard form', (await page.getByLabel('Postcode').inputValue()) === 'LS2 9JT');
-    // Over 21 (decided 7 October 2026): someone new is refused once the details show they are not signed up already.
-    await page.getByLabel('Date of birth').fill('2003-05-01');
+    // Over 24: someone new is refused once the details show they are not signed up already.
+    await page.getByLabel('Date of birth').fill('1999-05-01');
     await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByText(/This study is for people aged 18 to 21, so you can’t sign up/).first().waitFor({ timeout: 30000 });
-    ok('a new sign-up older than 21 is refused from the date of birth', (await page.getByRole('heading', { name: /What taking part involves/ }).count()) === 0 && !(await db.collection('labParticipants').get()).docs.length);
+    await page.getByText(/This study is for people aged 18 to 24, so you can’t sign up/).first().waitFor({ timeout: 30000 });
+    ok('a new sign-up older than 24 is refused from the date of birth', (await page.getByRole('heading', { name: /What taking part involves/ }).count()) === 0 && !(await db.collection('labParticipants').get()).docs.length);
     await page.getByLabel('Date of birth').fill('2005-03-14');
     await snap('code');
     await page.getByRole('button', { name: 'Continue' }).click();
@@ -822,7 +822,7 @@ async function inner() {
     const labConsent = labParticipant?.consentId ? (await db.collection('labConsents').doc(labParticipant.consentId).get()).data() : null;
     const signUpContact = (await db.collection('labContacts').doc('MP2670FF90A5F2').get()).data();
     ok('the mobile number from sign-up is kept with the contact details (international form, texts on), not in the consent', signUpContact?.mobile === '+447700900123' && signUpContact?.smsReminders === true && !signUpContact?.email && !JSON.stringify(labConsent ?? {}).includes('7700'), JSON.stringify(signUpContact));
-    ok('lab consent record complete, every statement agreed, drawn signature under signatures/lab/', labConsent?.typedName === 'Jane Smith' && Object.keys(labConsent?.responses ?? {}).length === 9 && labConsent?.responses?.['data-kept']?.response === 'agreed' && labConsent?.responses?.['link-records']?.response === 'declined' && labConsent?.signature?.image?.path?.startsWith('signatures/lab/MP2670FF90A5F2/') && labConsent?.formVersion === '2.1-draft' && labConsent?.informationVersion === '2.1');
+    ok('lab consent record complete, every statement agreed, drawn signature under signatures/lab/', labConsent?.typedName === 'Jane Smith' && Object.keys(labConsent?.responses ?? {}).length === 9 && labConsent?.responses?.['data-kept']?.response === 'agreed' && labConsent?.responses?.['link-records']?.response === 'declined' && labConsent?.signature?.image?.path?.startsWith('signatures/lab/MP2670FF90A5F2/') && labConsent?.formVersion === '2.1-draft' && labConsent?.informationVersion === '2.2');
     ok('the four details are kept with the consent, tidied, and the ID is the documented one', labConsent?.codeParts?.firstName === 'Jane' && labConsent?.codeParts?.lastName === 'Smith' && labConsent?.codeParts?.dateOfBirth === '2005-03-14' && labConsent?.codeParts?.postcode === 'LS2 9JT' && labConsent?.participantCode === 'MP2670FF90A5F2', JSON.stringify(labConsent?.codeParts));
     ok('the participant row carries no name', !JSON.stringify(labParticipant).includes('Jane'));
 
@@ -1238,6 +1238,22 @@ async function inner() {
     await page.getByRole('heading', { name: 'Add lab times' }).waitFor({ timeout: 30000 });
     ok('the staff page lists the times with their bookings', (await page.locator('.mpmb-tools__row').count()) === 5 && (await page.getByText(/1 of 1 booked/).count()) === 2);
     await toolsSnap('times');
+    // As the team did (feedback, 14 October 2026): three start times over a week, then read the list back.
+    const addFrom = new Date(Date.now() + 50 * 86400000).toISOString().slice(0, 10);
+    const addTo = new Date(Date.now() + 56 * 86400000).toISOString().slice(0, 10);
+    await page.getByLabel('First date').fill(addFrom);
+    await page.getByLabel(/Last date/).fill(addTo);
+    await page.getByLabel('Start times').fill('10:00, 13:00, 15:00');
+    const addLabel = await page.getByRole('button', { name: /^Add \d+ times?$/ }).innerText();
+    await page.getByRole('button', { name: /^Add \d+ times?$/ }).click();
+    await page.getByText(/^Added \d+ times?/).waitFor({ timeout: 30000 });
+    const addedRows = await page.locator('.mpmb-tools__row strong').allInnerTexts();
+    // The slots made through the page in that week (December: UK time is UTC), leaving out the 09:00 one added earlier through the service.
+    const addedHours = (await db.collection('labSlots').where('start', '>=', new Date(`${addFrom}T00:00:00Z`)).get()).docs.map((d) => d.data().start.toDate().getUTCHours()).filter((h) => h !== 9);
+    ok('times added on the staff page are the times typed: 10:00, 13:00 and 15:00 on weekdays, nothing at midnight', addLabel === 'Add 15 times' && addedHours.length === 15 && addedHours.every((h) => [10, 13, 15].includes(h)) && !addedRows.some((r) => r.startsWith('00:')), `${addLabel} ${JSON.stringify(addedHours)}`);
+    await page.getByLabel('Start times').fill('10:00, 00:00');
+    ok('a start time outside lab hours, such as 00:00, is refused before anything is added', (await page.getByText(/00:00 is outside lab hours/).count()) === 1 && (await page.getByRole('button', { name: /^Add \d+ times?$/ }).count()) === 0);
+    await page.getByLabel('Start times').fill('10:00, 14:00');
     await page.getByRole('button', { name: 'Bookings', exact: true }).click();
     await page.getByRole('heading', { name: 'Bookings from a fortnight ago' }).waitFor();
     ok('the bookings show who is coming, their contact details and what was sent', (await page.locator('.mpmb-tools__row').count()) === 2 && (await page.locator('.mpmb-tools__row').first().innerText()).includes('jane.smith@example.org') && (await page.locator('.mpmb-tools__row').first().innerText()).includes('day-before email: not set up'));

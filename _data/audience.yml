@@ -84,32 +84,33 @@ for_schools:
 
 for_young_people:
   heading: "Information for young people"
-  subheading: "You can help us learn about digital life and growing up."
+  subheading: "You can help us learn about social media and growing up."
   intro: |
-    MyPhone/MyBrain is a research project about phones, digital life, brains and growing up. We want to understand how different young people use technology and how this links with learning, attention and wellbeing.
+    MyPhone/MyBrain is a research project about phones, social media, brains and growing up. We want to understand how different young people use technology and how this links with learning, attention and how it makes you feel.
 
-    Taking part is your choice. We will explain the study before you decide. You can say no, ask questions or stop at any time. You can choose whether to share your screen time: from 16 you decide for yourself; if you are younger, your parent or carer says yes first.
+    Taking part is your choice. All information will be given to you before you decide if you want to take part. You can say no, ask questions or stop at any time. If you are over 16 you can choose to share your screen time yourself. If you are younger, your parent or carer will make this choice for you.
+  pictured_heading: "How you can help"
   myphone_heading: "MyPhone"
   myphone_items:
-    - "You can choose to send screenshots of your phone's Screen Time page. They show which apps you use and for how long."
-    - "They don't show your messages, photos or what you watch, and you can cover up anything first. You can say no."
-    - "You may complete short surveys about technology, digital habits and wellbeing."
+    - "You can choose to send screenshots of your phone's Screen Time page. This shows which apps you use and for how long."
+    - "This does not show us your messages, photos or what you watch, and you can cover up anything first."
+    - "You may complete short surveys about technology, social media and how it makes you feel."
     - "You never have to share anything that makes you uncomfortable."
   mybrain_heading: "MyBrain"
   mybrain_items:
-    - "You will take part in a science workshop at school."
-    - "You may wear a lightweight EEG headset, which records activity from the surface of your head."
-    - "You may sit quietly for a short time and complete simple computer tasks."
+    - "You have the option to take part in a science workshop at your school."
+    - "This will include learning to use and wearing a lightweight EEG headset, which records activity from your brain. This is completely safe and causes no pain."
+    - "While you have the EEG on your head, you will be asked to sit quietly for a short time and complete games on a laptop."
     - "Researchers will help you with the equipment."
     - "EEG does not hurt. It does not put anything into your brain. It cannot read your thoughts."
-  data_promise_heading: "What we promise"
+  data_promise_heading: "We promise you that we will:"
   data_promise:
-    - "We will explain what we are asking you to do."
-    - "We will use data only for approved research."
-    - "We will protect your privacy."
-    - "We will not use the study to judge you."
-    - "We will not give your personal data to teachers, classmates or social media companies."
-    - "We will share what we learn fairly and respectfully."
+    - "Clearly explain what we are asking you to do."
+    - "Use your data only for approved research."
+    - "Protect your privacy: your name is never kept with your answers."
+    - "Not judge you."
+    - "Not give any personal information or data to teachers, classmates or companies. Your data remains securely stored with us."
+    - "Share our findings with you in a respectful way."
 
 coproduction:
   heading: "Designed with young people, families and schools"

@@ -770,6 +770,8 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 0.5rem); }
 
 /* ── 18. Workshop panels ─────────────────────────────────── */
 .workshop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem; }
+.yp-help-heading { margin: 2rem 0 0; font-size: clamp(1.4rem, 2.5vw, 1.9rem); }
+.yp-help-heading + .workshop-grid { margin-top: 1rem; }
 
 .workshop-panel {
   background: rgba(255,255,255,0.06);

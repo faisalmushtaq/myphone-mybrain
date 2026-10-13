@@ -170,11 +170,11 @@ export function ageAt(dateOfBirth: string, at: Date): number {
 }
 
 /**
- * Whether someone is too old to sign up (labStudy.maxAge, 21 since 7 October 2026). Only a first consent is
- * checked: a participant who turns 22 during the study, and signs again on a new device, carries on.
+ * Whether someone is too old to sign up (labStudy.maxAge, 24; it was 21 from 7 to 14 October 2026). Only a first consent is
+ * checked: a participant who turns 25 during the study, and signs again on a new device, carries on.
  */
 export function tooOldToJoin(dateOfBirth: string, at: Date = new Date()): boolean {
-  // ageAt's day of grace runs forwards (for the minimum age); for the maximum it runs back, so a 22nd birthday today somewhere in the world still counts as 21.
+  // ageAt's day of grace runs forwards (for the minimum age); for the maximum it runs back, so a 25th birthday today somewhere in the world still counts as 21.
   return ageAt(dateOfBirth, new Date(at.getTime() - 2 * 24 * 3600 * 1000)) > labStudy.maxAge;
 }
 

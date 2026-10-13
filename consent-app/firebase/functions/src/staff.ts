@@ -112,6 +112,8 @@ export function validateNewSlots(input: unknown, now = new Date()): { slots: New
     if (Number.isNaN(start.getTime())) return problems.push(`Time ${n} has no valid start.`);
     if (start.getTime() < now.getTime()) return problems.push(`Time ${n} (${start.toISOString()}) is in the past.`);
     if (start.getTime() > now.getTime() + 400 * DAY) return problems.push(`Time ${n} is more than a year ahead.`);
+    const ukHour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: labBooking.timeZone, hour: '2-digit', hourCycle: 'h23' }).format(start));
+    if (ukHour < labBooking.startHours.from || ukHour >= labBooking.startHours.until) return problems.push(`Time ${n} starts at ${String(ukHour).padStart(2, '0')}:00 UK time, outside lab hours (${labBooking.startHours.from}:00 to ${labBooking.startHours.until}:00).`);
     const minutes = Number(s.minutes ?? labBooking.minutes);
     if (!Number.isInteger(minutes) || minutes < 15 || minutes > 600) return problems.push(`Time ${n} needs a length between 15 minutes and 10 hours.`);
     const capacity = Number(s.capacity ?? 1);

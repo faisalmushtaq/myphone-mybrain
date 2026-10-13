@@ -25,12 +25,13 @@ const consent = () => ({
   client,
 });
 
-test('the age range at sign-up: 18 to 21 from the date of birth', () => {
-  const at = new Date('2026-10-07T12:00:00Z');
+test('the age range at sign-up: 18 to 24 from the date of birth', () => {
+  const at = new Date('2026-10-14T12:00:00Z');
   assert.equal(tooOldToJoin('2005-03-14', at), false, '21');
-  assert.equal(tooOldToJoin('2004-10-08', at), false, '21 until tomorrow');
-  assert.equal(tooOldToJoin('2004-10-06', at), true, '22 yesterday');
-  assert.equal(tooOldToJoin('2002-01-01', at), true, '24: no longer in range');
+  assert.equal(tooOldToJoin('2002-01-01', at), false, '24');
+  assert.equal(tooOldToJoin('2001-10-15', at), false, '24 until tomorrow');
+  assert.equal(tooOldToJoin('2001-10-13', at), true, '25 yesterday');
+  assert.equal(tooOldToJoin('1999-01-01', at), true, '27: not in range');
 });
 
 test('participant IDs have their shape and are normalised', () => {

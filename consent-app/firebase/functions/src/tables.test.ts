@@ -156,4 +156,8 @@ test('new lab times from the staff page: in the future, sensible lengths and pla
   assert.match(validateNewSlots([{ start: '2026-10-14T09:00:00Z', capacity: 0 }], now).problems.join(' '), /places/);
   assert.match(validateNewSlots([{ start: '2026-10-14T09:00:00Z', visit: 3 }], now).problems.join(' '), /unknown visit/);
   assert.match(validateNewSlots([], now).problems.join(' '), /No times/);
+  // Lab hours, in UK time: 23:00 UTC on 13 October is midnight in Leeds (BST), a typing slip, refused.
+  assert.match(validateNewSlots([{ start: '2026-10-13T23:00:00Z' }], now).problems.join(' '), /outside lab hours/);
+  assert.match(validateNewSlots([{ start: '2026-12-14T00:00:00Z' }], now).problems.join(' '), /00:00 UK time/);
+  assert.deepEqual(validateNewSlots([{ start: '2026-12-14T07:00:00Z' }, { start: '2026-12-14T20:00:00Z' }], now).problems, [], '07:00 and 20:00 are fine');
 });
