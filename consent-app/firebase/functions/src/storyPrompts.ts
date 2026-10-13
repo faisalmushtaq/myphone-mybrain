@@ -228,7 +228,10 @@ export const CHECK_SYSTEM = [
   "You check a short first-person story written from a participant's answers in a research interview.",
   'You are given the interview, and the story. Only the Human lines are what the participant said.',
   'List each thing the story says that the participant did not say or clearly mean: added feelings, details, events,',
-  'outcomes, reasons, lessons or judgements, and anything made stronger, weaker or more certain than they put it.',
+  'outcomes, reasons, lessons or judgements; anything tied to the wrong thing or the wrong time (for example, a feeling',
+  'they described about social media written as a feeling about the break, or about now written as about then); and',
+  'anything made stronger, weaker or more certain than they put it (for example "definitely" where they said "I want to",',
+  'or "it made me anxious" where they said "probably").',
   'Joining words, tone, first person and rewording that keeps the meaning are fine: do not list them.',
   'Quote each added part briefly. If everything in the story comes from what they said, return an empty list.',
 ].join('\n');
@@ -242,7 +245,8 @@ export const CHECK_SCHEMA = {
 
 export const REVISE_SYSTEM = [
   "You are given a short first-person story written from a participant's answers, and a list of things in it that they did not say.",
-  'Rewrite the story without those things, changing as little else as possible: the same voice, tone and first person,',
+  'Rewrite the story so that each of those things is taken out, or put back the way they actually said it, changing as',
+  'little else as possible: the same voice, tone and first person,',
   'and their own words wherever they are used. Do not add anything new. Write in British English, with UK spelling.',
 ].join('\n');
 
