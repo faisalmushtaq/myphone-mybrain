@@ -159,7 +159,8 @@ async function faithful(db: Firestore, ref: DocumentReference, model: ModelCall,
     const text = again.length ? withoutSentences(revised, again.map((x) => x.sentence)) : revised;
     return { text, added, stillAdded: again.map((x) => `"${x.sentence.trim()}": ${x.problem}`), draft, ...(again.length ? { beforeCut: revised } : {}) };
   } catch {
-    return { text: draft };
+    // Recorded, so the team knows this one was not checked; the failed call is in calls.
+    return { text: draft, checkFailed: true };
   }
 }
 

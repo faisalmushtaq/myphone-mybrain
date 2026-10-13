@@ -157,6 +157,9 @@ export interface Prompt {
   schema: { name: string; schema: Record<string, unknown> };
   /** Extraction runs cold, as in the original. */
   temperature?: number;
+  /** For the check, whose sentence-by-sentence answer is longer than any reply in the protocol. */
+  maxTokens?: number;
+  timeoutSeconds?: number;
 }
 
 export function interviewerPrompt(protocol: ChatProtocol, transcript: ChatMessage[]): Prompt {
@@ -300,6 +303,8 @@ export function checkPrompt(transcript: ChatMessage[], story: string): Prompt {
     messages: [{ role: 'user', content: `The interview:\n${conversation}\n\nThe story:\n${story}` }],
     schema: { name: 'check', schema: CHECK_SCHEMA as unknown as Record<string, unknown> },
     temperature: 0,
+    maxTokens: 3000,
+    timeoutSeconds: 45,
   };
 }
 
@@ -309,6 +314,7 @@ export function revisePrompt(story: string, added: string[]): Prompt {
     system: REVISE_SYSTEM,
     messages: [{ role: 'user', content: `The story:\n${story}\n\nThings they did not say:\n${added.map((a) => `- ${a}`).join('\n')}` }],
     schema: { name: 'revise', schema: REVISE_SCHEMA as unknown as Record<string, unknown> },
+    maxTokens: 1000,
     temperature: 0.2,
   };
 }
@@ -418,7 +424,8 @@ export function openAiModel(apiKey: string, fetchImpl: typeof fetch = fetch): Mo
 
 async function callOnce<T>(apiKey: string, prompt: Prompt, protocol: ChatProtocol, fetchImpl: typeof fetch): Promise<ModelResult<T>> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), protocol.timeoutSeconds * 1000);
+  const seconds = prompt.timeoutSeconds ?? protocol.timeoutSeconds;
+  const timer = setTimeout(() => controller.abort(), seconds * 1000);
   let response: Response;
   try {
     response = await fetchImpl('https://api.openai.com/v1/chat/completions', {
@@ -427,7 +434,7 @@ async function callOnce<T>(apiKey: string, prompt: Prompt, protocol: ChatProtoco
       body: JSON.stringify({
         model: protocol.model,
         temperature: prompt.temperature ?? protocol.temperature,
-        max_tokens: protocol.maxOutputTokens,
+        max_tokens: prompt.maxTokens ?? protocol.maxOutputTokens,
         messages: [{ role: 'system', content: prompt.system }, ...prompt.messages],
         response_format: { type: 'json_schema', json_schema: { name: prompt.schema.name, schema: prompt.schema.schema, strict: true } },
         store: false,
@@ -435,7 +442,7 @@ async function callOnce<T>(apiKey: string, prompt: Prompt, protocol: ChatProtoco
       signal: controller.signal,
     });
   } catch (error) {
-    throw controller.signal.aborted ? new ModelError('timeout', `no response within ${protocol.timeoutSeconds}s`) : new ModelError('transport', String(error));
+    throw controller.signal.aborted ? new ModelError('timeout', `no response within ${seconds}s`) : new ModelError('transport', String(error));
   } finally {
     clearTimeout(timer);
   }
@@ -454,6 +461,7 @@ async function callOnce<T>(apiKey: string, prompt: Prompt, protocol: ChatProtoco
   }
   const choice = data.choices?.[0];
   if (choice?.finish_reason === 'content_filter' || choice?.message?.refusal) throw new ModelError('safety_block', 'the provider refused to answer this prompt', false);
+  if (choice?.finish_reason === 'length') throw new ModelError('malformed_output', 'the answer was longer than allowed and was cut off', false);
   const raw = choice?.message?.content;
   if (typeof raw !== 'string' || !raw.trim()) throw new ModelError('malformed_output', 'the model returned nothing', false);
   let output: T;

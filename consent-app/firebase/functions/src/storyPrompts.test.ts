@@ -109,6 +109,9 @@ test('the OpenAI call sends the protocol’s model, structured output and no sto
   }) as unknown as typeof fetch;
   await assert.rejects(openAiModel('sk-test', refused)(interviewerPrompt(c, []), c), /bad key/);
   assert.equal(calls, 1, 'a refused key is not retried');
+  const cut = (async () => new Response(JSON.stringify({ choices: [{ message: { content: '{"sentences": [' }, finish_reason: 'length' }] }), { status: 200 })) as unknown as typeof fetch;
+  await assert.rejects(openAiModel('sk-test', cut)(checkPrompt([], 'A story.'), c), /cut off/, 'an answer cut off at the length limit is a failure, said as such');
+  assert.equal(checkPrompt([], 'x').maxTokens, 3000, 'the check has room for every sentence');
 });
 
 test('schema check: required keys, no extras, the right types', () => {
