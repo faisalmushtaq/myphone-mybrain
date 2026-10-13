@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { getApi } from '../../api';
 import type { LabStoryChatRequest, LabStoryChatResponse, LabStoryPayload, StoryChatScreens } from '../../api/types';
 import { Button } from '../../components/ui/Button';
@@ -13,8 +14,12 @@ import { chatCharacter, chatSupport, withFirstName } from './chatProtocol';
 
 type Stage = 'ready' | 'interview' | 'choose' | 'rate' | 'adapt' | 'stopped';
 interface Bubble {
-  from: 'sam' | 'me';
+  from: 'bot' | 'me';
   text: string;
+  /** A retelling, shown as a story card rather than a message. */
+  story?: boolean;
+  /** A short note from the app, centred in the thread. */
+  note?: boolean;
 }
 
 export interface ChatFinished {
@@ -27,14 +32,20 @@ export interface ChatFinished {
 
 /**
  * MyStory as a chat with the protocol's character (Remi, in the team's
- * files; src/lab/mystory.ts, mode 'chat'): the MySelf
- * micro-narrative protocol. It asks the phase's questions one at a time;
- * then three short retellings of what was said, to pick from; a 0 to 10
- * rating of how well it fits; and, below full marks, a chance to edit it
- * directly or ask it to change it. The conversation runs on the server
+ * files; src/lab/mystory.ts, mode 'chat'): the MySelf micro-narrative
+ * protocol. It asks the phase's questions one at a time; then three short
+ * retellings of what was said, to pick from; a 0 to 10 rating of how well it
+ * fits; and, below full marks, a chance to edit it directly or ask for a
+ * change. The conversation runs on the server
  * (firebase/functions/src/storyChat.ts), which holds the protocol and the
  * key: this page sends only what the participant types and chooses, and
  * every word on screen that is not theirs comes from the protocol file.
+ *
+ * Once started, the chat takes the whole screen, like a messaging app: a bar
+ * with the character's name and a Help button (the support numbers), the
+ * conversation, and the reply box at the bottom. Choosing, rating and
+ * changing the story all happen in the conversation. Closing it goes back to
+ * the start page, where the chat can be carried on.
  *
  * Nothing starts until they press Start, so opening the page costs nothing.
  * If the chat is not set up, or cannot start, onUnavailable hands over to
@@ -44,6 +55,8 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
   const { state, dispatch } = useLab();
   const phase = state.phase as StoryPhase;
   const [stage, setStage] = useState<Stage>('ready');
+  const [open, setOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [screens, setScreens] = useState<StoryChatScreens | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
@@ -54,18 +67,29 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
   const [picked, setPicked] = useState<number | null>(null);
   const [story, setStory] = useState('');
   const [history, setHistory] = useState<string[]>([]);
-  const [request, setRequest] = useState('');
-  const [note, setNote] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const character = chatCharacter(phase);
   const name = screens?.characterName ?? character.name;
   // Filled in on this device only; never sent anywhere.
   const say = (text: string) => withFirstName(text, state.codeParts.firstName);
+  const bot = (text: string, extra: Partial<Bubble> = {}): Bubble => ({ from: 'bot', text, ...extra });
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
-  }, [bubbles.length, busy, stage]);
+  }, [bubbles.length, busy, stage, error]);
+
+  // Full screen: the page behind does not scroll while the chat is open.
+  useEffect(() => {
+    if (!open) return;
+    const before = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = before;
+    };
+  }, [open]);
+
+  const focusInput = () => window.requestAnimationFrame(() => inputRef.current?.focus());
 
   const send = async (req: LabStoryChatRequest): Promise<LabStoryChatResponse | null> => {
     setBusy(true);
@@ -82,41 +106,50 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
   };
 
   const finish = (res: LabStoryChatResponse, fallbackStory: string) => {
+    setOpen(false);
     onFinished({ storyId: res.storyId ?? '', receivedAt: res.receivedAt ?? new Date().toISOString(), story: res.story ?? fallbackStory, debriefText: say(screens?.debriefText ?? ''), debriefLede: say(screens?.debriefLede ?? '') });
   };
 
-  /** Applies what the server said to the screen. */
+  /** Applies what the server said to the conversation. */
   const apply = (res: LabStoryChatResponse, req: LabStoryChatRequest) => {
+    const s = screens;
     switch (res.stage) {
       case 'interview':
-        setBubbles((b) => [...b, { from: 'sam', text: res.reply ?? '' }]);
+        setBubbles((b) => [...b, bot(res.reply ?? '')]);
         setStage('interview');
         announce(`${name}: ${res.reply ?? ''}`);
-        window.requestAnimationFrame(() => inputRef.current?.focus());
+        focusInput();
         break;
       case 'choose':
-        setBubbles((b) => [...b, { from: 'sam', text: say(screens?.outro ?? '') }]);
+        setBubbles((b) => [...b, bot(say(s?.outro ?? '')), bot([say(s?.selectText ?? ''), say(s?.selectLede ?? '')].filter(Boolean).join(' '))]);
         setCandidates(res.candidates ?? []);
+        setPicked(null);
         setStage('choose');
-        announce(screens?.selectText ?? 'Choose a story.');
+        announce(say(s?.selectText ?? 'Choose a story.'));
         break;
       case 'rate':
         setStory(res.story ?? '');
+        setBubbles((b) => [...b, bot(res.story ?? '', { story: true }), bot([say(s?.rateText ?? ''), say(s?.rateLede ?? '')].filter(Boolean).join(' '))]);
         setStage('rate');
         break;
       case 'adapt':
         if (req.action === 'adapt') {
-          setNote(res.failed ? `${name} couldn’t make that change just now. You can edit it yourself, or try again.` : res.unchanged ? `${name} couldn’t make that change from what you said, so the story is as it was. You can edit it yourself.` : res.limit ? `That’s as many changes as ${name} can make. You can still edit it yourself.` : `${name} has rewritten it. Check it reads right.`);
-          if (!res.failed && !res.limit && res.story && res.story !== story) {
+          const changed = !res.failed && !res.limit && res.story && res.story !== story;
+          const message = res.failed ? `Sorry, I couldn’t make that change just now. You can edit it yourself, or ask again.` : res.limit ? `That’s as many changes as I can make. You can still edit it yourself.` : res.unchanged || !changed ? `I couldn’t make that change from what you told me, so the story is as it was. You can edit it yourself.` : `Here it is, rewritten. Check it reads right.`;
+          setBubbles((b) => [...b, bot(message), ...(changed ? [bot(res.story!, { story: true })] : [])]);
+          if (changed) {
             setHistory((h) => [...h, story]);
-            setStory(res.story);
-            setRequest('');
+            setStory(res.story!);
           }
-        } else setStory(res.story ?? story);
+        } else {
+          setStory(res.story ?? story);
+          setBubbles((b) => [...b, bot([say(s?.adaptText ?? ''), say(s?.adaptLede ?? '')].filter(Boolean).join(' '))]);
+        }
         setStage('adapt');
+        focusInput();
         break;
       case 'stopped':
-        setBubbles((b) => [...b, { from: 'sam', text: say(res.text ?? screens?.fallbackText ?? '') }]);
+        setBubbles((b) => [...b, bot(say(res.text ?? s?.fallbackText ?? ''))]);
         setStage('stopped');
         break;
       case 'done':
@@ -131,6 +164,11 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
   };
 
   const start = async () => {
+    if (chatId) {
+      setOpen(true);
+      focusInput();
+      return;
+    }
     const res = await send({ action: 'start', participantCode: state.code, phase, source, checkInId: state.flow === 'checkin' ? state.checkIn.checkInId : null, client: labClientInfo() });
     if (!res) return;
     if (!res.available || !res.chatId || !res.screens) {
@@ -139,28 +177,38 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
     }
     setChatId(res.chatId);
     setScreens(res.screens);
-    setBubbles([
-      { from: 'sam', text: say(res.screens.introAndConsent) },
-      { from: 'sam', text: say(res.screens.intro) },
-      { from: 'sam', text: res.reply ?? '' },
-    ]);
+    setBubbles([bot(say(res.screens.introAndConsent)), bot(say(res.screens.intro)), bot(res.reply ?? '')]);
     setStage('interview');
+    setOpen(true);
     announce(`${res.screens.characterName}: ${res.reply ?? ''}`);
-    window.requestAnimationFrame(() => inputRef.current?.focus());
+    focusInput();
   };
 
-  const reply = () => {
+  /** What the reply box does depends on where the conversation is: an answer, or a change to the story. */
+  const submit = () => {
     const text = draft.trim();
     if (!text || !chatId || busy) return;
     setBubbles((b) => [...b, { from: 'me', text }]);
     setDraft('');
-    void run({ action: 'reply', chatId, text });
+    if (stage === 'interview') void run({ action: 'reply', chatId, text });
+    else if (stage === 'adapt') void run({ action: 'adapt', chatId, request: text, story });
   };
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      reply();
+      submit();
     }
+  };
+  const choose = (index: number) => {
+    if (!chatId || busy) return;
+    const n = candidates.findIndex((c) => c.index === index) + 1;
+    setBubbles((b) => [...b, { from: 'me', text: `Version ${n}` }]);
+    void run({ action: 'choose', chatId, index });
+  };
+  const rate = (n: number) => {
+    if (!chatId || busy) return;
+    setBubbles((b) => [...b, { from: 'me', text: String(n) }]);
+    void run({ action: 'rate', chatId, rating: n });
   };
 
   const leaveButton = onLeave ? (
@@ -169,7 +217,7 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
     </Button>
   ) : null;
 
-  if (stage === 'ready') {
+  if (!open) {
     return (
       <LabShell kicker={labMyStory.name} title="A short chat about your break." intro={<p>MyStory is a chat with {name}, an AI chatbot the research team set up for this study. {name} asks you a few questions, one at a time, then writes back what it heard in three different ways. You pick the one that fits best and can change anything that isn’t right. It takes about fifteen minutes.</p>} hideContinue hideBack width="wide" secondaryAction={leaveButton}>
         <Disclosure summary={`About ${name}`}>
@@ -188,180 +236,179 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
         )}
         <div className="mpmb-actions">
           <Button variant="primary" arrow loading={busy} onClick={() => void start()}>
-            Start the chat
+            {chatId ? 'Carry on the chat' : 'Start the chat'}
           </Button>
-          <Button variant="link" onClick={onUnavailable}>
-            I’d rather write my story myself
-          </Button>
+          {!chatId && (
+            <Button variant="link" onClick={onUnavailable}>
+              I’d rather write my story myself
+            </Button>
+          )}
         </div>
       </LabShell>
     );
   }
 
-  const conversation = (
-    <div className="mpmb-chat" role="log" aria-live="polite" aria-label={`Your chat with ${name}`}>
-      {bubbles
-        .filter((b) => b.text)
-        .map((b, i) => (
-          <div key={i} className={`mpmb-chat__row mpmb-chat__row--${b.from}`}>
-            {b.from === 'sam' && (
-              <span className="mpmb-chat__avatar" aria-hidden="true">
-                {name.slice(0, 1)}
-              </span>
+  const composer = stage === 'interview' || stage === 'adapt';
+  // Straight into the page body, so nothing on the page (an animation, a container) can stop it filling the screen.
+  return createPortal(
+    <div className="mpmb-app mpmb-chatapp" role="dialog" aria-modal="true" aria-label={`Chat with ${name}`}>
+      <header className="mpmb-chatapp__bar">
+        <button type="button" className="mpmb-chatapp__icon" aria-label="Close the chat" onClick={() => setOpen(false)}>
+          <span aria-hidden="true">←</span>
+        </button>
+        <span className="mpmb-chat__avatar mpmb-chat__avatar--bar" aria-hidden="true">
+          {name.slice(0, 1)}
+        </span>
+        <div className="mpmb-chatapp__who">
+          <strong>{name}</strong>
+          <span>{busy && (stage === 'interview' || stage === 'adapt') ? 'typing…' : 'AI chatbot · MyStory'}</span>
+        </div>
+        <button type="button" className="mpmb-chatapp__help" aria-expanded={helpOpen} onClick={() => setHelpOpen((v) => !v)}>
+          Help
+        </button>
+      </header>
+      {helpOpen && (
+        <div className="mpmb-chatapp__panel">
+          <ChatSupport />
+          <Button variant="secondary" onClick={() => setHelpOpen(false)}>
+            Back to the chat
+          </Button>
+        </div>
+      )}
+
+      <div className="mpmb-chatapp__thread" role="log" aria-live="polite" aria-label={`Your chat with ${name}`}>
+        <div className="mpmb-chatapp__column">
+          <p className="mpmb-chatapp__day">Nobody reads this chat while you type.</p>
+          {bubbles
+            .filter((b) => b.text)
+            .map((b, i) =>
+              b.story ? (
+                <div key={i} className="mpmb-chat__row mpmb-chat__row--bot">
+                  <blockquote className="mpmb-chat__story mpmb-chat__story--bubble">{b.text}</blockquote>
+                </div>
+              ) : (
+                <div key={i} className={`mpmb-chat__row mpmb-chat__row--${b.from}`}>
+                  <p className={`mpmb-chat__bubble mpmb-chat__bubble--${b.from}`}>
+                    <span className="mpmb-sr-only">{b.from === 'bot' ? `${name}: ` : 'You: '}</span>
+                    {b.text}
+                  </p>
+                </div>
+              ),
             )}
-            <p className={`mpmb-chat__bubble mpmb-chat__bubble--${b.from}`}>
-              <span className="mpmb-sr-only">{b.from === 'sam' ? `${name}: ` : 'You: '}</span>
-              {b.text}
-            </p>
-          </div>
-        ))}
-      {busy && stage === 'interview' && (
-        <div className="mpmb-chat__row mpmb-chat__row--sam">
-          <span className="mpmb-chat__avatar" aria-hidden="true">
-            {name.slice(0, 1)}
-          </span>
-          <p className="mpmb-chat__bubble mpmb-chat__bubble--sam mpmb-chat__typing">
-            <span className="mpmb-sr-only">{name} is writing…</span>
-            <span aria-hidden="true" />
-            <span aria-hidden="true" />
-            <span aria-hidden="true" />
-          </p>
-        </div>
-      )}
-      <div ref={endRef} />
-    </div>
-  );
 
-  const errorBox = error && (
-    <Callout tone="warning" role="alert">
-      <p>{error.message}</p>
-      <div className="mpmb-callout__actions">
-        <Button variant="secondary" onClick={error.retry}>
-          Try again
-        </Button>
-      </div>
-    </Callout>
-  );
-
-  return (
-    <LabShell kicker={labMyStory.name} title={stage === 'interview' || stage === 'stopped' ? `Chatting with ${name}` : stage === 'choose' ? (screens?.selectText ?? 'Pick one') : stage === 'rate' ? (screens?.rateText ?? 'How close is this?') : (screens?.adaptText ?? 'What would you change?')} hideContinue hideBack width="wide" secondaryAction={stage === 'interview' ? leaveButton : null}>
-      {(stage === 'interview' || stage === 'stopped') && conversation}
-      {errorBox}
-
-      {stage === 'interview' && (
-        <div className="mpmb-chat__composer">
-          <label className="mpmb-sr-only" htmlFor="chat-input">
-            Your reply to {name}
-          </label>
-          <textarea id="chat-input" ref={inputRef} className="mpmb-input mpmb-input--area mpmb-chat__input" rows={2} maxLength={screens?.maxChars ?? 2000} value={draft} placeholder="Type your reply…" onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} disabled={busy} />
-          <Button variant="primary" onClick={reply} loading={busy} disabled={!draft.trim()}>
-            Send
-          </Button>
-        </div>
-      )}
-      {stage === 'interview' && screens?.disclosure && <p className="mpmb-hint">{screens.disclosure}</p>}
-
-      {stage === 'stopped' && (
-        <div className="mpmb-actions">
-          <Button variant="primary" arrow loading={busy} onClick={() => chatId && void run({ action: 'finish', chatId, story: '' })}>
-            Finish
-          </Button>
-          <p className="mpmb-hint">What you wrote is kept as your story for this time.</p>
-        </div>
-      )}
-      {stage === 'stopped' && <ChatSupport />}
-
-      {stage === 'choose' && (
-        <>
-          {screens?.outro && <p className="mpmb-lead">{screens.outro}</p>}
-          {screens?.selectLede && <p className="mpmb-hint">{screens.selectLede}</p>}
-          <fieldset className="mpmb-choice mpmb-choice--stack">
-            <legend className="mpmb-sr-only">{screens?.selectText}</legend>
-            <div className="mpmb-choice__options">
+          {stage === 'choose' && (
+            <div className="mpmb-chat__choices" role="group" aria-label="The three versions">
               {candidates.map((c, i) => (
-                <label key={c.index} className={`mpmb-choice__option mpmb-chat__candidate${picked === c.index ? ' is-selected' : ''}`} htmlFor={`chat-candidate-${c.index}`}>
-                  <input id={`chat-candidate-${c.index}`} type="radio" name="chat-candidate" className="mpmb-choice__input" checked={picked === c.index} onChange={() => setPicked(c.index)} />
-                  <span className="mpmb-choice__dot" aria-hidden="true" />
-                  <span>
-                    <strong>Version {i + 1}</strong>
-                    <br />
-                    {c.text}
-                  </span>
-                </label>
+                <button key={c.index} type="button" id={`chat-candidate-${c.index}`} className={`mpmb-chat__candidate${picked === c.index ? ' is-selected' : ''}`} aria-pressed={picked === c.index} onClick={() => setPicked(c.index)}>
+                  <strong>Version {i + 1}</strong>
+                  <span>{c.text}</span>
+                </button>
               ))}
             </div>
-          </fieldset>
-          <div className="mpmb-actions">
-            <Button variant="primary" arrow loading={busy} disabled={picked === null} onClick={() => chatId && picked !== null && void run({ action: 'choose', chatId, index: picked })}>
-              This one
-            </Button>
-          </div>
-        </>
-      )}
-
-      {stage === 'rate' && (
-        <>
-          <blockquote className="mpmb-chat__story">{story}</blockquote>
-          <p className="mpmb-hint" id="chat-rate-hint">
-            {screens?.rateLede}
-          </p>
-          <div className="mpmb-chat__scale" role="group" aria-label={screens?.rateText} aria-describedby="chat-rate-hint">
-            {Array.from({ length: 11 }, (_, n) => (
-              <button key={n} type="button" className="mpmb-chat__scale-option" disabled={busy} onClick={() => chatId && void run({ action: 'rate', chatId, rating: n })}>
-                {n}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      {stage === 'adapt' && (
-        <>
-          <p className="mpmb-hint">{screens?.adaptLede}</p>
-          <label className="mpmb-label" htmlFor="chat-story">
-            Your story
-          </label>
-          <textarea id="chat-story" className="mpmb-input mpmb-input--area mpmb-chat__story-edit" rows={7} value={story} onChange={(e) => setStory(e.target.value)} />
-          {note && (
-            <p className="mpmb-hint" role="status">
-              {note}
-            </p>
           )}
-          {history.length > 0 && (
-            <Button
-              variant="link"
-              onClick={() => {
-                setStory(history[history.length - 1]!);
-                setHistory((h) => h.slice(0, -1));
-                setNote('The previous version is back.');
-              }}
-            >
-              Put the previous version back
-            </Button>
+
+          {stage === 'adapt' && (
+            <div className="mpmb-chat__edit">
+              <label className="mpmb-chat__edit-label" htmlFor="chat-story">
+                Your story (you can edit it here)
+              </label>
+              <textarea id="chat-story" className="mpmb-input mpmb-input--area mpmb-chat__story-edit" rows={6} value={story} onChange={(e) => setStory(e.target.value)} />
+              {history.length > 0 && (
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    setStory(history[history.length - 1]!);
+                    setHistory((h) => h.slice(0, -1));
+                    setBubbles((b) => [...b, bot('The previous version is back.')]);
+                  }}
+                >
+                  Put the previous version back
+                </Button>
+              )}
+            </div>
           )}
-          <div className="mpmb-chat__ask">
-            <label className="mpmb-label" htmlFor="chat-request">
-              Or ask {name} to change it
-            </label>
-            <div className="mpmb-chat__composer">
-              <textarea id="chat-request" className="mpmb-input mpmb-input--area mpmb-chat__input" rows={2} value={request} placeholder="For example: it was my brother" onChange={(e) => setRequest(e.target.value)} disabled={busy} />
-              <Button variant="secondary" loading={busy} disabled={!request.trim()} onClick={() => chatId && void run({ action: 'adapt', chatId, request: request.trim(), story })}>
-                Ask {name}
+
+          {busy && (
+            <div className="mpmb-chat__row mpmb-chat__row--bot">
+              <p className="mpmb-chat__typing">
+                <span className="mpmb-sr-only">{name} is writing…</span>
+                <span aria-hidden="true" />
+                <span aria-hidden="true" />
+                <span aria-hidden="true" />
+              </p>
+            </div>
+          )}
+          {error && (
+            <div className="mpmb-chat__error" role="alert">
+              <p>{error.message}</p>
+              <Button variant="secondary" onClick={error.retry}>
+                Try again
               </Button>
             </div>
-          </div>
-          <div className="mpmb-actions">
-            <Button variant="primary" arrow loading={busy} disabled={!story.trim()} onClick={() => chatId && void run({ action: 'finish', chatId, story: story.trim() })}>
+          )}
+          {stage === 'stopped' && <ChatSupport />}
+          <div ref={endRef} />
+        </div>
+      </div>
+
+      <footer className="mpmb-chatapp__foot">
+        <div className="mpmb-chatapp__column">
+          {stage === 'choose' && (
+            <Button variant="primary" block arrow loading={busy} disabled={picked === null} onClick={() => picked !== null && choose(picked)}>
+              This one
+            </Button>
+          )}
+          {stage === 'rate' && (
+            <div className="mpmb-chat__scale" role="group" aria-label={say(screens?.rateText ?? 'How close is this?')}>
+              {Array.from({ length: 11 }, (_, n) => (
+                <button key={n} type="button" className="mpmb-chat__scale-option" disabled={busy} onClick={() => rate(n)}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          )}
+          {stage === 'adapt' && (
+            <Button variant="primary" block arrow loading={busy} disabled={!story.trim()} onClick={() => chatId && void run({ action: 'finish', chatId, story: story.trim() })}>
               Keep this story
             </Button>
-          </div>
-        </>
-      )}
-    </LabShell>
+          )}
+          {stage === 'stopped' && (
+            <Button variant="primary" block arrow loading={busy} onClick={() => chatId && void run({ action: 'finish', chatId, story: '' })}>
+              Finish
+            </Button>
+          )}
+          {composer && (
+            <div className="mpmb-chat__composer">
+              <label className="mpmb-sr-only" htmlFor={stage === 'adapt' ? 'chat-request' : 'chat-input'}>
+                {stage === 'adapt' ? `Ask ${name} to change it` : `Your reply to ${name}`}
+              </label>
+              <textarea
+                id={stage === 'adapt' ? 'chat-request' : 'chat-input'}
+                ref={inputRef}
+                className="mpmb-chat__input"
+                rows={1}
+                maxLength={screens?.maxChars ?? 2000}
+                value={draft}
+                placeholder={stage === 'adapt' ? `Or ask ${name} to change something…` : 'Message'}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={onKey}
+                disabled={busy}
+              />
+              <button type="button" className="mpmb-chat__send" aria-label={stage === 'adapt' ? `Ask ${name}` : 'Send'} disabled={busy || !draft.trim()} onClick={submit}>
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+                  <path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
+      </footer>
+    </div>,
+    document.body,
   );
 }
 
-/** Where to get help: the numbers the protocols point to at the end of the chat. */
+/** Where to get help: the numbers the protocols point to. */
 export function ChatSupport() {
   return (
     <div className="mpmb-chat__support" role="note" aria-label="Where to get help">

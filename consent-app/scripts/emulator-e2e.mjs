@@ -1141,7 +1141,11 @@ async function inner() {
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: 'A short chat about your break.', level: 1 }).waitFor({ timeout: 30000 });
     await page.getByRole('button', { name: 'Start the chat' }).click();
-    await page.getByRole('heading', { name: 'Chatting with Remi', level: 1 }).waitFor({ timeout: 30000 });
+    await page.getByRole('dialog', { name: 'Chat with Remi' }).waitFor({ timeout: 30000 });
+    ok('the chat fills the screen, like a messaging app, with Help in the bar', await page.evaluate(() => { const r = document.querySelector('.mpmb-chatapp')?.getBoundingClientRect(); return !!r && r.top === 0 && Math.abs(r.height - window.innerHeight) < 2 && Math.abs(r.width - window.innerWidth) < 2; }) && (await page.getByRole('button', { name: 'Help' }).count()) === 1);
+    await page.getByRole('button', { name: 'Help' }).click();
+    ok('Help shows the support numbers without leaving the chat', (await page.getByRole('note', { name: 'Where to get help' }).innerText()).includes('Samaritans 116 123'));
+    await page.getByRole('button', { name: 'Back to the chat' }).click();
     const chatLog = page.getByRole('log', { name: 'Your chat with Remi' });
     ok('Remi introduces itself as an AI, from the team’s protocol file, with no {first_name} left over when the name is not known, then asks the first after-break question', (await chatLog.innerText()).includes('Hi, I\'m Remi. I\'m an AI bot') && !(await chatLog.innerText()).includes('{first_name}') && (await chatLog.innerText()).includes('Looking back, how has being off social media for 30 days affected you?'), (await chatLog.innerText()).slice(0, 300));
     await page.locator('#chat-input').fill('Mostly the quiet evenings, I think.');
@@ -1152,19 +1156,19 @@ async function inner() {
       await page.locator('#chat-input').fill(answer);
       await page.locator('#chat-input').press('Enter');
       // Sam's next question: two introductions and the first question, then one more per answer.
-      if (i < chatAnswers.length - 1) await chatLog.locator('.mpmb-chat__bubble--sam').nth(3 + i).waitFor({ timeout: 30000 });
+      if (i < chatAnswers.length - 1) await chatLog.locator('.mpmb-chat__bubble--bot').nth(3 + i).waitFor({ timeout: 30000 });
     }
-    await page.getByRole('heading', { name: /See if one of them fits you/, level: 1 }).waitFor({ timeout: 60000 });
+    await chatLog.getByText(/See if one of them fits you/).waitFor({ timeout: 60000 });
     await snap('mystory-chat-choose');
     ok('after the questions, three retellings to choose from, one per persona', (await page.locator('.mpmb-chat__candidate').count()) === 3 && (await page.locator('.mpmb-chat__candidate').nth(1).innerText()).includes('(casual)'));
-    await page.locator('#chat-candidate-1').check();
+    await page.locator('#chat-candidate-1').click();
     await page.getByRole('button', { name: 'This one' }).click();
-    await page.getByRole('heading', { name: 'How close is this to what you want to say?', level: 1 }).waitFor({ timeout: 30000 });
+    await chatLog.getByText(/How close is this to what you want to say\?/).waitFor({ timeout: 30000 });
     await page.getByRole('button', { name: '7', exact: true }).click();
-    await page.getByRole('heading', { name: 'What would you change about it?', level: 1 }).waitFor({ timeout: 30000 });
+    await chatLog.getByText(/What would you change about it\?/).waitFor({ timeout: 30000 });
     await page.locator('#chat-request').fill('Say it was my flatmates in Leeds.');
     await page.getByRole('button', { name: 'Ask Remi' }).click();
-    await page.getByText('Remi has rewritten it. Check it reads right.').waitFor({ timeout: 30000 });
+    await page.getByText('Here it is, rewritten. Check it reads right.').waitFor({ timeout: 30000 });
     ok('asking Remi for a change rewrites the story, with the previous version a click away', (await page.locator('#chat-story').inputValue()).includes('Say it was my flatmates in Leeds.') && (await page.getByRole('button', { name: 'Put the previous version back' }).count()) === 1);
     await page.locator('#chat-story').fill('Off the apps the evenings were quiet: I slept better and talked to my flatmates in Leeds.');
     await snap('mystory-chat');

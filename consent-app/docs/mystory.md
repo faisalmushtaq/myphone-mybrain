@@ -41,7 +41,7 @@ embedded in the break study's pages, with the team's own protocol for each
 phase. The site's own form (above) stays, one click away ("I'd rather write
 my story myself"), and is used automatically until the OpenAI key is stored.
 
-**What the participant does.** Start the chat → Remi introduces itself as an
+**What the participant does.** Start the chat (it opens full screen, like a messaging app: Remi's name and a **Help** button with the support numbers at the top, the reply box at the bottom) → Remi introduces itself as an
 AI and asks the phase's questions one at a time, with the protocol's
 follow-ups → three short retellings of what they said, all in the first
 person (plain, casual, reflective) → pick the closest → rate it from 0 to 10
@@ -62,7 +62,17 @@ and here:
 Three fixes were needed for the files to load, each noted at the top of the
 file: the example conversation's closing quote escaped, the closing quote on
 `research_question`, and `max_turns` 22 → 20 (MySelf's own limit; its checker
-refuses more). `{first_name}` in the on-screen text is filled in on the
+refuses more). Wording fixes in `0.1.1` (14 October 2026): the before-break intro's
+"what's not quite right it" corrected; every pointer to support ("the
+participant information sheet", "the last page", "the study information
+page") now says to tap **Help** at the top of the chat, which shows the
+numbers (they are also on the last page); Remi "cannot see or hear you" (there
+is no recording on this site); the mid-break question "Can you take me
+through a moment…" asked as "Can you tell me about a moment…", as the
+protocol's own language rule asks; "take a break, stop here, or carry on" in
+all three; "secret code" replaced by "participant ID"; the select text no
+longer repeats "I think I have…" straight after the outro; the adapt text
+says the story can be edited directly. `{first_name}` in the on-screen text is filled in on the
 participant's device from the details they typed, and left out when the page
 does not know it ("Hi, I'm Remi"); it never reaches the server or the model.
 
