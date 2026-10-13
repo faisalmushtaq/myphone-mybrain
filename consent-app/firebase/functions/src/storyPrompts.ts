@@ -231,7 +231,9 @@ export const CHECK_SYSTEM = [
   "You check a short first-person story written from a participant's answers in a research interview.",
   'You are given the interview, and the story. Only the Human lines are what the participant said; each answers the AI',
   'line before it, and a short answer ("Not really", "It was fine") means only that, about that question and nothing else.',
-  'Go through the story one sentence at a time. For each sentence, quote the Human words that say it. Mark it unfaithful',
+  'Go through the story one sentence at a time. For each sentence, quote the Human words that say it, and the AI question',
+  'they were answering, and read them together: "The endless scrolling at night" in answer to "Was there anything you',
+  'didn\'t miss?" means they did NOT miss it, so "I missed the endless scrolling" is unfaithful. Mark a sentence unfaithful',
   'if any part of it is not in what they said, or is changed: an added feeling, detail, event, outcome, reason, lesson or',
   'judgement; something tied to the wrong thing or the wrong time (for example, a feeling they described about social',
   'media written as a feeling about the break, or about now written as about then); or something made stronger, weaker',
@@ -249,10 +251,11 @@ export const CHECK_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['sentence', 'theySaid', 'faithful', 'problem'],
+        required: ['sentence', 'theySaid', 'answering', 'faithful', 'problem'],
         properties: {
           sentence: { type: 'string', description: 'The sentence, exactly as it is in the story.' },
           theySaid: { type: 'string', description: 'The Human words that say it, quoted; empty if none.' },
+          answering: { type: 'string', description: 'The AI question those words were answering.' },
           faithful: { type: 'boolean', description: 'False if any part of the sentence is not in what they said, or is changed.' },
           problem: { type: 'string', description: 'What was added or changed; empty if faithful.' },
         },
@@ -264,6 +267,7 @@ export const CHECK_SCHEMA = {
 export interface CheckedSentence {
   sentence: string;
   theySaid: string;
+  answering: string;
   faithful: boolean;
   problem: string;
 }
@@ -541,7 +545,7 @@ export const mockModel: ModelCall = async <T>(prompt: Prompt, protocol: ChatProt
     output = {
       sentences: (story.match(/[^.!?]+[.!?]*/g) ?? []).map((x) => x.trim()).filter(Boolean).map((sentence) => {
         const planted = (sentence.match(/\b[A-Z]{4,}\b/g) ?? []).filter((w) => !said.includes(w));
-        return { sentence, theySaid: planted.length ? '' : sentence, faithful: !planted.length, problem: planted.join(', ') };
+        return { sentence, theySaid: planted.length ? '' : sentence, answering: '', faithful: !planted.length, problem: planted.join(', ') };
       }),
     };
   } else if (prompt.key === 'pt.revise') {
