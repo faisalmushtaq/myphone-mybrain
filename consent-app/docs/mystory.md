@@ -129,6 +129,43 @@ logged by rule (never the words) for the team to review. Nothing is shown to
 the participant and nobody is contacted automatically, as the protocol's
 declaration says; the chat shows the protocol's disclosure line, and the protocol's own instructions tell Remi to stop the questions and give the support numbers if someone discloses distress.
 
+**Keeping the stories to what they said** (14 October 2026, from the live
+test, where the reflective retelling added "this new routine has lasted" and "a
+healthier relationship"). Done the way the method's authors designed and
+checked it (Skeggs et al., CHI 2025, section 3.2.1 and Pilot 1; the original
+code, `llm_config.py` and `scenario.py`; and the social media harms preprint,
+2025, "LLM Model Validation"):
+
+- *The retelling is their answers, joined up.* The method's design is that the
+  story "directly incorporates what users said in their own words" and adds "as
+  little additional information as possible", the three versions differing
+  "only in the tone of the connective text". Each persona in the protocols now
+  says exactly that (0.1.2), and the reflective one keeps its reflection in the
+  tone, not the content. The original's pilots found the same failure (feelings
+  added where answers were brief), and participants minded it.
+- *Only the answers given are sent to write the story.* The original built the
+  story from the answers; MySelf also listed every unanswered question as "(they
+  did not say)". With 18 things to extract from 5 questions, most of that list
+  was gaps, which the model either filled or recited ("I haven't mentioned..."),
+  so the gaps are no longer sent.
+- *Each retelling is checked before it is shown.* A second call (`pt.check`,
+  temperature 0) lists anything in it the participant did not say; if there is
+  anything, it is taken out (`pt.revise`) and checked once more. The draft, what
+  was found and what is still there are kept on each retelling, and exported
+  (`retellings_added`, `retellings_still_added`). This is new: the original
+  team checked by hand, after the event.
+- *How close each story is to their words is measured, as the original team
+  did* (cosine similarity of embeddings; theirs: real pairs M = 0.79, chance
+  0.37). Recorded for the retellings and the filed story (`chosen_similarity`,
+  `final_similarity`) so the team can read the lowest by hand, as they did. It
+  decides nothing on its own, and the numbers depend on the embedding model
+  (`text-embedding-3-small` here), so compare within this study.
+
+The participant still chooses, rates and corrects the story, which the original
+relies on as the last check. The protocols also now ask for British English, and
+tell Remi to look back over the whole conversation before every follow-up so it
+never asks about something already mentioned.
+
 **Stopping early.** If the interview closes before every question is
 answered, and either the participant said something the distress rules flag
 or fewer than half the questions were answered (they asked to stop, say),

@@ -8,16 +8,22 @@ import { normaliseCode, rateLimitLookups } from './lab.js';
 import { readSecret } from './secrets.js';
 import {
   adaptPrompt,
+  checkPrompt,
   cleanAdaptation,
+  cosine,
   endedEarly,
   extractionPrompt,
   interviewerPrompt,
+  mockEmbedder,
   mockModel,
   ModelError,
+  openAiEmbedder,
   openAiModel,
+  revisePrompt,
   safeguardingHits,
   scenarioPrompt,
   type ChatMessage,
+  type Embedder,
   type ModelCall,
   type Prompt,
 } from './storyPrompts.js';
@@ -68,6 +74,12 @@ interface Candidate {
   persona: string;
   text: string;
   confidence: string;
+  /** What the check found added to the first draft and took out ([] if nothing), and anything still there after. */
+  added?: string[];
+  stillAdded?: string[];
+  draft?: string;
+  /** Cosine similarity of the retelling to the participant's own words. */
+  similarity?: number | null;
 }
 
 export interface ChatDoc {
@@ -97,6 +109,49 @@ async function modelFor(): Promise<ModelCall | null> {
   if (process.env.FUNCTIONS_EMULATOR === 'true') return mockModel;
   const key = await readSecret(OPENAI_SECRET);
   return key ? openAiModel(key) : null;
+}
+
+async function embedderFor(): Promise<Embedder | null> {
+  if (process.env.FUNCTIONS_EMULATOR === 'true') return mockEmbedder;
+  const key = await readSecret(OPENAI_SECRET);
+  return key ? openAiEmbedder(key) : null;
+}
+
+/** How close each text is to what the participant said, by embedding; null for all if it cannot be measured. */
+async function similarities(db: Firestore, ref: DocumentReference, transcript: ChatMessage[], texts: string[]): Promise<(number | null)[]> {
+  const own = transcript.filter((m) => m.role === 'user').map((m) => m.content).join('\n');
+  const at = new Date().toISOString();
+  try {
+    const embed = await embedderFor();
+    if (!embed || !own || !texts.length) return texts.map(() => null);
+    await spendCall(db);
+    const [mine, ...theirs] = await embed([own, ...texts]);
+    await ref.update({ calls: FieldValue.arrayUnion({ stage: 'similarity', prompt: 'embedding', model: embed === mockEmbedder ? 'mock' : 'text-embedding-3-small', at, ok: true }) });
+    return theirs.map((v) => cosine(mine!, v));
+  } catch (error) {
+    await ref.update({ calls: FieldValue.arrayUnion({ stage: 'similarity', prompt: 'embedding', at, ok: false, error: error instanceof ModelError ? error.kind : 'unknown' }) });
+    return texts.map(() => null);
+  }
+}
+
+/**
+ * A retelling is checked against the interview before it is shown: anything
+ * the participant did not say is taken out, and checked once more. A check
+ * that cannot run leaves the draft as it is (it is still the participant's to
+ * choose, rate and correct, as in the original).
+ */
+async function faithful(db: Firestore, ref: DocumentReference, model: ModelCall, protocol: ChatProtocol, transcript: ChatMessage[], draft: string) {
+  try {
+    const first = await call<{ added: string[] }>(db, ref, model, checkPrompt(transcript, draft), protocol, 'check');
+    const added = first.added.map((a) => a.trim()).filter(Boolean);
+    if (!added.length) return { text: draft, added: [], stillAdded: [] };
+    const revised = (await call<{ scenario: string }>(db, ref, model, revisePrompt(draft, added), protocol, 'revise')).scenario.trim();
+    if (!revised) return { text: draft, added, stillAdded: added, draft };
+    const again = await call<{ added: string[] }>(db, ref, model, checkPrompt(transcript, revised), protocol, 'check');
+    return { text: revised, added, stillAdded: again.added.map((a) => a.trim()).filter(Boolean), draft };
+  } catch {
+    return { text: draft };
+  }
 }
 
 /** Counts a model call against the study's daily ceiling; refuses once it is reached. */
@@ -143,14 +198,17 @@ async function retell(db: Firestore, ref: DocumentReference, model: ModelCall, p
     protocol.personas.map(async (persona, index) => {
       try {
         const out = await call<{ scenario: string; confidence: string }>(db, ref, model, scenarioPrompt(protocol, persona, extraction), protocol, 'generate');
-        const text = out.scenario.trim();
-        return text ? { index, persona: persona.key, text, confidence: out.confidence } : null;
+        const draft = out.scenario.trim();
+        if (!draft) return null;
+        return { index, persona: persona.key, confidence: out.confidence, ...(await faithful(db, ref, model, protocol, transcript, draft)) };
       } catch {
         return null;
       }
     }),
   );
-  const candidates = settled.filter((c): c is Candidate => c !== null);
+  const candidates: Candidate[] = settled.filter((c): c is NonNullable<typeof c> => c !== null);
+  const scores = await similarities(db, ref, transcript, candidates.map((c) => c.text));
+  candidates.forEach((c, i) => (c.similarity = scores[i] ?? null));
   return { extraction, candidates };
 }
 
@@ -160,6 +218,8 @@ async function fileStory(db: Firestore, ref: DocumentReference, chat: ChatDoc & 
   const storyRef = db.collection('labStories').doc();
   const participantRef = db.collection('labParticipants').doc(chat.participantCode);
   const chosen = chat.candidates.find((c) => c.index === chat.chosenIndex) ?? null;
+  // How close the filed story is to their words, after their changes; not measured when it is their words.
+  const [finalSimilarity = null] = story && how !== 'stopped-early' && how !== 'model-unavailable' ? await similarities(db, ref, chat.transcript, [story]) : [null];
   const batch = db.batch();
   batch.set(storyRef, {
     studyId: labStudy.studyId,
@@ -178,6 +238,7 @@ async function fileStory(db: Firestore, ref: DocumentReference, chat: ChatDoc & 
     chosenPersona: chosen?.persona ?? null,
     rating: chat.rating ?? null,
     ending: how,
+    finalSimilarity,
     source: chat.source ?? 'story',
     checkInId: chat.checkInId ?? null,
     sessionUid: uid,
@@ -185,11 +246,11 @@ async function fileStory(db: Firestore, ref: DocumentReference, chat: ChatDoc & 
     receivedAt,
     createdAt: FieldValue.serverTimestamp(),
   });
-  batch.update(ref, { status: 'done', finalScenario: story, ending: how, storyId: storyRef.id, finishedAt: receivedAt, updatedAt: FieldValue.serverTimestamp() });
+  batch.update(ref, { status: 'done', finalScenario: story, ending: how, finalSimilarity, storyId: storyRef.id, finishedAt: receivedAt, updatedAt: FieldValue.serverTimestamp() });
   batch.set(participantRef, { storyIds: FieldValue.arrayUnion(storyRef.id), storyCounts: { [chat.phase]: FieldValue.increment(1) }, lastStoryAt: receivedAt, sessionUids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   await batch.commit();
   logger.info('Story recorded from the chat', { participantCode: chat.participantCode, storyId: storyRef.id, phase: chat.phase, ending: how });
-  return { storyId: storyRef.id, receivedAt: receivedAt.toISOString() };
+  return { storyId: storyRef.id, receivedAt: receivedAt.toISOString(), ending: how };
 }
 
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');

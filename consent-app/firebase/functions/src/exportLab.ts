@@ -216,7 +216,7 @@ export function labStoryTable(phase: StoryPhase, stories: Doc[]): Row[] {
 /* ── MyStory's AI chat ─────────────────────────────────────────────────── */
 
 export function labStoryChatColumns(phase: StoryPhase): string[] {
-  return ['participant_id', 'session_id', 'chat_id', 'story_id', 'started_at', 'finished_at', 'protocol', 'protocol_version', 'source', 'check_in_id', 'status', 'ending', 'turns', 'interview_closed', ...storyChats[phase].extractionKeys.map((k) => `said_${k.key}`), 'candidates_n', 'chosen_persona', 'rating', 'requests_n', 'edited', 'voice_clips', 'final_story', 'flags', 'model_calls', 'failed_calls', 'input_tokens', 'output_tokens'];
+  return ['participant_id', 'session_id', 'chat_id', 'story_id', 'started_at', 'finished_at', 'protocol', 'protocol_version', 'source', 'check_in_id', 'status', 'ending', 'turns', 'interview_closed', ...storyChats[phase].extractionKeys.map((k) => `said_${k.key}`), 'candidates_n', 'retellings_added', 'retellings_still_added', 'chosen_persona', 'chosen_similarity', 'rating', 'requests_n', 'edited', 'voice_clips', 'final_story', 'final_similarity', 'flags', 'model_calls', 'failed_calls', 'input_tokens', 'output_tokens'];
 }
 
 /** One phase's chat conversations, finished or not: one row each, the participant's own words by question, the retelling chosen, rated and corrected. */
@@ -226,7 +226,8 @@ export function labStoryChatTable(phase: StoryPhase, chats: Doc[]): Row[] {
     .filter((x) => x.data.phase === phase)
     .sort((a, b) => String(a.data.participantCode).localeCompare(String(b.data.participantCode)) || String(a.data.startedAt ?? '').localeCompare(String(b.data.startedAt ?? '')))
     .map(({ id, data: d }) => {
-      const candidates = (d.candidates ?? []) as { index: number; persona: string }[];
+      const candidates = (d.candidates ?? []) as { index: number; persona: string; added?: string[]; stillAdded?: string[]; similarity?: number | null }[];
+      const chosen = candidates.find((c) => c.index === d.chosenIndex);
       const calls = (d.calls ?? []) as { ok: boolean; inputTokens?: number; outputTokens?: number }[];
       const row: Row = {
         participant_id: labLabel(String(d.participantCode)),
@@ -244,12 +245,16 @@ export function labStoryChatTable(phase: StoryPhase, chats: Doc[]): Row[] {
         turns: d.turns ?? 0,
         interview_closed: d.interviewClosed ?? null,
         candidates_n: candidates.length,
-        chosen_persona: candidates.find((c) => c.index === d.chosenIndex)?.persona ?? null,
+        retellings_added: candidates.reduce((n, c) => n + (c.added?.length ?? 0), 0),
+        retellings_still_added: candidates.reduce((n, c) => n + (c.stillAdded?.length ?? 0), 0),
+        chosen_persona: chosen?.persona ?? null,
+        chosen_similarity: chosen?.similarity ?? null,
         rating: d.rating ?? null,
         requests_n: ((d.requests ?? []) as unknown[]).length,
         edited: ((d.edits ?? []) as unknown[]).length > 0,
         voice_clips: ((d.voiceClips ?? []) as unknown[]).length,
         final_story: d.status === 'done' ? d.finalScenario : null,
+        final_similarity: d.finalSimilarity ?? null,
         flags: ((d.flags ?? []) as { rule: string; tier: string }[]).map((f) => `${f.rule}:${f.tier}`).join(',') || null,
         model_calls: calls.length,
         failed_calls: calls.filter((c) => !c.ok).length,
@@ -281,12 +286,16 @@ export function labStoryChatDictionary(phase: StoryPhase): Record<string, unknow
     turns: { Description: 'Replies the participant typed in the interview' },
     interview_closed: { Description: 'What ended the questions', Levels: { model: 'The interviewer judged every question answered', turn_limit: 'The protocol’s turn limit' } },
     candidates_n: { Description: 'Retellings offered' },
+    retellings_added: { Description: 'Things the retellings first said that the participant had not said, found by the check before they were shown and taken out (each retelling’s draft, what was found and the version shown are in labStoryChats.jsonl, candidates)' },
+    retellings_still_added: { Description: 'Things the check still found after they were taken out once: review these retellings by hand' },
+    chosen_similarity: { Description: 'Semantic similarity (cosine, text-embedding-3-small) between everything the participant said and the retelling they chose, as the original team measured it (Skeggs et al. 2025: real pairs M = 0.79, chance 0.37, with their embedding). For reviewing the lowest by hand; it decided nothing' },
     chosen_persona: { Description: 'The persona whose retelling was chosen', Levels: Object.fromEntries(p.personas.map((x) => [x.key, x.text.split('\n')[0]])) },
     rating: { Description: 'How close the chosen retelling was to what they wanted to say, 0 (not at all) to 10 (exactly right)' },
     requests_n: { Description: 'Changes asked of the AI' },
     edited: { Description: 'Whether the participant edited the words themselves' },
     voice_clips: { Description: 'Answers spoken rather than typed: the recordings are in sourcedata/voice/<participant>/, each written down by gpt-4o-mini-transcribe into the reply box for the participant to check before sending (the words sent are in the conversation, the transcription with each clip in labStoryChats.jsonl)' },
     final_story: { Description: 'The story as filed' },
+    final_similarity: { Description: 'The same similarity for the story as filed, after any changes; empty when the story is their own answers' },
     flags: { Description: 'Safeguarding rules matched (rule:tier), for the team to review; nothing was shown to the participant' },
     model_calls: { Description: 'Model calls made' },
     failed_calls: { Description: 'Model calls that failed' },

@@ -329,6 +329,8 @@ export interface LabStoryChatResponse {
   text?: string;
   storyId?: string | null;
   receivedAt?: string;
+  /** How the story was filed: kept, edited, rated-full-marks, stopped-early or model-unavailable. */
+  ending?: string;
 }
 
 /** A spoken answer for MyStory's chat, turned into words by the server (storyChat.ts → labStoryVoice). */

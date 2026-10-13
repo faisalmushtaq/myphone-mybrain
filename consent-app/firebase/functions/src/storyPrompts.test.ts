@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { storyChats } from './forms.js';
-import { adaptPrompt, cleanAdaptation, endedEarly, extractionPrompt, interviewerPrompt, matchesSchema, mockModel, openAiModel, safeguardingHits, scenarioPrompt, type ChatMessage } from './storyPrompts.js';
+import { adaptPrompt, checkPrompt, cleanAdaptation, cosine, endedEarly, mockEmbedder, openAiEmbedder, revisePrompt, extractionPrompt, interviewerPrompt, matchesSchema, mockModel, openAiModel, safeguardingHits, scenarioPrompt, type ChatMessage } from './storyPrompts.js';
 
 test('each phase has its own chat protocol, read from its TOML file', () => {
   assert.deepEqual(
@@ -44,12 +44,19 @@ test('extraction asks for the researcher’s keys, every one required and nullab
   assert.ok((p.temperature ?? 1) <= 0.1);
 });
 
-test('each persona writes from the extraction, told what was not said rather than left to fill the gap', () => {
+test('each persona writes from the answers given, and only those: no list of what was not said to fill or recite', () => {
   const c = storyChats.post;
   const p = scenarioPrompt(c, c.personas[2]!, Object.fromEntries(c.extractionKeys.map((k, i) => [k.key, i === 0 ? 'Sleeping better' : null])));
   assert.ok(p.system.startsWith(c.personas[2]!.text));
   assert.ok(p.system.includes('The scenario based on these responses:'), 'the one-shot example sets the register');
-  assert.ok(p.messages[0]!.content.includes('Answer: Sleeping better') && p.messages[0]!.content.includes('Answer: (they did not say)'));
+  assert.ok(p.messages[0]!.content.includes('Answer: Sleeping better'));
+  assert.ok(!p.messages[0]!.content.includes('(they did not say)') && !p.messages[0]!.content.includes(c.extractionKeys[1]!.question), 'unanswered questions are left out');
+  for (const persona of c.personas) {
+    assert.ok(persona.text.includes('Do not add feelings, details, outcomes'), `${persona.key}: adds nothing`);
+    assert.ok(persona.text.includes('differ only in the tone'), `${persona.key}: tone only, as in the original`);
+    assert.ok(persona.text.includes('UK spelling'), `${persona.key}: British English`);
+  }
+  assert.ok(c.interview.languageStyle.includes('UK spelling') && c.interview.topicRestriction.includes('never ask about something they have already mentioned anywhere'));
   assert.ok(p.messages[0]!.content.endsWith('Create a scenario based on these responses.'));
   assert.ok(adaptPrompt('The story.', 'Shorter').messages[0]!.content.includes('What they want changed:\nShorter'));
 });
@@ -129,4 +136,30 @@ test('the adaptation’s label is not kept as part of the story', () => {
   assert.equal(cleanAdaptation('The account:\nI slept better.'), 'I slept better.');
   assert.equal(cleanAdaptation('account: I slept better.'), 'I slept better.');
   assert.equal(cleanAdaptation('I slept better. The account: was fine.'), 'I slept better. The account: was fine.');
+});
+
+test('a retelling is checked against what was said, and what was added is taken out', async () => {
+  const c = storyChats.post;
+  const transcript: ChatMessage[] = [{ role: 'assistant', content: 'How did it go?' }, { role: 'user', content: 'I slept better.' }];
+  const check = checkPrompt(transcript, 'I slept better. My HEALTHIER routine has lasted.');
+  assert.ok(check.messages[0]!.content.includes('Human: I slept better.') && check.messages[0]!.content.includes('The story:\nI slept better.'));
+  assert.equal(check.temperature, 0);
+  const found = await mockModel<{ added: string[] }>(check, c);
+  assert.deepEqual(found.output.added, ['HEALTHIER']);
+  const revised = await mockModel<{ scenario: string }>(revisePrompt('I slept better. My HEALTHIER routine has lasted.', found.output.added), c);
+  assert.equal(revised.output.scenario, 'I slept better. My routine has lasted.');
+  assert.deepEqual((await mockModel<{ added: string[] }>(checkPrompt(transcript, 'I slept better.'), c)).output.added, []);
+});
+
+test('similarity to their own words, measured as the original team did, by embedding', async () => {
+  const [a, b, d] = await mockEmbedder(['I slept better and saw friends', 'I slept better and saw my friends', 'Pizza is round']);
+  assert.ok(cosine(a!, b!) > cosine(a!, d!));
+  assert.equal(cosine([1, 0], [1, 0]), 1);
+  let sent: Record<string, unknown> = {};
+  const fake = (async (_url: string, init: { body: string }) => {
+    sent = JSON.parse(init.body);
+    return new Response(JSON.stringify({ data: [{ index: 1, embedding: [0, 1] }, { index: 0, embedding: [1, 0] }] }), { status: 200 });
+  }) as unknown as typeof fetch;
+  assert.deepEqual(await openAiEmbedder('sk-test', fake)(['x', 'y']), [[1, 0], [0, 1]], 'in the order sent');
+  assert.equal(sent.model, 'text-embedding-3-small');
 });

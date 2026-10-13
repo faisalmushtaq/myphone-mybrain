@@ -30,7 +30,8 @@ export interface ChatFinished {
   receivedAt: string;
   story: string;
   debriefText: string;
-  debriefLede: string;
+  /** How it was filed; stopped-early and model-unavailable mean their own words, not a retelling. */
+  ending: string;
 }
 
 /**
@@ -115,7 +116,7 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
 
   const finish = (res: LabStoryChatResponse, fallbackStory: string) => {
     setOpen(false);
-    onFinished({ storyId: res.storyId ?? '', receivedAt: res.receivedAt ?? new Date().toISOString(), story: res.story ?? fallbackStory, debriefText: say(screens?.debriefText ?? ''), debriefLede: say(screens?.debriefLede ?? '') });
+    onFinished({ storyId: res.storyId ?? '', receivedAt: res.receivedAt ?? new Date().toISOString(), story: res.story ?? fallbackStory, debriefText: say(screens?.debriefText ?? ''), ending: res.ending ?? '' });
   };
 
   /** Applies what the server said to the conversation. */

@@ -187,8 +187,13 @@ export function extractionPrompt(protocol: ChatProtocol, transcript: ChatMessage
 }
 
 export function scenarioPrompt(protocol: ChatProtocol, persona: { key: string; text: string }, extraction: Record<string, string | null>): Prompt {
+  // Only what they said. Listing every question they did not answer (MySelf's "(they did not say)") invited the
+  // retellings to fill the gaps or to recite them; the original builds the story from the answers given.
   const answers =
-    protocol.extractionKeys.map(({ key, question }) => `Question: ${question}\nAnswer: ${extraction[key] ?? '(they did not say)'}`).join('\n') + `\n\n${SCENARIO_CLOSE}`;
+    protocol.extractionKeys
+      .filter(({ key }) => typeof extraction[key] === 'string' && extraction[key]!.trim())
+      .map(({ key, question }) => `Question: ${question}\nAnswer: ${extraction[key]}`)
+      .join('\n') + `\n\n${SCENARIO_CLOSE}`;
   return {
     key: `pt.scenario.${persona.key}`,
     system: SCENARIO_SYSTEM.replace('{persona}', persona.text).replace('{one_shot}', oneShot(protocol)),
@@ -204,6 +209,122 @@ export function adaptPrompt(scenario: string, request: string): Prompt {
     messages: [{ role: 'user', content: `The account:\n${scenario}\n\nWhat they want changed:\n${request}` }],
     schema: { name: 'adaptation', schema: ADAPT_SCHEMA as unknown as Record<string, unknown> },
   };
+}
+
+/* ── Faithfulness: nothing in a retelling that the participant did not say ── */
+
+/**
+ * The micro-narrative method's promise is that the story is the participant's
+ * own words, joined up: "directly incorporates what users said in their own
+ * words, while attempting to add as little additional information as
+ * possible", the personas differing "only in the tone of the connective text"
+ * (Skeggs et al., CHI 2025, 3.2.1). Its pilots found the model adding feelings
+ * where answers were brief, and participants minded ("it was putting in
+ * information which I did not write about"). The original team checked by
+ * hand and by semantic similarity after the fact; here each retelling is also
+ * checked before it is shown, and anything added is taken out.
+ */
+export const CHECK_SYSTEM = [
+  "You check a short first-person story written from a participant's answers in a research interview.",
+  'You are given the interview, and the story. Only the Human lines are what the participant said.',
+  'List each thing the story says that the participant did not say or clearly mean: added feelings, details, events,',
+  'outcomes, reasons, lessons or judgements, and anything made stronger, weaker or more certain than they put it.',
+  'Joining words, tone, first person and rewording that keeps the meaning are fine: do not list them.',
+  'Quote each added part briefly. If everything in the story comes from what they said, return an empty list.',
+].join('\n');
+
+export const CHECK_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['added'],
+  properties: { added: { type: 'array', items: { type: 'string' }, description: 'Each part of the story the participant did not say.' } },
+} as const;
+
+export const REVISE_SYSTEM = [
+  "You are given a short first-person story written from a participant's answers, and a list of things in it that they did not say.",
+  'Rewrite the story without those things, changing as little else as possible: the same voice, tone and first person,',
+  'and their own words wherever they are used. Do not add anything new. Write in British English, with UK spelling.',
+].join('\n');
+
+export const REVISE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['scenario'],
+  properties: { scenario: { type: 'string', description: 'The story with the added parts taken out.' } },
+} as const;
+
+export function checkPrompt(transcript: ChatMessage[], story: string): Prompt {
+  const conversation = transcript.map((m) => `${m.role === 'user' ? 'Human' : 'AI'}: ${m.content}`).join('\n');
+  return {
+    key: 'pt.check',
+    system: CHECK_SYSTEM,
+    messages: [{ role: 'user', content: `The interview:\n${conversation}\n\nThe story:\n${story}` }],
+    schema: { name: 'check', schema: CHECK_SCHEMA as unknown as Record<string, unknown> },
+    temperature: 0,
+  };
+}
+
+export function revisePrompt(story: string, added: string[]): Prompt {
+  return {
+    key: 'pt.revise',
+    system: REVISE_SYSTEM,
+    messages: [{ role: 'user', content: `The story:\n${story}\n\nThings they did not say:\n${added.map((a) => `- ${a}`).join('\n')}` }],
+    schema: { name: 'revise', schema: REVISE_SCHEMA as unknown as Record<string, unknown> },
+    temperature: 0.2,
+  };
+}
+
+/**
+ * Semantic similarity between what the participant said and a story, as the
+ * original team measured it (Skeggs et al., preprint 2025: cosine similarity
+ * of embeddings, real pairs M = 0.79 against 0.37 by chance). Recorded for the
+ * team to review the lowest by hand; it decides nothing on its own.
+ */
+export type Embedder = (texts: string[]) => Promise<number[][]>;
+export const EMBEDDING_MODEL = 'text-embedding-3-small';
+
+export function openAiEmbedder(apiKey: string, fetchImpl: typeof fetch = fetch): Embedder {
+  return async (texts) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20_000);
+    try {
+      const response = await fetchImpl('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: EMBEDDING_MODEL, input: texts }),
+        signal: controller.signal,
+      });
+      const data = (await response.json().catch(() => ({}))) as { data?: { index: number; embedding: number[] }[]; error?: { message?: string } };
+      if (!response.ok || !Array.isArray(data.data)) throw new ModelError('unknown', data.error?.message ?? `HTTP ${response.status}`, false);
+      return [...data.data].sort((a, b) => a.index - b.index).map((d) => d.embedding);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+
+/** For the emulator and tests: words counted into a small fixed vector. */
+export const mockEmbedder: Embedder = async (texts) =>
+  texts.map((t) => {
+    const v = Array(64).fill(0) as number[];
+    for (const w of t.toLowerCase().match(/[a-z']+/g) ?? []) {
+      let h = 0;
+      for (const ch of w) h = (h * 31 + ch.charCodeAt(0)) % 64;
+      v[h] += 1;
+    }
+    return v;
+  });
+
+export function cosine(a: number[], b: number[]): number {
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < Math.min(a.length, b.length); i += 1) {
+    dot += a[i]! * b[i]!;
+    na += a[i]! * a[i]!;
+    nb += b[i]! * b[i]!;
+  }
+  return na && nb ? Math.round((dot / Math.sqrt(na * nb)) * 1000) / 1000 : 0;
 }
 
 /* ── Safeguarding: lexicon rules raise a flag for the team, nothing more ── */
@@ -366,6 +487,15 @@ export const mockModel: ModelCall = async <T>(prompt: Prompt, protocol: ChatProt
     const persona = prompt.key.slice('pt.scenario.'.length);
     const answers = (prompt.messages[0]?.content ?? '').split('\n').filter((l) => l.startsWith('Answer: ') && !l.includes('(they did not say)')).map((l) => l.slice(8));
     output = { scenario: `(${persona}) ${answers.join(' ')}`.trim(), confidence: 'clear' };
+  } else if (prompt.key === 'pt.check') {
+    // Anything in capitals the participant never typed counts as added, so the tests can plant some.
+    const [, interview = '', story = ''] = /The interview:\n([\s\S]*)\n\nThe story:\n([\s\S]*)/.exec(prompt.messages[0]?.content ?? '') ?? [];
+    const said = interview.split('\n').filter((l) => l.startsWith('Human: ')).join(' ');
+    output = { added: (story.match(/\b[A-Z]{4,}\b/g) ?? []).filter((w) => !said.includes(w)) };
+  } else if (prompt.key === 'pt.revise') {
+    const [, story = '', list = ''] = /The story:\n([\s\S]*)\n\nThings they did not say:\n([\s\S]*)/.exec(prompt.messages[0]?.content ?? '') ?? [];
+    const added = list.split('\n').map((l) => l.replace(/^- /, ''));
+    output = { scenario: added.reduce((t, a) => t.split(a).join(''), story).replace(/\s+/g, ' ').trim() };
   } else if (prompt.key === 'pt.adaptation') {
     const [, account = '', request = ''] = /The account:\n([\s\S]*)\n\nWhat they want changed:\n([\s\S]*)/.exec(prompt.messages[0]?.content ?? '') ?? [];
     output = { newScenario: `${account} ${request}`.trim(), changed: true };

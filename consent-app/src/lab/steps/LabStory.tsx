@@ -158,26 +158,33 @@ export function LabStory() {
     window.location.replace(`${window.location.pathname}${window.location.search}`);
   };
 
-  // The story the chat ended with, as the protocol's debrief shows it.
+  // After the chat: the story they made, or, if they stopped partway or Remi could not carry on, a word about that.
+  const stoppedEarly = chatDone?.ending === 'stopped-early';
+  const chatTitle = chatDone && (stoppedEarly || chatDone.ending === 'model-unavailable') ? 'Thank you for talking to Remi.' : 'Thank you. Your story is saved.';
   const chatStory = chatDone ? (
     <div className="mpmb-chat__debrief">
-      {chatDone.debriefText && <p className="mpmb-lead">{chatDone.debriefText}</p>}
-      <blockquote className="mpmb-chat__story">{chatDone.story}</blockquote>
-      {chatDone.debriefLede && <p className="mpmb-hint">{chatDone.debriefLede}</p>}
-      <ChatSupport />
+      {stoppedEarly ? (
+        <p className="mpmb-lead">You stopped partway, and that’s completely fine. What you said is saved, and nothing more will be asked in this chat.</p>
+      ) : (
+        <>
+          <p className="mpmb-lead">{chatDone.ending === 'model-unavailable' ? 'Remi couldn’t carry on this time, so your own answers are saved as your story.' : chatDone.debriefText}</p>
+          <blockquote className="mpmb-chat__story">{chatDone.story}</blockquote>
+        </>
+      )}
     </div>
   ) : null;
 
   if (justSent && atLab) {
     const last = story.sent[story.sent.length - 1];
     return (
-      <LabShell kicker={labMyStory.name} title="Thank you. Your story is in." hideContinue hideBack>
-        {chatDone ? chatStory : null}
+      <LabShell kicker={labMyStory.name} title={chatDone ? chatTitle : 'Thank you. Your story is saved.'} hideContinue hideBack>
+        {chatStory}
         <Callout tone="success" role="status">
           <p>
-            {chatDone ? 'Your story has' : `“${last?.title}” has`} been sent, labelled with your participant ID, never your name. Please hand the computer back to the researcher.
+            {chatDone ? 'It’s' : `“${last?.title}” is`} saved under your participant ID, never your name. Please hand the computer back to the researcher.
           </p>
         </Callout>
+        {chatDone && <ChatSupport />}
         <div className="mpmb-actions">
           <Button variant="primary" onClick={finishAtLab}>
             Finish
@@ -194,13 +201,14 @@ export function LabStory() {
   if (justSent) {
     const last = story.sent[story.sent.length - 1];
     return (
-      <LabShell kicker={labMyStory.name} title="Thank you. Your story is in." hideContinue hideBack>
-        {chatDone ? chatStory : null}
+      <LabShell kicker={labMyStory.name} title={chatDone ? chatTitle : 'Thank you. Your story is saved.'} hideContinue hideBack>
+        {chatStory}
         <Callout tone="success" role="status">
           <p>
-            {chatDone ? 'Your story has' : `“${last?.title}” has`} been sent, labelled with your participant ID <strong className="mpmb-mono">{state.code}</strong>. The team reads the stories together, never alongside your name.
+            {chatDone ? 'It’s' : `“${last?.title}” is`} saved under your participant ID <strong className="mpmb-mono">{state.code}</strong>, never your name. The team reads the stories together, and if you ever want yours removed, that ID is how we find it.
           </p>
         </Callout>
+        {chatDone && <ChatSupport />}
         <div className="mpmb-actions">
           {!ownPage && (
             <Button variant="primary" arrow onClick={leave}>
