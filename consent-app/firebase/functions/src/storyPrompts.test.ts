@@ -56,7 +56,7 @@ test('each persona writes from the answers given, and only those: no list of wha
     assert.ok(persona.text.includes('differ only in the tone'), `${persona.key}: tone only, as in the original`);
     assert.ok(persona.text.includes('UK spelling'), `${persona.key}: British English`);
   }
-  assert.ok(c.interview.languageStyle.includes('UK spelling') && c.interview.topicRestriction.includes('never ask about something they have already mentioned anywhere'));
+  assert.ok(c.interview.languageStyle.includes('UK spelling') && c.interview.topicRestriction.includes('Never ask about something they have already told you anywhere'));
   assert.ok(p.messages[0]!.content.endsWith('Create a scenario based on these responses.'));
   assert.ok(adaptPrompt('The story.', 'Shorter').messages[0]!.content.includes('What they want changed:\nShorter'));
 });

@@ -95,6 +95,8 @@ export interface ChatDoc {
   chosenIndex: number | null;
   rating: number | null;
   finalScenario: string | null;
+  requests?: unknown[];
+  edits?: unknown[];
   flags?: { tier: string }[];
   fallback?: string;
   sessionUid: string;
@@ -399,8 +401,18 @@ export const labStoryChat = onCall(callOptions, async (request) => {
       if (!model) return { stage: 'adapt', story: base, failed: true };
       try {
         const out = await call<{ newScenario: string; changed: boolean }>(db, ref, model, adaptPrompt(base, ask), protocol, 'adapt');
-        const revised = cleanAdaptation(out.newScenario) || base;
-        await ref.update({ requests: FieldValue.arrayUnion({ request: ask, before: base, after: revised, changed: out.changed, at: new Date().toISOString() }), finalScenario: revised, updatedAt: FieldValue.serverTimestamp() });
+        const rewritten = cleanAdaptation(out.newScenario) || base;
+        // A rewrite is checked like a retelling: against everything they have said, asked for or written themselves.
+        const said: ChatMessage[] = [
+          ...chat.transcript.map(({ role, content }) => ({ role, content })),
+          ...((chat.requests ?? []) as { request: string }[]).map((r) => ({ role: 'user' as const, content: r.request })),
+          ...((chat.edits ?? []) as { after: string }[]).map((e) => ({ role: 'user' as const, content: e.after })),
+          ...(base !== chat.finalScenario ? [{ role: 'user' as const, content: base }] : []),
+          { role: 'user', content: ask },
+        ];
+        const checked = rewritten === base ? { text: base } : await faithful(db, ref, model, protocol, said, rewritten);
+        const { text: revised, ...found } = checked;
+        await ref.update({ requests: FieldValue.arrayUnion({ request: ask, before: base, after: revised, changed: out.changed, ...found, at: new Date().toISOString() }), finalScenario: revised, updatedAt: FieldValue.serverTimestamp() });
         return { stage: 'adapt', story: revised, unchanged: out.changed === false };
       } catch {
         return { stage: 'adapt', story: base, failed: true };

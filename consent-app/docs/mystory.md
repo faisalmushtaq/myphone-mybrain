@@ -148,12 +148,15 @@ code, `llm_config.py` and `scenario.py`; and the social media harms preprint,
   did not say)". With 18 things to extract from 5 questions, most of that list
   was gaps, which the model either filled or recited ("I haven't mentioned..."),
   so the gaps are no longer sent.
-- *Each retelling is checked before it is shown.* A second call (`pt.check`,
+- *Each retelling, and each rewrite asked for, is checked before it is shown.* A second call (`pt.check`,
   temperature 0) lists anything in it the participant did not say; if there is
   anything, it is taken out (`pt.revise`) and checked once more. The draft, what
   was found and what is still there are kept on each retelling, and exported
-  (`retellings_added`, `retellings_still_added`). This is new: the original
-  team checked by hand, after the event.
+  (`retellings_added`, `retellings_still_added`); a rewrite is checked against
+  everything they said, asked for or wrote themselves, and what was found is
+  kept with the request. Found live: asked to make a story shorter, the rewrite
+  turned "it makes me a bit anxious" into "I feel less anxious". This is new:
+  the original team checked by hand, after the event.
 - *How close each story is to their words is measured, as the original team
   did* (cosine similarity of embeddings; theirs: real pairs M = 0.79, chance
   0.37). Recorded for the retellings and the filed story (`chosen_similarity`,
