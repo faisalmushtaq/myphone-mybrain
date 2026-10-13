@@ -46,7 +46,7 @@ export function Times({ staff }: { staff: Staff }) {
   const [from, setFrom] = useState(addDays(today(), 7));
   const [to, setTo] = useState('');
   const [days, setDays] = useState([true, true, true, true, true, false, false]);
-  const [timesText, setTimesText] = useState('10:00, 14:00');
+  const [timesText, setTimesText] = useState('10:00, 13:00');
   const [minutes, setMinutes] = useState(String(labBooking.minutes));
   const [capacity, setCapacity] = useState('1');
   const [visit, setVisit] = useState('');
@@ -58,10 +58,16 @@ export function Times({ staff }: { staff: Staff }) {
 
   const times = readTimes(timesText);
   // A visit at 00:00 or 05:00 is a slip ("00:00", "12am"), never a plan: refused here and on the server.
-  const { from: earliest, until: latest } = labBooking.startHours;
-  const outOfHours = (times ?? []).filter(([h]) => h < earliest || h >= latest);
-  const hhmm = ([h, m]: [number, number]) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-  const timesError = !times ? 'Type the start times like 10:00, 14:00.' : outOfHours.length ? `${outOfHours.map(hhmm).join(', ')} is outside lab hours: start times are from ${String(earliest).padStart(2, '0')}:00 to ${latest - 1}:59. (00:00 is midnight; 12:00 is midday.)` : undefined;
+  // Lab hours, 09:00 to 17:00 UK time: a visit starts at 09:00 or later and is over by 17:00.
+  const { from: opens, until: closes } = labBooking.labHours;
+  const length = Number(minutes) || labBooking.minutes;
+  const outOfHours = (times ?? []).filter(([h, m]) => h * 60 + m < opens * 60 || h * 60 + m + length > closes * 60);
+  const hhmm = (t: number) => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+  const timesError = !times
+    ? 'Type the start times like 10:00, 13:00.'
+    : outOfHours.length
+      ? `${outOfHours.map(([h, m]) => hhmm(h * 60 + m)).join(', ')} ${outOfHours.length === 1 ? 'is' : 'are'} outside lab hours: visits run between ${hhmm(opens * 60)} and ${hhmm(closes * 60)}, so a ${length}-minute visit starts between ${hhmm(opens * 60)} and ${hhmm(closes * 60 - length)}.`
+      : undefined;
   const starts = useMemo(() => (times && !outOfHours.length && from ? startsFor(from, to || from, days, times).filter((d) => d.getTime() > Date.now()) : []), [times, outOfHours.length, from, to, days]);
   const slots = (staff.overview?.slots ?? []).filter((s) => new Date(s.end).getTime() > Date.now() - 86_400_000);
 
@@ -111,7 +117,7 @@ export function Times({ staff }: { staff: Staff }) {
         <div className="mpmb-tools__grid">
           <TextField id="times-from" label="First date" type="date" value={from} min={today()} onChange={(e) => setFrom(e.target.value)} />
           <TextField id="times-to" label="Last date" required={false} type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} hint="Leave empty for one day." />
-          <TextField id="times-times" label="Start times" value={timesText} onChange={(e) => setTimesText(e.target.value)} hint="For example 10:00, 14:00" error={timesError} />
+          <TextField id="times-times" label="Start times" value={timesText} onChange={(e) => setTimesText(e.target.value)} hint="For example 10:00, 13:00. Lab hours are 09:00 to 17:00." error={timesError} />
           <TextField id="times-minutes" label="Length (minutes)" type="number" min={15} max={600} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
           <TextField id="times-capacity" label="Places" type="number" min={1} max={20} value={capacity} onChange={(e) => setCapacity(e.target.value)} hint="People at once." />
           <SelectField id="times-visit" label="For" value={visit} onChange={(e) => setVisit(e.target.value)} placeholder="Either visit" options={[{ value: '1', label: 'First visits only' }, { value: '2', label: 'Second visits only' }]} />

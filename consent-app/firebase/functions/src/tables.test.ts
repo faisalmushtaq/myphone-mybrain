@@ -159,5 +159,9 @@ test('new lab times from the staff page: in the future, sensible lengths and pla
   // Lab hours, in UK time: 23:00 UTC on 13 October is midnight in Leeds (BST), a typing slip, refused.
   assert.match(validateNewSlots([{ start: '2026-10-13T23:00:00Z' }], now).problems.join(' '), /outside lab hours/);
   assert.match(validateNewSlots([{ start: '2026-12-14T00:00:00Z' }], now).problems.join(' '), /00:00 UK time/);
-  assert.deepEqual(validateNewSlots([{ start: '2026-12-14T07:00:00Z' }, { start: '2026-12-14T20:00:00Z' }], now).problems, [], '07:00 and 20:00 are fine');
+  // 09:00 to 17:00: a two-hour visit starts between 09:00 and 15:00 (December, so UK time is UTC).
+  assert.deepEqual(validateNewSlots([{ start: '2026-12-14T09:00:00Z' }, { start: '2026-12-14T15:00:00Z' }, { start: '2026-12-14T16:00:00Z', minutes: 60 }], now).problems, [], '09:00, 15:00, and an hour at 16:00, are fine');
+  assert.match(validateNewSlots([{ start: '2026-12-14T08:30:00Z' }], now).problems.join(' '), /outside lab hours/, '08:30 is too early');
+  assert.match(validateNewSlots([{ start: '2026-12-14T15:30:00Z' }], now).problems.join(' '), /outside lab hours/, 'a two-hour visit at 15:30 runs past 17:00');
+  assert.deepEqual(validateNewSlots([{ start: '2026-10-14T08:00:00Z' }], now).problems, [], '08:00 UTC in October is 09:00 BST: fine');
 });

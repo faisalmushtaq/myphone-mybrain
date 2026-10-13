@@ -38,8 +38,8 @@ export const labBooking = {
   visit2AfterDays: { min: 28, max: 35 },
   /** A slot must start at least this long after it is booked online. */
   minNoticeHours: 24,
-  /** Lab times start between these UK hours (from, inclusive; until, exclusive): a time at midnight is a typing slip, not a visit. */
-  startHours: { from: 7, until: 21 },
+  /** Lab hours, UK time (14 October 2026): every visit starts at `from` or later and is over by `until`, so a two-hour visit starts by 15:00. */
+  labHours: { from: 9, until: 17 },
   /** Online changes and cancellations close this long before a visit; after that, people contact the team. */
   changeUntilHours: 24,
   /** How far ahead open slots are shown. */

@@ -173,7 +173,7 @@ export const labBooking = {
   minutes: generated.labBooking.minutes as number,
   visit2AfterDays: { min: generated.labBooking.visit2AfterDays.min as number, max: generated.labBooking.visit2AfterDays.max as number },
   minNoticeHours: generated.labBooking.minNoticeHours as number,
-  startHours: generated.labBooking.startHours as { from: number; until: number },
+  labHours: generated.labBooking.labHours as { from: number; until: number },
   changeUntilHours: generated.labBooking.changeUntilHours as number,
   horizonDays: generated.labBooking.horizonDays as number,
   timeZone: generated.labBooking.timeZone as string,
