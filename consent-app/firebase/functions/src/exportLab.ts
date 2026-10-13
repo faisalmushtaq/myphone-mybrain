@@ -44,6 +44,43 @@ const two = (n: number) => String(n).padStart(2, '0');
 export type LabPhase = 'pre' | 'mid' | 'post';
 export const LAB_PHASES: LabPhase[] = ['pre', 'mid', 'post'];
 
+/**
+ * The team's permanent test accounts on the live site, for trying the break
+ * study's pages (MyStory's chat above all) as a participant would. Kept, and
+ * left out of every file of the export, so the research data holds only real
+ * participants. Added 14 October 2026 at the team's request.
+ */
+export const TEST_PARTICIPANTS: ReadonlySet<string> = new Set([
+  'MP9C78C162BB9F', // the team's own, for checking MyStory by hand
+  'MPEFE6E0593853', // used to test the AI chat live
+]);
+
+/** Everything in the snapshot except the test accounts' records, with how many records were set aside. */
+export function withoutTestAccounts(snap: LabSnapshot): { snap: LabSnapshot; excluded: number } {
+  let excluded = 0;
+  const keep = (docs: Doc[] | undefined, byId = false): Doc[] =>
+    (docs ?? []).filter((d) => {
+      const code = byId ? d.id : String(d.data.participantCode ?? '');
+      if (!TEST_PARTICIPANTS.has(code)) return true;
+      excluded += 1;
+      return false;
+    });
+  return {
+    snap: {
+      participants: keep(snap.participants, true),
+      consents: keep(snap.consents),
+      donations: keep(snap.donations),
+      reminders: keep(snap.reminders, true),
+      checkIns: keep(snap.checkIns),
+      stories: keep(snap.stories),
+      storyChats: keep(snap.storyChats),
+      bookings: keep(snap.bookings),
+      contacts: keep(snap.contacts, true),
+    },
+    excluded,
+  };
+}
+
 export interface LabSnapshot {
   participants: Doc[];
   consents: Doc[];
@@ -829,7 +866,8 @@ export function labVisitsTable(bookings: Doc[]): Row[] {
 }
 
 /** The lab study's files, binary copies and counts, for runExport to merge with the schools study's. */
-export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFile[]; copies: Map<string, string>; derived: Derivation[]; counts: Record<string, number> } {
+export function labExport(everything: LabSnapshot, exportedAt: string): { files: OutFile[]; copies: Map<string, string>; derived: Derivation[]; counts: Record<string, number> } {
+  const { snap, excluded } = withoutTestAccounts(everything);
   const sessions = labSessionsOf(snap);
   const behColumns = Object.keys(labBehDictionary()).filter((k) => !['TaskName', 'TaskDescription'].includes(k));
   const files: OutFile[] = [
@@ -921,6 +959,7 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     labStoryChats: (snap.storyChats ?? []).length,
     labStoryVoiceClips: (snap.storyChats ?? []).reduce((n, c) => n + ((c.data.voiceClips ?? []) as unknown[]).length, 0),
     labBookings: (snap.bookings ?? []).filter((b) => b.data.status !== 'cancelled').length,
+    labTestRecordsLeftOut: excluded,
   };
   return { files, copies, derived, counts };
 }
