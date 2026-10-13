@@ -34,27 +34,37 @@ column (`answered`, `not-sure`, `skipped`).
 
 ## The AI chat (13 October 2026)
 
-Every phase now runs MyStory as a **chat with Sam**: the MySelf MyStory
-protocol (the KCL micro-narratives method, Skeggs et al., CHI 2025,
-https://doi.org/10.1145/3706598.3713999), embedded in the break study's pages.
-The site's own form (above) stays, one click away ("I'd rather write my story
-myself"), and is used automatically until the OpenAI key is stored.
+Every phase now runs MyStory as a **chat with Remi** ("Reflecting on Everyday
+Media Interactions"): the MySelf MyStory protocol (the KCL micro-narratives
+method, Skeggs et al., CHI 2025, https://doi.org/10.1145/3706598.3713999),
+embedded in the break study's pages, with the team's own protocol for each
+phase. The site's own form (above) stays, one click away ("I'd rather write
+my story myself"), and is used automatically until the OpenAI key is stored.
 
-**What the participant does.** Start the chat → Sam introduces itself as an
-AI and asks the phase's questions one at a time, reacting to each answer →
-three short retellings of what they said, each in a different voice (a
-friend, themselves, a psychologist) → pick the closest → rate it from 0 to 10
-→ below 10, edit it themselves or ask Sam to change it (and put the previous
-version back) → **Keep this story**. About ten minutes.
+**What the participant does.** Start the chat → Remi introduces itself as an
+AI and asks the phase's questions one at a time, with the protocol's
+follow-ups → three short retellings of what they said, all in the first
+person (plain, casual, reflective) → pick the closest → rate it from 0 to 10
+→ below 10, edit it themselves or ask Remi to change it (and put the previous
+version back) → **Keep this story**. The last page has the support numbers
+the protocol points to. About fifteen minutes.
 
-**One protocol per phase**, in MySelf's own TOML format, so the same file
-loads in MySelf's MyStory studio and here:
+**One protocol per phase**, the team's files (Michelle Wain, 13 October 2026),
+in MySelf's own TOML format, so the same file loads in MySelf's MyStory studio
+and here:
 
-| Phase | File | Questions about |
-| --- | --- | --- |
-| Before (`pre`, first lab visit) | `src/lab/mystory/pre.toml` (`np.mpmb_break_pre`) | how they use social media now, when it helps and gets in the way, why a break, what they expect |
-| During (`mid`, after each check-in) | `src/lab/mystory/mid.toml` (`np.mpmb_break_mid`) | how the week went, a moment they wanted an app, what they did instead, surprises, the rest of the break |
-| After (`post`, second lab visit) | `src/lab/mystory/post.toml` (`np.mpmb_break_post`) | what stands out, what changed, going back on, harder or easier than expected, what they will do differently |
+| Phase | File | Questions | Extracted |
+| --- | --- | --- | --- |
+| Before (`pre`, first lab visit) | `src/lab/mystory/pre.toml` (`np.sm_abstinence_pre`) | 6: when they use it most, how it fits with uni, work and friends, mental health, how they feel after, putting it down, the 30 days ahead | 10 keys |
+| During (`mid`, after each check-in) | `src/lab/mystory/mid.toml` (`np.sm_abstinence_mid`) | 4: how it has affected them so far, a moment that stood out, what they do instead, wanting to go on | 12 keys |
+| After (`post`, second lab visit) | `src/lab/mystory/post.toml` (`np.sm_abstinence_post`) | 5: how the 30 days affected them, mental health, what they missed, are they back on, what they will take forward | 18 keys |
+
+Three fixes were needed for the files to load, each noted at the top of the
+file: the example conversation's closing quote escaped, the closing quote on
+`research_question`, and `max_turns` 22 → 20 (MySelf's own limit; its checker
+refuses more). `{first_name}` in the on-screen text is filled in on the
+participant's device from the details they typed, and left out when the page
+does not know it ("Hi, I'm Remi"); it never reaches the server or the model.
 
 To change one: edit `[collection] questions`, `[summaries.questions]` (one key
 per thing to pull out of the answers), `[summaries.personas]` (the voices),
@@ -80,7 +90,7 @@ the changes. If the model fails, the participant's own answers are kept as
 their story (`continue_without_model`).
 
 **Settings and limits.** Model, temperature, token and time limits come from
-the TOML file (`gpt-4o`, 0.7, 400 tokens, 30 seconds, 3 attempts). OpenAI is
+the TOML file (`gpt-4o`, 0.7, 400 tokens, 30 seconds, 3 attempts, 20 turns). OpenAI is
 asked not to store the calls (`store: false`). A device can start 6 chats an
 hour; the whole study makes at most 3,000 model calls a day (about 250
 conversations; `MPMB_STORY_CALLS_PER_DAY` changes it); 5 changes per story.
@@ -89,7 +99,7 @@ conversations; `MPMB_STORY_CALLS_PER_DAY` changes it); 5 changes per story.
 everything the participant types; a match is recorded on the conversation and
 logged by rule (never the words) for the team to review. Nothing is shown to
 the participant and nobody is contacted automatically, as the protocol's
-declaration says; the chat shows the protocol's disclosure line (Samaritans).
+declaration says; the chat shows the protocol's disclosure line, and the protocol's own instructions tell Remi to stop the questions and give the support numbers if someone discloses distress.
 
 **The key.** In Cloud Shell, once:
 `bash consent-app/firebase/scripts/set-openai-key.sh myphone-mybrain`, and
