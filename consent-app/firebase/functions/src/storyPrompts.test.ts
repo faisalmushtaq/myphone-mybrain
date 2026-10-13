@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { storyChats } from './forms.js';
-import { adaptPrompt, extractionPrompt, interviewerPrompt, matchesSchema, mockModel, openAiModel, safeguardingHits, scenarioPrompt, type ChatMessage } from './storyPrompts.js';
+import { adaptPrompt, cleanAdaptation, endedEarly, extractionPrompt, interviewerPrompt, matchesSchema, mockModel, openAiModel, safeguardingHits, scenarioPrompt, type ChatMessage } from './storyPrompts.js';
 
 test('each phase has its own chat protocol, read from its TOML file', () => {
   assert.deepEqual(
@@ -110,4 +110,23 @@ test('schema check: required keys, no extras, the right types', () => {
   assert.equal(matchesSchema({ a: 'x' }, schema), false);
   assert.equal(matchesSchema({ a: 'x', b: 'y', c: 1 }, schema), false);
   assert.equal(matchesSchema({ a: 1, b: 'y' }, schema), false);
+});
+
+test('an interview that ends early is not retold: stopping partway, or after a disclosure, before the questions are done', async () => {
+  const c = storyChats.mid;
+  const all = c.interview.questions.map((_, i) => i + 1);
+  assert.equal(endedEarly(c, all, true), false, 'every question answered: retold as normal, flag or not');
+  assert.equal(endedEarly(c, [1], false), true, 'most questions unanswered');
+  assert.equal(endedEarly(c, all.slice(0, -1), true), true, 'a disclosure and a question still to go');
+  assert.equal(endedEarly(c, all.slice(0, -1), false), false, 'nearly done, nothing worrying: retold');
+  assert.equal(endedEarly(c, undefined, false), true, 'nothing said about coverage counts as nothing covered');
+  const turn = await mockModel<{ interviewDone: boolean; questionsCovered: number[] }>(interviewerPrompt(c, [{ role: 'assistant', content: 'Q1?' }, { role: 'user', content: 'Can we stop here please' }]), c);
+  assert.equal(turn.output.interviewDone, true);
+  assert.deepEqual(turn.output.questionsCovered, []);
+});
+
+test('the adaptation’s label is not kept as part of the story', () => {
+  assert.equal(cleanAdaptation('The account:\nI slept better.'), 'I slept better.');
+  assert.equal(cleanAdaptation('account: I slept better.'), 'I slept better.');
+  assert.equal(cleanAdaptation('I slept better. The account: was fine.'), 'I slept better. The account: was fine.');
 });

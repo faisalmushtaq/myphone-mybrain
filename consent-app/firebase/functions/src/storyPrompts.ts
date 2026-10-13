@@ -331,13 +331,34 @@ export function matchesSchema(value: unknown, schema: Record<string, unknown>): 
  * each persona's retelling from them. Deterministic, costs nothing, and never
  * leaves the machine.
  */
+/**
+ * Whether an interview the model closed has ended early: the participant
+ * asked to stop, or said something the team must review, before the
+ * questions were answered. Writing a story from half a conversation, or from
+ * a disclosure, and asking them to choose and rate it is the wrong thing to
+ * do: the chat stops gently instead, and their own words are kept.
+ */
+export function endedEarly(protocol: ChatProtocol, questionsCovered: unknown, distressFlagged: boolean): boolean {
+  const total = protocol.interview.questions.length;
+  const covered = Array.isArray(questionsCovered) ? new Set(questionsCovered.filter((n) => Number.isInteger(n) && n >= 1 && n <= total)).size : 0;
+  if (covered >= total) return false;
+  return distressFlagged || covered < Math.ceil(total / 2);
+}
+
+/** The adaptation sometimes comes back headed with the label it was given ("The account:"); the story is what follows. */
+export function cleanAdaptation(text: string): string {
+  return text.replace(/^\s*(?:the\s+)?(?:account|new scenario|scenario)\s*:\s*/i, '').trim();
+}
+
 export const mockModel: ModelCall = async <T>(prompt: Prompt, protocol: ChatProtocol): Promise<ModelResult<T>> => {
   const said = prompt.messages.filter((m) => m.role === 'user' && m.content !== '(the participant is ready)').map((m) => m.content);
   let output: unknown;
   if (prompt.key === 'pt.interviewer') {
     const n = said.length;
     const questions = protocol.interview.questions;
-    output = n >= questions.length ? { reply: '', interviewDone: true, questionsCovered: questions.map((_, i) => i + 1) } : { reply: `${n ? 'Thanks for telling me that. ' : ''}${questions[n]}`, interviewDone: false, questionsCovered: questions.slice(0, n).map((_, i) => i + 1) };
+    // Asking to stop ends the interview where it is, as the protocol tells the real model to.
+    if (n && /\bstop here\b/i.test(said[n - 1]!)) output = { reply: '', interviewDone: true, questionsCovered: questions.slice(0, n - 1).map((_, i) => i + 1) };
+    else output = n >= questions.length ? { reply: '', interviewDone: true, questionsCovered: questions.map((_, i) => i + 1) } : { reply: `${n ? 'Thanks for telling me that. ' : ''}${questions[n]}`, interviewDone: false, questionsCovered: questions.slice(0, n).map((_, i) => i + 1) };
   } else if (prompt.key === 'pt.extraction') {
     const humans = (prompt.messages[0]?.content ?? '').split('\n').filter((l) => l.startsWith('Human: ')).map((l) => l.slice(7));
     output = Object.fromEntries(protocol.extractionKeys.map((k, i) => [k.key, humans[i] ?? null]));

@@ -277,7 +277,7 @@ export function labStoryChatDictionary(phase: StoryPhase): Record<string, unknow
     source: { Description: 'The page the chat was on' },
     check_in_id: { Description: 'For a chat after a check-in: that check-in' },
     status: { Description: 'Where the conversation got to', Levels: { interview: 'Left during the questions', choose: 'Left before choosing a retelling', rate: 'Left before rating', adapt: 'Left while changing it', done: 'Finished, story filed', stopped: 'The model could not carry on; the participant’s answers are kept' } },
-    ending: { Description: 'How it finished', Levels: { 'rated-full-marks': 'Rated 10: the chosen retelling kept as it was', kept: 'Kept after changes asked of the AI, or as it was', edited: 'The participant edited the words themselves', 'model-unavailable': 'The model failed; the participant’s own answers filed as the story' } },
+    ending: { Description: 'How it finished', Levels: { 'rated-full-marks': 'Rated 10: the chosen retelling kept as it was', kept: 'Kept after changes asked of the AI, or as it was', edited: 'The participant edited the words themselves', 'model-unavailable': 'The model failed; the participant’s own answers filed as the story', 'stopped-early': 'The participant stopped partway, or said something the team must review before the questions were done: no retellings were written, and their own answers were filed as the story' } },
     turns: { Description: 'Replies the participant typed in the interview' },
     interview_closed: { Description: 'What ended the questions', Levels: { model: 'The interviewer judged every question answered', turn_limit: 'The protocol’s turn limit' } },
     candidates_n: { Description: 'Retellings offered' },

@@ -129,6 +129,16 @@ logged by rule (never the words) for the team to review. Nothing is shown to
 the participant and nobody is contacted automatically, as the protocol's
 declaration says; the chat shows the protocol's disclosure line, and the protocol's own instructions tell Remi to stop the questions and give the support numbers if someone discloses distress.
 
+**Stopping early.** If the interview closes before every question is
+answered, and either the participant said something the distress rules flag
+or fewer than half the questions were answered (they asked to stop, say),
+**no retellings are written**. Writing a story from a disclosure, and asking
+them to choose and rate it, is the wrong thing to do. The site (not the model)
+says it is fine to stop and that their words are saved, shows the people they
+can contact, and offers Finish. Their own answers are filed as the story with
+ending `stopped-early` (`endedEarly` in `storyPrompts.ts`). Found when testing
+the live chat on 13 October 2026.
+
 **The key.** In Cloud Shell, once:
 `bash consent-app/firebase/scripts/set-openai-key.sh myphone-mybrain`, and
 paste the key when asked (never into a chat, an email or the repository). It

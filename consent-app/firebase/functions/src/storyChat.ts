@@ -8,6 +8,8 @@ import { normaliseCode, rateLimitLookups } from './lab.js';
 import { readSecret } from './secrets.js';
 import {
   adaptPrompt,
+  cleanAdaptation,
+  endedEarly,
   extractionPrompt,
   interviewerPrompt,
   mockModel,
@@ -81,6 +83,8 @@ export interface ChatDoc {
   chosenIndex: number | null;
   rating: number | null;
   finalScenario: string | null;
+  flags?: { tier: string }[];
+  fallback?: string;
   sessionUid: string;
 }
 
@@ -280,9 +284,16 @@ export const labStoryChat = onCall(callOptions, async (request) => {
       try {
         let done = turns >= protocol.maxTurns;
         if (!done) {
-          const turn = await call<{ reply: string; interviewDone: boolean }>(db, ref, model, interviewerPrompt(protocol, transcript), protocol, 'collect');
+          const turn = await call<{ reply: string; interviewDone: boolean; questionsCovered?: number[] }>(db, ref, model, interviewerPrompt(protocol, transcript), protocol, 'collect');
           // The closing turn's reply is discarded, as MySelf does: the app says what happens next, not the model.
-          if (turn.interviewDone) done = true;
+          if (turn.interviewDone) {
+            const distress = (chat.flags ?? []).some((f) => f.tier === 'safeguarding_review') || safeguardingHits(protocol, said).some((h) => h.tier === 'safeguarding_review');
+            if (endedEarly(protocol, turn.questionsCovered, distress)) {
+              await ref.update({ interviewDone: true, interviewClosed: 'stopped_early', questionsCovered: turn.questionsCovered ?? [], status: 'stopped', fallback: 'participant stopped', stoppedEarly: true, updatedAt: FieldValue.serverTimestamp() });
+              return { stage: 'stopped', text: STOPPED_EARLY };
+            }
+            done = true;
+          }
           else {
             await ref.update({ transcript: FieldValue.arrayUnion({ role: 'assistant', content: turn.reply, at: new Date().toISOString() }) });
             return { stage: 'interview', reply: turn.reply };
@@ -327,7 +338,7 @@ export const labStoryChat = onCall(callOptions, async (request) => {
       if (!model) return { stage: 'adapt', story: base, failed: true };
       try {
         const out = await call<{ newScenario: string; changed: boolean }>(db, ref, model, adaptPrompt(base, ask), protocol, 'adapt');
-        const revised = out.newScenario.trim() || base;
+        const revised = cleanAdaptation(out.newScenario) || base;
         await ref.update({ requests: FieldValue.arrayUnion({ request: ask, before: base, after: revised, changed: out.changed, at: new Date().toISOString() }), finalScenario: revised, updatedAt: FieldValue.serverTimestamp() });
         return { stage: 'adapt', story: revised, unchanged: out.changed === false };
       } catch {
@@ -345,13 +356,16 @@ export const labStoryChat = onCall(callOptions, async (request) => {
       }
       // After a failure: the participant's own answers, as they wrote them, are the story.
       const own = chat.transcript.filter((m) => m.role === 'user').map((m) => m.content).join('\n\n');
-      const filed = await fileStory(db, ref, chat, story || own, chat.status === 'stopped' ? 'model-unavailable' : story === chat.finalScenario ? 'kept' : 'edited', uid);
+      const filed = await fileStory(db, ref, chat, story || own, chat.status === 'stopped' ? (chat.fallback === 'participant stopped' ? 'stopped-early' : 'model-unavailable') : story === chat.finalScenario ? 'kept' : 'edited', uid);
       return { stage: 'done', story: story || own, ...filed };
     }
     default:
       throw new HttpsError('invalid-argument', 'Unknown step.');
   }
 });
+
+/** Said by the app, not the model, when the participant stops partway: no retellings, their words kept, help a tap away. */
+export const STOPPED_EARLY = 'That’s completely fine. We’ll stop here, and what you’ve said is saved. If you’d like to talk to someone, the people below are there to help, or you can reach out to someone you trust. Tap Finish when you’re ready.';
 
 /** The model could not carry on: the conversation stops, and what the participant wrote is kept. */
 async function fallback(ref: DocumentReference, protocol: ChatProtocol, reason: string, extraction?: Record<string, string | null>) {
