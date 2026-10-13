@@ -110,6 +110,11 @@ service cloud.firestore {
     }
 
     // The schools' UPN lists: coordinators only; the password hashes, nobody.
+    // MyStory's AI chat (functions/src/storyChat.ts): written only by the function.
+    match /labStoryChats/{chatId} {
+      allow read: if hasRole('researcher') || hasRole('coordinator');
+      allow write: if false;
+    }
     match /schoolUploads/{uploadId} {
       allow read: if hasRole('coordinator');
       allow write: if false;

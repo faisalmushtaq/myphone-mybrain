@@ -11,6 +11,7 @@ import { clearLabState } from '../persistence';
 import { LabShell } from '../LabShell';
 import { labMyStory, storyLimits, storyStructures, storySurveyUrl, type StoryPhase } from '../mystory';
 import { Dyad, Triad, type Shares } from '../story/Signifiers';
+import { StoryChat, type ChatFinished } from '../story/StoryChat';
 import { useLab } from '../store';
 import type { FieldError } from '../validation';
 
@@ -33,6 +34,9 @@ export function LabStory() {
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [busy, setBusy] = useState(false);
   const [justSent, setJustSent] = useState(false);
+  // The AI chat, unless it is not set up or the participant would rather write it themselves: then MyStory's own form.
+  const [ownForm, setOwnForm] = useState(false);
+  const [chatDone, setChatDone] = useState<ChatFinished | null>(null);
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
   const ready = state.codeConfirmed && state.submission.consentStage === 'sent';
   const ownPage = state.flow === 'story';
@@ -51,8 +55,26 @@ export function LabStory() {
     );
   }
 
+  if (mode.mode === 'chat' && !ownForm && !justSent) {
+    return (
+      <StoryChat
+        source={SOURCE[state.flow] ?? 'story'}
+        onUnavailable={() => setOwnForm(true)}
+        onFinished={(done) => {
+          dispatch({ type: 'story-sent', storyId: done.storyId, title: done.story.length > 60 ? `${done.story.slice(0, 57).trimEnd()}…` : done.story, receivedAt: done.receivedAt });
+          setChatDone(done);
+          setJustSent(true);
+          announce('Your story has been sent. Thank you.');
+          window.scrollTo({ top: 0 });
+        }}
+        onLeave={ownPage ? null : leave}
+        leaveLabel={state.flow === 'checkin' ? 'Skip this time' : 'Not now'}
+      />
+    );
+  }
+
   // Another survey: shown in the page, or opened in a new tab, already given the participant ID and the phase.
-  if (mode.mode !== 'native') {
+  if (mode.mode === 'link' || mode.mode === 'embed') {
     const url = storySurveyUrl(phase, state.code, mode)!;
     return (
       <LabShell kicker={labMyStory.name} title={structure.title} intro={<p>{structure.intro}</p>} hideContinue hideBack width="wide" secondaryAction={ownPage ? null : <Button variant="secondary" onClick={leave}>{state.flow === 'checkin' ? 'Skip this time' : leaveLabel}</Button>}>
@@ -136,20 +158,30 @@ export function LabStory() {
     window.location.replace(`${window.location.pathname}${window.location.search}`);
   };
 
+  // The story the chat ended with, as the protocol's debrief shows it.
+  const chatStory = chatDone ? (
+    <div className="mpmb-chat__debrief">
+      {chatDone.debriefText && <p className="mpmb-lead">{chatDone.debriefText}</p>}
+      <blockquote className="mpmb-chat__story">{chatDone.story}</blockquote>
+      {chatDone.debriefLede && <p className="mpmb-hint">{chatDone.debriefLede}</p>}
+    </div>
+  ) : null;
+
   if (justSent && atLab) {
     const last = story.sent[story.sent.length - 1];
     return (
       <LabShell kicker={labMyStory.name} title="Thank you. Your story is in." hideContinue hideBack>
+        {chatDone ? chatStory : null}
         <Callout tone="success" role="status">
           <p>
-            “{last?.title}” has been sent, labelled with your participant ID, never your name. Please hand the computer back to the researcher.
+            {chatDone ? 'Your story has' : `“${last?.title}” has`} been sent, labelled with your participant ID, never your name. Please hand the computer back to the researcher.
           </p>
         </Callout>
         <div className="mpmb-actions">
           <Button variant="primary" onClick={finishAtLab}>
             Finish
           </Button>
-          <Button variant="secondary" onClick={() => setJustSent(false)}>
+          <Button variant="secondary" onClick={() => { setJustSent(false); setChatDone(null); }}>
             Tell another story
           </Button>
         </div>
@@ -162,9 +194,10 @@ export function LabStory() {
     const last = story.sent[story.sent.length - 1];
     return (
       <LabShell kicker={labMyStory.name} title="Thank you. Your story is in." hideContinue hideBack>
+        {chatDone ? chatStory : null}
         <Callout tone="success" role="status">
           <p>
-            “{last?.title}” has been sent, labelled with your participant ID <strong className="mpmb-mono">{state.code}</strong>. The team reads the stories together, never alongside your name.
+            {chatDone ? 'Your story has' : `“${last?.title}” has`} been sent, labelled with your participant ID <strong className="mpmb-mono">{state.code}</strong>. The team reads the stories together, never alongside your name.
           </p>
         </Callout>
         <div className="mpmb-actions">
@@ -173,7 +206,7 @@ export function LabStory() {
               {leaveLabel}
             </Button>
           )}
-          <Button variant="secondary" onClick={() => setJustSent(false)}>
+          <Button variant="secondary" onClick={() => { setJustSent(false); setChatDone(null); }}>
             Tell another story
           </Button>
         </div>

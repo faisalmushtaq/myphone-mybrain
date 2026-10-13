@@ -32,6 +32,87 @@ story, the triangle as three shares adding up to 1, the sliders from 0 to
 100, the choices as their values, and for every signifier a `_status`
 column (`answered`, `not-sure`, `skipped`).
 
+## The AI chat (13 October 2026)
+
+Every phase now runs MyStory as a **chat with Sam**: the MySelf MyStory
+protocol (the KCL micro-narratives method, Skeggs et al., CHI 2025,
+https://doi.org/10.1145/3706598.3713999), embedded in the break study's pages.
+The site's own form (above) stays, one click away ("I'd rather write my story
+myself"), and is used automatically until the OpenAI key is stored.
+
+**What the participant does.** Start the chat → Sam introduces itself as an
+AI and asks the phase's questions one at a time, reacting to each answer →
+three short retellings of what they said, each in a different voice (a
+friend, themselves, a psychologist) → pick the closest → rate it from 0 to 10
+→ below 10, edit it themselves or ask Sam to change it (and put the previous
+version back) → **Keep this story**. About ten minutes.
+
+**One protocol per phase**, in MySelf's own TOML format, so the same file
+loads in MySelf's MyStory studio and here:
+
+| Phase | File | Questions about |
+| --- | --- | --- |
+| Before (`pre`, first lab visit) | `src/lab/mystory/pre.toml` (`np.mpmb_break_pre`) | how they use social media now, when it helps and gets in the way, why a break, what they expect |
+| During (`mid`, after each check-in) | `src/lab/mystory/mid.toml` (`np.mpmb_break_mid`) | how the week went, a moment they wanted an app, what they did instead, surprises, the rest of the break |
+| After (`post`, second lab visit) | `src/lab/mystory/post.toml` (`np.mpmb_break_post`) | what stands out, what changed, going back on, harder or easier than expected, what they will do differently |
+
+To change one: edit `[collection] questions`, `[summaries.questions]` (one key
+per thing to pull out of the answers), `[summaries.personas]` (the voices),
+`[example]` and the words on screen in `[myself]` (`outro`, `select_text`,
+`rate_text`, `adapt_text`, `debrief_text`, their `_lede`s, `fallback_text`).
+Bump `[myself] version`, push, and the server picks it up at the next deploy.
+Check it first with MySelf's checker, which prints every screen as a
+participant reads it:
+`pnpm --filter @myself/narrative check <path to the .toml>` (in the MySelf
+repository). The build checks the file too and stops if one cannot run.
+
+**How it runs.** The page sends only what the participant types and taps.
+The server (`firebase/functions/src/storyChat.ts`) holds the protocol and the
+OpenAI key, assembles MySelf's four prompts word for word (interviewer,
+extraction, persona retelling, adaptation: `storyPrompts.ts`), asks for
+structured output and checks it against the schema, and saves every step as
+it happens, so a conversation left halfway is still data. As in MySelf, the
+interview ends when the model says every question is answered (a field in its
+output, not a word a participant could type) or at `max_turns`; the
+interviewer's closing reply is discarded; extraction runs cold and uses only
+the participant's words; the three personas write at the same time; a 10 skips
+the changes. If the model fails, the participant's own answers are kept as
+their story (`continue_without_model`).
+
+**Settings and limits.** Model, temperature, token and time limits come from
+the TOML file (`gpt-4o`, 0.7, 400 tokens, 30 seconds, 3 attempts). OpenAI is
+asked not to store the calls (`store: false`). A device can start 6 chats an
+hour; the whole study makes at most 3,000 model calls a day (about 250
+conversations; `MPMB_STORY_CALLS_PER_DAY` changes it); 5 changes per story.
+
+**Safeguarding.** The `[[myself.safeguarding]]` lexicon rules are checked on
+everything the participant types; a match is recorded on the conversation and
+logged by rule (never the words) for the team to review. Nothing is shown to
+the participant and nobody is contacted automatically, as the protocol's
+declaration says; the chat shows the protocol's disclosure line (Samaritans).
+
+**The key.** In Cloud Shell, once:
+`bash consent-app/firebase/scripts/set-openai-key.sh myphone-mybrain`, and
+paste the key when asked (never into a chat, an email or the repository). It
+can be the key MySelf uses, or one of its own, which is easier to watch and
+cap in OpenAI's dashboard. The chat works within about ten minutes; no
+redeploy is needed.
+
+**The data.** `labStoryChats/{id}`: the transcript, every model call (prompt,
+model, tokens, success), the extraction, the three retellings, the choice, the
+rating, each change asked for and each edit, the flags and how it ended. The
+finished story is also filed in `labStories/` like MyStory's other stories
+(`mode: chat`). The hourly export adds
+`social-media-break/donations/phenotype/mystory_chat_<phase>.tsv` (one row per
+conversation: the answers by key in the participant's own words, the persona
+chosen, the rating, changes, the final story, flags, tokens) with a `.json`
+dictionary, and every conversation in full in
+`sourcedata/raw/labStoryChats.jsonl`.
+
+**In the emulator** a stand-in model answers (it asks the questions in order
+and builds the retellings from the answers), so the whole chat is tested end
+to end without a key or any cost.
+
 ## Using MySelf's own micro-narrative instead
 
 Each phase can be switched, independently, to another survey (MySelf, for

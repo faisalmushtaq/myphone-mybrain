@@ -701,13 +701,13 @@ export async function runExport(): Promise<Manifest> {
   const exportedAt = new Date().toISOString();
 
   const load = async (name: string): Promise<Doc[]> => (await db.collection(name).get()).docs.map((d) => ({ id: d.id, data: plain(d.data()) as DocumentData }));
-  const [participants, consents, assents, submissions, enquiries, surveys, donations, labParticipants, labConsents, labDonations, labReminders, labCheckIns, labStories, labBookings, labContacts, schoolUploads, optOuts] = await Promise.all(
-    ['participants', 'consents', 'assents', 'submissions', 'enquiries', 'surveys', 'donations', 'labParticipants', 'labConsents', 'labDonations', 'labReminders', 'labCheckIns', 'labStories', 'labBookings', 'labContacts', 'schoolUploads', 'optOuts'].map(load),
+  const [participants, consents, assents, submissions, enquiries, surveys, donations, labParticipants, labConsents, labDonations, labReminders, labCheckIns, labStories, labBookings, labContacts, schoolUploads, optOuts, labStoryChats] = await Promise.all(
+    ['participants', 'consents', 'assents', 'submissions', 'enquiries', 'surveys', 'donations', 'labParticipants', 'labConsents', 'labDonations', 'labReminders', 'labCheckIns', 'labStories', 'labBookings', 'labContacts', 'schoolUploads', 'optOuts', 'labStoryChats'].map(load),
   );
   const labels = await assignLabels(db, participants);
   const snap: Snapshot = { participants, consents, assents, submissions, enquiries, surveys, donations, optOuts, labels };
   const sessions = sessionsOf(snap);
-  const lab = labExport({ participants: labParticipants, consents: labConsents, donations: labDonations, reminders: labReminders, checkIns: labCheckIns, stories: labStories, bookings: labBookings, contacts: labContacts }, exportedAt);
+  const lab = labExport({ participants: labParticipants, consents: labConsents, donations: labDonations, reminders: labReminders, checkIns: labCheckIns, stories: labStories, storyChats: labStoryChats, bookings: labBookings, contacts: labContacts }, exportedAt);
   const upn = upnExport(schoolUploads, participants, labels, optOuts);
 
   const tsv = tsvFile;

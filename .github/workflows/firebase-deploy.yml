@@ -26,6 +26,7 @@ on:
       - "consent-app/src/lab/cleaner.ts"
       - "consent-app/src/lab/booking.ts"
       - "consent-app/src/lab/mystory.ts"
+      - "consent-app/src/lab/mystory/**"
       - "_data/schools.json"
       - ".github/workflows/firebase-deploy.yml"
   workflow_dispatch:

@@ -150,7 +150,13 @@ export const storyLimits = { titleMax: 120, storyMin: 20, storyMax: 5000 };
  *   native  this site's own form (the structures above), in the site's look,
  *           stored with the rest of the study's data under the participant ID;
  *   link    another survey (MySelf, for example) opened in a new tab;
- *   embed   another survey shown inside the page.
+ *   embed   another survey shown inside the page;
+ *   chat    MyStory's AI chat (decided 13 October 2026): the MySelf
+ *           micro-narrative protocol, with Sam asking the phase's questions
+ *           and writing back three retellings to choose from and correct.
+ *           Each phase's protocol is src/lab/mystory/<phase>.toml. Until the
+ *           OpenAI key is stored, or if the chat cannot start, the page offers
+ *           this site's own form ('native') instead.
  * For link and embed, the participant ID goes to the survey as the idParam
  * query parameter and the phase (pre, mid or post) as phaseParam, so the
  * survey files the story under the same ID; in Qualtrics, declare both as
@@ -158,20 +164,21 @@ export const storyLimits = { titleMax: 120, storyMin: 20, storyMax: 5000 };
  */
 export type StoryMode =
   | { mode: 'native' }
+  | { mode: 'chat'; fallback: 'native' }
   | { mode: 'link' | 'embed'; name: string; url: string; idParam: string; phaseParam: string | null; height?: number };
 
 export const labMyStory: { name: string; phases: Record<StoryPhase, StoryMode> } = {
   name: 'MyStory',
   phases: {
-    pre: { mode: 'native' },
-    mid: { mode: 'native' },
-    post: { mode: 'native' },
+    pre: { mode: 'chat', fallback: 'native' },
+    mid: { mode: 'chat', fallback: 'native' },
+    post: { mode: 'chat', fallback: 'native' },
   },
 };
 
 /** The address of an external MyStory survey for one participant and phase; null for the site's own form. */
 export function storySurveyUrl(phase: StoryPhase, code: string, mode: StoryMode = labMyStory.phases[phase]): string | null {
-  if (mode.mode === 'native') return null;
+  if (mode.mode === 'native' || mode.mode === 'chat') return null;
   const url = new URL(mode.url);
   url.searchParams.set(mode.idParam, code);
   if (mode.phaseParam) url.searchParams.set(mode.phaseParam, phase);

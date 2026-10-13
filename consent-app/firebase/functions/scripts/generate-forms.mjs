@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { parse as parseToml } from 'smol-toml';
 
 const here = path.dirname(new URL(import.meta.url).pathname);
 const appSrc = path.resolve(here, '../../../src');
@@ -47,6 +48,80 @@ const questionForm = (f) => ({
       : { id: q.id, version: q.version, type: 'text', label: q.label, topic: q.topic ?? null, text: q.text, maxLength: q.maxLength },
   ),
 });
+
+/**
+ * One phase's MyStory chat protocol, read from its TOML file (the MySelf /
+ * KCL micro-narratives format) into what the server needs. Anything the chat
+ * cannot run without is checked here, so a broken file stops the build rather
+ * than a participant's conversation.
+ */
+function chatProtocol(phase) {
+  const file = path.resolve(here, `../../../src/lab/mystory/${phase}.toml`);
+  const t = parseToml(fs.readFileSync(file, 'utf8'));
+  const m = t.myself ?? {};
+  const fail = (what) => {
+    throw new Error(`${path.relative(process.cwd(), file)}: ${what}`);
+  };
+  const text = (v, what, required = true) => {
+    if (typeof v === 'string' && v.trim()) return v.trim();
+    if (required) fail(`${what} is missing`);
+    return '';
+  };
+  const questions = t.collection?.questions;
+  if (!Array.isArray(questions) || !questions.length || !questions.every((q) => typeof q === 'string' && q.trim())) fail('[collection] questions must be a list of questions');
+  const keys = Object.entries(t.summaries?.questions ?? {});
+  if (!keys.length || !keys.every(([k, q]) => /^[a-z][a-z0-9_]*$/.test(k) && typeof q === 'string')) fail('[summaries.questions] must map snake_case keys to questions');
+  const personas = Object.entries(t.summaries?.personas ?? {});
+  if (!personas.length || !personas.every(([k, v]) => /^[a-z][a-z0-9_]*$/.test(k) && typeof v === 'string' && v.trim())) fail('[summaries.personas] must map names to persona text');
+  for (const [where, v] of [['intro_and_consent', t.consent?.intro_and_consent], ['intro', t.collection?.intro], ['persona', t.collection?.persona], ...questions.map((q, i) => [`question ${i + 1}`, q])]) {
+    if (/\{[a-z_]+\}/.test(String(v ?? ''))) fail(`${where} uses a {placeholder}; the website does not fill any in`);
+  }
+  const num = (v, fallback, min, max) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback);
+  return {
+    phase,
+    key: text(m.key, '[myself] key'),
+    version: text(m.version, '[myself] version'),
+    name: text(m.name, '[myself] name', false),
+    approvalStatus: text(m.approval_status, '[myself] approval_status', false) || 'draft',
+    model: text(t.model, 'model'),
+    temperature: num(m.temperature, 0.7, 0, 1.5),
+    maxOutputTokens: num(m.max_output_tokens, 400, 50, 2000),
+    timeoutSeconds: num(m.timeout_seconds, 30, 5, 60),
+    maxAttempts: num(m.max_attempts, 3, 1, 5),
+    maxTurns: num(m.max_turns, 14, 2, 30),
+    minChars: num(m.min_chars, 2, 1, 50),
+    maxChars: num(m.max_chars, 2000, 100, 5000),
+    adaptBelowRating: num(m.adapt_below_rating, 10, 0, 10),
+    interview: {
+      persona: text(t.collection?.persona, '[collection] persona'),
+      languageStyle: text(t.collection?.language_type, '[collection] language_type', false),
+      topicRestriction: text(t.collection?.topic_restriction, '[collection] topic_restriction', false),
+      questions: questions.map((q) => q.trim()),
+    },
+    extractionKeys: keys.map(([key, question]) => ({ key, question: question.trim() })),
+    personas: personas.map(([key, value]) => ({ key, text: value.trim() })),
+    example: t.example?.conversation && t.example?.scenario ? { conversation: String(t.example.conversation).trim(), scenario: String(t.example.scenario).trim() } : null,
+    screens: {
+      introAndConsent: text(t.consent?.intro_and_consent, '[consent] intro_and_consent'),
+      intro: text(t.collection?.intro, '[collection] intro'),
+      outro: text(m.outro, '[myself] outro', false) || 'Great, I think I have what I need. Let me check I understood you.',
+      selectText: text(m.select_text, '[myself] select_text', false) || 'Pick the one that fits you best.',
+      selectLede: text(m.select_lede, '[myself] select_lede', false),
+      rateText: text(m.rate_text, '[myself] rate_text', false) || 'How close is this to what you want to say?',
+      rateLede: text(m.rate_lede, '[myself] rate_lede', false),
+      adaptText: text(m.adapt_text, '[myself] adapt_text', false) || 'What would you change about it?',
+      adaptLede: text(m.adapt_lede, '[myself] adapt_lede', false),
+      debriefText: text(m.debrief_text, '[myself] debrief_text', false) || 'Here is your story.',
+      debriefLede: text(m.debrief_lede, '[myself] debrief_lede', false),
+      fallbackText: text(m.fallback_text, '[myself] fallback_text', false) || 'Thank you, that is really helpful.',
+      characterName: text(m.character?.name, '[myself.character] name', false) || 'Sam',
+      characterAbout: Array.isArray(m.character?.about) ? m.character.about.filter((x) => typeof x === 'string') : [],
+      disclosure: (m.safeguarding ?? []).map((r) => r?.disclosure).find((d) => typeof d === 'string' && d.trim()) ?? '',
+    },
+    safeguarding: (m.safeguarding ?? []).filter((r) => r?.kind === 'lexicon' && Array.isArray(r.terms)).map((r) => ({ key: String(r.key), tier: String(r.tier ?? 'safeguarding_review'), terms: r.terms.map((x) => String(x).toLowerCase()) })),
+  };
+}
+
 const generated = {
   parentConsentForm: form(statements.parentConsentForm),
   childAssentForm: form(statements.childAssentForm),
@@ -106,11 +181,13 @@ const generated = {
   storyStructures: mystory.storyStructures,
   storyLimits: mystory.storyLimits,
   storyModes: mystory.labMyStory.phases,
+  // MyStory's AI chat, one MySelf protocol per phase (src/lab/mystory/<phase>.toml), checked here so a file that cannot run stops the build.
+  storyChats: Object.fromEntries(['pre', 'mid', 'post'].map((phase) => [phase, chatProtocol(phase)])),
   schools: schools.map((x) => ({ slug: x.slug, id: x.id, name: x.name, area: x.area })),
 };
 
 fs.mkdirSync(path.dirname(outFile), { recursive: true });
 fs.writeFileSync(outFile, `// Generated by scripts/generate-forms.mjs from consent-app/src. Do not edit; edit the app's config and rebuild.\nexport const generated = ${JSON.stringify(generated, null, 2)} as const;\n`);
 console.log(
-  `generated ${path.relative(process.cwd(), outFile)}: ${generated.parentConsentForm.id} ${generated.parentConsentForm.version}, ${generated.childAssentForm.id} ${generated.childAssentForm.version}, information ${generated.informationVersion}, ${generated.parentQuestionsForm.id} ${generated.parentQuestionsForm.version}, ${generated.parentMoreForm.id} ${generated.parentMoreForm.version}, ${generated.labConsentForm.id} ${generated.labConsentForm.version}, lab information ${generated.labInformationVersion}, ${generated.labCheckInForm.id} ${generated.labCheckInForm.version}, cleaner ${generated.cleaner.version}, ${Object.values(generated.storyStructures).map((x) => `${x.id} ${x.version}`).join(', ')}, ${generated.schools.length} schools`,
+  `generated ${path.relative(process.cwd(), outFile)}: ${generated.parentConsentForm.id} ${generated.parentConsentForm.version}, ${generated.childAssentForm.id} ${generated.childAssentForm.version}, information ${generated.informationVersion}, ${generated.parentQuestionsForm.id} ${generated.parentQuestionsForm.version}, ${generated.parentMoreForm.id} ${generated.parentMoreForm.version}, ${generated.labConsentForm.id} ${generated.labConsentForm.version}, lab information ${generated.labInformationVersion}, ${generated.labCheckInForm.id} ${generated.labCheckInForm.version}, cleaner ${generated.cleaner.version}, ${Object.values(generated.storyStructures).map((x) => `${x.id} ${x.version}`).join(', ')}, ${Object.values(generated.storyChats).map((x) => `${x.key} ${x.version}`).join(', ')}, ${generated.schools.length} schools`,
 );

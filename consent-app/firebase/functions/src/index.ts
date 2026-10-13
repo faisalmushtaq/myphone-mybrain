@@ -19,6 +19,7 @@ export { exportData, exportNow } from './export.js';
 export { labFollowUps, lookupLabParticipant, requestLabReminder, submitLabCheckIn, submitLabConsent, submitLabDonation, updateLabPlatforms } from './lab.js';
 export { bookLabSlot, cancelLabBooking, labBookingOptions, labMessages, labMessagesNow } from './booking.js';
 export { submitLabStory } from './story.js';
+export { labStoryChat } from './storyChat.js';
 export { schoolUpload } from './schoolUpload.js';
 export { staffApi } from './staff.js';
 export { purgeUsage, usage } from './usage.js';

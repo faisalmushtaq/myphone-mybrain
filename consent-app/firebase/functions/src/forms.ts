@@ -214,9 +214,34 @@ export interface StoryStructure {
 export const storyStructures = generated.storyStructures as unknown as Record<StoryPhase, StoryStructure>;
 export const storyLimits = { titleMax: generated.storyLimits.titleMax as number, storyMin: generated.storyLimits.storyMin as number, storyMax: generated.storyLimits.storyMax as number };
 
-export type StoryMode = { mode: 'native' } | { mode: 'link' | 'embed'; name: string; url: string; idParam: string; phaseParam: string | null };
+export type StoryMode = { mode: 'native' } | { mode: 'chat'; fallback: 'native' } | { mode: 'link' | 'embed'; name: string; url: string; idParam: string; phaseParam: string | null };
 /** How each phase's MyStory is collected: on this site, or by another survey given the participant ID. */
 export const storyModes = generated.storyModes as unknown as Record<StoryPhase, StoryMode>;
+
+/** One phase's MyStory chat protocol (a MySelf micro-narrative protocol, src/lab/mystory/<phase>.toml), as the build read it. */
+export interface ChatProtocol {
+  phase: StoryPhase;
+  key: string;
+  version: string;
+  name: string;
+  approvalStatus: string;
+  model: string;
+  temperature: number;
+  maxOutputTokens: number;
+  timeoutSeconds: number;
+  maxAttempts: number;
+  maxTurns: number;
+  minChars: number;
+  maxChars: number;
+  adaptBelowRating: number;
+  interview: { persona: string; languageStyle: string; topicRestriction: string; questions: string[] };
+  extractionKeys: { key: string; question: string }[];
+  personas: { key: string; text: string }[];
+  example: { conversation: string; scenario: string } | null;
+  screens: Record<'introAndConsent' | 'intro' | 'outro' | 'selectText' | 'selectLede' | 'rateText' | 'rateLede' | 'adaptText' | 'adaptLede' | 'debriefText' | 'debriefLede' | 'fallbackText' | 'characterName' | 'disclosure', string> & { characterAbout: string[] };
+  safeguarding: { key: string; tier: string; terms: string[] }[];
+}
+export const storyChats = generated.storyChats as unknown as Record<StoryPhase, ChatProtocol>;
 
 export interface SchoolEntry {
   slug: string;

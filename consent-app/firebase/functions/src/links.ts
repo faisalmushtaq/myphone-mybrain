@@ -40,7 +40,7 @@ const withCode = (path: string, code: string, extra: Record<string, string> = {}
 /** MyStory's address for one participant and phase; at the lab, on a shared computer. */
 export function storyLink(phase: StoryPhase, code: string, atLab = false): string {
   const mode = storyModes[phase];
-  if (mode.mode === 'native') return withCode(labPagePaths.story, code, atLab ? { phase, at: 'lab' } : { phase });
+  if (mode.mode === 'native' || mode.mode === 'chat') return withCode(labPagePaths.story, code, atLab ? { phase, at: 'lab' } : { phase });
   const url = new URL(mode.url);
   url.searchParams.set(mode.idParam, code);
   if (mode.phaseParam) url.searchParams.set(mode.phaseParam, phase);

@@ -1,7 +1,7 @@
 import type { DocumentData } from 'firebase-admin/firestore';
 import JSZip from 'jszip';
 import { jsonFile, jsonlFile, textFile, toTsv, tsvFile, type Doc, type OutFile, type Row } from './export.js';
-import { cleaner, labCheckInForm, labConsentForm, labStudy, storyStructures, type StoryPhase, type StorySignifier } from './forms.js';
+import { cleaner, labCheckInForm, labConsentForm, labStudy, storyChats, storyStructures, type StoryPhase, type StorySignifier } from './forms.js';
 
 /**
  * The social media break study's part of the hourly export: its own folder,
@@ -52,6 +52,8 @@ export interface LabSnapshot {
   checkIns: Doc[];
   /** MyStory (story.ts). */
   stories?: Doc[];
+  /** MyStory's AI chat conversations (storyChat.ts). */
+  storyChats?: Doc[];
   /** The lab visits and the contact details given when booking (booking.ts). */
   bookings?: Doc[];
   contacts?: Doc[];
@@ -189,7 +191,8 @@ export function labStoryColumns(phase: StoryPhase): string[] {
 /** One phase's stories: one row each, in time order, the signifiers spread over their columns. */
 export function labStoryTable(phase: StoryPhase, stories: Doc[]): Row[] {
   const structure = storyStructures[phase];
-  const mine = stories.filter((x) => x.data.phase === phase).sort((a, b) => String(a.data.participantCode).localeCompare(String(b.data.participantCode)) || String(a.data.receivedAt ?? '').localeCompare(String(b.data.receivedAt ?? '')));
+  // The chat's stories have their own table (labStoryChatTable).
+  const mine = stories.filter((x) => x.data.phase === phase && x.data.mode !== 'chat').sort((a, b) => String(a.data.participantCode).localeCompare(String(b.data.participantCode)) || String(a.data.receivedAt ?? '').localeCompare(String(b.data.receivedAt ?? '')));
   const counts = new Map<string, number>();
   return mine.map(({ id, data: d }) => {
     const code = String(d.participantCode);
@@ -208,6 +211,88 @@ export function labStoryTable(phase: StoryPhase, stories: Doc[]): Row[] {
     }
     return row;
   });
+}
+
+/* ── MyStory's AI chat ─────────────────────────────────────────────────── */
+
+export function labStoryChatColumns(phase: StoryPhase): string[] {
+  return ['participant_id', 'session_id', 'chat_id', 'story_id', 'started_at', 'finished_at', 'protocol', 'protocol_version', 'source', 'check_in_id', 'status', 'ending', 'turns', 'interview_closed', ...storyChats[phase].extractionKeys.map((k) => `said_${k.key}`), 'candidates_n', 'chosen_persona', 'rating', 'requests_n', 'edited', 'final_story', 'flags', 'model_calls', 'failed_calls', 'input_tokens', 'output_tokens'];
+}
+
+/** One phase's chat conversations, finished or not: one row each, the participant's own words by question, the retelling chosen, rated and corrected. */
+export function labStoryChatTable(phase: StoryPhase, chats: Doc[]): Row[] {
+  const p = storyChats[phase];
+  return chats
+    .filter((x) => x.data.phase === phase)
+    .sort((a, b) => String(a.data.participantCode).localeCompare(String(b.data.participantCode)) || String(a.data.startedAt ?? '').localeCompare(String(b.data.startedAt ?? '')))
+    .map(({ id, data: d }) => {
+      const candidates = (d.candidates ?? []) as { index: number; persona: string }[];
+      const calls = (d.calls ?? []) as { ok: boolean; inputTokens?: number; outputTokens?: number }[];
+      const row: Row = {
+        participant_id: labLabel(String(d.participantCode)),
+        session_id: PHASE_SESSION[phase],
+        chat_id: id,
+        story_id: d.storyId ?? null,
+        started_at: d.startedAt,
+        finished_at: d.finishedAt ?? null,
+        protocol: d.protocolKey,
+        protocol_version: d.protocolVersion,
+        source: d.source,
+        check_in_id: d.checkInId ?? null,
+        status: d.status,
+        ending: d.ending ?? (d.status === 'stopped' ? `stopped: ${d.fallback ?? ''}` : null),
+        turns: d.turns ?? 0,
+        interview_closed: d.interviewClosed ?? null,
+        candidates_n: candidates.length,
+        chosen_persona: candidates.find((c) => c.index === d.chosenIndex)?.persona ?? null,
+        rating: d.rating ?? null,
+        requests_n: ((d.requests ?? []) as unknown[]).length,
+        edited: ((d.edits ?? []) as unknown[]).length > 0,
+        final_story: d.status === 'done' ? d.finalScenario : null,
+        flags: ((d.flags ?? []) as { rule: string; tier: string }[]).map((f) => `${f.rule}:${f.tier}`).join(',') || null,
+        model_calls: calls.length,
+        failed_calls: calls.filter((c) => !c.ok).length,
+        input_tokens: calls.reduce((n, c) => n + (c.inputTokens ?? 0), 0),
+        output_tokens: calls.reduce((n, c) => n + (c.outputTokens ?? 0), 0),
+      };
+      const extraction = (d.extraction ?? {}) as Record<string, string | null>;
+      for (const k of p.extractionKeys) row[`said_${k.key}`] = extraction[k.key] ?? null;
+      return row;
+    });
+}
+
+export function labStoryChatDictionary(phase: StoryPhase): Record<string, unknown> {
+  const p = storyChats[phase];
+  const out: Record<string, unknown> = {
+    MeasurementToolMetadata: { Description: `MyStory's AI chat (${p.key} ${p.version}, ${p.model}): the MySelf micro-narrative protocol (Skeggs et al., CHI 2025, https://doi.org/10.1145/3706598.3713999). An AI interviewer asks the phase's questions one at a time; the answers are extracted in the participant's own words; ${p.personas.length} personas (${p.personas.map((x) => x.key).join(', ')}) each write a short retelling; the participant chooses one, rates how well it fits (0 to 10) and can edit it or ask for changes. The full conversations, every model call and every change are in sourcedata/raw/labStoryChats.jsonl.` },
+    participant_id: { Description: 'sub- followed by the participant ID' },
+    session_id: { Description: `${PHASE_SESSION[phase]}: the phase of the study` },
+    chat_id: { Description: 'Identifier of the conversation (sourcedata/raw/labStoryChats.jsonl)' },
+    story_id: { Description: 'The story filed at the end (sourcedata/raw/labStories.jsonl); empty if the conversation was not finished' },
+    started_at: { Description: 'When the conversation started (ISO 8601, UTC)' },
+    finished_at: { Description: 'When the story was filed' },
+    protocol: { Description: 'The protocol run (src/lab/mystory/<phase>.toml)' },
+    protocol_version: { Description: 'Its version' },
+    source: { Description: 'The page the chat was on' },
+    check_in_id: { Description: 'For a chat after a check-in: that check-in' },
+    status: { Description: 'Where the conversation got to', Levels: { interview: 'Left during the questions', choose: 'Left before choosing a retelling', rate: 'Left before rating', adapt: 'Left while changing it', done: 'Finished, story filed', stopped: 'The model could not carry on; the participant’s answers are kept' } },
+    ending: { Description: 'How it finished', Levels: { 'rated-full-marks': 'Rated 10: the chosen retelling kept as it was', kept: 'Kept after changes asked of the AI, or as it was', edited: 'The participant edited the words themselves', 'model-unavailable': 'The model failed; the participant’s own answers filed as the story' } },
+    turns: { Description: 'Replies the participant typed in the interview' },
+    interview_closed: { Description: 'What ended the questions', Levels: { model: 'The interviewer judged every question answered', turn_limit: 'The protocol’s turn limit' } },
+    candidates_n: { Description: 'Retellings offered' },
+    chosen_persona: { Description: 'The persona whose retelling was chosen', Levels: Object.fromEntries(p.personas.map((x) => [x.key, x.text.split('\n')[0]])) },
+    rating: { Description: 'How close the chosen retelling was to what they wanted to say, 0 (not at all) to 10 (exactly right)' },
+    requests_n: { Description: 'Changes asked of the AI' },
+    edited: { Description: 'Whether the participant edited the words themselves' },
+    final_story: { Description: 'The story as filed' },
+    flags: { Description: 'Safeguarding rules matched (rule:tier), for the team to review; nothing was shown to the participant' },
+    model_calls: { Description: 'Model calls made' },
+    failed_calls: { Description: 'Model calls that failed' },
+    input_tokens: { Description: 'Tokens sent to the model, all calls' },
+    output_tokens: { Description: 'Tokens returned by the model, all calls' },
+  };
+  for (const k of p.extractionKeys) out[`said_${k.key}`] = { Description: `${k.question} (extracted from the conversation in the participant's own words; empty if they did not say)` };
+  return out;
 }
 
 export function labStoryDictionary(phase: StoryPhase): Record<string, unknown> {
@@ -594,6 +679,11 @@ participants.tsv          one row per participant with consent on file:
 phenotype/checkin.tsv     the mid-break check-ins: one row per check-in, one
                           column per question, with checkin.json describing
                           each question and its answers
+phenotype/mystory_chat_<phase>.tsv   MyStory's AI chat: one row per conversation
+                          (the answers in the participant's own words, the
+                          retelling chosen, its rating, changes, the story
+                          filed), with the full conversations in
+                          sourcedata/raw/labStoryChats.jsonl
 phenotype/mystory_<phase>.tsv   MyStory: one row per story (the prompt chosen,
                           title, story, and the questions placing it: a
                           triangle's three shares, sliders from 0 to 100,
@@ -745,6 +835,7 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     jsonlFile(`${B}/sourcedata/raw/labDonations.jsonl`, snap.donations),
     jsonlFile(`${B}/sourcedata/raw/labCheckIns.jsonl`, snap.checkIns),
     jsonlFile(`${B}/sourcedata/raw/labStories.jsonl`, snap.stories ?? []),
+    jsonlFile(`${B}/sourcedata/raw/labStoryChats.jsonl`, snap.storyChats ?? []),
     textFile(`${I}/README.md`, LAB_IDENTIFYING_README, 'text/markdown; charset=utf-8'),
     jsonlFile(`${I}/raw/consents.jsonl`, snap.consents),
     jsonlFile(`${I}/raw/bookings.jsonl`, snap.bookings ?? []),
@@ -758,6 +849,7 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
   ];
   for (const phase of LAB_PHASES) {
     files.push(tsvFile(`${B}/phenotype/mystory_${phase}.tsv`, labStoryTable(phase, snap.stories ?? []), labStoryColumns(phase)), jsonFile(`${B}/phenotype/mystory_${phase}.json`, labStoryDictionary(phase)));
+    files.push(tsvFile(`${B}/phenotype/mystory_chat_${phase}.tsv`, labStoryChatTable(phase, snap.storyChats ?? []), labStoryChatColumns(phase)), jsonFile(`${B}/phenotype/mystory_chat_${phase}.json`, labStoryChatDictionary(phase)));
   }
   const { records, statements } = labConsentTables(snap.consents);
   files.push(tsvFile(`${I}/consents.tsv`, records), tsvFile(`${I}/consent_statements.tsv`, statements));
@@ -809,6 +901,7 @@ export function labExport(snap: LabSnapshot, exportedAt: string): { files: OutFi
     labSignatures: snap.consents.filter((c) => typeof c.data.signature?.image?.path === 'string').length,
     labCheckIns: snap.checkIns.length,
     labStories: (snap.stories ?? []).length,
+    labStoryChats: (snap.storyChats ?? []).length,
     labBookings: (snap.bookings ?? []).filter((b) => b.data.status !== 'cancelled').length,
   };
   return { files, copies, derived, counts };

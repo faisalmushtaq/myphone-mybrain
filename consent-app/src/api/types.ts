@@ -280,6 +280,57 @@ export interface LabStoryResult {
   receivedAt: string;
 }
 
+/** MyStory's AI chat (firebase/functions/src/storyChat.ts): one step of the conversation. */
+export type LabStoryChatRequest =
+  | { action: 'start'; participantCode: string; phase: LabPhase; source: LabStoryPayload['source']; checkInId: string | null; client: ClientInfo }
+  | { action: 'reply'; chatId: string; text: string }
+  | { action: 'choose'; chatId: string; index: number }
+  | { action: 'rate'; chatId: string; rating: number }
+  | { action: 'adapt'; chatId: string; request: string; story: string }
+  | { action: 'finish'; chatId: string; story: string };
+
+/** The words on screen come from the phase's protocol file (src/lab/mystory/<phase>.toml). */
+export interface StoryChatScreens {
+  introAndConsent: string;
+  intro: string;
+  outro: string;
+  selectText: string;
+  selectLede: string;
+  rateText: string;
+  rateLede: string;
+  adaptText: string;
+  adaptLede: string;
+  debriefText: string;
+  debriefLede: string;
+  fallbackText: string;
+  characterName: string;
+  characterAbout: string[];
+  disclosure: string;
+  questionCount: number;
+  maxChars: number;
+  minChars: number;
+}
+
+export interface LabStoryChatResponse {
+  /** Start only: false when the chat is not set up (no key stored) or could not begin; the page then offers MyStory's own form. */
+  available?: boolean;
+  chatId?: string;
+  protocol?: { key: string; version: string };
+  screens?: StoryChatScreens;
+  stage?: 'interview' | 'choose' | 'rate' | 'adapt' | 'done' | 'stopped';
+  reply?: string;
+  again?: boolean;
+  candidates?: { index: number; text: string }[];
+  story?: string | null;
+  unchanged?: boolean;
+  failed?: boolean;
+  limit?: boolean;
+  needsRequest?: boolean;
+  text?: string;
+  storyId?: string | null;
+  receivedAt?: string;
+}
+
 export interface LabUploadMeta {
   kind: 'archive' | 'screenshot';
   name: string;
@@ -433,6 +484,7 @@ export interface ConsentApi {
   /** Cancels the visits named, or, with none named, every visit still to come. */
   cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingIds?: string[] | null }): Promise<LabCancelResult>;
   submitLabStory(session: SessionInfo, payload: LabStoryPayload): Promise<LabStoryResult>;
+  labStoryChat(session: SessionInfo, request: LabStoryChatRequest): Promise<LabStoryChatResponse>;
   /** The staff page and the schools' upload page: one callable each, with an action (firebase/functions/src/staff.ts, schoolUpload.ts). */
   callTool<Res>(session: SessionInfo, name: 'staffApi' | 'schoolUpload', payload: Record<string, unknown>): Promise<Res>;
 }
