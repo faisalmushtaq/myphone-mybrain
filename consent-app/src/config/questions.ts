@@ -32,8 +32,11 @@ export interface ChoiceQuestion extends QuestionBase {
   options: QuestionOption[];
   /** Short answers (such as ages) laid out in a grid of small buttons; longer ones keep a full row. */
   compact?: boolean;
-  /** An age question: ages older than the young person is now are not offered (15 October 2026). */
-  ages?: boolean;
+  /**
+   * An age question (15 October 2026). 'past' (when something happened): no age older than the young person is now. 'future' (when
+   * something will happen): no age younger than they are now.
+   */
+  ages?: 'past' | 'future';
 }
 
 /** More than one answer can be chosen; the value is the chosen values joined by ";". "I don't know" ('unsure') stands alone. */
@@ -175,7 +178,7 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
       text: 'How old was {child} when they got their own smartphone?',
       emphasis: 'their own smartphone',
       compact: true,
-      ages: true,
+      ages: 'past',
       options: [
         { value: 'under-5', label: 'Under 5' },
         ...['5', '6', '7', '8', '9', '10', '11', '12', '13', '14'].map((age) => ({ value: age, label: age })),
@@ -193,7 +196,7 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
       text: 'How old was {child} when they started using social media, like TikTok, Snapchat, Instagram or YouTube?',
       emphasis: 'social media',
       compact: true,
-      ages: true,
+      ages: 'past',
       options: [
         { value: 'under-8', label: 'Under 8' },
         ...['8', '9', '10', '11', '12', '13', '14'].map((age) => ({ value: age, label: age })),
@@ -337,6 +340,7 @@ export const parentNoPhoneForm: { id: string; version: string; draft: boolean; q
       label: 'Age they will get one',
       text: 'How old do you think {child} will be when they get their own phone?',
       compact: true,
+      ages: 'future',
       options: [
         ...['11', '12', '13', '14', '15'].map((age) => ({ value: age, label: age })),
         { value: '16-plus', label: '16 or older' },
@@ -422,12 +426,17 @@ export const parentQuestionOrder: { id: string; topic: string }[] = [
   { id: 'anything-else', topic: 'Anything else' },
 ];
 
-/** The options for a question, without ages older than the young person is now when it is an age question (and their age is known). */
+/**
+ * The options for an age question, given the young person's age now (all of them when it is not known): for when something happened,
+ * no age older than they are; for when something will happen, no age younger than they are. "Under …", "… or older" where it still
+ * fits, "They don't use it" and "I don't know" always stay.
+ */
 export function optionsFor(q: ChoiceQuestion, age: number | null): QuestionOption[] {
   if (!q.ages || age === null) return q.options;
   return q.options.filter((o) => {
-    if (/^\d+$/.test(o.value)) return Number(o.value) <= age;
-    if (/^\d+-plus$/.test(o.value)) return age >= Number(o.value.split('-')[0]);
+    const plus = /^(\d+)-plus$/.exec(o.value);
+    if (/^\d+$/.test(o.value)) return q.ages === 'past' ? Number(o.value) <= age : Number(o.value) >= age;
+    if (plus) return q.ages === 'past' ? age >= Number(plus[1]) : true;
     return true;
   });
 }

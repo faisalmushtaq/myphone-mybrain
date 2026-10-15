@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { optionsFor, parentMoreForm, parentQuestionOrder, parentQuestionsForm, type ChoiceQuestion } from './questions';
+import { optionsFor, parentMoreForm, parentNoPhoneForm, parentQuestionOrder, parentQuestionsForm, type ChoiceQuestion } from './questions';
 
 const q = (id: string) => parentMoreForm.questions.find((x) => x.id === id) as ChoiceQuestion;
 
@@ -14,6 +14,10 @@ describe('the parent’s questions as one set (15 October 2026)', () => {
     expect(optionsFor(q('own-phone-age'), 16).map((o) => o.value)).toContain('15-plus');
     expect(optionsFor(q('social-media-age'), 11).map((o) => o.value)).toEqual(['under-8', '8', '9', '10', '11', 'none', 'unsure']);
     expect(optionsFor(q('own-phone-age'), null)).toEqual(q('own-phone-age').options);
+    // When they will get a phone: nothing younger than they are now.
+    const expected = parentNoPhoneForm.questions.find((x) => x.id === 'expected-age') as ChoiceQuestion;
+    expect(optionsFor(expected, 13).map((o) => o.value)).toEqual(['13', '14', '15', '16-plus', 'unsure']);
+    expect(optionsFor(expected, 11).map((o) => o.value)).toEqual(['11', '12', '13', '14', '15', '16-plus', 'unsure']);
   });
 
   it('the order names every question once: facts first, the open question last', () => {

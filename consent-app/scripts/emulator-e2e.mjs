@@ -677,6 +677,7 @@ async function inner() {
     await page.getByRole('button', { name: 'We think they’re too young' }).click();
     await page.getByRole('button', { name: 'Next', exact: true }).click();
     await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of 8' }).waitFor();
+    ok('when Ivy (12) will get a phone offers no age younger than Ivy is now', (await page.getByRole('button', { name: '11', exact: true }).count()) === 0 && (await page.getByRole('button', { name: '12', exact: true }).count()) === 1 && (await page.getByRole('button', { name: '16 or older', exact: true }).count()) === 1);
     await page.getByRole('button', { name: '13', exact: true }).click();
     await page.locator('.mpmb-quiz__count', { hasText: 'Question 3 of 8' }).waitFor();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
