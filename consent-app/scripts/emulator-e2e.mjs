@@ -268,7 +268,7 @@ async function inner() {
     await step(3, async () => ok('then time and apps, with “on their phone” marked', (await page.locator('.mpmb-quiz__count').textContent()).startsWith('Time and apps') && (await page.locator('.mpmb-quiz__em').textContent()) === 'on their phone'));
     await pass();
     await step(4, pass);
-    await step(5, () => tap('1 to 2 hours'));
+    await step(5, () => tap('More than 1, up to 2 hours'));
     await step(6, async () => undefined);
     let partWay = null;
     let partWayId = null;
@@ -348,7 +348,7 @@ async function inner() {
     const surveys = await db.collection('surveys').where('participantId', '==', submission.participantId).get();
     const quick = surveys.docs.filter((doc) => doc.data().formId === 'mpmb-parent-perceptions');
     const more = surveys.docs.filter((doc) => doc.data().formId === 'mpmb-parent-phone-use');
-    ok('parent’s longer questions kept in their own record, answered in the same set as the quick ones', more.length === 1 && more[0].id === submission.moreSurveyId && more[0].data().status === 'completed' && more[0].data().responses?.['own-phone-age']?.value === '12' && more[0].data().responses?.['social-media-age']?.value === '11' && more[0].data().formVersion === '0.6-draft', JSON.stringify({ n: more.length, id: submission.moreSurveyId ?? null }));
+    ok('parent’s longer questions kept in their own record, answered in the same set as the quick ones', more.length === 1 && more[0].id === submission.moreSurveyId && more[0].data().status === 'completed' && more[0].data().responses?.['own-phone-age']?.value === '12' && more[0].data().responses?.['social-media-age']?.value === '11' && more[0].data().formVersion === '0.7-draft', JSON.stringify({ n: more.length, id: submission.moreSurveyId ?? null }));
     ok('parent’s questions stored as research data without names, in one record that the answers filled as they came', survey && !JSON.stringify(survey).includes('Patel') && survey.status === 'completed' && survey.responses?.concern?.value === 'somewhat' && survey.responses?.['anything-else']?.value === 'Mostly YouTube, often late at night.' && survey.responses?.['social-media-time']?.value === '1-2' && Object.keys(survey.responses).length === 5 && survey.version === submission.version && quick.length === 1 && submission.surveyId === partWayId && quick[0].id === submission.surveyId, JSON.stringify({ version: survey?.version, n: quick.length, same: submission.surveyId === partWayId }));
     const donation = (await db.collection('donations').doc(submission.donationIds[0]).get()).data();
     ok('donation record has no names, carries the agreement and quality checks', donation && !JSON.stringify(donation).includes('Patel') && donation.images.length === 2 && donation.images[0].redacted === true && donation.agreement?.via === 'action' && ['accepted', 'review'].includes(donation.images[0].quality?.verdict));
@@ -623,7 +623,7 @@ async function inner() {
     ok('the longer questions ask when they started on social media, in plain words, naming the apps', (await page.getByRole('heading', { name: /How old was Lily when they started using social media, like TikTok/ }).count()) === 1);
     await page.getByRole('button', { name: '11', exact: true }).click();
     await page.locator('.mpmb-quiz__count', { hasText: 'Question 3 of 14' }).waitFor();
-    await page.getByRole('button', { name: '3 to 4 hours', exact: true }).click();
+    await page.getByRole('button', { name: 'More than 3, up to 4 hours', exact: true }).click();
     await page.locator('.mpmb-quiz__count', { hasText: 'Question 4 of 14' }).waitFor();
     await page.getByRole('button', { name: 'Skip this question' }).click();
     await page.locator('.mpmb-quiz__count', { hasText: 'Question 5 of 14' }).waitFor();
@@ -645,7 +645,7 @@ async function inner() {
     const noConsent = no?.consentId ? (await db.collection('consents').doc(no.consentId).get()).data() : null;
     const noMore = no?.moreSurveyId ? (await db.collection('surveys').doc(no.moreSurveyId).get()).data() : null;
     const noAssent = no?.assentId ? (await db.collection('assents').doc(no.assentId).get()).data() : null;
-    ok('after the parent’s no: no screen time, no agreement asked of the young person, and the longer answers kept, apps and all', no?.phoneSource === 'none' && no?.selfConsent === false && !noConsent?.responses?.['phone-use'] && noAssent?.status === 'not-started' && noMore?.formId === 'mpmb-parent-phone-use' && noMore?.formVersion === '0.6-draft' && noMore?.responses?.['own-phone-age']?.value === '12' && noMore?.responses?.['social-media-age']?.value === '11' && noMore?.responses?.['school-day-time']?.value === '3-4' && noMore?.responses?.['top-app']?.value === 'tiktok;youtube' && !noMore?.responses?.['weekend-time'] && !JSON.stringify(noMore).includes('Brown'), JSON.stringify({ phoneSource: no?.phoneSource, more: noMore?.responses }));
+    ok('after the parent’s no: no screen time, no agreement asked of the young person, and the longer answers kept, apps and all', no?.phoneSource === 'none' && no?.selfConsent === false && !noConsent?.responses?.['phone-use'] && noAssent?.status === 'not-started' && noMore?.formId === 'mpmb-parent-phone-use' && noMore?.formVersion === '0.7-draft' && noMore?.responses?.['own-phone-age']?.value === '12' && noMore?.responses?.['social-media-age']?.value === '11' && noMore?.responses?.['school-day-time']?.value === '3-4' && noMore?.responses?.['top-app']?.value === 'tiktok;youtube' && !noMore?.responses?.['weekend-time'] && !JSON.stringify(noMore).includes('Brown'), JSON.stringify({ phoneSource: no?.phoneSource, more: noMore?.responses }));
     await page.getByRole('button', { name: /Everything is right/ }).click();
     await page.getByRole('heading', { name: 'Would you share Lily’s screen time after all?' }).waitFor();
     ok('one last prompt after the parent’s no, which can stay a no', (await page.getByRole('button', { name: 'Yes, share it' }).count()) === 1);

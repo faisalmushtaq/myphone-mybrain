@@ -59,8 +59,9 @@ export const multiValues = (value: string | undefined): string[] => (value ? val
 
 export const parentQuestionsForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-perceptions',
+  // 0.4: the social media hours do not overlap (15 October 2026).
   // 0.3: one question about social media (8 October 2026).
-  version: '0.3-draft',
+  version: '0.4-draft',
   draft: true,
   questions: [
     {
@@ -108,16 +109,17 @@ export const parentQuestionsForm: { id: string; version: string; draft: boolean;
     },
     {
       id: 'social-media-time',
-      version: '0.1-draft',
+      // 0.2: answers that do not overlap ("More than 1, up to 2 hours"), so 2 hours has one place (15 October 2026).
+      version: '0.2-draft',
       type: 'choice',
       label: 'Time on social media',
       text: 'On a normal day, how long is {child} on social media, like TikTok, Snapchat, Instagram or YouTube?',
       emphasis: 'social media',
       options: [
         { value: 'none', label: 'They don’t use it' },
-        { value: 'under-1', label: 'Less than 1 hour' },
-        { value: '1-2', label: '1 to 2 hours' },
-        { value: '2-4', label: '2 to 4 hours' },
+        { value: 'under-1', label: 'Up to 1 hour' },
+        { value: '1-2', label: 'More than 1, up to 2 hours' },
+        { value: '2-4', label: 'More than 2, up to 4 hours' },
         { value: 'over-4', label: 'More than 4 hours' },
         { value: 'unsure', label: 'I don’t know' },
       ],
@@ -135,12 +137,13 @@ export const parentQuestionsForm: { id: string; version: string; draft: boolean;
 };
 
 const dontKnow = { value: 'unsure', label: 'I don’t know' };
+/** Hours that do not overlap (15 October 2026): each answer is "more than" the one before and "up to" its own, so 2 hours has one place. */
 const hours = [
-  { value: 'under-1', label: 'Less than 1 hour' },
-  { value: '1-2', label: '1 to 2 hours' },
-  { value: '2-3', label: '2 to 3 hours' },
-  { value: '3-4', label: '3 to 4 hours' },
-  { value: '4-6', label: '4 to 6 hours' },
+  { value: 'under-1', label: 'Up to 1 hour' },
+  { value: '1-2', label: 'More than 1, up to 2 hours' },
+  { value: '2-3', label: 'More than 2, up to 3 hours' },
+  { value: '3-4', label: 'More than 3, up to 4 hours' },
+  { value: '4-6', label: 'More than 4, up to 6 hours' },
   { value: 'over-6', label: 'More than 6 hours' },
   dontKnow,
 ];
@@ -161,11 +164,12 @@ const hours = [
  */
 export const parentMoreForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-phone-use',
+  // 0.7: the hours do not overlap (15 October 2026).
   // 0.6: the social media question names the apps (15 October 2026).
   // 0.5: the age at their own smartphone without "They don't have their own" (9 October 2026).
   // 0.4: when they started on social media (8 October 2026).
   // 0.3: without the questions the quick questions already ask (8 October 2026): the effect on sleep ("gets in the way of sleep, schoolwork or family time"), good or bad overall ("how concerned are you"), and a second "anything else".
-  version: '0.6-draft',
+  version: '0.7-draft',
   draft: true,
   questions: [
     {
@@ -205,8 +209,8 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
         { value: 'unsure', label: 'I can’t remember / I don’t know' },
       ],
     },
-    { id: 'school-day-time', version: '0.1-draft', type: 'choice', topic: 'Time and apps', label: 'Time on a school day', text: 'On a school day, roughly how long is {child} on their phone, outside school hours?', emphasis: 'on their phone', options: hours },
-    { id: 'weekend-time', version: '0.1-draft', type: 'choice', topic: 'Time and apps', label: 'Time on a weekend day', text: 'On a weekend day, roughly how long is {child} on their phone?', emphasis: 'on their phone', options: hours },
+    { id: 'school-day-time', version: '0.2-draft', type: 'choice', topic: 'Time and apps', label: 'Time on a school day', text: 'On a school day, roughly how long is {child} on their phone, outside school hours?', emphasis: 'on their phone', options: hours },
+    { id: 'weekend-time', version: '0.2-draft', type: 'choice', topic: 'Time and apps', label: 'Time on a weekend day', text: 'On a weekend day, roughly how long is {child} on their phone?', emphasis: 'on their phone', options: hours },
     {
       id: 'top-app',
       version: '0.2-draft',
