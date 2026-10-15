@@ -164,12 +164,13 @@ const hours = [
  */
 export const parentMoreForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-phone-use',
+  // 0.8: how often they use AI chatbots (15 October 2026).
   // 0.7: the hours do not overlap (15 October 2026).
   // 0.6: the social media question names the apps (15 October 2026).
   // 0.5: the age at their own smartphone without "They don't have their own" (9 October 2026).
   // 0.4: when they started on social media (8 October 2026).
   // 0.3: without the questions the quick questions already ask (8 October 2026): the effect on sleep ("gets in the way of sleep, schoolwork or family time"), good or bad overall ("how concerned are you"), and a second "anything else".
-  version: '0.7-draft',
+  version: '0.8-draft',
   draft: true,
   questions: [
     {
@@ -227,6 +228,23 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
         { value: 'whatsapp', label: 'WhatsApp' },
         { value: 'games', label: 'Games' },
         { value: 'other', label: 'Something else' },
+        dontKnow,
+      ],
+    },
+    {
+      id: 'ai-use',
+      version: '0.1-draft',
+      type: 'choice',
+      topic: 'Time and apps',
+      label: 'AI chatbot use',
+      text: 'How often does {child} use AI chatbots, like ChatGPT, My AI on Snapchat, Gemini or Copilot?',
+      emphasis: 'AI chatbots',
+      options: [
+        { value: 'never', label: 'Never' },
+        { value: 'less-than-weekly', label: 'Less than once a week' },
+        { value: 'weekly', label: 'Once or a few times a week' },
+        { value: 'daily', label: 'Most days' },
+        { value: 'several-daily', label: 'Several times a day' },
         dontKnow,
       ],
     },
@@ -420,6 +438,7 @@ export const parentQuestionOrder: { id: string; topic: string }[] = [
   { id: 'weekend-time', topic: 'Time and apps' },
   { id: 'social-media-time', topic: 'Time and apps' },
   { id: 'top-app', topic: 'Time and apps' },
+  { id: 'ai-use', topic: 'Time and apps' },
   { id: 'compared-peers', topic: 'Time and apps' },
   { id: 'phone-in-bedroom', topic: 'Night-time and sleep' },
   { id: 'after-bedtime', topic: 'Night-time and sleep' },

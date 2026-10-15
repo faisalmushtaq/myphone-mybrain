@@ -249,7 +249,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
             </div>
             <div className="mpmb-quiz__next">
               <Button variant="primary" arrow onClick={advance}>
-                {last ? 'Finish' : 'Next'}
+                {last ? 'Continue' : 'Next'}
               </Button>
             </div>
           </>
@@ -263,7 +263,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
               {q.maxLength - draft.length} characters left
             </p>
             <Button variant="primary" arrow onClick={submitText}>
-              {last ? 'Finish' : 'Next'}
+              {last ? 'Continue' : 'Next'}
             </Button>
           </div>
         )}
@@ -274,7 +274,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
             </Button>
           )}
           <Button variant="link" onClick={skipQuestion}>
-            {last ? 'Skip this one and finish' : 'Skip this question'}
+            {last ? 'Skip this one and continue' : 'Skip this question'}
           </Button>
         </div>
       </div>
