@@ -278,6 +278,9 @@ async function inner() {
     ok('on the young person’s route the parent says yes from Kai’s phone, or no; never from the parent’s own phone', (await page.locator('#phone-source-child').count()) === 1 && (await page.locator('#phone-source-none').count()) === 1 && (await page.locator('#phone-source-parent').count()) === 0);
     await page.locator('#phone-source-child').check();
     await page.getByRole('button', { name: 'Continue' }).click();
+    // Back to Kai, who started the form (14 October 2026): passing the phone, or sending Kai their own link, with nothing to sign in.
+    await page.locator('.mpmb-handover__link .mpmb-carryon__url').waitFor({ timeout: 60000 });
+    ok('handing back to the young person also offers their own link, which needs no birthday', /\?finish=MPMB-.*&for=young&k=[A-Za-z0-9_-]{22}$/.test((await page.locator('.mpmb-handover__link .mpmb-carryon__url').innerText()).trim()) && (await page.getByText(/Kai not with you\?/).count()) === 1 && (await page.getByRole('button', { name: 'I’ve sent it: finish my part' }).count()) === 1);
     await page.getByRole('button', { name: /I’m Kai/ }).click();
     await page.getByRole('heading', { name: /Do you want to share your screen time/ }).waitFor();
     await draw(page.locator('#assent-signature'), [[0.2, 0.6], [0.5, 0.35], [0.8, 0.6]]);
@@ -503,27 +506,38 @@ async function inner() {
     ok('after the parent’s part, sending Noah his link comes first; passing the phone is the second option', (await page.getByRole('button', { name: 'Noah is with me: pass them this phone' }).count()) === 1);
     await page.locator('.mpmb-handover__link .mpmb-carryon__url').waitFor({ timeout: 60000 });
     const handoverLink = (await page.locator('.mpmb-handover__link .mpmb-carryon__url').innerText()).trim();
-    ok('the handover gives a link to send Noah, to do his part on his own phone, by WhatsApp, text, email or copy', /\?finish=MPMB-.*&for=young$/.test(handoverLink) && (await page.getByRole('link', { name: 'WhatsApp' }).count()) === 1 && (await page.getByRole('link', { name: 'Text message' }).count()) === 1 && (await page.getByRole('button', { name: 'Copy the link' }).count()) === 1);
+    ok('the handover gives a link to send Noah, to do his part on his own phone, by WhatsApp, text, email or copy', /\?finish=MPMB-.*&for=young&k=[A-Za-z0-9_-]{22}$/.test(handoverLink) && (await page.getByText(/It is just for Noah: please send it only to them/).count()) === 1 && (await page.getByRole('link', { name: 'WhatsApp' }).count()) === 1 && (await page.getByRole('link', { name: 'Text message' }).count()) === 1 && (await page.getByRole('button', { name: 'Copy the link' }).count()) === 1);
     await page.getByRole('button', { name: 'I’ve sent it: finish my part' }).click();
     await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
     ok('after sending the link the parent finishes straight away: Noah can still do his part with it', (await page.getByText(/Some more questions about Noah/).count()) === 0);
     await page.locator('.mpmb-save', { hasText: 'Everything so far is saved.' }).waitFor({ timeout: 60000 });
     const noahCode = (await page.locator('.mpmb-save strong').innerText()).trim();
-    ok('the link sent is Noah’s own, for this record', handoverLink.endsWith(`?finish=${noahCode}&for=young`));
+    ok('the link sent is Noah’s own, for this record, with a key only its hash is kept of', handoverLink.includes(`?finish=${noahCode}&for=young&k=`) && /^[0-9a-f]{64}$/.test((await db.collection('submissions').doc(noahCode).get()).data()?.youngLinkHash ?? '') && !JSON.stringify((await db.collection('submissions').doc(noahCode).get()).data()).includes(handoverLink.split('&k=')[1]));
     await page.getByRole('button', { name: /Everything is right/ }).click();
     await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor({ timeout: 30000 });
     const carryOnUrl = (await page.locator('.mpmb-carryon__url').innerText()).trim();
-    ok('the thank-you page gives the link to finish, asking for it as soon as possible (never “later” or “after the workshop”)', carryOnUrl.endsWith(`?finish=${noahCode}&for=young`) && (await page.getByText(/Noah still has their part to do\. Nothing from Noah’s phone has been sent yet\. Please ask them to do it as soon as possible/).count()) === 1 && (await page.getByText(/the team will send|after the workshop/).count()) === 0, carryOnUrl);
+    ok('the thank-you page gives the link to finish, asking for it as soon as possible (never “later” or “after the workshop”)', carryOnUrl === handoverLink && (await page.getByText(/Noah still has their part to do\. Nothing from Noah’s phone has been sent yet\. Please ask them to do it as soon as possible/).count()) === 1 && (await page.getByText(/the team will send|after the workshop/).count()) === 0, carryOnUrl);
     const noahBefore = (await db.collection('submissions').doc(noahCode).get()).data();
     const laterDevice = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const noahPage = await laterDevice.newPage();
     noahPage.on('pageerror', (e) => errors.push(e.message));
     // The plain link (from the FAQ, or with the reference) still opens "Carry on" for a parent.
-    await noahPage.goto(carryOnUrl.replace('&for=young', ''));
+    await noahPage.goto(carryOnUrl.replace(/&for=young.*$/, ''));
     await noahPage.getByRole('heading', { name: 'Carry on with your reference.' }).waitFor({ timeout: 30000 });
     ok('the plain link opens “Carry on” with the reference filled in, and leaves the address bar', (await noahPage.getByLabel('Your reference').inputValue()) === noahCode && !noahPage.url().includes('finish='), noahPage.url());
-    // Noah's own link, on his own phone: it speaks to him, asks only his birthday, and goes straight to his part.
+    // Noah's own link, on his own phone, opens his part with nothing to type (14 October 2026), and the key leaves the address bar.
     await noahPage.goto(carryOnUrl);
+    await noahPage.getByRole('heading', { name: /Do you want to share your screen time/ }).waitFor({ timeout: 30000 });
+    ok('Noah’s own link opens his part straight away: no birthday, no reference, nothing to sign in, and the key gone from the address', (await noahPage.getByLabel('Your date of birth').count()) === 0 && !noahPage.url().includes('k=') && !noahPage.url().includes('finish='), noahPage.url());
+    // A link whose key is not this record's asks for the birthday instead.
+    await noahPage.goto(carryOnUrl.replace(/&k=.*$/, '&k=AAAAAAAAAAAAAAAAAAAAAA'));
+    await noahPage.getByText(/This link didn’t open your part/).first().waitFor({ timeout: 30000 });
+    ok('a link with the wrong key opens nothing, and falls back to the birthday', (await noahPage.getByLabel('Your date of birth').count()) === 1);
+    await laterDevice.clearCookies();
+    await noahPage.evaluate(() => localStorage.clear());
+    await db.collection('submissions').doc(noahCode).set({ resumeFailures: 0 }, { merge: true });
+    // The link with no key (as sent before 14 October): it speaks to him, asks only his birthday, and goes straight to his part.
+    await noahPage.goto(carryOnUrl.replace(/&k=.*$/, ''));
     await noahPage.getByRole('heading', { name: 'Hi! It’s your turn.' }).waitFor({ timeout: 30000 });
     ok('Noah’s link opens his part: only his birthday asked, the reference already in', (await noahPage.getByLabel('Your reference').count()) === 0 && (await noahPage.getByText(`Reference ${noahCode}.`).count()) === 1 && !noahPage.url().includes('finish='));
     await noahPage.getByLabel('Your date of birth').fill('2013-03-15');
@@ -821,7 +835,7 @@ async function inner() {
     ok('lab consent recorded against the participant code', Boolean(labParticipant?.consentId) && labParticipant?.consentVersion === 1 && labParticipant?.archiveCount === 0);
     const labConsent = labParticipant?.consentId ? (await db.collection('labConsents').doc(labParticipant.consentId).get()).data() : null;
     const signUpContact = (await db.collection('labContacts').doc('MP2670FF90A5F2').get()).data();
-    ok('the mobile number from sign-up is kept with the contact details (international form, texts on), not in the consent', signUpContact?.mobile === '+447700900123' && signUpContact?.smsReminders === true && !signUpContact?.email && !JSON.stringify(labConsent ?? {}).includes('7700'), JSON.stringify(signUpContact));
+    ok('the mobile number from sign-up is kept with the contact details (international form, texts on), not in the consent', signUpContact?.mobile === '+447700900123' && signUpContact?.smsReminders === true && !signUpContact?.email && !/7700 ?900 ?123/.test(JSON.stringify(labConsent ?? {})), JSON.stringify(signUpContact));
     ok('lab consent record complete, every statement agreed, drawn signature under signatures/lab/', labConsent?.typedName === 'Jane Smith' && Object.keys(labConsent?.responses ?? {}).length === 9 && labConsent?.responses?.['data-kept']?.response === 'agreed' && labConsent?.responses?.['link-records']?.response === 'declined' && labConsent?.signature?.image?.path?.startsWith('signatures/lab/MP2670FF90A5F2/') && labConsent?.formVersion === '2.1-draft' && labConsent?.informationVersion === '2.2');
     ok('the four details are kept with the consent, tidied, and the ID is the documented one', labConsent?.codeParts?.firstName === 'Jane' && labConsent?.codeParts?.lastName === 'Smith' && labConsent?.codeParts?.dateOfBirth === '2005-03-14' && labConsent?.codeParts?.postcode === 'LS2 9JT' && labConsent?.participantCode === 'MP2670FF90A5F2', JSON.stringify(labConsent?.codeParts));
     ok('the participant row carries no name', !JSON.stringify(labParticipant).includes('Jane'));

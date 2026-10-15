@@ -61,13 +61,15 @@ they are all in, the ethics forms get **one master update**;
 | The age at their own smartphone goes down to **Under 5**, year by year, with **"I can't remember / I don't know"**; **more than one app** can be chosen as the ones used most. | `parentMoreForm` (`mpmb-parent-phone-use 0.2-draft`); multi-answer questions in `src/steps/ParentQuestions.tsx`, `validate.ts` and the export's data dictionary |
 | The approved information sheet is **on the website** (`/information/`; the first address, `/information-sheet/`, redirects there), brought up to date with these decisions, with a section on **how taking part works**: the workshop and linking are opt-out (by email), the young person decides on the day, and screen time is opt-in online. Linked from the families page, every school's page, the privacy page, the footer, the FAQ and the form. | `information.md`; `content-placeholders.md` lists where it differs from the approved documents |
 | **No separate route for concerns or complaints** anywhere (the "independent of the study" paragraph is gone from the form, the thank-you page, the PDF and the site). | `src/config/copy.ts` (information `0.5-draft`), `src/steps/Done.tsx`, `src/lib/consentPdf.ts`, the site |
+| **The young person's own link, with nothing to sign in** (14 October 2026). Whenever it is the young person's turn after their parent or carer's part, whoever started the form and at any age, the parent can send them their own link instead of passing the phone ("Not with you? Send them their own link instead", then "I've sent it: finish my part"). The link carries a random 128-bit key made for that record by the browser that sent it; the record keeps only a hash. It opens the young person's part straight away, with no birthday or reference to type, and the key leaves the address bar at once. It is made once (the thank-you page shows the same link); a wrong or replaced key opens nothing and falls back to the birthday, counting towards the lock after five tries. The parent is asked to send it only to the young person. Links sent before this still work with the birthday. | `young-link` and `lookup` with `linkKey` in `firebase/functions/src/resume.ts`; `src/components/CarryOnLink.tsx`, `src/components/HandoverScreen.tsx`, `src/steps/Resume.tsx`, `src/lib/entryLink.ts` |
 
 For the master ethics update: opting out by email only (the approved
 documents describe a slip); sharing an under-16's screen time from the
 parent's family view without asking the young person; the address being
 required and no parental-responsibility tick; no recontact question; keeping
-what a family gave after signing even if they stopped part-way; and no
-separate complaints route.
+what a family gave after signing even if they stopped part-way; no
+separate complaints route; and the young person's own link, which opens their
+part without a birthday check (the parent is trusted to send it only to them).
 
 ### Website use and the year group (7 October 2026)
 

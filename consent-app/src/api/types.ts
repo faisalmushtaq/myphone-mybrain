@@ -420,11 +420,15 @@ export interface ResumeSummary {
   canAddScreenshots: boolean;
   /** Why nothing can be added, when nothing can. */
   reason: 'declined' | 'no-screen-time' | 'unfinished' | 'full' | null;
+  /** Only when opened from the young person's own link (nothing typed): their date of birth, from the record. */
+  dateOfBirth?: DateParts;
 }
 
 export interface ResumeLookupPayload {
   referenceCode: string;
-  dateOfBirth: DateParts;
+  /** The young person's date of birth; or, from the young person's own link, its key instead. */
+  dateOfBirth?: DateParts;
+  linkKey?: string;
 }
 
 /** The young person's answer, given later: a signed yes or a no. */
@@ -477,6 +481,8 @@ export interface ConsentApi {
   submitConsent(session: SessionInfo, payload: ConsentPayload): Promise<ConsentResult>;
   /** Carrying on later: find a record by its reference and the young person's date of birth; this session may then add to it. */
   resumeLookup(session: SessionInfo, payload: ResumeLookupPayload): Promise<ResumeSummary>;
+  /** The key for the young person's own link, made by the browser that sent the record. */
+  youngLink(session: SessionInfo, referenceCode: string): Promise<{ referenceCode: string; key: string }>;
   /** Carrying on later: the young person's answer, given now. */
   resumeAgree(session: SessionInfo, payload: LateAgreementPayload): Promise<LateAgreementResult>;
   requestUploadSlot(sessionId: string, meta: UploadMeta): Promise<UploadSlot>;

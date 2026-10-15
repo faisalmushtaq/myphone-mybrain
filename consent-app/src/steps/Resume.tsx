@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getApi } from '../api';
 import { ApiError } from '../api/types';
 import { StepShell } from '../components/StepShell';
@@ -7,7 +7,7 @@ import { Callout } from '../components/ui/Callout';
 import { DateField, TextField } from '../components/ui/Field';
 import { study } from '../config/study';
 import { dateOfBirthRange, partsToDate } from '../lib/dates';
-import { forgetFinishReference, normaliseReference, peekFinishForYoung, peekFinishReference, REFERENCE } from '../lib/entryLink';
+import { forgetFinishReference, normaliseReference, peekFinishForYoung, peekFinishKey, peekFinishReference, REFERENCE } from '../lib/entryLink';
 import type { FieldError } from '../lib/validation';
 import { decidesAlone } from '../model/journey';
 import type { DateParts } from '../model/types';
@@ -26,6 +26,9 @@ export function Resume() {
   const [reference, setReference] = useState(() => peekFinishReference());
   // The link a parent sent the young person (&for=young): it speaks to them, asks only their birthday, and goes straight to their part.
   const [forYoung] = useState(() => peekFinishForYoung() && REFERENCE.test(normaliseReference(peekFinishReference())));
+  // The young person's own link carries a key: their part opens with nothing to type. If it no longer works, the birthday is asked instead.
+  const [linkKey, setLinkKey] = useState(() => (forYoung ? peekFinishKey() : null));
+  const opening = useRef(false);
   const [dob, setDob] = useState<DateParts>({ day: '', month: '', year: '' });
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [busy, setBusy] = useState(false);
@@ -39,11 +42,11 @@ export function Resume() {
     dispatch({ type: 'reset' });
   };
 
-  const find = async () => {
+  const find = async (key: string | null = null) => {
     const code = normaliseReference(reference);
     const problems: FieldError[] = [];
     if (!REFERENCE.test(code)) problems.push({ field: 'resume-reference', message: 'Enter the reference as it is on your thank-you page or your copy of the record, such as MPMB-ABCD-EF2.' });
-    if (!partsToDate(dob)) problems.push({ field: 'resume-dob', message: forYoung ? 'Type your birthday.' : 'Enter the young person’s date of birth.' });
+    if (!key && !partsToDate(dob)) problems.push({ field: 'resume-dob', message: forYoung ? 'Type your birthday.' : 'Enter the young person’s date of birth.' });
     setErrors(problems);
     if (problems.length) return;
     setReference(code);
@@ -52,7 +55,7 @@ export function Resume() {
       const api = getApi();
       let session = state.session ?? (await api.startSession());
       if (!state.session) dispatch({ type: 'session', session });
-      const ask = () => api.resumeLookup(session, { referenceCode: code, dateOfBirth: dob });
+      const ask = () => api.resumeLookup(session, key ? { referenceCode: code, linkKey: key } : { referenceCode: code, dateOfBirth: dob });
       const summary = await ask().catch(async (error: unknown) => {
         if (!(error instanceof ApiError && error.code === 'expired')) throw error;
         session = await api.startSession();
@@ -60,16 +63,30 @@ export function Resume() {
         return ask();
       });
       forgetFinishReference();
-      dispatch({ type: 'resume-found', summary, dateOfBirth: dob });
+      dispatch({ type: 'resume-found', summary, dateOfBirth: key ? (summary.dateOfBirth ?? dob) : dob });
       // Sent to the young person for their part: straight to it, without the "we found your record" page.
       if (forYoung && summary.canAgree) dispatch({ type: 'next' });
     } catch (error) {
+      if (key) {
+        // The link no longer works (a newer one was made, or it was mistyped): the birthday instead.
+        setLinkKey(null);
+        setErrors([{ field: 'resume-dob', message: error instanceof ApiError && error.code === 'validation' ? 'This link didn’t open your part. Type your birthday instead, or ask the person who sent it for a new link.' : 'We couldn’t open your part just now. Check your connection, then type your birthday to carry on.' }]);
+        return;
+      }
       const message = error instanceof ApiError && error.code === 'validation' ? (forYoung ? 'That birthday doesn’t match. Check it, or ask the person who sent you the link.' : error.message) : 'We could not check the reference just now. Check your connection and try again.';
       setErrors([{ field: forYoung ? 'resume-dob' : 'resume-reference', message }]);
     } finally {
       setBusy(false);
     }
   };
+
+  // Opened from the young person's own link: straight to their part, once.
+  useEffect(() => {
+    if (!linkKey || found || opening.current) return;
+    opening.current = true;
+    void find(linkKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkKey, found]);
 
   if (found) {
     const name = state.identity.firstName.trim() || 'the young person';
@@ -106,6 +123,16 @@ export function Resume() {
         <Button variant="link" onClick={startAgain}>
           Not your record? Start again
         </Button>
+      </StepShell>
+    );
+  }
+
+  if (forYoung && linkKey) {
+    return (
+      <StepShell kicker="Your part" title="Hi! It’s your turn." intro={<p>Opening your part…</p>} hideBack hideContinue>
+        <p className="mpmb-hint" role="status">
+          Just a moment.
+        </p>
       </StepShell>
     );
   }

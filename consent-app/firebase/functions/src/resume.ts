@@ -1,3 +1,4 @@
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { FieldValue, getFirestore, Timestamp, type DocumentData } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
@@ -26,6 +27,26 @@ const LOOKUPS_PER_HOUR = 10;
 const FAILURES_BEFORE_LOCK = 5;
 const LOCK_HOURS = 24;
 const NOT_FOUND = 'We could not find a record with that reference and date of birth. Check both: the reference is on your thank-you page and your copy of the record, and looks like MPMB-ABCD-EF2.';
+
+/**
+ * The young person's own link (14 October 2026): the parent or carer who sent
+ * the record can make one link for the young person that opens their part
+ * with no birthday to type. It carries a random key (128 bits) that only the
+ * young person's link holds; the record keeps a hash of it, never the key.
+ * Only the browser that sent the record can make it, it is made once (asking
+ * again gives a new key, and the old link stops), and it opens only what can
+ * still be added: once their part is done, there is nothing left to open.
+ */
+export const LINK_KEY = /^[A-Za-z0-9_-]{22,64}$/;
+const keyHash = (key: string) => createHash('sha256').update(key, 'utf8').digest('hex');
+export function newLinkKey(): { key: string; hash: string } {
+  const key = randomBytes(16).toString('base64url');
+  return { key, hash: keyHash(key) };
+}
+export function linkKeyMatches(key: unknown, hash: unknown): boolean {
+  if (typeof key !== 'string' || !LINK_KEY.test(key) || typeof hash !== 'string' || hash.length !== 64) return false;
+  return timingSafeEqual(Buffer.from(keyHash(key), 'hex'), Buffer.from(hash, 'hex'));
+}
 
 export type PhoneSource = 'parent' | 'child' | 'none' | 'no-phone';
 
@@ -138,11 +159,25 @@ export const resumeRecord = onCall(callOptions, async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   const db = getFirestore();
 
+  if (data.action === 'young-link') {
+    // The parent or carer, on the browser that sent the record, makes the young person's own link.
+    const code = normaliseReference(data.referenceCode);
+    if (!code) throw new HttpsError('invalid-argument', 'The reference is malformed.');
+    const ref = db.collection('submissions').doc(code);
+    const submission = (await ref.get()).data();
+    if (!submission || submission.kind !== 'consent' || submission.sessionUid !== uid) throw new HttpsError('failed-precondition', 'That reference does not belong to this session.');
+    const { key, hash } = newLinkKey();
+    await ref.set({ youngLinkHash: hash, youngLinkMadeAt: FieldValue.serverTimestamp() }, { merge: true });
+    logger.info('Young person’s link made', { referenceCode: code });
+    return { referenceCode: code, key };
+  }
+
   if (data.action === 'lookup') {
     const code = normaliseReference(data.referenceCode);
-    const dob = isObj(data.dateOfBirth) ? parseDate(data.dateOfBirth as { day: string; month: string; year: string }) : null;
+    const byLink = typeof data.linkKey === 'string';
+    const dob = !byLink && isObj(data.dateOfBirth) ? parseDate(data.dateOfBirth as { day: string; month: string; year: string }) : null;
     if (!code) throw new HttpsError('invalid-argument', 'Enter the reference as it is on your thank-you page: MPMB, then two groups of letters and numbers, such as MPMB-ABCD-EF2.');
-    if (!dob) throw new HttpsError('invalid-argument', 'Enter the young person’s date of birth.');
+    if (!byLink && !dob) throw new HttpsError('invalid-argument', 'Enter the young person’s date of birth.');
     await rateLimitLookups(db, uid, 'family-resume', LOOKUPS_PER_HOUR);
     const ref = db.collection('submissions').doc(code);
     const submission = (await ref.get()).data();
@@ -150,17 +185,23 @@ export const resumeRecord = onCall(callOptions, async (request) => {
     const locked = submission.resumeLockedUntil instanceof Timestamp && submission.resumeLockedUntil.toMillis() > Date.now();
     if (locked) throw new HttpsError('failed-precondition', 'Too many tries with this reference. Please try again tomorrow, or contact the team.');
     const participant = (await db.collection('participants').doc(String(submission.participantId)).get()).data();
-    if (participant?.dateOfBirth !== dob.toISOString().slice(0, 10)) {
+    const right = byLink ? linkKeyMatches(data.linkKey, submission.youngLinkHash) : participant?.dateOfBirth === dob!.toISOString().slice(0, 10);
+    if (!right) {
       const failures = Number(submission.resumeFailures ?? 0) + 1;
       await ref.set({ resumeFailures: failures, ...(failures >= FAILURES_BEFORE_LOCK ? { resumeFailures: 0, resumeLockedUntil: Timestamp.fromMillis(Date.now() + LOCK_HOURS * 3600_000) } : {}) }, { merge: true });
-      logger.warn('Carry-on look-up with a wrong date of birth', { referenceCode: code, failures });
-      throw new HttpsError('not-found', NOT_FOUND);
+      logger.warn(byLink ? 'Carry-on look-up with a link that is not this record’s' : 'Carry-on look-up with a wrong date of birth', { referenceCode: code, failures });
+      throw new HttpsError('not-found', byLink ? 'This link no longer works: ask the person who sent it for a new one, or type your birthday instead.' : NOT_FOUND);
     }
     const assent = submission.assentId ? (await db.collection('assents').doc(String(submission.assentId)).get()).data() : undefined;
     const consent = !submission.phoneSource && submission.consentId ? (await db.collection('consents').doc(String(submission.consentId)).get()).data() : undefined;
     const summary = resumeSummary(code, submission, participant, assent, consent?.responses?.['phone-use']?.response);
+    // Opened from the young person's own link, nothing was typed: their date of birth, already on the record, comes back for the wording (their age).
+    if (byLink && typeof participant?.dateOfBirth === 'string') {
+      const [year, month, day] = participant.dateOfBirth.split('-');
+      Object.assign(summary, { dateOfBirth: { day: String(Number(day)), month: String(Number(month)), year } });
+    }
     await ref.set({ resumeUids: FieldValue.arrayUnion(uid), resumeFailures: 0, lastLookupAt: FieldValue.serverTimestamp() }, { merge: true });
-    logger.info('Record found to carry on', { referenceCode: code, canAgree: summary.canAgree, canAddScreenshots: summary.canAddScreenshots });
+    logger.info('Record found to carry on', { referenceCode: code, byLink, canAgree: summary.canAgree, canAddScreenshots: summary.canAddScreenshots });
     return summary;
   }
 

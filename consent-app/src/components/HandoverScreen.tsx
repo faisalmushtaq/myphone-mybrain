@@ -32,15 +32,19 @@ export function HandoverScreen() {
   const phase = stepDefs[handover.nextStep].phase;
   const firstTime = handover.nextStep === 'child-assent' && !state.assent.completedAt && state.assent.status !== 'declined';
   const parentRouteChoice = state.route === 'parent' && !toParent && study.allowDeferredAssent && firstTime;
+  // On every other route, the young person's turn can also be sent as their own link (the parent route above leads with it).
+  const sendYoungLink = !toParent && firstTime && study.allowDeferredAssent && !state.resume;
 
   // The parent's part is done and the young person's comes next. Young people are rarely sat beside their parent, so sending them a link
   // to do it on their own phone comes first (decided 8 October 2026); passing this phone is for when they happen to be there.
+  // The young person isn't here: their part waits, the parent finishes theirs, and the young person does theirs from the link.
+  const finishMine = () => {
+    dispatch({ type: 'set-child-present', present: false });
+    dispatch({ type: 'cancel-handover' });
+    dispatch({ type: 'next' });
+  };
+
   if (parentRouteChoice) {
-    const finishMine = () => {
-      dispatch({ type: 'set-child-present', present: false });
-      dispatch({ type: 'cancel-handover' });
-      dispatch({ type: 'next' });
-    };
     return (
       <section className="mpmb-handover mpmb-handover--young" aria-labelledby="mpmb-handover-title">
         <div className="mpmb-handover__icon" aria-hidden="true">
@@ -160,6 +164,20 @@ export function HandoverScreen() {
         <Button variant="primary" arrow onClick={() => dispatch({ type: 'confirm-handover' })}>
           {toParent ? 'I’m the parent or carer — continue' : `I’m ${childName} — continue`}
         </Button>
+      </div>
+      {/* Whoever started the form, and at any age (14 October 2026): if the young person isn't here, the parent sends them their own link, which opens their part with nothing to sign in. */}
+      {sendYoungLink && (
+        <div className="mpmb-handover__link">
+          <p className="mpmb-handover__or">
+            <strong>{childName} not with you?</strong> Send them their own link instead. It opens their part on their own phone, whenever suits them, with nothing to sign in.
+          </p>
+          {state.submission.referenceCode ? <CarryOnLink referenceCode={state.submission.referenceCode} childName={childName} forYoung /> : <p className="mpmb-hint">Saving your answers: the link appears in a moment.</p>}
+          <Button variant="secondary" onClick={finishMine}>
+            I’ve sent it: finish my part
+          </Button>
+        </div>
+      )}
+      <div className="mpmb-handover__actions">
         <Button variant="link" className="mpmb-btn--onhandover" onClick={() => (passing ? setPassing(false) : dispatch({ type: 'cancel-handover' }))}>
           ← Go back
         </Button>

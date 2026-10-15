@@ -51,6 +51,7 @@ interface MockSubmission {
   donations: DonationPayload[];
   /** Sessions that came back later with the reference and the date of birth. */
   resumed?: string[];
+  youngLinkKey?: string;
   /** The young person's answer given later, which supersedes the one in the record. */
   lateAssent?: LateAgreementPayload['assent'];
 }
@@ -223,10 +224,20 @@ export class MockConsentApi implements ConsentApi {
     const code = payload.referenceCode.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^MPMB(\w{4})(\w{3})$/, 'MPMB-$1-$2');
     const s = this.submissions.get(code);
     const dob = s?.consents[s.consents.length - 1].identity.dateOfBirth;
-    const same = dob && Number(dob.day) === Number(payload.dateOfBirth.day) && Number(dob.month) === Number(payload.dateOfBirth.month) && dob.year === payload.dateOfBirth.year;
+    const given = payload.dateOfBirth;
+    const same = payload.linkKey ? Boolean(s && s.youngLinkKey === payload.linkKey) : Boolean(dob && given && Number(dob.day) === Number(given.day) && Number(dob.month) === Number(given.month) && dob.year === given.year);
     if (!s || !same) throw new ApiError('validation', 'We could not find a record with that reference and date of birth. Check both: the reference is on your thank-you page and your copy of the record, and looks like MPMB-ABCD-EF2.');
     s.resumed = [...(s.resumed ?? []), session.sessionId];
-    return this.resumeSummaryOf(code, s);
+    return { ...this.resumeSummaryOf(code, s), ...(payload.linkKey && dob ? { dateOfBirth: dob } : {}) };
+  }
+
+  async youngLink(session: SessionInfo, referenceCode: string): Promise<{ referenceCode: string; key: string }> {
+    await sleep(jitter(200, 400));
+    this.checkSession(session);
+    const s = this.submissions.get(referenceCode);
+    if (!s) throw new ApiError('validation', 'That reference does not belong to this session.');
+    s.youngLinkKey = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => (b % 36).toString(36)).join('') + 'mockkeyxxxxxx';
+    return { referenceCode, key: s.youngLinkKey };
   }
 
   async resumeAgree(session: SessionInfo, payload: LateAgreementPayload): Promise<LateAgreementResult> {

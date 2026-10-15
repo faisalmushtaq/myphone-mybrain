@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { study } from './forms.js';
-import { mayAddTo, normaliseReference, resumeSummary, validateLateAgreement } from './resume.js';
+import { linkKeyMatches, mayAddTo, newLinkKey, normaliseReference, resumeSummary, validateLateAgreement } from './resume.js';
 
 const now = new Date().toISOString();
 const signature = { method: 'drawn' as const, imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=', typedName: null, strokeCount: 2, pointerType: 'touch', capturedAt: now };
@@ -62,4 +62,17 @@ test('who may add to a record: the session that made it, or one that came back w
   assert.equal(mayAddTo({ sessionUid: 'a', resumeUids: ['b'] }, 'b'), true);
   assert.equal(mayAddTo({ sessionUid: 'a', resumeUids: ['b'] }, 'c'), false);
   assert.equal(mayAddTo({ sessionUid: 'a' }, 'c'), false);
+});
+
+test('the young person’s own link: a random key, only its hash kept, and nothing else opens it', () => {
+  const a = newLinkKey();
+  const b = newLinkKey();
+  assert.notEqual(a.key, b.key, 'a new key each time');
+  assert.ok(a.key.length >= 22 && /^[A-Za-z0-9_-]+$/.test(a.key), 'long, and safe in a link');
+  assert.ok(!a.hash.includes(a.key) && a.hash.length === 64, 'the record keeps a hash, not the key');
+  assert.equal(linkKeyMatches(a.key, a.hash), true);
+  assert.equal(linkKeyMatches(b.key, a.hash), false, 'another record’s key does not open it');
+  assert.equal(linkKeyMatches(a.key, undefined), false, 'no link made: nothing opens');
+  assert.equal(linkKeyMatches('short', a.hash), false);
+  assert.equal(linkKeyMatches(undefined, a.hash), false);
 });

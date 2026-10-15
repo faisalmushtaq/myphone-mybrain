@@ -206,6 +206,8 @@ export type SendStage = 'idle' | 'sending' | 'sent' | 'failed';
  */
 export interface SubmissionState {
   referenceCode: string | null;
+  /** The key in the young person's own link, made once for this record and kept so the same link is shown again. */
+  youngLinkKey?: string | null;
   participantId: string | null;
   /** Saving the permission and agreement (first time or amendment). */
   consentStage: SendStage;

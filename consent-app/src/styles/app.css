@@ -3692,6 +3692,12 @@
 .mpmb-handover__link .mpmb-card {
   color: var(--mpb-ink);
 }
+.mpmb-handover__or {
+  margin: 1.25rem 0 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid currentColor;
+  border-top-color: color-mix(in srgb, currentColor 25%, transparent);
+}
 
 /* Ways to send the carry-on link: the phone's share menu, WhatsApp, a text, email, copy (8 October 2026). */
 .mpmb-carryon__send {

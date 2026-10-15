@@ -5,11 +5,14 @@ export interface EntryLink {
   finish: string | null;
   /** &for=young: the link a parent sent the young person to do their part (it speaks to them and asks only their birthday). */
   forYoung: boolean;
+  /** &k=: the key in the young person's own link, which opens their part with no birthday to type. */
+  key: string | null;
 }
 
 /** The reference a ?finish= link carried, kept for the carry-on step until it has read it. */
 let pendingReference: string | null = null;
 let pendingForYoung = false;
+let pendingKey: string | null = null;
 
 /**
  * The website's buttons open the form with ?who=parent, ?who=young or
@@ -23,17 +26,20 @@ let pendingForYoung = false;
 export function takeEntryLink(): EntryLink {
   const params = new URLSearchParams(window.location.search);
   const who = params.get('who');
-  const link: EntryLink = { who: who === 'parent' || who === 'young' ? who : null, optOut: params.get('optout') === '1', finish: params.has('finish') ? (params.get('finish') ?? '').slice(0, 40) : null, forYoung: params.get('for') === 'young' };
+  const link: EntryLink = { who: who === 'parent' || who === 'young' ? who : null, optOut: params.get('optout') === '1', finish: params.has('finish') ? (params.get('finish') ?? '').slice(0, 40) : null, forYoung: params.get('for') === 'young', key: /^[A-Za-z0-9_-]{22,64}$/.test(params.get('k') ?? '') ? params.get('k') : null };
   // Kept until forgotten (not cleared by reading), so a second look in development's double render still finds it.
   if (link.finish) {
     pendingReference = link.finish;
     pendingForYoung = link.forYoung;
+    pendingKey = link.forYoung ? link.key : null;
   }
   if (params.has('who') || params.has('optout') || params.has('finish')) {
     params.delete('who');
     params.delete('optout');
     params.delete('finish');
     params.delete('for');
+    // The key leaves the address at once, so it is not left in the history or a screenshot of the page.
+    params.delete('k');
     const rest = params.toString();
     window.history.replaceState(window.history.state, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
   }
@@ -50,10 +56,16 @@ export function peekFinishForYoung(): boolean {
   return pendingForYoung && Boolean(pendingReference);
 }
 
+/** The young person's own link's key, if it carried one. */
+export function peekFinishKey(): string | null {
+  return pendingForYoung ? pendingKey : null;
+}
+
 /** Forgets that reference: once the record is found, or when the device is cleared for the next person. */
 export function forgetFinishReference(): void {
   pendingReference = null;
   pendingForYoung = false;
+  pendingKey = null;
 }
 
 /** A reference as typed: upper case, spaces gone, the dashes put back (MPMB-ABCD-EF2). Anything else is returned tidied but unchanged. */
@@ -64,7 +76,10 @@ export function normaliseReference(input: string): string {
 
 export const REFERENCE = /^MPMB-[A-Z2-9]{4}-[A-Z2-9]{3}$/;
 
-/** The link that brings a family back to carry on with their record: this page, with ?finish=<reference>; &for=young when it is for the young person to do their part. */
-export function finishLink(referenceCode: string, forYoung = false): string {
-  return `${window.location.origin}${window.location.pathname}?finish=${encodeURIComponent(referenceCode)}${forYoung ? '&for=young' : ''}`;
+/**
+ * The link that brings a family back to carry on with their record: this page, with ?finish=<reference>; &for=young when it is for the young
+ * person to do their part, and &k=<key> when it is their own link, which opens it with no birthday to type.
+ */
+export function finishLink(referenceCode: string, forYoung = false, key: string | null = null): string {
+  return `${window.location.origin}${window.location.pathname}?finish=${encodeURIComponent(referenceCode)}${forYoung ? '&for=young' : ''}${forYoung && key ? `&k=${encodeURIComponent(key)}` : ''}`;
 }
