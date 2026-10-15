@@ -34,10 +34,14 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   // One set, one count (15 October 2026): with a phone of their own, the longer questions follow the quick ones on this same step. Each
   // answer is still kept in its own record (the quick questions' and the longer questions'), so the data and the export are unchanged.
   const withLonger = which === 'quick' && longerWithQuick(state) && state.more.formId === parentMoreForm.id;
+  // The open "anything else?" question reads like an ending, so in the one set it comes last, after the longer questions (still kept with the quick ones).
+  const isClosing = (q: Question) => withLonger && q.type === 'text' && q.id === 'anything-else';
   const items: { q: Question; form: 'quick' | 'more' }[] = [
-    ...config.questions.map((q) => ({ q, form: which })),
+    ...config.questions.filter((q) => !isClosing(q)).map((q) => ({ q, form: which })),
     ...(withLonger ? parentMoreForm.questions.map((q) => ({ q, form: 'more' as const })) : []),
+    ...config.questions.filter(isClosing).map((q) => ({ q, form: which })),
   ];
+  const firstLonger = items.findIndex((i) => i.form === 'more');
   const forms: ('quick' | 'more')[] = withLonger ? ['quick', 'more'] : [which];
   const recordOf = (f: 'quick' | 'more') => (f === 'more' ? state.more : state.survey);
   const survey = recordOf(which);
@@ -119,7 +123,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   };
   const skipAll = () => {
     // Skipping the rest once past the quick questions keeps those as answered: only the longer ones are skipped.
-    const quickDone = withLonger && index >= config.questions.length;
+    const quickDone = withLonger && firstLonger >= 0 && index >= firstLonger;
     for (const f of forms) if (recordOf(f).status !== 'completed') dispatch({ type: 'survey-status', status: f === 'quick' && quickDone ? 'completed' : 'skipped', form: f });
     dispatch({ type: 'next' });
   };
