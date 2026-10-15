@@ -310,7 +310,8 @@ const goodBad = [
 
 export const parentNoPhoneForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-no-phone',
-  version: '0.1-draft',
+  // 0.2: the social media good-or-bad question names the apps, and "social media" and "phone" are marked apart (15 October 2026).
+  version: '0.2-draft',
   draft: true,
   questions: [
     {
@@ -363,6 +364,7 @@ export const parentNoPhoneForm: { id: string; version: string; draft: boolean; q
       type: 'choice',
       label: 'Social media on any device',
       text: 'Does {child} use social media, like TikTok, Snapchat, Instagram or YouTube, on any device?',
+      emphasis: 'social media',
       options: [
         { value: 'no', label: 'No' },
         { value: 'sometimes', label: 'Sometimes' },
@@ -383,8 +385,8 @@ export const parentNoPhoneForm: { id: string; version: string; draft: boolean; q
         { value: 'all-the-time', label: 'All the time' },
       ],
     },
-    { id: 'phones-good-bad', version: '0.1-draft', type: 'choice', label: 'Phones: good or bad', text: 'For young people of {child}’s age, do you think having a phone is good or bad?', options: goodBad },
-    { id: 'social-media-good-bad', version: '0.1-draft', type: 'choice', label: 'Social media: good or bad', text: 'For young people of {child}’s age, do you think social media is good or bad?', options: goodBad },
+    { id: 'phones-good-bad', version: '0.1-draft', type: 'choice', label: 'Phones: good or bad', text: 'For young people of {child}’s age, do you think having a phone is good or bad?', emphasis: 'having a phone', options: goodBad },
+    { id: 'social-media-good-bad', version: '0.2-draft', type: 'choice', label: 'Social media: good or bad', text: 'For young people of {child}’s age, do you think social media, like TikTok, Snapchat, Instagram or YouTube, is good or bad?', emphasis: 'social media', options: goodBad },
     {
       id: 'anything-else',
       version: '0.1-draft',

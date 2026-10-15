@@ -301,7 +301,7 @@ test('a young person with no phone of their own: the no-phone questions in the l
   p.route = 'parent';
   p.phoneSource = 'no-phone';
   p.assent = notAsked();
-  p.more = { formId: 'mpmb-parent-no-phone', formVersion: '0.1-draft', status: 'completed', responses: { 'why-no-phone': { questionId: 'why-no-phone', version: '0.1-draft', value: 'too-young;worried', answeredAt: now }, 'expected-age': { questionId: 'expected-age', version: '0.1-draft', value: '13', answeredAt: now } }, startedAt: now, completedAt: now };
+  p.more = { formId: 'mpmb-parent-no-phone', formVersion: '0.2-draft', status: 'completed', responses: { 'why-no-phone': { questionId: 'why-no-phone', version: '0.1-draft', value: 'too-young;worried', answeredAt: now }, 'expected-age': { questionId: 'expected-age', version: '0.1-draft', value: '13', answeredAt: now } }, startedAt: now, completedAt: now };
   assert.deepEqual(validateConsentPayload(p), []);
   assert.ok(validateConsentPayload({ ...p, phoneSource: 'none' }).some((m) => m.includes('do not match whether the young person has a phone')), 'the no-phone questions need "no phone"');
   assert.ok(validateConsentPayload({ ...p, more: { ...p.more, formId: 'mpmb-parent-phone-use', formVersion: '0.5-draft', responses: {} } }).some((m) => m.includes('do not match whether the young person has a phone')), '"no phone" needs the no-phone questions');
