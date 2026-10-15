@@ -73,7 +73,7 @@ export function PhoneUse() {
         dispatch({ type: 'next' });
         return;
       }
-      setError(young ? 'Add a screenshot, or choose “I don’t want to share this”.' : 'Add at least one screenshot, or choose “Skip the screenshots”.');
+      setError(young ? 'Add a screenshot first: it really helps the study.' : 'Add at least one screenshot, or choose “Skip the screenshots”.');
       return;
     }
     if (doubtful.some((i) => !acknowledged.includes(i.id)) && !confirmDoubtful) {
@@ -135,7 +135,7 @@ export function PhoneUse() {
           </p>
         ) : young ? (
           <p>
-            Next, you can send us screenshots of your phone’s screen-time page. They show <strong>which apps you used and for how long</strong>. They don’t show your messages, photos or what you watched, and we never show them to your school. You can cover up anything first. This part is your choice too.
+            Next, you can send us screenshots of your phone’s screen-time page. They show <strong>which apps you used and for how long</strong>. <strong>This is really important:</strong> most people guess their screen time wrongly, often by hours, so your phone’s own record is the only way we can see how phones really affect young people. It’s private: your name is never kept with it, we never show it to your school, and it doesn’t show your messages, photos or what you watched. You can cover up anything first.
           </p>
         ) : (
           <p>
@@ -150,12 +150,8 @@ export function PhoneUse() {
       // Carrying on later, the answer before this one is already sent: there is no going back to it here.
       hideBack={Boolean(state.resume)}
       secondaryAction={
-        // Sharing is the young person's own choice: when they hold the phone, saying no is one press, with no appeal.
-        young ? (
-          <Button variant="ghost" onClick={skip}>
-            I don’t want to share this
-          </Button>
-        ) : !appeal ? (
+        // Decided 15 October 2026: no button to say no for the young person; they just don't send any.
+        young ? undefined : !appeal ? (
           <Button variant="link" onClick={() => setAppeal(true)}>
             Skip the screenshots
           </Button>
