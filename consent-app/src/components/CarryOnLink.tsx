@@ -55,7 +55,7 @@ export function CarryOnLink({ referenceCode, childName, forYoung = false }: { re
   const url = finishLink(referenceCode, forYoung, own ? kept : null);
   // Sent by the parent, so written in their voice, and saying what the study is: the young person may not have heard of it.
   const message = forYoung
-    ? `Hi ${childName}! Your school is taking part in MyPhone/MyBrain, a University of Leeds study about how young people use their phones. I’ve filled in my part. If you want to, you can share your phone’s screen time with them: it’s your choice. ${own ? 'Tap your link to see what it means (it’s just for you, so please don’t pass it on):' : 'Tap the link and type your birthday to see what it means:'}`
+    ? `Hi ${childName}! Your school is taking part in MyPhone/MyBrain, a University of Leeds study about how young people use their phones. I’ve filled in my part. It’s really important that they get your phone’s screen time too: guesses are often wrong by hours, and only the phone’s own record shows how phones really affect young people. It’s private: your name is never kept with it, nobody at your school sees it, and it only shows which apps you use and for how long, never your messages or photos. ${own ? 'Tap your link to see what it means (it’s just for you, so please don’t pass it on):' : 'Tap the link and type your birthday to see what it means:'}`
     : `To finish ${childName}’s screen time for MyPhone/MyBrain (it asks for their date of birth):`;
   return (
     <div className="mpmb-card mpmb-carryon" role="region" aria-label={forYoung ? `Send ${childName} their link` : 'Carry on later'}>
