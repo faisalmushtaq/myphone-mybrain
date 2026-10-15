@@ -139,7 +139,7 @@ export function PhoneUse() {
           </p>
         ) : (
           <p>
-            Screenshots of the phone’s screen-time page showing <strong>which apps were used and for how long</strong>: the list of apps, not just the total, because how a phone is used matters as much as how much. Not messages, photos or posts. It is the one thing nobody else can tell us. You can hide any part of an image before it goes.
+            Screenshots of the phone’s screen-time page showing <strong>which apps were used and for how long</strong>: the list of apps, not just the total, because how a phone is used matters as much as how much. Not messages, photos or posts. You can hide any part of an image before it goes. This really matters: most of us, adults too, guess our own screen time wrongly, often by hours. The phone’s own record is the true measure, and it is what lets us see how phones really affect young people, rather than how we think they do.
           </p>
         )
       }

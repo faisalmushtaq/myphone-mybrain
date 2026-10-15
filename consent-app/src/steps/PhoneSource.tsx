@@ -66,10 +66,15 @@ export function PhoneSource() {
       kicker="Screen time"
       title={<>Can we have {childName}’s screen time?</>}
       intro={
-        <p>
-          Screenshots of the phone’s screen-time summary: <strong>which apps {childName} uses and for how long</strong>. Not messages, photos or posts, and any part can be hidden before it is sent. It is the one thing
-          nobody else can tell us.
-        </p>
+        <>
+          <p>
+            Screenshots of the phone’s screen-time summary: <strong>which apps {childName} uses and for how long</strong>. Not messages, photos or posts, and any part can be hidden before it is sent.
+          </p>
+          <p>
+            <strong>This really matters.</strong> Most of us, adults too, guess our own screen time wrongly, often by hours. The phone’s own record is the true measure, and it is what lets us see how
+            phones really affect young people, rather than how we think they do.
+          </p>
+        </>
       }
       errors={errors}
       onContinue={next}
