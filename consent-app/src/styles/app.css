@@ -2503,6 +2503,14 @@
 .mpmb-app .mpmb-quiz__question:focus {
   outline: none;
 }
+/* The words that tell a question apart from its neighbours ("social media" against "phone"), marked as with a highlighter (15 October 2026). */
+.mpmb-app .mpmb-quiz__em {
+  font-weight: inherit;
+  background: linear-gradient(transparent 58%, var(--mpb-yellow) 58%, var(--mpb-yellow) 92%, transparent 92%);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0 0.08em;
+}
 .mpmb-app .mpmb-quiz__options {
   display: grid;
   gap: 0.5rem;

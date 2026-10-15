@@ -23,6 +23,8 @@ interface QuestionBase {
   topic?: string;
   /** "{child}" is replaced with the young person's first name. */
   text: string;
+  /** Words in the text shown in bold, to tell similar questions apart ("social media" against "phone"). Display only. */
+  emphasis?: string;
 }
 
 export interface ChoiceQuestion extends QuestionBase {
@@ -30,6 +32,8 @@ export interface ChoiceQuestion extends QuestionBase {
   options: QuestionOption[];
   /** Short answers (such as ages) laid out in a grid of small buttons; longer ones keep a full row. */
   compact?: boolean;
+  /** An age question: ages older than the young person is now are not offered (15 October 2026). */
+  ages?: boolean;
 }
 
 /** More than one answer can be chosen; the value is the chosen values joined by ";". "I don't know" ('unsure') stands alone. */
@@ -105,6 +109,7 @@ export const parentQuestionsForm: { id: string; version: string; draft: boolean;
       type: 'choice',
       label: 'Time on social media',
       text: 'On a normal day, how long is {child} on social media, like TikTok, Snapchat, Instagram or YouTube?',
+      emphasis: 'social media',
       options: [
         { value: 'none', label: 'They don’t use it' },
         { value: 'under-1', label: 'Less than 1 hour' },
@@ -153,10 +158,11 @@ const hours = [
  */
 export const parentMoreForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-phone-use',
+  // 0.6: the social media question names the apps (15 October 2026).
   // 0.5: the age at their own smartphone without "They don't have their own" (9 October 2026).
   // 0.4: when they started on social media (8 October 2026).
   // 0.3: without the questions the quick questions already ask (8 October 2026): the effect on sleep ("gets in the way of sleep, schoolwork or family time"), good or bad overall ("how concerned are you"), and a second "anything else".
-  version: '0.5-draft',
+  version: '0.6-draft',
   draft: true,
   questions: [
     {
@@ -167,7 +173,9 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
       topic: 'Time and apps',
       label: 'Age at own smartphone',
       text: 'How old was {child} when they got their own smartphone?',
+      emphasis: 'their own smartphone',
       compact: true,
+      ages: true,
       options: [
         { value: 'under-5', label: 'Under 5' },
         ...['5', '6', '7', '8', '9', '10', '11', '12', '13', '14'].map((age) => ({ value: age, label: age })),
@@ -177,12 +185,15 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
     },
     {
       id: 'social-media-age',
-      version: '0.1-draft',
+      // 0.2: the apps named, so it reads apart from the phone question before it (15 October 2026).
+      version: '0.2-draft',
       type: 'choice',
       topic: 'Time and apps',
       label: 'Age at first social media',
-      text: 'How old was {child} when they started using social media?',
+      text: 'How old was {child} when they started using social media, like TikTok, Snapchat, Instagram or YouTube?',
+      emphasis: 'social media',
       compact: true,
+      ages: true,
       options: [
         { value: 'under-8', label: 'Under 8' },
         ...['8', '9', '10', '11', '12', '13', '14'].map((age) => ({ value: age, label: age })),
@@ -191,8 +202,8 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
         { value: 'unsure', label: 'I can’t remember / I don’t know' },
       ],
     },
-    { id: 'school-day-time', version: '0.1-draft', type: 'choice', topic: 'Time and apps', label: 'Time on a school day', text: 'On a school day, roughly how long is {child} on their phone, outside school hours?', options: hours },
-    { id: 'weekend-time', version: '0.1-draft', type: 'choice', topic: 'Time and apps', label: 'Time on a weekend day', text: 'On a weekend day, roughly how long is {child} on their phone?', options: hours },
+    { id: 'school-day-time', version: '0.1-draft', type: 'choice', topic: 'Time and apps', label: 'Time on a school day', text: 'On a school day, roughly how long is {child} on their phone, outside school hours?', emphasis: 'on their phone', options: hours },
+    { id: 'weekend-time', version: '0.1-draft', type: 'choice', topic: 'Time and apps', label: 'Time on a weekend day', text: 'On a weekend day, roughly how long is {child} on their phone?', emphasis: 'on their phone', options: hours },
     {
       id: 'top-app',
       version: '0.2-draft',
@@ -387,4 +398,36 @@ export const parentNoPhoneForm: { id: string; version: string; draft: boolean; q
 };
 
 /** The form held in the longer questions' slot: the no-phone questions when that is the form recorded there. */
+/**
+ * The order the parent sees the quick and the longer questions in, as one set (15 October 2026): facts before views. First when the
+ * young person got a phone and started on social media; then time and apps; then night-time and sleep; then how it affects them and
+ * how the parent sees it; the open question last. Display only: each answer is still kept in its own form's record, by question id.
+ */
+export const parentQuestionOrder: { id: string; topic: string }[] = [
+  { id: 'own-phone-age', topic: 'Getting started' },
+  { id: 'social-media-age', topic: 'Getting started' },
+  { id: 'school-day-time', topic: 'Time and apps' },
+  { id: 'weekend-time', topic: 'Time and apps' },
+  { id: 'social-media-time', topic: 'Time and apps' },
+  { id: 'top-app', topic: 'Time and apps' },
+  { id: 'compared-peers', topic: 'Time and apps' },
+  { id: 'phone-in-bedroom', topic: 'Night-time and sleep' },
+  { id: 'after-bedtime', topic: 'Night-time and sleep' },
+  { id: 'mood-after', topic: 'How it affects them' },
+  { id: 'helps', topic: 'How it affects them' },
+  { id: 'gets-in-the-way', topic: 'How it affects them' },
+  { id: 'concern', topic: 'How it affects them' },
+  { id: 'anything-else', topic: 'Anything else' },
+];
+
+/** The options for a question, without ages older than the young person is now when it is an age question (and their age is known). */
+export function optionsFor(q: ChoiceQuestion, age: number | null): QuestionOption[] {
+  if (!q.ages || age === null) return q.options;
+  return q.options.filter((o) => {
+    if (/^\d+$/.test(o.value)) return Number(o.value) <= age;
+    if (/^\d+-plus$/.test(o.value)) return age >= Number(o.value.split('-')[0]);
+    return true;
+  });
+}
+
 export const moreFormFor = (formId: string) => (formId === parentNoPhoneForm.id ? parentNoPhoneForm : parentMoreForm);

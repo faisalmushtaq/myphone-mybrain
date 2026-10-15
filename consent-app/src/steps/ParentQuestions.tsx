@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Draft } from '../components/ui/Draft';
-import { moreFormFor, multiValues, parentMoreForm, parentNoPhoneForm, parentQuestionsForm, type Question } from '../config/questions';
+import { moreFormFor, multiValues, optionsFor, parentMoreForm, parentNoPhoneForm, parentQuestionOrder, parentQuestionsForm, type Question } from '../config/questions';
 import { announce } from '../lib/announce';
-import { longerWithQuick, phoneSourceApplies } from '../model/journey';
+import { childAge, longerWithQuick, phoneSourceApplies } from '../model/journey';
 import { useStore } from '../state/context';
 
 /** The parent or carer's questions: the quick ones and the longer ones, as one set (15 October 2026). */
@@ -34,14 +34,20 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   // One set, one count (15 October 2026): with a phone of their own, the longer questions follow the quick ones on this same step. Each
   // answer is still kept in its own record (the quick questions' and the longer questions'), so the data and the export are unchanged.
   const withLonger = which === 'quick' && longerWithQuick(state) && state.more.formId === parentMoreForm.id;
-  // The open "anything else?" question reads like an ending, so in the one set it comes last, after the longer questions (still kept with the quick ones).
-  const isClosing = (q: Question) => withLonger && q.type === 'text' && q.id === 'anything-else';
-  const items: { q: Question; form: 'quick' | 'more' }[] = [
-    ...config.questions.filter((q) => !isClosing(q)).map((q) => ({ q, form: which })),
+  // In the one set the questions go facts first (parentQuestionOrder, 15 October 2026), with the open "anything else?" last; any question
+  // the order does not name keeps its place before the open one.
+  const own: { q: Question; form: 'quick' | 'more'; topic?: string }[] = [
+    ...config.questions.map((q) => ({ q, form: which })),
     ...(withLonger ? parentMoreForm.questions.map((q) => ({ q, form: 'more' as const })) : []),
-    ...config.questions.filter(isClosing).map((q) => ({ q, form: which })),
   ];
-  const firstLonger = items.findIndex((i) => i.form === 'more');
+  const items = withLonger
+    ? [
+        ...parentQuestionOrder.flatMap((o) => own.filter((i) => i.q.id === o.id).map((i) => ({ ...i, topic: o.topic }))).filter((i) => i.q.id !== 'anything-else'),
+        ...own.filter((i) => !parentQuestionOrder.some((o) => o.id === i.q.id)),
+        ...own.filter((i) => i.q.id === 'anything-else'),
+      ]
+    : own;
+  const age = childAge(state);
   const forms: ('quick' | 'more')[] = withLonger ? ['quick', 'more'] : [which];
   const recordOf = (f: 'quick' | 'more') => (f === 'more' ? state.more : state.survey);
   const survey = recordOf(which);
@@ -58,12 +64,26 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   const timer = useRef<number | null>(null);
   const asking = !finished || reviewing;
   const q = questions[Math.min(index, total - 1)];
+  const topic = items[Math.min(index, total - 1)].topic ?? q.topic;
   const form = items[Math.min(index, total - 1)].form;
   const responses = recordOf(form).responses;
   const chosen = selecting ?? responses[q.id]?.value ?? null;
   const ticked = q.type === 'multi' ? multiValues(responses[q.id]?.value) : [];
   const last = index === total - 1;
   const text = (t: string) => t.replace(/\{child\}/g, childName);
+  /** The question, with the words that tell it apart from its neighbours in bold. */
+  const shown = (question: Question) => {
+    const t = text(question.text);
+    const at = question.emphasis ? t.indexOf(question.emphasis) : -1;
+    if (at < 0) return t;
+    return (
+      <>
+        {t.slice(0, at)}
+        <strong className="mpmb-quiz__em">{question.emphasis}</strong>
+        {t.slice(at + question.emphasis!.length)}
+      </>
+    );
+  };
   // Not every young person has a phone (team feedback, 9 October 2026), so the parent is asked first, before any question about it.
   // "No" gives the no-phone questions (in the longer questions' slot) instead of the quick and the longer ones. Under 16 only: at 16 or
   // over the young person answers for themselves. Not asked again once the quick questions are under way or the screen time is decided.
@@ -122,9 +142,12 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
     advance();
   };
   const skipAll = () => {
-    // Skipping the rest once past the quick questions keeps those as answered: only the longer ones are skipped.
-    const quickDone = withLonger && firstLonger >= 0 && index >= firstLonger;
-    for (const f of forms) if (recordOf(f).status !== 'completed') dispatch({ type: 'survey-status', status: f === 'quick' && quickDone ? 'completed' : 'skipped', form: f });
+    // Skipping the rest keeps what was answered: a record with answers is finished, one with none is skipped.
+    for (const f of forms) {
+      if (recordOf(f).status === 'completed') continue;
+      const has = Object.keys(recordOf(f).responses).length > 0;
+      dispatch({ type: 'survey-status', status: withLonger && has ? 'completed' : 'skipped', form: f });
+    }
     dispatch({ type: 'next' });
   };
 
@@ -197,14 +220,14 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
     >
       <div className="mpmb-quiz">
         <p className="mpmb-quiz__count">
-          {q.topic ? `${q.topic} · ` : ''}Question {index + 1} of {total}
+          {topic ? `${topic} · ` : ''}Question {index + 1} of {total}
         </p>
         <h2 className="mpmb-h3 mpmb-quiz__question" id="mpmb-quiz-question" tabIndex={-1} ref={questionRef}>
-          {text(q.text)}
+          {shown(q)}
         </h2>
         {q.type === 'choice' ? (
           <div className={`mpmb-quiz__options${q.compact ? ' mpmb-quiz__options--compact' : ''}`} role="group" aria-labelledby="mpmb-quiz-question">
-            {q.options.map((o) => (
+            {optionsFor(q, age).map((o) => (
               <button key={o.value} type="button" className={`mpmb-quiz__option${chosen === o.value ? ' is-selected' : ''}${q.compact && o.label.length > 12 ? ' mpmb-quiz__option--wide' : ''}`} aria-pressed={chosen === o.value} onClick={() => choose(o.value)}>
                 <span className="mpmb-quiz__dot" aria-hidden="true" />
                 {o.label}
