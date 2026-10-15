@@ -8,6 +8,7 @@ import { assessImage } from '../lib/imageQuality';
 import { imageStore } from '../lib/imageStore';
 import type { DonationImage, SessionInfo } from '../model/types';
 import { useStore } from './context';
+import { clientInfo } from './useSync';
 
 export function friendlyUploadError(error: unknown): string {
   if (error instanceof ApiError) {
@@ -28,10 +29,12 @@ export function friendlyUploadError(error: unknown): string {
 }
 
 /**
- * Manages the images a family adds. Nothing leaves the device when a file is
- * chosen: images are checked, re-encoded (which removes camera metadata such
- * as location) and shown for review. They are only uploaded when the person
- * presses "These are ready", so any hiding or cropping happens first.
+ * Manages the images a family adds. When a file is chosen, images are
+ * checked, re-encoded (which removes camera metadata such as location) and
+ * shown for review. They are uploaded when the person presses Send, or when
+ * the page saves them on its own (src/steps/PhoneUse.tsx, decided 15 October
+ * 2026). An image saved that way and then edited or removed is withdrawn
+ * from the server, so hiding part of it still works.
  */
 export function useUploader() {
   const { state, dispatch } = useStore();
@@ -39,6 +42,8 @@ export function useUploader() {
   sessionRef.current = state.session;
   const imagesRef = useRef(state.donation.images);
   imagesRef.current = state.donation.images;
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const [rejected, setRejected] = useState<string[]>([]);
 
   const ensureSession = useCallback(
@@ -100,7 +105,7 @@ export function useUploader() {
     let ok = true;
     for (let i = 0; i < images.length; i += 1) {
       const image = images[i];
-      if (image.status === 'uploaded' || image.status === 'sent') continue;
+      if (image.status === 'uploaded' || image.status === 'saved' || image.status === 'sent') continue;
       const uploadId = await uploadOne(image, i, images.length);
       if (uploadId) images[i] = { ...image, status: 'uploaded', progress: 1, uploadId, error: null };
       else {
@@ -140,7 +145,7 @@ export function useUploader() {
         const image: DonationImage = { id, name: file.name, type: blob.type, size: blob.size, width, height, redacted: false, cropped: false, status: 'pending', progress: 0, uploadId: null, error: null, quality, acknowledged: false };
         dispatch({ type: 'add-image', image });
         count += 1;
-        announce(quality?.verdict === 'unlikely' ? `Image ${count} added, but it does not look like a screen-time page. Check it before sending.` : `Image ${count} added. Nothing is sent until you press the send button.`);
+        announce(quality?.verdict === 'unlikely' ? `Image ${count} added, but it does not look like a screen-time page. Check it before sending.` : `Image ${count} added.`);
       }
       setRejected(problems);
       if (problems.length) announce(`${problems.length} file${problems.length === 1 ? ' was' : 's were'} not added.`);
@@ -148,9 +153,24 @@ export function useUploader() {
     [dispatch],
   );
 
+  /** Deletes an image the page saved on its own, before Send: it was removed or edited here. */
+  const withdraw = useCallback(
+    (image: DonationImage) => {
+      const referenceCode = stateRef.current.submission.referenceCode;
+      if (image.status !== 'saved' || !image.uploadId || !sessionRef.current || !referenceCode) return;
+      void getApi()
+        .submitDonation(sessionRef.current, { referenceCode, platform: stateRef.current.donation.platform, uploads: [], withdraw: [image.uploadId], agreement: null, client: clientInfo() })
+        .catch(() => {
+          /* Tried once; the team can see images withdrawn before Send in the record. */
+        });
+    },
+    [],
+  );
+
   const remove = useCallback(
     (image: DonationImage) => {
-      if (image.uploadId && sessionRef.current) {
+      if (image.status === 'saved') withdraw(image);
+      else if (image.uploadId && sessionRef.current) {
         void getApi()
           .deleteUpload(sessionRef.current.sessionId, image.uploadId)
           .catch(() => {
@@ -160,13 +180,14 @@ export function useUploader() {
       dispatch({ type: 'remove-image', id: image.id });
       announce('Image removed.');
     },
-    [dispatch],
+    [dispatch, withdraw],
   );
 
   /** Swap in an edited version. If the original had already been uploaded, it is deleted and the new one waits to be sent. */
   const replace = useCallback(
     async (image: DonationImage, blob: Blob, flags: { redacted: boolean; cropped: boolean }) => {
-      if (image.uploadId && sessionRef.current) {
+      if (image.status === 'saved') withdraw(image);
+      else if (image.uploadId && sessionRef.current) {
         void getApi()
           .deleteUpload(sessionRef.current.sessionId, image.uploadId)
           .catch(() => {
@@ -186,9 +207,9 @@ export function useUploader() {
       const quality = await assessImage(blob).catch(() => image.quality);
       dispatch({ type: 'update-image', id: image.id, patch: { type: blob.type, size: blob.size, width, height, redacted: image.redacted || flags.redacted, cropped: image.cropped || flags.cropped, status: 'pending', progress: 0, uploadId: null, error: null, quality, acknowledged: false } });
       if (image.status === 'uploaded') dispatch({ type: 'donation-status', status: 'in-progress' });
-      announce(flags.redacted ? 'Hidden areas applied. The image will be sent when you press the send button.' : 'Crop applied.');
+      announce(flags.redacted ? 'Hidden areas applied.' : 'Crop applied.');
     },
-    [dispatch],
+    [dispatch, withdraw],
   );
 
   const acknowledge = useCallback(

@@ -253,6 +253,8 @@ export function sessionsTable(sessions: Session[]): Row[] {
     assent_status_at_send: s.donation.data.assentStatusAtSend,
     needs_review: s.donation.data.needsReview,
     added_later: Boolean(s.donation.data.late),
+    // Saved by the page when the screenshots were left on it; true when Send was pressed (always, before 15 October 2026).
+    send_pressed: s.donation.data.sendPressed !== false,
   }));
 }
 
@@ -755,7 +757,7 @@ export async function runExport(): Promise<Manifest> {
   }
   const behColumns = Object.keys(behDictionary()).filter((k) => !['TaskName', 'TaskDescription'].includes(k));
   for (const [label, mine] of bySubject) {
-    files.push(tsv(`${B}/${label}/${label}_sessions.tsv`, sessionsTable(mine), ['session_id', 'acq_time', 'platform', 'screenshots_n', 'young_person_agreed_in_app', 'assent_status_at_send', 'needs_review', 'added_later']));
+    files.push(tsv(`${B}/${label}/${label}_sessions.tsv`, sessionsTable(mine), ['session_id', 'acq_time', 'platform', 'screenshots_n', 'young_person_agreed_in_app', 'assent_status_at_send', 'needs_review', 'added_later', 'send_pressed']));
     for (const s of mine) {
       const base = `${B}/${label}/${s.session}/beh/${label}_${s.session}_task-${TASK}_beh`;
       files.push(tsv(`${base}.tsv`, behTable(s), behColumns), json(`${base}.json`, behDictionary()));

@@ -26,7 +26,7 @@ export function friendlyError(error: unknown, what: 'permission' | 'screenshots'
   return `Something went wrong and ${thing} could not be saved. Please try again.`;
 }
 
-function clientInfo(): ClientInfo {
+export function clientInfo(): ClientInfo {
   return { userAgent: navigator.userAgent.slice(0, 200), submittedAt: new Date().toISOString(), timezoneOffset: new Date().getTimezoneOffset() };
 }
 
@@ -190,41 +190,55 @@ export function useSync() {
   /**
    * Sends every uploaded-but-unsent image. The permission is sent first if it
    * has not been. Callers that have just uploaded pass the images explicitly,
-   * because the store may not have re-rendered yet.
+   * because the store may not have re-rendered yet. `auto` is the page saving
+   * screenshots left on it without Send being pressed (15 October 2026): no
+   * agreement goes with it, and the next press of Send confirms it.
    */
-  const sendDonation = useCallback(async (images?: DonationImage[]): Promise<DonationResult | null> => {
+  const sendDonation = useCallback(async (images?: DonationImage[], { auto = false }: { auto?: boolean } = {}): Promise<DonationResult | null> => {
     const consent = await sendConsent();
     if (!consent) return null;
     const s = stateRef.current;
     const uploads = (images ?? s.donation.images).filter((i) => i.status === 'uploaded' && i.uploadId);
-    if (!uploads.length) return null;
+    const confirm = auto ? [] : (s.donation.unconfirmed ?? []);
+    if (!uploads.length && !confirm.length) return null;
     const statement = childAssentForm.statements.find((st) => st.id === 'phone-use');
-    dispatch({ type: 'submission', patch: { donationStage: 'sending', donationError: null } });
-    announce('Sending your screenshots.');
+    if (!auto) {
+      dispatch({ type: 'submission', patch: { donationStage: 'sending', donationError: null } });
+      announce('Sending your screenshots.');
+    }
     try {
       // A young person sending from their own phone agrees to share by sending; a parent sending from their family view needs no agreement from them.
       const payload: DonationPayload = {
         referenceCode: consent.referenceCode,
         platform: s.donation.platform,
         uploads: uploads.map((i) => ({ uploadId: i.uploadId as string, redacted: i.redacted, cropped: i.cropped, acknowledgedWarning: i.acknowledged })),
-        agreement: phoneSourceOf(s) === 'child' && s.assent.status === 'completed' ? { statementId: 'phone-use', version: statement?.version ?? childAssentForm.version, response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' } : null,
+        ...(auto ? { auto: true } : confirm.length ? { confirm } : {}),
+        agreement: !auto && phoneSourceOf(s) === 'child' && s.assent.status === 'completed' ? { statementId: 'phone-use', version: statement?.version ?? childAssentForm.version, response: 'agreed', respondedAt: new Date().toISOString(), via: 'action' } : null,
         client: clientInfo(),
       };
       const result = await withSession((session) => getApi().submitDonation(session, payload));
       const acceptedIds = uploads.filter((i) => result.accepted.includes(i.uploadId as string)).map((i) => i.id);
-      dispatch({ type: 'images-sent', ids: acceptedIds });
+      // Saved by the page: kept on the server, still editable here until Send confirms them.
+      if (auto) for (const id of acceptedIds) dispatch({ type: 'update-image', id, patch: { status: 'saved', progress: 1, error: null } });
+      else dispatch({ type: 'images-sent', ids: [...acceptedIds, ...(images ?? s.donation.images).filter((i) => i.status === 'saved').map((i) => i.id)] });
       for (const rejected of result.rejected) {
         const image = uploads.find((i) => i.uploadId === rejected.uploadId);
         if (image) dispatch({ type: 'update-image', id: image.id, patch: { status: 'failed', uploadId: null, progress: 0, error: rejected.reason } });
       }
-      if (acceptedIds.length) {
+      if (auto) {
+        if (result.donationId) dispatch({ type: 'donation-unconfirmed', ids: [...(s.donation.unconfirmed ?? []), result.donationId] });
+      } else if (acceptedIds.length || confirm.length) {
+        dispatch({ type: 'donation-unconfirmed', ids: [] });
         if (payload.agreement) dispatch({ type: 'assent-response', statementId: 'phone-use', version: payload.agreement.version, response: 'agreed', via: 'action' });
         dispatch({ type: 'donation-status', status: 'completed' });
       }
-      dispatch({ type: 'submission', patch: { donationStage: 'sent', donationError: null, donationsSent: s.submission.donationsSent + (acceptedIds.length ? 1 : 0) } });
+      if (auto) return result;
+      dispatch({ type: 'submission', patch: { donationStage: 'sent', donationError: null, donationsSent: s.submission.donationsSent + (acceptedIds.length || confirm.length ? 1 : 0) } });
       announce(result.rejected.length ? `${acceptedIds.length} sent, ${result.rejected.length} not accepted.` : 'Screenshots sent.');
       return result;
     } catch (error) {
+      // A save the page makes on its own fails quietly: Send tries again.
+      if (auto) return null;
       const message = friendlyError(error, 'screenshots');
       dispatch({ type: 'submission', patch: { donationStage: 'failed', donationError: message } });
       announce(message);

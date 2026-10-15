@@ -356,6 +356,25 @@ export const submitDonation = onCall(callOptions, async (request) => {
   const assent = (await assentRef.get()).data();
   if (assent?.status === 'declined') throw new HttpsError('failed-precondition', 'The young person said no to sharing their screen time.');
   if ((source === 'child' || submission.selfConsent) && assent?.status !== 'completed') throw new HttpsError('failed-precondition', 'The young person has not agreed to share their screen time.');
+  // Removed or edited on the page after the page saved them, before Send: deleted. Images Send has confirmed stay.
+  let withdrawn = 0;
+  if (payload.withdraw?.length) {
+    const ids = new Set(payload.withdraw);
+    const bucket = getStorage().bucket();
+    for (const donationId of ((submission.donationIds as string[] | undefined) ?? [])) {
+      const ref = db.collection('donations').doc(donationId);
+      const donation = (await ref.get()).data();
+      if (!donation || donation.sendPressed !== false) continue;
+      const stored = (donation.images ?? []) as StoredImage[];
+      const gone = stored.filter((i) => ids.has(i.uploadId));
+      if (!gone.length) continue;
+      for (const image of gone) await bucket.file(image.path).delete({ ignoreNotFound: true });
+      await ref.update({ images: stored.filter((i) => !ids.has(i.uploadId)), withdrawnImages: FieldValue.increment(gone.length), updatedAt: FieldValue.serverTimestamp() });
+      withdrawn += gone.length;
+    }
+    if (withdrawn) await submissionRef.update({ imageCount: FieldValue.increment(-withdrawn), updatedAt: FieldValue.serverTimestamp() });
+    submission.imageCount = Number(submission.imageCount ?? 0) - withdrawn;
+  }
   if (Number(submission.imageCount ?? 0) + payload.uploads.length > study.maxImages) throw new HttpsError('invalid-argument', `At most ${study.maxImages} images can be sent in total.`);
 
   const participantId = submission.participantId as string;
@@ -385,6 +404,10 @@ export const submitDonation = onCall(callOptions, async (request) => {
       // Whose phone the screenshots come from: the parent's family view, or the young person's own.
       from: source === 'parent' ? 'parent-phone' : 'young-person-phone',
       images,
+      // Decided 15 October 2026: screenshots left on the page are saved even if Send is never pressed. sendPressed says whether it was.
+      savedAutomatically: Boolean(payload.auto),
+      sendPressed: !payload.auto,
+      sendPressedAt: payload.auto ? null : receivedAt,
       agreement: source === 'parent' ? null : payload.agreement,
       // For the team: whether the young person had agreed in the app when this was sent (their agreement may instead be on paper).
       assentStatusAtSend: assent?.status ?? null,
@@ -396,12 +419,21 @@ export const submitDonation = onCall(callOptions, async (request) => {
       client: payload.client,
       createdAt: FieldValue.serverTimestamp(),
     });
-    if (source !== 'parent' && payload.agreement && assent?.status === 'completed' && assent?.responses?.['phone-use']?.response !== 'agreed') batch.update(assentRef, { 'responses.phone-use': payload.agreement, updatedAt: FieldValue.serverTimestamp() });
     batch.update(submissionRef, { donationIds: FieldValue.arrayUnion(donationId), imageCount: FieldValue.increment(images.length), platform: payload.platform, lastDonationAt: receivedAt, ...(later ? { resumedAt: receivedAt } : {}), updatedAt: FieldValue.serverTimestamp() });
     await batch.commit();
   }
 
-  logger.info('Screenshots recorded', { referenceCode: payload.referenceCode, donationId, accepted: images.length, rejected: rejected.length, review: images.filter((i) => i.quality.verdict === 'review').length });
+  // Send pressed: the automatic saves before it are confirmed, with the young person's agreement (given by pressing it).
+  const known = new Set<string>((submission.donationIds as string[] | undefined) ?? []);
+  const confirmed = (payload.confirm ?? []).filter((id) => known.has(id));
+  if (confirmed.length || (images.length && !payload.auto)) {
+    const batch = db.batch();
+    for (const id of confirmed) batch.update(db.collection('donations').doc(id), { sendPressed: true, sendPressedAt: receivedAt, agreement: source === 'parent' ? null : payload.agreement, youngPersonAgreedInApp: payload.agreement !== null, updatedAt: FieldValue.serverTimestamp() });
+    if (source !== 'parent' && payload.agreement && assent?.status === 'completed' && assent?.responses?.['phone-use']?.response !== 'agreed') batch.update(assentRef, { 'responses.phone-use': payload.agreement, updatedAt: FieldValue.serverTimestamp() });
+    await batch.commit();
+  }
+
+  logger.info('Screenshots recorded', { referenceCode: payload.referenceCode, donationId, auto: Boolean(payload.auto), confirmed: confirmed.length, withdrawn, accepted: images.length, rejected: rejected.length, review: images.filter((i) => i.quality.verdict === 'review').length });
   return { donationId, receivedAt: receivedAt.toISOString(), accepted: images.map((i) => i.uploadId), rejected };
 });
 

@@ -120,7 +120,8 @@ export interface AssentRecord {
    Research data: phone-use donation
    ──────────────────────────────────────────────────────────────────────── */
 
-export type UploadStatus = 'pending' | 'uploading' | 'uploaded' | 'sent' | 'failed';
+/** 'saved': kept on the server by the page itself (left without pressing Send); still editable until Send confirms it. */
+export type UploadStatus = 'pending' | 'uploading' | 'uploaded' | 'saved' | 'sent' | 'failed';
 
 /** Result of the in-browser check that an image looks like a screen-time page. */
 export interface ImageQuality {
@@ -184,6 +185,8 @@ export interface PhoneUseDonation {
   platform: PlatformId | null;
   images: DonationImage[];
   status: DonationStatus;
+  /** Saves the page made on its own (screenshots left without pressing Send), waiting for Send to confirm them. */
+  unconfirmed?: string[];
 }
 
 /* ────────────────────────────────────────────────────────────────────────

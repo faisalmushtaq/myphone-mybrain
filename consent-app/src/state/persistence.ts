@@ -61,7 +61,7 @@ export function loadState(): { state: AppState; expired: boolean } | null {
           ...(parsed.donation ?? {}),
           // Image bytes are not kept across a refresh: anything not yet uploaded must be added again.
           // Uploaded and sent images live on the server; anything still on the device is gone after a refresh.
-          images: (parsed.donation?.images ?? []).map((img) => (img.status === 'uploaded' || img.status === 'sent' ? img : { ...img, status: 'failed', progress: 0, error: 'This image was lost when the page was refreshed. Please add it again.' })),
+          images: (parsed.donation?.images ?? []).map((img) => (img.status === 'uploaded' || img.status === 'saved' || img.status === 'sent' ? img : { ...img, status: 'failed', progress: 0, error: 'This image was lost when the page was refreshed. Please add it again.' })),
         },
         survey: { ...base.survey, ...(parsed.survey ?? {}) },
         phoneSource: parsed.phoneSource === 'parent' || parsed.phoneSource === 'child' || parsed.phoneSource === 'none' || parsed.phoneSource === 'no-phone' ? parsed.phoneSource : null,

@@ -483,11 +483,33 @@ async function inner() {
     ok('the instructions are for Google Family Link on the parent’s own phone', (await page.getByText(/How to find Amira’s screen time in Google Family Link/).count()) === 1);
     await input.setInputFiles([{ name: 'c.png', mimeType: 'image/png', buffer: await png('Today') }]);
     await page.waitForFunction(() => document.querySelectorAll('.mpmb-upload').length === 1);
+    // Left on the page without pressing Send (the page hidden: another app, the phone locked): saved anyway.
+    const hidePage = () =>
+      page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+        document.dispatchEvent(new Event('visibilitychange'));
+        Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      });
+    await hidePage();
+    await page.locator('.mpmb-upload__status', { hasText: 'Saved' }).waitFor({ timeout: 90000 });
+    const early = (await db.collection('submissions').doc(code2).get()).data();
+    const autoRef = db.collection('donations').doc(early.donationIds[0]);
+    const autoDonation = (await autoRef.get()).data();
+    ok('a screenshot left on the page without pressing Send is saved on the server, marked as not sent, with no agreement', autoDonation?.savedAutomatically === true && autoDonation?.sendPressed === false && autoDonation?.images.length === 1 && autoDonation?.agreement === null && early.imageCount === 1);
+    const [autoFileThere] = await getStorage().bucket().file(autoDonation.images[0].path).exists();
+    // Removed after the page saved it, before Send: deleted from the server too.
+    await page.getByRole('button', { name: 'Remove image 1' }).click();
+    for (let i = 0; i < 60 && (await autoRef.get()).data()?.images.length; i += 1) await new Promise((r) => setTimeout(r, 500));
+    const [autoFileLeft] = await getStorage().bucket().file(autoDonation.images[0].path).exists();
+    ok('a saved screenshot removed before Send is deleted from the server', autoFileThere && !autoFileLeft && (await autoRef.get()).data()?.images.length === 0 && (await db.collection('submissions').doc(code2).get()).data()?.imageCount === 0);
+    await input.setInputFiles([{ name: 'c.png', mimeType: 'image/png', buffer: await png('Today') }]);
+    await page.waitForFunction(() => document.querySelectorAll('.mpmb-upload').length === 1);
     await page.getByRole('button', { name: /Send this screenshot/ }).click();
     await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor({ timeout: 90000 });
     const sub2 = (await db.collection('submissions').doc(code2).get()).data();
     const assent2 = (await db.collection('assents').doc(sub2.assentId).get()).data();
-    const donation2 = (await db.collection('donations').doc(sub2.donationIds[0]).get()).data();
+    const donation2 = (await db.collection('donations').doc(sub2.donationIds.at(-1)).get()).data();
+    ok('pressing Send confirms the earlier save, and the new screenshot is recorded as sent', donation2?.sendPressed === true && (await autoRef.get()).data()?.sendPressed === true && sub2.imageCount === 1);
     ok('from the parent’s own phone: no agreement asked of the young person, the screenshot recorded as from the parent’s phone', sub2?.phoneSource === 'parent' && assent2?.status === 'not-started' && donation2?.agreement === null && donation2?.from === 'parent-phone' && donation2?.youngPersonAgreedInApp === false && donation2?.images.length === 1);
     ok('no questions record when they were skipped without an answer', sub2?.surveyId && (await db.collection('surveys').doc(sub2.surveyId).get()).data()?.status === 'skipped');
     await page.getByRole('button', { name: /Everything is right/ }).click();

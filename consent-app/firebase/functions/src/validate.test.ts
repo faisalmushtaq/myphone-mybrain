@@ -296,6 +296,20 @@ test('screenshot record needs a reference and well-formed, distinct uploads', ()
   assert.ok(validateDonationPayload(e).some((m) => m.includes('malformed')));
 });
 
+test('screenshots left on the page are saved without an agreement, and a later press of Send confirms them', () => {
+  const auto = { ...validDonation(), agreement: null, auto: true };
+  assert.deepEqual(validateDonationPayload(auto), []);
+  assert.ok(validateDonationPayload({ ...validDonation(), auto: true }).some((m) => m.includes('no agreement')), 'the young person agrees only by pressing Send');
+  assert.ok(validateDonationPayload({ ...auto, confirm: ['abcDEF123456'] }).some((m) => m.includes('confirms nothing')));
+  const confirm = { ...validDonation(), uploads: [], confirm: ['abcDEF123456'] };
+  assert.deepEqual(validateDonationPayload(confirm), [], 'Send with nothing new, only confirming');
+  assert.ok(validateDonationPayload({ ...confirm, confirm: ['../x'] }).some((m) => m.includes('confirm')));
+  assert.ok(validateDonationPayload({ ...confirm, confirm: [] }).some((m) => m.includes('No images')));
+  const withdraw = { ...validDonation(), uploads: [], withdraw: [validDonation().uploads[0].uploadId] };
+  assert.deepEqual(validateDonationPayload(withdraw), [], 'an image saved automatically, then removed or edited');
+  assert.ok(validateDonationPayload({ ...withdraw, withdraw: ['nope'] }).some((m) => m.includes('withdraw')));
+});
+
 test('a young person with no phone of their own: the no-phone questions in the longer questions’ slot, and only then', () => {
   const p = valid();
   p.route = 'parent';

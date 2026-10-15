@@ -20,6 +20,8 @@ function statusText(image: DonationImage): string {
       return `Uploading… ${Math.round(image.progress * 100)}%`;
     case 'uploaded':
       return 'Uploaded';
+    case 'saved':
+      return 'Saved';
     case 'sent':
       return 'Sent';
     case 'failed':
@@ -60,7 +62,7 @@ export function UploadList({ images, onRemove, onRetry, onEdit, busy }: Props) {
                 {image.cropped && <span className="mpmb-upload__flag">Cropped</span>}
               </p>
               <p className={`mpmb-upload__status is-${image.status}`}>
-                {(image.status === 'uploaded' || image.status === 'sent') && <Icon name="check" size={16} />}
+                {(image.status === 'uploaded' || image.status === 'saved' || image.status === 'sent') && <Icon name="check" size={16} />}
                 {image.status === 'failed' && <Icon name="warning" size={16} />}
                 {statusText(image)}
               </p>

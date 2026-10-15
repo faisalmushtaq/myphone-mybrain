@@ -119,6 +119,7 @@ export type Action =
   | { type: 'share-prompted' }
   | { type: 'images-sent'; ids: string[] }
   | { type: 'donation-status'; status: DonationStatus }
+  | { type: 'donation-unconfirmed'; ids: string[] }
   | { type: 'submission'; patch: Partial<SubmissionState> }
   | { type: 'session'; session: SessionInfo | null }
   | { type: 'prototype'; patch: Partial<PrototypeFlags> };
@@ -331,6 +332,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, donation: { ...state.donation, images: state.donation.images.map((img) => (action.ids.includes(img.id) ? { ...img, status: 'sent', progress: 1, error: null } : img)) } };
     case 'donation-status':
       return { ...state, donation: { ...state.donation, status: action.status } };
+    case 'donation-unconfirmed':
+      return { ...state, donation: { ...state.donation, unconfirmed: action.ids } };
     case 'submission':
       return { ...state, submission: { ...state.submission, ...action.patch } };
     case 'session':

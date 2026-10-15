@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageCapture } from '../components/ImageCapture';
 import { ImageEditor } from '../components/ImageEditor';
 import { SaveStatus } from '../components/SaveStatus';
@@ -18,6 +18,9 @@ import type { DonationImage } from '../model/types';
 import { useStore } from '../state/context';
 import { useSync } from '../state/useSync';
 import { useUploader } from '../state/useUploader';
+
+/** Screenshots left on the page are saved after this long without a change (and at once if the page is hidden or closed). */
+const AUTO_SAVE_AFTER_MS = 45_000;
 
 /**
  * The whole screen-time part on one screen: why we ask (folded), which
@@ -55,6 +58,56 @@ export function PhoneUse() {
   const walkthrough = platform ? (familyView && platform !== 'other' ? familyWalkthroughs[platform] : walkthroughs[platform]) : null;
   const hasImages = images.length > 0;
   const showHow = howOpen ?? (platform !== null && !hasImages);
+
+  // Decided 15 October 2026: screenshots added but never sent are kept. The page saves them on its own (no agreement goes
+  // with that; pressing Send confirms them), after a quiet spell, or as soon as the page is hidden, closed or left. Not
+  // while a screenshot is open to hide parts of it, and not after "Skip the screenshots". Editing or removing a saved
+  // screenshot deletes it from the server (useUploader).
+  const [autoSaving, setAutoSaving] = useState(false);
+  const autoInFlight = useRef(false);
+  const skipped = useRef(false);
+  const latest = useRef({ images, editing, sending });
+  latest.current = { images, editing, sending };
+  const autoSave = useRef<() => void>(() => undefined);
+  autoSave.current = () => {
+    const now = latest.current;
+    if (autoInFlight.current || skipped.current || now.editing || now.sending || !now.images.some((i) => i.status === 'pending')) return;
+    autoInFlight.current = true;
+    setAutoSaving(true);
+    void (async () => {
+      try {
+        const { images: fresh } = await uploader.uploadPending();
+        // One that doesn't look like a screen-time page waits for the person to say it is right.
+        await sendDonation(fresh.filter((i) => !(i.quality?.verdict === 'unlikely' && !i.acknowledged)), { auto: true });
+      } finally {
+        autoInFlight.current = false;
+        setAutoSaving(false);
+      }
+    })();
+  };
+  const pendingKey = images
+    .filter((i) => i.status === 'pending')
+    .map((i) => `${i.id}:${i.size}`)
+    .join();
+  useEffect(() => {
+    if (!pendingKey || editing || sending) return;
+    const timer = window.setTimeout(() => autoSave.current(), AUTO_SAVE_AFTER_MS);
+    return () => window.clearTimeout(timer);
+  }, [pendingKey, editing, sending]);
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') autoSave.current();
+    };
+    const onLeave = () => autoSave.current();
+    document.addEventListener('visibilitychange', onHidden);
+    window.addEventListener('pagehide', onLeave);
+    return () => {
+      document.removeEventListener('visibilitychange', onHidden);
+      window.removeEventListener('pagehide', onLeave);
+      // Leaving the step without sending (Back, or the journey moving on).
+      autoSave.current();
+    };
+  }, []);
 
   useEffect(() => {
     if (error && images.length && !failed) setError(null);
@@ -105,6 +158,7 @@ export function PhoneUse() {
   };
 
   const skip = () => {
+    skipped.current = true;
     dispatch({ type: 'donation-status', status: sentCount ? 'completed' : 'skipped' });
     dispatch({ type: 'next' });
   };
@@ -146,7 +200,7 @@ export function PhoneUse() {
       errors={error ? [{ field: 'mpmb-capture-choose', message: error }] : []}
       onContinue={() => void send()}
       continueLabel={sendLabel}
-      continueLoading={sending}
+      continueLoading={sending || autoSaving}
       // Carrying on later, the answer before this one is already sent: there is no going back to it here.
       hideBack={Boolean(state.resume)}
       secondaryAction={
@@ -249,7 +303,7 @@ export function PhoneUse() {
         </Callout>
       )}
 
-      {state.restored && images.some((i) => i.status === 'uploaded' || i.status === 'sent') && (
+      {state.restored && images.some((i) => i.status === 'uploaded' || i.status === 'saved' || i.status === 'sent') && (
         <Callout tone="info" role="status">
           <p>Your uploaded images are still saved. Previews are not shown after the page is refreshed, because images are never kept in your browser.</p>
         </Callout>
@@ -260,7 +314,7 @@ export function PhoneUse() {
       {images.length > 0 && !confirmDoubtful && (
         <Callout tone="important" title="Take a moment to check">
           <p>
-            Check that at least one screenshot shows the list of apps with the time next to each. If a screenshot shows a notification, a message, a website or an app you would rather not show, use “Hide part of it” or remove it. Hidden parts are removed from the image itself. You can add up to {study.upload.maxImages} images.
+            Check that at least one screenshot shows the list of apps with the time next to each. If a screenshot shows a notification, a message, a website or an app you would rather not show, use “Hide part of it” or remove it. Hidden parts are removed from the image itself. You can add up to {study.upload.maxImages} images. What you add is saved as you go, so nothing is lost if you stop; if you hide part of a screenshot or remove it, the earlier version is deleted.
           </p>
         </Callout>
       )}

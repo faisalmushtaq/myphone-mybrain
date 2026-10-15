@@ -102,8 +102,16 @@ export interface DonationPayload {
   uploads: { uploadId: string; redacted: boolean; cropped: boolean; acknowledgedWarning: boolean }[];
   /** The young person's agreement to share, given by sending when they signed in the app; null otherwise (it may be collected separately, on paper). */
   agreement: StatementRecord | null;
+  /** Saved by the page itself (the images were left on the page without pressing Send); no agreement goes with it. */
+  auto?: boolean;
+  /** Earlier automatic saves this press of Send confirms (their donation ids). */
+  confirm?: string[];
+  /** Images saved automatically that were then removed or edited on the page: deleted (only before Send is pressed). */
+  withdraw?: string[];
   client: ClientInfo;
 }
+
+const DONATION_ID = /^[A-Za-z0-9_-]{6,40}$/;
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
@@ -364,7 +372,7 @@ export function validateDonationPayload(input: unknown): string[] {
 
   if (!Array.isArray(p.uploads)) problems.push('Uploads are malformed.');
   else {
-    if (p.uploads.length === 0) problems.push('No images were sent.');
+    if (p.uploads.length === 0 && !(Array.isArray(p.confirm) && p.confirm.length) && !(Array.isArray(p.withdraw) && p.withdraw.length)) problems.push('No images were sent.');
     if (p.uploads.length > study.maxImages) problems.push(`At most ${study.maxImages} images can be sent.`);
     const seen = new Set<string>();
     for (const u of p.uploads) {
@@ -387,6 +395,12 @@ export function validateDonationPayload(input: unknown): string[] {
       if (a.response !== 'agreed' || a.via !== 'action') problems.push('The young person’s agreement record is malformed.');
     }
   }
+
+  if (p.auto !== undefined && typeof p.auto !== 'boolean') problems.push('The automatic save flag is malformed.');
+  if (p.auto && a) problems.push('An automatic save carries no agreement.');
+  if (p.confirm !== undefined && (!Array.isArray(p.confirm) || p.confirm.length > 20 || p.confirm.some((id) => typeof id !== 'string' || !DONATION_ID.test(id)))) problems.push('The saves to confirm are malformed.');
+  if (p.auto && p.confirm?.length) problems.push('An automatic save confirms nothing.');
+  if (p.withdraw !== undefined && (!Array.isArray(p.withdraw) || p.withdraw.length > study.maxImages || p.withdraw.some((id) => typeof id !== 'string' || !UUID.test(id)))) problems.push('The images to withdraw are malformed.');
 
   validateClient(p.client, problems);
   return problems;

@@ -87,6 +87,12 @@ export interface DonationPayload {
    * them from their own phone (Family Sharing, Family Link).
    */
   agreement: StatementRecord | null;
+  /** Saved by the page itself, the screenshots having been left on it without pressing Send: no agreement goes with it. */
+  auto?: boolean;
+  /** Earlier automatic saves (donation ids) that this press of Send confirms. */
+  confirm?: string[];
+  /** Images saved automatically, then removed or edited on the page: deleted from the server (before Send only). */
+  withdraw?: string[];
   client: ClientInfo;
 }
 
