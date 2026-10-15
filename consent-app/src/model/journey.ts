@@ -106,14 +106,25 @@ export function phoneUseApplies(state: AppState): boolean {
 }
 
 /**
- * The longer questions for the parent: always, straight after the quick
- * ones and before the screen time is decided or handed over (decided 8
- * October 2026), so that the parent's answers are in even if the young
- * person never does their part. Every question can be skipped.
+ * The longer questions for the parent come straight after the quick ones and
+ * before the screen time is decided or handed over (decided 8 October 2026),
+ * so that the parent's answers are in even if the young person never does
+ * their part. Since 15 October 2026 they are one set with the quick ones, on
+ * the quick questions' step ("Question n of 14"), so this step is only for a
+ * young person with no phone of their own: the no-phone questions (9 October).
  */
 export function parentMoreApplies(state: AppState): boolean {
-  // With no phone of their own, this is the no-phone questions instead (9 October 2026).
-  return !state.resume && parentInvolved(state);
+  return !state.resume && parentInvolved(state) && state.phoneSource === 'no-phone';
+}
+
+/** Whether the longer questions' record (or the no-phone questions in its place) is asked at all, on either step: it is sent with the record. */
+export function longerAsked(state: AppState): boolean {
+  return parentMoreApplies(state) || longerWithQuick(state);
+}
+
+/** The longer questions are asked with the quick ones, as one set: whenever the young person has a phone of their own. */
+export function longerWithQuick(state: AppState): boolean {
+  return !state.resume && parentInvolved(state) && state.phoneSource !== 'no-phone';
 }
 
 /** The young person has the phone for the end of the form: they answered after the parent's part, so they finish and send it, with no handing back. */
@@ -221,7 +232,8 @@ export function isStepComplete(stepId: StepId, state: AppState): boolean {
       return state.consent.completedAt !== null;
     case 'parent-questions':
       // "No" to "does {child} have a phone of their own?" answers this step: the no-phone questions come next.
-      return state.survey.status === 'completed' || state.survey.status === 'skipped' || state.phoneSource === 'no-phone';
+      if (state.phoneSource === 'no-phone') return true;
+      return (state.survey.status === 'completed' || state.survey.status === 'skipped') && (!longerWithQuick(state) || state.more.status === 'completed' || state.more.status === 'skipped');
     case 'phone-source':
       return state.phoneSource !== null;
     case 'child-assent':

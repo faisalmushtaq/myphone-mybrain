@@ -6,7 +6,7 @@ import { relationships } from '../config/fields';
 import { OTHER_SCHOOL_ID, schools } from '../config/schools';
 import { platforms } from '../config/walkthroughs';
 import { formatIsoDate, formatParts, formatTimestamp } from '../lib/dates';
-import { childAge, parentInvolved, parentMoreApplies, phoneSourceOf } from '../model/journey';
+import { childAge, longerWithQuick, parentInvolved, parentMoreApplies, phoneSourceOf } from '../model/journey';
 import { imageStore } from '../lib/imageStore';
 import type { SignatureRecord, StepId } from '../model/types';
 import { useStore } from '../state/context';
@@ -67,6 +67,11 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
   const answered = parentQuestionsForm.questions.filter((q) => survey.responses[q.id]).length;
   const moreForm = moreFormFor(more.formId);
   const answeredMore = moreForm.questions.filter((q) => more.responses[q.id]).length;
+  // One set with a phone of their own (15 October 2026): the quick and the longer questions, counted together.
+  const together = longerWithQuick(state);
+  const answeredAll = answered + (together ? answeredMore : 0);
+  const totalAll = parentQuestionsForm.questions.length + (together ? moreForm.questions.length : 0);
+  const allSkipped = survey.status === 'skipped' && (!together || more.status === 'skipped');
   const withParent = parentInvolved(state);
   const source = phoneSourceOf(state);
   const asked = statementsFor(parentConsentForm, childAge(state), study.selfConsentAge);
@@ -155,11 +160,11 @@ export function ConsentSummary({ onChange, detailed = false }: Props) {
         withParent &&
         source !== 'no-phone' &&
         section(
-          'Parent or carer’s quick questions',
+          'Parent or carer’s questions',
           'parent-questions',
           'research',
           <p className="mpmb-summary__note">
-            {survey.status === 'not-started' ? 'Not answered yet.' : survey.status === 'skipped' && !answered ? 'Skipped — these questions are optional.' : `${answered} of ${parentQuestionsForm.questions.length} answered.`} The answers are kept with {childName}’s code and are not shown again on this phone.
+            {survey.status === 'not-started' ? 'Not answered yet.' : allSkipped && !answeredAll ? 'Skipped — these questions are optional.' : `${answeredAll} of ${totalAll} answered.`} The answers are kept with {childName}’s code and are not shown again on this phone.
           </p>,
         )}
 

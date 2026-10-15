@@ -6,7 +6,7 @@ import { relationships } from '../config/fields';
 import { moreFormFor, parentQuestionsForm } from '../config/questions';
 import { OTHER_SCHOOL_ID, schools } from '../config/schools';
 import { childAssentForm, parentConsentForm, statementsFor } from '../config/statements';
-import { childAge, parentInvolved, parentMoreApplies, phoneSourceOf } from '../model/journey';
+import { childAge, longerAsked, parentInvolved, phoneSourceOf } from '../model/journey';
 import { study } from '../config/study';
 import { platforms } from '../config/walkthroughs';
 import type { AppState, SignatureRecord, StatementResponse } from '../model/types';
@@ -262,7 +262,7 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
       const status = survey.status === 'not-started' ? 'Not answered.' : survey.status === 'skipped' && !answered ? 'Skipped; these questions are optional.' : `${answered} of ${parentQuestionsForm.questions.length} answered.`;
       w.paragraph(`${status} The answers are kept with ${childName}’s code and are not included in this copy.`);
     }
-    if (parentMoreApplies(state)) {
+    if (longerAsked(state)) {
       w.heading(source === 'no-phone' ? 'Questions about phones and social media' : 'More questions');
       const status = more.status === 'not-started' ? 'Not answered.' : more.status === 'skipped' && !answeredMore ? 'Skipped; these questions are optional.' : `${answeredMore} of ${moreForm.questions.length} answered.`;
       w.paragraph(`${status} The answers are kept with ${childName}’s code and are not included in this copy.`);

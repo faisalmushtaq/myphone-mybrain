@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import { getApi } from '../api';
 import { ApiError, type ClientInfo, type ConsentPayload, type ConsentResult, type DonationPayload, type DonationResult } from '../api/types';
 import { childAssentForm, parentConsentForm } from '../config/statements';
-import { childAge, parentMoreApplies, phoneSourceOf, youngAlone } from '../model/journey';
+import { childAge, longerAsked, phoneSourceOf, youngAlone } from '../model/journey';
 import { study } from '../config/study';
 import { announce } from '../lib/announce';
 import { validateAssent, validateChildDetails, validateConsent, validateGuardian } from '../lib/validation';
@@ -72,7 +72,7 @@ export function buildConsentPayload(state: AppState): ConsentPayload {
     assent,
     survey: alone ? null : state.survey,
     phoneSource: phoneSourceOf(state),
-    more: parentMoreApplies(state) ? state.more : null,
+    more: longerAsked(state) ? state.more : null,
   };
 }
 

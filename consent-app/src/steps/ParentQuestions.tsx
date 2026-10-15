@@ -2,17 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Draft } from '../components/ui/Draft';
-import { moreFormFor, multiValues, parentNoPhoneForm, parentQuestionsForm } from '../config/questions';
+import { moreFormFor, multiValues, parentMoreForm, parentNoPhoneForm, parentQuestionsForm, type Question } from '../config/questions';
 import { announce } from '../lib/announce';
-import { phoneSourceApplies } from '../model/journey';
+import { longerWithQuick, phoneSourceApplies } from '../model/journey';
 import { useStore } from '../state/context';
 
-/** The quick questions every parent or carer is asked. */
+/** The parent or carer's questions: the quick ones and the longer ones, as one set (15 October 2026). */
 export function ParentQuestions() {
   return <QuestionsStep which="quick" />;
 }
 
-/** The longer questions, when the young person's screen time is not coming through this form. */
+/** The no-phone questions, for a young person with no phone of their own. */
 export function ParentMore() {
   return <QuestionsStep which="more" />;
 }
@@ -31,23 +31,33 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   const { state, dispatch } = useStore();
   const config = which === 'more' ? moreFormFor(state.more.formId) : parentQuestionsForm;
   const noPhone = config.id === parentNoPhoneForm.id;
-  const survey = which === 'more' ? state.more : state.survey;
-  const form = which;
+  // One set, one count (15 October 2026): with a phone of their own, the longer questions follow the quick ones on this same step. Each
+  // answer is still kept in its own record (the quick questions' and the longer questions'), so the data and the export are unchanged.
+  const withLonger = which === 'quick' && longerWithQuick(state) && state.more.formId === parentMoreForm.id;
+  const items: { q: Question; form: 'quick' | 'more' }[] = [
+    ...config.questions.map((q) => ({ q, form: which })),
+    ...(withLonger ? parentMoreForm.questions.map((q) => ({ q, form: 'more' as const })) : []),
+  ];
+  const forms: ('quick' | 'more')[] = withLonger ? ['quick', 'more'] : [which];
+  const recordOf = (f: 'quick' | 'more') => (f === 'more' ? state.more : state.survey);
+  const survey = recordOf(which);
   const childName = state.identity.firstName.trim() || 'your child';
-  const questions = config.questions;
+  const questions = items.map((i) => i.q);
   const total = questions.length;
-  const answered = questions.filter((q) => survey.responses[q.id]).length;
-  const finished = survey.status === 'completed' || survey.status === 'skipped';
+  const answered = items.filter((i) => recordOf(i.form).responses[i.q.id]).length;
+  const finished = forms.every((f) => recordOf(f).status === 'completed' || recordOf(f).status === 'skipped');
   const [reviewing, setReviewing] = useState(false);
-  const [index, setIndex] = useState(() => Math.max(0, questions.findIndex((q) => !survey.responses[q.id])));
+  const [index, setIndex] = useState(() => Math.max(0, items.findIndex((i) => !recordOf(i.form).responses[i.q.id])));
   const [selecting, setSelecting] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const questionRef = useRef<HTMLHeadingElement>(null);
   const timer = useRef<number | null>(null);
   const asking = !finished || reviewing;
-  const q = questions[index];
-  const chosen = selecting ?? survey.responses[q.id]?.value ?? null;
-  const ticked = q.type === 'multi' ? multiValues(survey.responses[q.id]?.value) : [];
+  const q = questions[Math.min(index, total - 1)];
+  const form = items[Math.min(index, total - 1)].form;
+  const responses = recordOf(form).responses;
+  const chosen = selecting ?? responses[q.id]?.value ?? null;
+  const ticked = q.type === 'multi' ? multiValues(responses[q.id]?.value) : [];
   const last = index === total - 1;
   const text = (t: string) => t.replace(/\{child\}/g, childName);
   // Not every young person has a phone (team feedback, 9 October 2026), so the parent is asked first, before any question about it.
@@ -65,7 +75,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
 
   // The text box starts with whatever was written before, so coming back never loses it.
   useEffect(() => {
-    if (q.type === 'text') setDraft(survey.responses[q.id]?.value ?? '');
+    if (q.type === 'text') setDraft(responses[q.id]?.value ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
@@ -75,7 +85,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
     window.requestAnimationFrame(() => questionRef.current?.focus());
   };
   const finish = () => {
-    dispatch({ type: 'survey-status', status: 'completed', form });
+    for (const f of forms) dispatch({ type: 'survey-status', status: 'completed', form: f });
     dispatch({ type: 'next' });
   };
   const advance = () => (last ? finish() : moveTo(index + 1));
@@ -108,21 +118,21 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
     advance();
   };
   const skipAll = () => {
-    dispatch({ type: 'survey-status', status: 'skipped', form });
+    // Skipping the rest once past the quick questions keeps those as answered: only the longer ones are skipped.
+    const quickDone = withLonger && index >= config.questions.length;
+    for (const f of forms) if (recordOf(f).status !== 'completed') dispatch({ type: 'survey-status', status: f === 'quick' && quickDone ? 'completed' : 'skipped', form: f });
     dispatch({ type: 'next' });
   };
 
   const title = (
     <>
-      {noPhone ? 'Some questions about phones and social media.' : which === 'more' ? `Some more questions about ${childName}’s phone use.` : `A few quick questions about ${childName}’s phone use.`} {config.draft && <Draft />}
+      {noPhone ? 'Some questions about phones and social media.' : `Some questions about ${childName}’s phone use.`} {(config.draft || (withLonger && parentMoreForm.draft)) && <Draft />}
     </>
   );
-  const kicker = noPhone ? 'Questions' : which === 'more' ? 'More questions' : 'Quick questions';
+  const kicker = 'Questions';
   const intro = noPhone
     ? `${childName} doesn’t have a phone of their own, so these are about what you think of phones and social media, and what ${childName} uses instead. About a minute. You can skip any question. Your answers are kept with ${childName}’s code, not your name.`
-    : which === 'more'
-      ? `About ${childName}’s phone and social media: time and apps, night-time and sleep, and how it affects them. About two minutes. Answer what you can: you can skip any question. Your answers are kept with ${childName}’s code, not your name.`
-      : `About a minute. Tap an answer to go to the next question. You can skip any of them, or all of them if ${childName} is next to you. Your answers are kept with ${childName}’s code, not your name.`;
+    : `About ${childName}’s phone and social media: how they use it, time and apps, night-time and sleep, and how it affects them. About ${withLonger ? 'three minutes' : 'a minute'}. Tap an answer to go to the next question. You can skip any of them, or all of them if ${childName} is next to you. Your answers are kept with ${childName}’s code, not your name.`;
 
   if (gate) {
     const answer = (has: boolean) => {
@@ -136,7 +146,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
       dispatch({ type: 'next' });
     };
     return (
-      <StepShell kicker="Quick questions" title={<>First: does {childName} have a phone of their own?</>} intro={<p>A smartphone that is theirs, not shared with anyone else. Not every young person has one, and that’s fine.</p>} hideContinue>
+      <StepShell kicker="Questions" title={<>First: does {childName} have a phone of their own?</>} intro={<p>A smartphone that is theirs, not shared with anyone else. Not every young person has one, and that’s fine.</p>} hideContinue>
         <div className="mpmb-quiz__options" role="group" aria-label={`Does ${childName} have a phone of their own?`}>
           <button type="button" className={`mpmb-quiz__option${saidYes ? ' is-selected' : ''}`} aria-pressed={false} onClick={() => answer(true)}>
             <span className="mpmb-quiz__dot" aria-hidden="true" />
@@ -153,12 +163,12 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
 
   if (!asking) {
     return (
-      <StepShell kicker={kicker} title={title} intro={<p>{survey.status === 'skipped' && !answered ? 'You skipped these questions. That is fine: they are optional.' : `You answered ${answered} of ${total}. Thank you. Your answers are not shown again on this phone.`}</p>} onContinue={() => dispatch({ type: 'next' })}>
+      <StepShell kicker={kicker} title={title} intro={<p>{forms.every((f) => recordOf(f).status === 'skipped') && !answered ? 'You skipped these questions. That is fine: they are optional.' : `You answered ${answered} of ${total}. Thank you. Your answers are not shown again on this phone.`}</p>} onContinue={() => dispatch({ type: 'next' })}>
         <Button
           variant="link"
           onClick={() => {
             // Starting again from blank, so earlier answers are never put back on screen.
-            for (const qq of questions) if (survey.responses[qq.id]) dispatch({ type: 'skip-question', questionId: qq.id, form });
+            for (const it of items) if (recordOf(it.form).responses[it.q.id]) dispatch({ type: 'skip-question', questionId: it.q.id, form: it.form });
             setReviewing(true);
             moveTo(0);
           }}

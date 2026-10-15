@@ -145,9 +145,9 @@ async function inner() {
   // Draws on the page the locator belongs to (a second device has its own mouse).
   /** Under 16, the parent is first asked whether the young person has a phone of their own (9 October 2026): "Yes" for these journeys. */
   const hasOwnPhone = async (page) => {
-    await page.getByRole('heading', { name: /First: does .* have a phone of their own\?|A few quick questions/ }).waitFor();
+    await page.getByRole('heading', { name: /First: does .* have a phone of their own\?|Some questions about .*’s phone use/ }).waitFor();
     if (await page.getByRole('heading', { name: /First: does/ }).count()) await page.getByRole('button', { name: 'Yes', exact: true }).click();
-    await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
+    await page.getByRole('heading', { name: /Some questions about .*’s phone use/ }).waitFor();
   };
   const draw = async (locator, points) => {
     await locator.scrollIntoViewIfNeeded();
@@ -225,7 +225,7 @@ async function inner() {
     await page.getByLabel('Your full name', { exact: true }).fill('Priya Patel');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await hasOwnPhone(page);
-    await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
+    await page.getByRole('heading', { name: /Some questions about .*’s phone use/ }).waitFor();
     const usageCalls = await page.evaluate(() => window.__usageCalls);
     ok(
       'the form tells the usage counter its steps and the fields it asked to be fixed, and nothing anyone typed',
@@ -252,9 +252,9 @@ async function inner() {
     ok('saved as soon as the parent signs: the permission, with where the screen time comes from and the young person’s answer still to come', signedOnly?.submission.version === 1 && Boolean(signedOnly?.submission.consentId) && signedOnly?.submission.phoneSource === null && signedAssent?.status === 'not-started' && signedAssent?.signature === null && signedOnly?.submission.surveyId === null, JSON.stringify(signedOnly?.submission ?? null).slice(0, 300));
     const code = signedOnly?.code ?? '';
     const firstConsentId = signedOnly?.submission.consentId;
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 1 of 5' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 1 of 14' }).waitFor();
     await page.getByRole('button', { name: 'Somewhat', exact: true }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of 5' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of 14' }).waitFor();
     let partWay = null;
     let partWayId = null;
     for (let i = 0; i < 30 && !partWay?.responses?.concern; i += 1) {
@@ -264,15 +264,15 @@ async function inner() {
     }
     ok('an answer is saved as soon as it is given, before the questions are finished', partWay?.status === 'in-progress' && partWay?.responses?.concern?.value === 'somewhat' && (await db.collection('submissions').doc(code).get()).data()?.version === 1, JSON.stringify(partWay?.responses ?? null));
     for (const [i, label] of [[2, 'About the same'], [3, 'Sometimes'], [4, '1 to 2 hours']]) {
-      await page.locator('.mpmb-quiz__count', { hasText: `Question ${i} of 5` }).waitFor();
+      await page.locator('.mpmb-quiz__count', { hasText: `Question ${i} of 14` }).waitFor();
       await page.getByRole('button', { name: label, exact: true }).click();
     }
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 5 of 5' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 5 of 14' }).waitFor();
     await page.getByRole('textbox').fill('Mostly YouTube, often late at night.');
-    await page.getByRole('button', { name: 'Finish', exact: true }).click();
-    // Every parent answers the longer questions too, before the screen time and the handover, so their answers are in whatever the young person does.
-    await page.getByRole('heading', { name: /Some more questions about Kai’s phone use/ }).waitFor();
-    ok('the longer questions come straight after the quick ones, before the screen time is decided', (await page.getByText(/About Kai’s phone and social media/).count()) === 1);
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    // Every parent answers the longer questions too, before the screen time and the handover; since 15 October 2026 as one set with the quick ones.
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 6 of 14' }).waitFor();
+    ok('the longer questions follow the quick ones as one set: the same screen, one count, no second introduction', (await page.getByRole('heading', { name: /Some more questions/ }).count()) === 0 && (await page.getByRole('heading', { name: /Some questions about Kai’s phone use/ }).count()) === 1);
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.getByRole('heading', { name: /Can we have Kai’s screen time/ }).waitFor();
     ok('on the young person’s route the parent says yes from Kai’s phone, or no; never from the parent’s own phone', (await page.locator('#phone-source-child').count()) === 1 && (await page.locator('#phone-source-none').count()) === 1 && (await page.locator('#phone-source-parent').count()) === 0);
@@ -452,8 +452,6 @@ async function inner() {
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await hasOwnPhone(page);
     await page.getByRole('button', { name: 'Skip these questions' }).click();
-    await page.getByRole('heading', { name: /Some more questions about Amira’s phone use/ }).waitFor();
-    await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.getByRole('heading', { name: /Can we have Amira’s screen time/ }).waitFor();
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByText('Choose an answer.').first().waitFor();
@@ -496,8 +494,6 @@ async function inner() {
     await page.getByLabel('Your full name', { exact: true }).fill('Jo Clarke');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await hasOwnPhone(page);
-    await page.getByRole('button', { name: 'Skip these questions' }).click();
-    await page.getByRole('heading', { name: /Some more questions about Noah’s phone use/ }).waitFor();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.locator('#phone-source-child').check();
     await page.getByRole('button', { name: 'Continue' }).click();
@@ -602,25 +598,27 @@ async function inner() {
     await page.getByLabel('Your full name', { exact: true }).fill('Grace Brown');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await hasOwnPhone(page);
-    await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
-    await page.getByRole('button', { name: 'Skip these questions' }).click();
-    await page.getByRole('heading', { name: /Some more questions about Lily’s phone use/ }).waitFor();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Time and apps · Question 1 of 9' }).waitFor();
+    await page.getByRole('heading', { name: /Some questions about .*’s phone use/ }).waitFor();
+    for (let i = 1; i <= 5; i += 1) {
+      await page.locator('.mpmb-quiz__count', { hasText: `Question ${i} of 14` }).waitFor();
+      await page.getByRole('button', { name: 'Skip this question' }).click();
+    }
+    await page.locator('.mpmb-quiz__count', { hasText: 'Time and apps · Question 6 of 14' }).waitFor();
     ok('the age at their own phone goes down to “Under 5”, year by year, with “I can’t remember / I don’t know”', (await page.locator('.mpmb-quiz__option').count()) === 13 && (await page.getByRole('button', { name: 'They don’t have their own' }).count()) === 0 && (await page.getByRole('button', { name: 'Under 5', exact: true }).count()) === 1 && (await page.getByRole('button', { name: '7', exact: true }).count()) === 1 && (await page.getByRole('button', { name: 'I can’t remember / I don’t know', exact: true }).count()) === 1);
     await page.getByRole('button', { name: '12', exact: true }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of 9' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 7 of 14' }).waitFor();
     ok('the longer questions ask when they started on social media, in plain words', (await page.getByRole('heading', { name: /How old was Lily when they started using social media\?/ }).count()) === 1);
     await page.getByRole('button', { name: '11', exact: true }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 3 of 9' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 8 of 14' }).waitFor();
     await page.getByRole('button', { name: '3 to 4 hours', exact: true }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 4 of 9' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 9 of 14' }).waitFor();
     await page.getByRole('button', { name: 'Skip this question' }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 5 of 9' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 10 of 14' }).waitFor();
     await page.getByRole('button', { name: 'TikTok', exact: true }).click();
     await page.getByRole('button', { name: 'YouTube', exact: true }).click();
-    ok('more than one app can be chosen: both stay ticked, and the question waits for Next', (await page.locator('.mpmb-quiz__count', { hasText: 'Question 5 of 9' }).count()) === 1 && (await page.getByRole('button', { name: 'TikTok', exact: true }).getAttribute('aria-pressed')) === 'true' && (await page.getByRole('button', { name: 'YouTube', exact: true }).getAttribute('aria-pressed')) === 'true');
+    ok('more than one app can be chosen: both stay ticked, and the question waits for Next', (await page.locator('.mpmb-quiz__count', { hasText: 'Question 10 of 14' }).count()) === 1 && (await page.getByRole('button', { name: 'TikTok', exact: true }).getAttribute('aria-pressed')) === 'true' && (await page.getByRole('button', { name: 'YouTube', exact: true }).getAttribute('aria-pressed')) === 'true');
     await page.getByRole('button', { name: 'Next', exact: true }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 6 of 9' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 11 of 14' }).waitFor();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.getByRole('heading', { name: /Can we have Lily’s screen time/ }).waitFor();
     await page.locator('#phone-source-none').check();
@@ -1373,9 +1371,7 @@ async function inner() {
     await page.getByLabel('Your full name', { exact: true }).fill('Sam Hughes');
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await hasOwnPhone(page);
-    await page.getByRole('heading', { name: /A few quick questions/ }).waitFor();
-    await page.getByRole('button', { name: 'Skip these questions' }).click();
-    await page.getByRole('heading', { name: /Some more questions about Mia’s phone use/ }).waitFor();
+    await page.getByRole('heading', { name: /Some questions about .*’s phone use/ }).waitFor();
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.getByRole('heading', { name: /Can we have Mia’s screen time/ }).waitFor();
     await page.locator('#phone-source-none').check();

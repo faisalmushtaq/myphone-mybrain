@@ -43,11 +43,12 @@ export function ChildAssent() {
     dispatch({ type: 'next' });
   };
 
-  // With a parent there, deciding later hands back to them for their longer questions; on their own (16 or over) they can simply come back.
+  // With a parent there, deciding later goes on to the check; on their own (16 or over) they can simply come back.
   const withParent = parentInvolved(state);
   const later = () => {
     dispatch({ type: 'assent-status', status: 'deferred', deferredBy: 'young' });
-    dispatch({ type: 'go-to', stepId: 'parent-more', returnTo: null });
+    // The parent's questions were all answered before this (one set since 15 October 2026), so the form goes on to the check.
+    dispatch({ type: 'go-to', stepId: 'check', returnTo: null });
   };
 
   return (
