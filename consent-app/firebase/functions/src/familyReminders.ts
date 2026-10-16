@@ -87,18 +87,27 @@ export function screenTimeReminderDue(from: Date): Timestamp {
   return Timestamp.fromMillis(from.getTime() + SCREEN_TIME_WAIT_DAYS * 86_400_000);
 }
 
-export const familyReminders = onSchedule({ region: 'europe-west2', schedule: 'every 1 hours', timeZone: 'Europe/London', timeoutSeconds: 300 }, async () => {
+/** Per hourly run (sized for 1,000 families a day, 16 October 2026): records looked at, and emails sent, paced for the mail account's limit of about 30 a minute. */
+const PER_RUN = 400;
+const EMAILS_PER_RUN = 120;
+const EMAIL_GAP_MS = 2_500;
+
+export const familyReminders = onSchedule({ region: 'europe-west2', schedule: 'every 1 hours', timeZone: 'Europe/London', timeoutSeconds: 540, memory: '512MiB' }, async () => {
   const db = getFirestore();
   const now = Date.now();
   const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: 'numeric', hour12: false }).format(new Date(now)));
   // Not in the night: texts and emails go between 9am and 8pm UK time.
   if (hour < 9 || hour >= 20) return;
-  const due = await db.collection('submissions').where('reminderDueAt', '<=', Timestamp.fromMillis(now)).limit(200).get();
+  const due = await db.collection('submissions').where('reminderDueAt', '<=', Timestamp.fromMillis(now)).limit(PER_RUN).get();
   if (due.empty) return;
   const optOuts = optOutsOf((await db.collection('optOuts').get()).docs.map((d) => ({ id: d.id, data: d.data() })));
   const mail = settingsFromEnv();
   let sent = 0;
+  let emails = 0;
+  const started = Date.now();
   for (const doc of due.docs) {
+    // Stop well inside the time limit; what is left is still due, and goes next hour.
+    if (Date.now() - started > 480_000) break;
     const submission = doc.data();
     const done = (outcome: string, extra: Record<string, unknown> = {}) => doc.ref.update({ reminderDueAt: FieldValue.delete(), reminders: FieldValue.arrayUnion({ at: Timestamp.fromMillis(now), outcome, ...extra }) });
     try {
@@ -135,6 +144,10 @@ export const familyReminders = onSchedule({ region: 'europe-west2', schedule: 'e
         channel = 'sms';
         outcome = await sendSms(mobile, words.sms);
       } else {
+        // The rest wait for the next run, still due.
+        if (emails >= EMAILS_PER_RUN) continue;
+        if (emails > 0) await new Promise((r) => setTimeout(r, EMAIL_GAP_MS));
+        emails += 1;
         channel = 'email';
         outcome = await sendMail({ to: email!, subject: words.subject, text: words.text }, mail);
       }

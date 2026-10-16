@@ -224,7 +224,8 @@ function bodyOf(req: { body?: unknown; rawBody?: Buffer }): unknown {
   }
 }
 
-export const usage = onRequest({ region: REGION, cors: ALLOWED_ORIGINS, memory: '256MiB', timeoutSeconds: 20, maxInstances: 3 }, async (req, res) => {
+// Up to 20 at once (was 3, 16 October 2026): a school's message can bring hundreds of families in an hour, and a refused count is lost.
+export const usage = onRequest({ region: REGION, cors: ALLOWED_ORIGINS, memory: '256MiB', timeoutSeconds: 20, maxInstances: 20 }, async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).end();
     return;
