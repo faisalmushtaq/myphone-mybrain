@@ -11,6 +11,7 @@ import { sendMail, settingsFromEnv } from './mail.js';
 import { exportBucketName } from './export.js';
 import { nameKey, optOutFor, optOutsOf } from './exportUpn.js';
 import { reminderPlan } from './familyReminders.js';
+import { dashboardOf } from './dashboard.js';
 import { countFailure, schoolBySlug, setSchoolPassword } from './schoolUpload.js';
 import { readSecret } from './secrets.js';
 import { sendSms, smsReady, ukMobile } from './sms.js';
@@ -513,6 +514,9 @@ export const staffApi = onCall(callOptions, async (request) => {
       await db.collection('schoolUploadAccess').doc(school.slug).set({ active: false, revokedAt: now }, { merge: true });
       return { ok: true };
     }
+
+    case 'dashboard':
+      return dashboardOf(db);
 
     case 'families':
       return { families: await familiesList(db) };

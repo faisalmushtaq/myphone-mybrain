@@ -1342,6 +1342,17 @@ async function inner() {
     await page.getByText('That staff key is not right.').waitFor({ timeout: 30000 });
     await page.getByLabel('Staff key').fill('emulator-staff-key');
     await page.getByRole('button', { name: 'Sign in' }).click();
+    // The first tab is the dashboard (16 October 2026): how both studies are going, counts only, test accounts left out.
+    await page.getByRole('heading', { name: 'Schools study: families' }).waitFor({ timeout: 30000 });
+    const tileOf = async (label) => Number((await page.locator('.mpmb-dash__tile', { has: page.locator('.mpmb-dash__label', { hasText: new RegExp(`^${label}$`) }) }).locator('.mpmb-dash__value').innerText()).trim());
+    const formsSaved = await tileOf('Forms saved');
+    const sentTile = await tileOf('Screen time sent');
+    const consentRecords = (await db.collection('submissions').where('kind', '==', 'consent').get()).docs.map((d) => d.data());
+    ok('the dashboard counts the forms saved and the screen time sent, as the records say', formsSaved === consentRecords.length && sentTile === consentRecords.filter((r) => Number(r.imageCount ?? 0) > 0).length && formsSaved > 0, `${formsSaved} ${sentTile} ${consentRecords.length}`);
+    ok('the dashboard shows the break study, per school, and a table for each chart', (await page.getByRole('heading', { name: 'Social media break study' }).count()) === 1 && (await page.locator('.mpmb-table tbody tr').count()) >= 1 && (await page.getByText('Show as a table').count()) === 3);
+    // To look at it: MPMB_E2E_SHOTS=<folder> saves a picture of the dashboard.
+    if (process.env.MPMB_E2E_SHOTS) await page.screenshot({ path: `${process.env.MPMB_E2E_SHOTS}/staff-dashboard.png`, fullPage: true });
+    await page.getByRole('button', { name: 'Lab times', exact: true }).click();
     await page.getByRole('heading', { name: 'Add lab times' }).waitFor({ timeout: 30000 });
     ok('the staff page says when the data export last ran, not as a warning while it is recent', (await page.locator('.mpmb-tools__export').innerText()).startsWith('Data export last ran: ') && (await page.locator('.mpmb-tools__export.is-stale').count()) === 0, await page.locator('.mpmb-tools__export').innerText().catch(() => 'missing'));
     ok('the staff page lists the times with their bookings', (await page.locator('.mpmb-tools__row').count()) === 5 && (await page.getByText(/1 of 1 booked/).count()) === 2);

@@ -4,6 +4,7 @@ import { Callout } from '../components/ui/Callout';
 import { TextField } from '../components/ui/Field';
 import { callTool, messageOf, when, type Overview } from './api';
 import { Bookings } from './staff/Bookings';
+import { Dashboard } from './staff/Dashboard';
 import { Families } from './staff/Families';
 import { OptOuts } from './staff/OptOuts';
 import { Participants } from './staff/Participants';
@@ -14,8 +15,9 @@ import { Usage } from './staff/Usage';
 const KEY_STORE = 'mpmb-staff-key';
 /** The export runs every hour (five past); older than three hours means a run, or more, has failed. */
 const EXPORT_STALE_MS = 3 * 3_600_000;
-type Tab = 'times' | 'bookings' | 'participants' | 'families' | 'schools' | 'opt-outs' | 'usage';
+type Tab = 'dashboard' | 'times' | 'bookings' | 'participants' | 'families' | 'schools' | 'opt-outs' | 'usage';
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'dashboard', label: 'How it’s going' },
   { id: 'times', label: 'Lab times' },
   { id: 'bookings', label: 'Bookings' },
   { id: 'participants', label: 'Participants' },
@@ -53,7 +55,7 @@ export function StaffApp() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [overview, setOverview] = useState<Overview | null>(null);
-  const [tab, setTab] = useState<Tab>('times');
+  const [tab, setTab] = useState<Tab>('dashboard');
 
   const ask = useCallback(<T,>(action: string, data: Record<string, unknown> = {}) => callTool<T>('staffApi', { ...data, staffKey: key, action }), [key]);
 
@@ -168,6 +170,7 @@ export function StaffApp() {
         {tab === 'bookings' && <Bookings staff={staff} />}
         {tab === 'participants' && <Participants staff={staff} />}
         {tab === 'schools' && <Schools staff={staff} />}
+        {tab === 'dashboard' && <Dashboard staff={staff} />}
         {tab === 'families' && <Families staff={staff} />}
         {tab === 'opt-outs' && <OptOuts staff={staff} />}
         {tab === 'usage' && <Usage staff={staff} />}

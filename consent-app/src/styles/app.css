@@ -4231,3 +4231,35 @@
   color: var(--mpb-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* Staff dashboard ("How it’s going", 16 October 2026): headline numbers, one-hue bars, a table for every chart. */
+.mpmb-app .mpmb-table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+.mpmb-app .mpmb-table th,
+.mpmb-app .mpmb-table td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--mpb-line); font-variant-numeric: tabular-nums; }
+.mpmb-app .mpmb-table thead th { color: var(--mpb-muted); font-weight: 600; }
+.mpmb-dash section { margin-bottom: 2.5rem; }
+.mpmb-dash__tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.75rem; margin: 1rem 0 1.5rem; }
+.mpmb-dash__tile { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.9rem 1rem; background: var(--mpb-white); border: 1px solid var(--mpb-line); border-radius: 8px; }
+.mpmb-dash__value { font-size: 2rem; font-weight: 700; line-height: 1.1; color: var(--mpb-ink); font-variant-numeric: tabular-nums; }
+.mpmb-dash__label { color: var(--mpb-ink); font-weight: 600; }
+.mpmb-dash__note,
+.mpmb-dash__muted { color: var(--mpb-muted); font-size: 0.9rem; font-weight: 400; }
+.mpmb-dash__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.mpmb-dash__chart { margin: 0; padding: 1rem; background: var(--mpb-white); border: 1px solid var(--mpb-line); border-radius: 8px; min-width: 0; }
+.mpmb-dash__chart .mpmb-h3 { margin: 0 0 0.75rem; }
+.mpmb-app .mpmb-dash__funnel { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.mpmb-dash__step { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.2rem 0.75rem; align-items: center; }
+.mpmb-dash__steplabel { grid-column: 1 / -1; color: var(--mpb-ink); font-size: 0.95rem; }
+.mpmb-dash__track { height: 14px; background: var(--mpb-paper); border-radius: 4px; overflow: hidden; }
+.mpmb-dash__bar { display: block; height: 100%; min-width: 3px; background: var(--mpb-teal); border-radius: 0 4px 4px 0; }
+.mpmb-dash__stepvalue { font-weight: 700; color: var(--mpb-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mpmb-app .mpmb-dash__facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; color: var(--mpb-body); }
+.mpmb-dash__readout { margin: -0.4rem 0 0.4rem; color: var(--mpb-muted); font-size: 0.9rem; min-height: 1.3em; }
+.mpmb-dash__svg { width: 100%; height: auto; display: block; overflow: visible; }
+.mpmb-dash__axis { stroke: var(--mpb-line); stroke-width: 1; }
+.mpmb-dash__col { fill: var(--mpb-teal); }
+.mpmb-dash__col.is-hover { fill: var(--mpb-deep); }
+.mpmb-dash__ticks { display: flex; justify-content: space-between; margin: 0.25rem 0 0; color: var(--mpb-muted); font-size: 0.85rem; }
+.mpmb-dash__table { margin-top: 0.5rem; font-size: 0.9rem; }
+.mpmb-dash__table summary { cursor: pointer; color: var(--mpb-teal); }
+.mpmb-dash__scroll { overflow-x: auto; }
