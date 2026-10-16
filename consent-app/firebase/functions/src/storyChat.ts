@@ -85,6 +85,8 @@ interface Candidate {
   beforeCut?: string;
   /** Cosine similarity of the retelling to the participant's own words. */
   similarity?: number | null;
+  /** The check could not run, so the draft was shown unchecked (the failed call is in calls). */
+  checkFailed?: boolean;
 }
 
 export interface ChatDoc {
@@ -356,6 +358,8 @@ export const labStoryChat = onCall(callOptions, async (request) => {
       if (!model) return await fallback(ref, protocol, 'no model');
       try {
         let done = turns >= protocol.maxTurns;
+        // Which questions the interviewer judged answered when it closed, kept for the export (questions_covered).
+        let covered: number[] | undefined;
         if (!done) {
           const turn = await call<{ reply: string; interviewDone: boolean; questionsCovered?: number[] }>(db, ref, model, interviewerPrompt(protocol, transcript), protocol, 'collect');
           // The closing turn's reply is discarded, as MySelf does: the app says what happens next, not the model.
@@ -365,6 +369,7 @@ export const labStoryChat = onCall(callOptions, async (request) => {
               await ref.update({ interviewDone: true, interviewClosed: 'stopped_early', questionsCovered: turn.questionsCovered ?? [], status: 'stopped', fallback: 'participant stopped', stoppedEarly: true, updatedAt: FieldValue.serverTimestamp() });
               return { stage: 'stopped', text: STOPPED_EARLY };
             }
+            covered = Array.isArray(turn.questionsCovered) ? turn.questionsCovered : undefined;
             done = true;
           }
           else {
@@ -372,7 +377,7 @@ export const labStoryChat = onCall(callOptions, async (request) => {
             return { stage: 'interview', reply: turn.reply };
           }
         }
-        await ref.update({ interviewDone: true, interviewClosed: turns >= protocol.maxTurns ? 'turn_limit' : 'model' });
+        await ref.update({ interviewDone: true, interviewClosed: turns >= protocol.maxTurns ? 'turn_limit' : 'model', ...(covered ? { questionsCovered: covered } : {}) });
         const { extraction, candidates } = await retell(db, ref, model, protocol, transcript);
         if (!candidates.length) return await fallback(ref, protocol, 'no retelling could be generated', extraction);
         await ref.update({ extraction, candidates, status: 'choose', updatedAt: FieldValue.serverTimestamp() });
@@ -440,6 +445,8 @@ export const labStoryChat = onCall(callOptions, async (request) => {
       }
       // After a failure: the participant's own answers, as they wrote them, are the story.
       const own = chat.transcript.filter((m) => m.role === 'user').map((m) => m.content).join('\n\n');
+      // Nothing typed and no story (it stopped before the first answer): nothing to file, so no empty story (16 October 2026).
+      if (!story && !own.trim()) throw new HttpsError('failed-precondition', 'There is nothing to save yet: you have not told us anything. You can start again, or write your story yourself.');
       const filed = await fileStory(db, ref, chat, story || own, chat.status === 'stopped' ? (chat.fallback === 'participant stopped' ? 'stopped-early' : 'model-unavailable') : story === chat.finalScenario ? 'kept' : 'edited', uid);
       return { stage: 'done', story: story || own, ...filed };
     }

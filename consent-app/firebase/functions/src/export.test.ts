@@ -327,7 +327,7 @@ test('the team’s test accounts are kept out of every file of the break study�
       reminders: [{ id: fake, data: {} }],
       checkIns: [],
       stories: [{ id: 's1', data: { participantCode: fake, phase: 'post', mode: 'chat', story: 'a test story' } }],
-      storyChats: [{ id: 'k1', data: { participantCode: fake, phase: 'post', status: 'done', transcript: [], calls: [] } }],
+      storyChats: [{ id: 'k1', data: { participantCode: fake, phase: 'post', status: 'done', transcript: [], calls: [], voiceClips: [{ clipId: 'v1', path: 'labStoryVoice/k1/v1.webm', ok: true }] } }],
       contacts: [{ id: fake, data: { mobile: '+447700900123' } }],
     },
     '2026-10-14T12:00:00.000Z',
@@ -337,4 +337,65 @@ test('the team’s test accounts are kept out of every file of the break study�
   assert.ok(!everything.includes(fake) && !everything.includes('a test story'), 'nothing of the test account is');
   assert.equal(out.counts.labParticipants, 1);
   assert.equal(out.counts.labTestRecordsLeftOut, 6);
+  assert.equal(out.copies.size, 0, 'nor the test account’s recordings');
+  assert.equal(out.files.find((f) => f.path === 'social-media-break/identifying/mystory_voice/clips.tsv')!.body.split('\n').filter(Boolean).length, 1, 'clips.tsv has its header only');
+});
+
+test('MyStory’s chat: every conversation keeps the participant’s words, ends on one set of levels, and its recordings go to identifying/, never donations/', async () => {
+  const { chatEnding, labExport, labStoryChatColumns, labStoryChatDictionary, labStoryChatTable, LAB_VOICE_COLUMNS } = await import('./exportLab.js');
+  const code = 'MP2670FF90A5F2';
+  const said = (...words: string[]) => words.flatMap((w) => [{ role: 'assistant', content: 'A question?' }, { role: 'user', content: w }]);
+  const chats = [
+    // Finished, edited, after a stop on the way: the second chat of the phase.
+    { id: 'c1', data: { participantCode: code, phase: 'post', startedAt: '2026-11-10T10:00:00.000Z', finishedAt: '2026-11-10T10:20:00.000Z', model: 'gpt-4o', status: 'done', ending: 'edited', storyId: 's9', turns: 2, interviewClosed: 'model', questionsCovered: [1, 2, 3], transcript: said('Quiet evenings.', 'I slept better.'), candidates: [{ index: 0, persona: 'casual', added: [], stillAdded: [] }, { index: 1, persona: 'warm', checkFailed: true }], chosenIndex: 0, requests: [{ request: 'Shorter', checkFailed: true }, { request: 'Leeds' }], edits: [{}], calls: [], voiceClips: [
+      { clipId: 'u1', path: 'labStoryVoice/c1/u1.webm', bytes: 1200, seconds: 4, mimeType: 'audio/webm;codecs=opus', stage: 'interview', ok: true, at: '2026-11-10T10:05:00.000Z' },
+      { clipId: 'u2', path: null, bytes: 800, seconds: 3, mimeType: 'audio/mp4', stage: 'interview', ok: true, at: '2026-11-10T10:06:00.000Z' },
+      { clipId: 'u3', path: 'labStoryVoice/c1/u3.m4a', bytes: 900, seconds: 2, mimeType: 'audio/mp4', stage: 'adapt', ok: false, at: '2026-11-10T10:15:00.000Z' },
+    ] } },
+    // Stopped early by the participant, never finished: the first.
+    { id: 'c2', data: { participantCode: code, phase: 'post', startedAt: '2026-11-10T09:00:00.000Z', status: 'stopped', fallback: 'participant stopped', stoppedEarly: true, interviewClosed: 'stopped_early', questionsCovered: [1], turns: 1, transcript: said('Can we stop here please'), calls: [{ ok: true }] } },
+    // The model failed; and one left at the choice.
+    { id: 'c3', data: { participantCode: code, phase: 'post', startedAt: '2026-11-10T09:30:00.000Z', status: 'stopped', fallback: 'the model could not be reached', turns: 1, transcript: said('It was hard.'), calls: [{ ok: false }] } },
+    { id: 'c4', data: { participantCode: code, phase: 'post', startedAt: '2026-11-10T09:45:00.000Z', status: 'choose', turns: 5, transcript: said('One.', 'Two.'), candidates: [{ index: 0, persona: 'casual' }], calls: [] } },
+  ];
+  const columns = labStoryChatColumns('post');
+  for (const c of ['chat_n', 'model', 'questions_covered', 'own_words', 'retellings_check_failed']) assert.ok(columns.includes(c), c);
+  const rows = labStoryChatTable('post', chats);
+  assert.deepEqual(rows.map((r) => [r.chat_id, r.chat_n, r.status, r.ending]), [['c2', 1, 'stopped', 'stopped-early'], ['c3', 2, 'stopped', 'model-unavailable'], ['c4', 3, 'choose', 'abandoned'], ['c1', 4, 'done', 'edited']], 'numbered by start, one set of ending levels');
+  assert.equal(rows[0].own_words, 'Can we stop here please', 'a stopped chat keeps what they said');
+  assert.equal(rows[2].own_words, 'One. / Two.');
+  assert.equal(rows[0].interview_closed, 'stopped_early');
+  assert.deepEqual(rows[3].questions_covered, [1, 2, 3]);
+  assert.equal(rows[3].retellings_check_failed, 2, 'one retelling and one change shown unchecked');
+  assert.equal(rows[3].model, 'gpt-4o');
+  assert.equal(rows[3].voice_clips, 3);
+  assert.equal(rows[2].final_story, null);
+  assert.equal(chatEnding({ status: 'done', ending: 'rated-full-marks' }), 'rated-full-marks');
+  assert.equal(chatEnding({ status: 'interview' }), 'abandoned');
+  const tsv = labStoryChatTable('post', chats).map((r) => columns.map((c) => r[c]));
+  assert.ok(tsv.every((r) => !String(r).includes('stopped: ')), 'no free-text endings');
+  const dictionary = labStoryChatDictionary('post') as Record<string, { Description: string; Levels?: Record<string, string> }>;
+  for (const level of ['rated-full-marks', 'kept', 'edited', 'stopped-early', 'model-unavailable', 'abandoned']) assert.ok(dictionary.ending.Levels?.[level], level);
+  assert.ok(dictionary.interview_closed.Levels?.stopped_early && dictionary.status.Levels?.stopped.includes('the model could not carry on') && dictionary.status.Levels?.stopped.includes('participant stopped'));
+  assert.ok(columns.every((c) => dictionary[c]), `every column is described: ${columns.filter((c) => !dictionary[c]).join(',')}`);
+  assert.ok(dictionary.session_id.Description.includes('no row'), 'says a MyStory session may have no row in the sessions file');
+
+  const out = labExport({ participants: [{ id: code, data: { consentId: 'c1' } }], consents: [], donations: [], reminders: [], checkIns: [], storyChats: chats }, '2026-11-11T12:00:00.000Z');
+  const label = `sub-${code}`;
+  assert.deepEqual(Array.from(out.copies.entries()), [
+    ['labStoryVoice/c1/u1.webm', `social-media-break/identifying/mystory_voice/${label}/ses-post/${label}_ses-post_chat-c1_clip-01.webm`],
+    ['labStoryVoice/c1/u3.m4a', `social-media-break/identifying/mystory_voice/${label}/ses-post/${label}_ses-post_chat-c1_clip-03.m4a`],
+  ], 'numbered in the conversation’s order; a clip not kept keeps its number');
+  assert.ok(![...out.copies.values()].some((p) => p.includes('/donations/')), 'no recording in the research dataset');
+  const clips = out.files.find((f) => f.path === 'social-media-break/identifying/mystory_voice/clips.tsv')!.body.split('\n');
+  assert.equal(clips[0], LAB_VOICE_COLUMNS.join('\t'));
+  assert.equal(clips[1], `${label}\tses-post\tc1\tu1\t${label}/ses-post/${label}_ses-post_chat-c1_clip-01.webm\t4\t1200\taudio/webm;codecs=opus\tinterview\ttrue\t2026-11-10T10:05:00.000Z`);
+  assert.ok(clips[2].startsWith(`${label}\tses-post\tc1\tu2\tn/a\t`), 'a clip without its recording is still listed');
+  const clipsDictionary = JSON.parse(out.files.find((f) => f.path === 'social-media-break/identifying/mystory_voice/clips.json')!.body);
+  assert.ok(LAB_VOICE_COLUMNS.every((c) => clipsDictionary[c]));
+  const chatTsv = out.files.find((f) => f.path === 'social-media-break/donations/phenotype/mystory_chat_post.tsv')!.body;
+  assert.ok(chatTsv.includes('\tCan we stop here please\t') && chatTsv.includes('\tabandoned\t'));
+  const donationsText = out.files.filter((f) => f.path.startsWith('social-media-break/donations/')).map((f) => f.body).join('\n');
+  assert.ok(!donationsText.includes('sourcedata/voice') && donationsText.includes('identifying/mystory_voice'), 'the READMEs and dictionary point to the recordings in identifying/');
+  assert.equal(out.counts.labStoryVoiceClips, 3);
 });

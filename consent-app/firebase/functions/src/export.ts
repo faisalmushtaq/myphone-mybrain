@@ -645,15 +645,23 @@ schools/              the young people's study (parents' consent, young
                       screenshots), labelled sub-00001... in order of consent;
                       also upn-uploads/, the UPN lists schools send, matched
                       to the families' records (study coordinators only)
-social-media-break/   the adult laboratory study: cleaned TikTok and YouTube
-                      archives and screen-time screenshots donated by
-                      participants, labelled by their participant ID
+social-media-break/   the adult laboratory study: cleaned TikTok, YouTube and
+                      Instagram archives and screen-time screenshots donated
+                      by participants, the mid-break check-ins, and MyStory
+                      (donations/phenotype/mystory_<phase>.tsv, stories
+                      written on the form; mystory_chat_<phase>.tsv,
+                      conversations with the AI interviewer, in full in
+                      donations/sourcedata/raw/labStoryChats.jsonl),
+                      labelled by their participant ID; the recordings of
+                      answers spoken in that chat identify a voice, so they
+                      are in identifying/mystory_voice/
 
   <study>/donations/     what participants gave through the website, as a
                          research dataset in BIDS layout, no names; for
                          researchers
-  <study>/identifying/   names, contact details, consent records and
-                         signatures; for study coordinators only
+  <study>/identifying/   names, contact details, consent records,
+                         signatures and voice recordings; for study
+                         coordinators only
 
 The folders the export writes are mirrors: anything added inside them is
 removed on the next run. Each team's other datasets (laboratory visits,

@@ -20,15 +20,20 @@ import { cleaner, labCheckInForm, labConsentForm, labStudy, storyChats, storyStr
  *                                               check-ins during it, ses-post after),
  *                                               however many sends it took
  *   social-media-break/donations/phenotype/checkin.tsv   the check-in answers, one row each
- *   social-media-break/donations/phenotype/mystory_<phase>.tsv   MyStory, one row per story,
+ *   social-media-break/donations/phenotype/mystory_<phase>.tsv   MyStory on the form, one row per story,
  *                                               one table per phase (each phase asks its own questions)
+ *   social-media-break/donations/phenotype/mystory_chat_<phase>.tsv   MyStory's AI chat, one row per
+ *                                               conversation, finished or not
  *   social-media-break/donations/sub-<CODE>/ses-<phase>/beh/*_task-donation_beh.tsv
  *                                               the files of that phase, with what the
  *                                               cleaner's manifest says is inside, or
  *                                               the screenshot checks
  *   social-media-break/donations/sourcedata/sub-<CODE>/ses-<phase>/   the archives and screenshots
+ *   social-media-break/donations/sourcedata/raw/*.jsonl   every record (labStoryChats: the chats in full)
  *   social-media-break/identifying/consents.tsv, consent_statements.tsv, signatures/,
- *                                               visits.tsv (the lab bookings), contacts.tsv
+ *                                               visits.tsv (the lab bookings), contacts.tsv,
+ *                                               mystory_voice/ (spoken answers: a voice identifies
+ *                                               a person, so never in donations/)
  */
 
 const BIDS_VERSION = '1.10.0';
@@ -211,6 +216,8 @@ export const LAB_PARTICIPANT_COLUMNS = ['participant_id', 'consented_on', 'conse
 
 /* ── MyStory ───────────────────────────────────────────────────────────── */
 
+/** MyStory's session_id is the phase, whether or not files were sent in it. */
+const NOTE = '; a MyStory session can have no row in that participant’s sub-<CODE>_sessions.tsv (and no subject folder at all) when nothing was sent in that phase: the sessions files list only phases with files sent';
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').split('_').slice(0, 4).join('_');
 const PHASE_SESSION: Record<StoryPhase, string> = { pre: 'ses-pre', mid: 'ses-mid', post: 'ses-post' };
 
@@ -253,37 +260,60 @@ export function labStoryTable(phase: StoryPhase, stories: Doc[]): Row[] {
 /* ── MyStory's AI chat ─────────────────────────────────────────────────── */
 
 export function labStoryChatColumns(phase: StoryPhase): string[] {
-  return ['participant_id', 'session_id', 'chat_id', 'story_id', 'started_at', 'finished_at', 'protocol', 'protocol_version', 'source', 'check_in_id', 'status', 'ending', 'turns', 'interview_closed', ...storyChats[phase].extractionKeys.map((k) => `said_${k.key}`), 'candidates_n', 'retellings_added', 'retellings_still_added', 'chosen_persona', 'chosen_similarity', 'rating', 'requests_n', 'edited', 'voice_clips', 'final_story', 'final_similarity', 'flags', 'model_calls', 'failed_calls', 'input_tokens', 'output_tokens'];
+  return ['participant_id', 'session_id', 'chat_id', 'chat_n', 'story_id', 'started_at', 'finished_at', 'protocol', 'protocol_version', 'model', 'source', 'check_in_id', 'status', 'ending', 'turns', 'interview_closed', 'questions_covered', 'own_words', ...storyChats[phase].extractionKeys.map((k) => `said_${k.key}`), 'candidates_n', 'retellings_added', 'retellings_still_added', 'retellings_check_failed', 'chosen_persona', 'chosen_similarity', 'rating', 'requests_n', 'edited', 'voice_clips', 'final_story', 'final_similarity', 'flags', 'model_calls', 'failed_calls', 'input_tokens', 'output_tokens'];
+}
+
+/**
+ * How a conversation ended, one set of levels for finished and unfinished
+ * alike (16 October 2026; before, an unfinished one read "stopped: <reason>").
+ * A finished one keeps what was filed; one never finished either stopped (the
+ * participant stopped partway, or the model failed: storyChat.ts's fallback)
+ * or was left.
+ */
+export function chatEnding(d: DocumentData): string | null {
+  if (d.status === 'done') return d.ending ?? null;
+  if (d.status === 'stopped') return d.fallback === 'participant stopped' || d.stoppedEarly === true || d.interviewClosed === 'stopped_early' ? 'stopped-early' : 'model-unavailable';
+  return 'abandoned';
 }
 
 /** One phase's chat conversations, finished or not: one row each, the participant's own words by question, the retelling chosen, rated and corrected. */
 export function labStoryChatTable(phase: StoryPhase, chats: Doc[]): Row[] {
   const p = storyChats[phase];
+  const counts = new Map<string, number>();
   return chats
     .filter((x) => x.data.phase === phase)
     .sort((a, b) => String(a.data.participantCode).localeCompare(String(b.data.participantCode)) || String(a.data.startedAt ?? '').localeCompare(String(b.data.startedAt ?? '')))
     .map(({ id, data: d }) => {
-      const candidates = (d.candidates ?? []) as { index: number; persona: string; added?: string[]; stillAdded?: string[]; similarity?: number | null }[];
+      const code = String(d.participantCode);
+      counts.set(code, (counts.get(code) ?? 0) + 1);
+      const candidates = (d.candidates ?? []) as { index: number; persona: string; added?: string[]; stillAdded?: string[]; similarity?: number | null; checkFailed?: boolean }[];
       const chosen = candidates.find((c) => c.index === d.chosenIndex);
       const calls = (d.calls ?? []) as { ok: boolean; inputTokens?: number; outputTokens?: number }[];
+      const transcript = (d.transcript ?? []) as { role: string; content: string }[];
       const row: Row = {
-        participant_id: labLabel(String(d.participantCode)),
+        participant_id: labLabel(code),
         session_id: PHASE_SESSION[phase],
         chat_id: id,
+        chat_n: counts.get(code),
         story_id: d.storyId ?? null,
         started_at: d.startedAt,
         finished_at: d.finishedAt ?? null,
         protocol: d.protocolKey,
         protocol_version: d.protocolVersion,
+        model: d.model ?? null,
         source: d.source,
         check_in_id: d.checkInId ?? null,
         status: d.status,
-        ending: d.ending ?? (d.status === 'stopped' ? `stopped: ${d.fallback ?? ''}` : null),
+        ending: chatEnding(d),
         turns: d.turns ?? 0,
         interview_closed: d.interviewClosed ?? null,
+        questions_covered: Array.isArray(d.questionsCovered) ? d.questionsCovered : null,
+        // Everything they typed (or spoke and sent), whatever became of the chat: the words are kept even when no story was filed.
+        own_words: transcript.filter((m) => m.role === 'user').map((m) => m.content).join(' / ') || null,
         candidates_n: candidates.length,
         retellings_added: candidates.reduce((n, c) => n + (c.added?.length ?? 0), 0),
         retellings_still_added: candidates.reduce((n, c) => n + (c.stillAdded?.length ?? 0), 0),
+        retellings_check_failed: [...candidates, ...((d.requests ?? []) as { checkFailed?: boolean }[])].filter((c) => c.checkFailed === true).length,
         chosen_persona: chosen?.persona ?? null,
         chosen_similarity: chosen?.similarity ?? null,
         rating: d.rating ?? null,
@@ -309,28 +339,33 @@ export function labStoryChatDictionary(phase: StoryPhase): Record<string, unknow
   const out: Record<string, unknown> = {
     MeasurementToolMetadata: { Description: `MyStory's AI chat (${p.key} ${p.version}, ${p.model}): the MySelf micro-narrative protocol (Skeggs et al., CHI 2025, https://doi.org/10.1145/3706598.3713999). An AI interviewer asks the phase's questions one at a time; the answers are extracted in the participant's own words; ${p.personas.length} personas (${p.personas.map((x) => x.key).join(', ')}) each write a short retelling; the participant chooses one, rates how well it fits (0 to 10) and can edit it or ask for changes. The full conversations, every model call and every change are in sourcedata/raw/labStoryChats.jsonl.` },
     participant_id: { Description: 'sub- followed by the participant ID' },
-    session_id: { Description: `${PHASE_SESSION[phase]}: the phase of the study` },
+    session_id: { Description: `${PHASE_SESSION[phase]}: the phase of the study${NOTE}` },
     chat_id: { Description: 'Identifier of the conversation (sourcedata/raw/labStoryChats.jsonl)' },
+    chat_n: { Description: 'Which conversation this was for the participant in this phase, in order of starting: 1 for the first (a participant can chat more than once, after each mid-break check-in or after leaving one unfinished)' },
     story_id: { Description: 'The story filed at the end (sourcedata/raw/labStories.jsonl); empty if the conversation was not finished' },
     started_at: { Description: 'When the conversation started (ISO 8601, UTC)' },
     finished_at: { Description: 'When the story was filed' },
     protocol: { Description: 'The protocol run (src/lab/mystory/<phase>.toml)' },
     protocol_version: { Description: 'Its version' },
+    model: { Description: 'The model the protocol asked for when the conversation started (each call’s own model, as the provider reported it, is in labStoryChats.jsonl, calls)' },
     source: { Description: 'The page the chat was on' },
     check_in_id: { Description: 'For a chat after a check-in: that check-in' },
-    status: { Description: 'Where the conversation got to', Levels: { interview: 'Left during the questions', choose: 'Left before choosing a retelling', rate: 'Left before rating', adapt: 'Left while changing it', done: 'Finished, story filed', stopped: 'The model could not carry on; the participant’s answers are kept' } },
-    ending: { Description: 'How it finished', Levels: { 'rated-full-marks': 'Rated 10: the chosen retelling kept as it was', kept: 'Kept after changes asked of the AI, or as it was', edited: 'The participant edited the words themselves', 'model-unavailable': 'The model failed; the participant’s own answers filed as the story', 'stopped-early': 'The participant stopped partway, or said something the team must review before the questions were done: no retellings were written, and their own answers were filed as the story' } },
+    status: { Description: 'Where the conversation got to', Levels: { interview: 'Left during the questions', choose: 'Left before choosing a retelling', rate: 'Left before rating', adapt: 'Left while changing it', done: 'Finished, story filed', stopped: 'Stopped before any retelling, for one of two reasons (see ending): the participant stopped partway or said something the team must review (interview_closed is stopped_early), or the model could not carry on. Their answers are kept (own_words); a story is filed only if they then pressed Finish (status done)' } },
+    ending: { Description: 'How it ended. For a finished conversation (status done), how the story was filed; for one never finished, why', Levels: { 'rated-full-marks': 'Finished: rated 10, the chosen retelling kept as it was', kept: 'Finished: kept after changes asked of the AI, or as it was', edited: 'Finished: the participant edited the words themselves', 'stopped-early': 'The participant stopped partway, or said something the team must review, before the questions were done: no retellings were written. If finished, their own answers were filed as the story; if not (status stopped), they never pressed Finish and no story was filed', 'model-unavailable': 'The interviewer or the retellings could not be reached (the model failed). If finished, their own answers were filed as the story; if not (status stopped), no story was filed', abandoned: 'Not finished: the participant left (status interview, choose, rate or adapt) and no story was filed; their answers so far are in own_words' } },
     turns: { Description: 'Replies the participant typed in the interview' },
-    interview_closed: { Description: 'What ended the questions', Levels: { model: 'The interviewer judged every question answered', turn_limit: 'The protocol’s turn limit' } },
+    interview_closed: { Description: 'What ended the questions; empty while they were still going', Levels: { model: 'The interviewer judged every question answered', turn_limit: 'The protocol’s turn limit', stopped_early: 'The interviewer closed before every question was answered and the participant had answered fewer than half, or said something the safeguarding rules flag for review: no retellings were written (ending stopped-early)' } },
+    questions_covered: { Description: 'The protocol’s questions (numbered from 1, in the order of the said_ columns) the interviewer judged answered when it closed the questions; empty if the questions never closed, or closed at the turn limit, or before 16 October 2026 unless the participant stopped early' },
+    own_words: { Description: 'Everything the participant typed (or spoke and sent) in the interview, in order, separated by " / ": kept for every conversation, finished or not' },
     candidates_n: { Description: 'Retellings offered' },
     retellings_added: { Description: 'Sentences in the retellings’ first drafts that were not what the participant said, found by the check before they were shown and fixed (each retelling’s draft, what was found and the version shown are in labStoryChats.jsonl, candidates)' },
     retellings_still_added: { Description: 'Sentences still not what they said after one fix, and so cut from the retelling before it was shown (the version before the cut is kept in labStoryChats.jsonl)' },
+    retellings_check_failed: { Description: 'Retellings and rewrites asked for whose check could not run (the model call failed), and so were shown unchecked: candidates and requests with checkFailed in labStoryChats.jsonl' },
     chosen_similarity: { Description: 'Semantic similarity (cosine, text-embedding-3-small) between everything the participant said and the retelling they chose, as the original team measured it (Skeggs et al. 2025: real pairs M = 0.79, chance 0.37, with their embedding). For reviewing the lowest by hand; it decided nothing' },
     chosen_persona: { Description: 'The persona whose retelling was chosen', Levels: Object.fromEntries(p.personas.map((x) => [x.key, x.text.split('\n')[0]])) },
     rating: { Description: 'How close the chosen retelling was to what they wanted to say, 0 (not at all) to 10 (exactly right)' },
     requests_n: { Description: 'Changes asked of the AI' },
     edited: { Description: 'Whether the participant edited the words themselves' },
-    voice_clips: { Description: 'Answers spoken rather than typed: the recordings are in sourcedata/voice/<participant>/, each written down by gpt-4o-mini-transcribe into the reply box for the participant to check before sending (the words sent are in the conversation, the transcription with each clip in labStoryChats.jsonl)' },
+    voice_clips: { Description: 'Answers spoken rather than typed, each written down by gpt-4o-mini-transcribe into the reply box for the participant to check before sending (the words sent are in the conversation, the transcription with each clip in labStoryChats.jsonl). A voice identifies a person, so the recordings are not in this dataset: they are in the study’s identifying/ folder, mystory_voice/, listed in clips.tsv, for study coordinators only' },
     final_story: { Description: 'The story as filed' },
     final_similarity: { Description: 'The same similarity for the story as filed, after any changes; empty when the story is their own answers' },
     flags: { Description: 'Safeguarding rules matched (rule:tier), for the team to review; nothing was shown to the participant' },
@@ -349,7 +384,7 @@ export function labStoryDictionary(phase: StoryPhase): Record<string, unknown> {
   const out: Record<string, unknown> = {
     MeasurementToolMetadata: { Description: `MyStory (${s.id} ${s.version}), ${s.title.toLowerCase()}: a short story in the participant’s own words about one of the prompts, then a few questions placing it, as in SenseMaker-style micro-narratives. Each phase of the study asks its own questions.` },
     participant_id: { Description: 'sub- followed by the participant ID' },
-    session_id: { Description: `${PHASE_SESSION[phase]}: the phase of the study the story belongs to` },
+    session_id: { Description: `${PHASE_SESSION[phase]}: the phase of the study the story belongs to${NOTE}` },
     story_id: { Description: 'Identifier of the story' },
     story_n: { Description: 'Which story this was for the participant in this phase: 1 for the first' },
     submitted_at: { Description: 'When the story was received (ISO 8601, UTC)' },
@@ -660,7 +695,7 @@ export function labParticipantsDictionary(): Record<string, unknown> {
     information_version: { Description: 'Version of the participant information sheet shown' },
     consent_n: { Description: 'Number of consent records for this participant (a second consent from another device is appended, never overwritten)' },
     age: { Description: 'Age in whole years on the day consent was confirmed, from the date of birth given (the date itself is kept in identifying/)', Units: 'years' },
-    phases: { Description: 'Phases of the study with data: one session each', Levels: { pre: 'Before the social media break, from the first page (ses-pre)', mid: 'Screenshots sent with the mid-break check-ins (ses-mid)', post: 'After the break, from the after-break page (ses-post)', unspecified: 'Sent before phases were recorded (ses-unspecified)' } },
+    phases: { Description: 'Phases of the study with files sent: one session each, in sub-<CODE>_sessions.tsv. MyStory’s stories and chats carry the phase as session_id too (ses-pre, ses-mid, ses-post), even for a phase with no files sent and so no row in the sessions file', Levels: { pre: 'Before the social media break, from the first page (ses-pre)', mid: 'Screenshots sent with the mid-break check-ins (ses-mid)', post: 'After the break, from the after-break page (ses-post)', unspecified: 'Sent before phases were recorded (ses-unspecified)' } },
     sends_n: { Description: 'Occasions on which files were sent, across all phases' },
     checkins_n: { Description: 'Mid-break check-ins sent; the answers are in phenotype/checkin.tsv' },
     archives_n: { Description: 'Cleaned TikTok or YouTube archives accepted in total' },
@@ -670,6 +705,11 @@ export function labParticipantsDictionary(): Record<string, unknown> {
     phone: { Description: 'Phone the screen-time screenshots come from, as chosen on the screenshots step', Levels: { iphone: 'iPhone', android: 'Android' } },
     first_send_at: { Description: 'When the first send was received (ISO 8601, UTC)' },
     last_send_at: { Description: 'When the latest send was received (ISO 8601, UTC)' },
+    stories_n: { Description: 'MyStory stories filed, all phases together: those written on the form (phenotype/mystory_<phase>.tsv) and those filed at the end of the AI chat (story_id in phenotype/mystory_chat_<phase>.tsv); a chat left unfinished files none' },
+    visit1_on: { Description: 'Date of the first lab visit (YYYY-MM-DD, from the booking’s start in UTC): the latest booking for that visit that was not cancelled (a moved visit counts at its new time); n/a when none is booked. The bookings themselves are in identifying/visits.tsv' },
+    visit1_status: { Description: 'Where that booking stands', Levels: { booked: 'Booked, not yet marked', attended: 'The team marked it attended', missed: 'The team marked it missed' } },
+    visit2_on: { Description: 'Date of the second lab visit, as visit1_on' },
+    visit2_status: { Description: 'Where that booking stands', Levels: { booked: 'Booked, not yet marked', attended: 'The team marked it attended', missed: 'The team marked it missed' } },
   };
 }
 
@@ -716,7 +756,9 @@ only the categories they choose, reduced on their own device to dates, links
 and search words, and send the cleaned archive together with screenshots of
 their phone's screen-time summary: before the break from the first page, and
 again after it from the after-break page. During the break they check in on
-a third page with a few questions and, if they can, a screenshot. This
+a third page with a few questions and, if they can, a screenshot. In each
+phase they can also tell a short story about their phone use (MyStory),
+either on a form or in a chat with an AI interviewer. This
 dataset is regenerated automatically every hour from the study's database
 and mirrors the current records. Do not edit files here.
 
@@ -727,16 +769,22 @@ participants.tsv          one row per participant with consent on file:
 phenotype/checkin.tsv     the mid-break check-ins: one row per check-in, one
                           column per question, with checkin.json describing
                           each question and its answers
-phenotype/mystory_chat_<phase>.tsv   MyStory's AI chat: one row per conversation
-                          (the answers in the participant's own words, the
+phenotype/mystory_<phase>.tsv   MyStory written on the form: one row per story
+                          (the prompt chosen, title, story, and the questions
+                          placing it: a triangle's three shares, sliders from
+                          0 to 100, choices), one table per phase (pre, mid,
+                          post), each described by its .json
+phenotype/mystory_chat_<phase>.tsv   MyStory's AI chat: one row per conversation,
+                          finished or not (everything the participant said,
+                          the answers by question in their own words, the
                           retelling chosen, its rating, changes, the story
-                          filed), with the full conversations in
-                          sourcedata/raw/labStoryChats.jsonl
-phenotype/mystory_<phase>.tsv   MyStory: one row per story (the prompt chosen,
-                          title, story, and the questions placing it: a
-                          triangle's three shares, sliders from 0 to 100,
-                          choices), one table per phase (pre, mid, post), each
-                          described by its .json
+                          filed, how it ended), one table per phase, each
+                          described by its .json. The stories the chat filed
+                          are here, not in mystory_<phase>.tsv; the full
+                          conversations are in sourcedata/raw/labStoryChats.jsonl.
+                          session_id is the phase: a participant may have
+                          stories in a phase with no files sent, and so no
+                          row for it in their sessions file
 sub-<CODE>/               one session per phase of the study: ses-pre holds
                           everything sent before the break, ses-mid the
                           screenshots sent with the check-ins (check_in_id links
@@ -762,7 +810,13 @@ sub-<CODE>/               one session per phase of the study: ses-pre holds
                           The run number ties a table to its archive in the index.
                           The sessions file gives each phase's first and last send.
 sourcedata/               the cleaned archives (.zip) and screenshots as received,
-                          named by subject, session and run, plus raw JSON Lines dumps
+                          named by subject, session and run
+sourcedata/raw/           every record as JSON Lines: labParticipants,
+                          labDonations, labCheckIns, labStories (every MyStory
+                          story) and labStoryChats (every chat in full: each
+                          turn, model call, retelling, change, the safeguarding
+                          rules matched and the words that matched, and what
+                          each spoken answer was written down as)
 
 Participants are labelled by their participant ID (sub-MP2670FF90A5F2):
 MP and 12 hexadecimal digits of a hash of their first name, last name, date
@@ -770,7 +824,9 @@ of birth and postcode, built the same way by the study's survey platform, so
 this data and the questionnaire and laboratory data can be joined without a
 name. Names, dates of birth, postcodes and signatures from the consent
 records are kept outside this dataset, in the identifying/ folder next to
-it, for study coordinators only; participants.tsv has age at consent. Participants listed in participants.tsv without a subject folder
+it, for study coordinators only; participants.tsv has age at consent. So are
+the recordings of answers spoken in MyStory's chat (identifying/mystory_voice/,
+listed in clips.tsv): a voice identifies a person. Participants listed in participants.tsv without a subject folder
 have consented but not sent anything yet.
 
 Inside a cleaned archive: manifest.json (what was kept and removed),
@@ -786,8 +842,12 @@ Timestamps are ISO 8601 in UTC. Missing values are n/a.
 `;
 
 const LAB_SOURCEDATA_README = `Cleaned archives and screenshots as received, named
-sub-<CODE>_ses-<phase>_run-<nn>_archive.zip or _screenshot.png/.jpg, and raw
-JSON Lines dumps of the lab collections. See ../README.
+sub-<CODE>_ses-<phase>_run-<nn>_archive.zip or _screenshot.png/.jpg, and in
+raw/ every record of the study's collections as JSON Lines (labParticipants,
+labDonations, labCheckIns, labStories, labStoryChats: MyStory's chats in full).
+The recordings of answers spoken in MyStory's chat are not here: a voice
+identifies a person, so they are in ../../identifying/mystory_voice/. See
+../README.
 `;
 
 const LAB_ROOT_README = `# MyPhone/MyBrain: the social media break study
@@ -800,12 +860,17 @@ participant ID built from first name, last name, date of birth and postcode
 donations/     written by the website every hour: the TikTok, YouTube and
                Instagram data participants cleaned on their own device and
                donated, with their screen-time screenshots, before and after
-               the break, and the mid-break check-ins; BIDS layout, no
-               names; for researchers
+               the break, the mid-break check-ins, and MyStory (stories
+               written on the form, phenotype/mystory_<phase>.tsv, and
+               conversations with the AI interviewer,
+               phenotype/mystory_chat_<phase>.tsv, in full in
+               sourcedata/raw/); BIDS layout, no names; for researchers
 identifying/   written by the website every hour: consent records with typed
                names, the four details the participant ID is built from
-               (first name, last name, date of birth, postcode), and
-               signatures; for study coordinators only
+               (first name, last name, date of birth, postcode), signatures,
+               the lab visits and contact details, and the recordings of
+               answers spoken in MyStory's chat (mystory_voice/); for study
+               coordinators only
 
 The two folders above are mirrors: anything added inside them is removed on
 the next run. Keep the laboratory's own datasets (the visits, any tracking)
@@ -829,6 +894,12 @@ visits.tsv               every lab booking: visit, time, place, booked, moved,
 contacts.tsv             the email address and UK mobile given when booking, and
                          whether texts were wanted
 signatures/              drawn signatures, named by participant ID and version
+mystory_voice/           answers spoken in MyStory's AI chat, as recorded:
+                         sub-<CODE>/ses-<phase>/sub-<CODE>_ses-<phase>_chat-<id>_clip-<nn>.<ext>,
+                         listed with their length, format and stage in
+                         clips.tsv (described by clips.json); what each was
+                         written down as is in the chat's record in
+                         donations/sourcedata/raw/labStoryChats.jsonl
 raw/                     every document as JSON Lines
 
 Files are tab-separated UTF-8 with n/a for missing values; timestamps are
@@ -863,6 +934,50 @@ export function labVisitsTable(bookings: Doc[]): Row[] {
         .sort(),
       booking_id: id,
     }));
+}
+
+/* ── MyStory's recordings ──────────────────────────────────────────────── */
+
+/** The recordings' folder inside the study's identifying/ folder (the Mac's "bids" copy skips identifying/). */
+export const VOICE = 'mystory_voice';
+export const LAB_VOICE_COLUMNS = ['participant_id', 'session_id', 'chat_id', 'clip_id', 'file', 'seconds', 'bytes', 'mime_type', 'stage', 'transcribed_ok', 'recorded_at'];
+
+/**
+ * Every recording of every conversation, named BIDS-style and numbered in the
+ * order the conversation holds them:
+ * sub-<CODE>/ses-<phase>/sub-<CODE>_ses-<phase>_chat-<chatId>_clip-<nn>.<ext>,
+ * relative to mystory_voice/. A clip whose recording could not be kept is
+ * listed without a file, and keeps its number.
+ */
+export function labVoiceClips(chats: Doc[]): { source: string | null; file: string | null; row: Row }[] {
+  const sorted = [...chats].sort((a, b) => String(a.data.participantCode).localeCompare(String(b.data.participantCode)) || String(a.data.startedAt ?? '').localeCompare(String(b.data.startedAt ?? '')));
+  return sorted.flatMap(({ id, data: d }) => {
+    const label = labLabel(String(d.participantCode));
+    const session = labSessionLabel(d.phase);
+    return ((d.voiceClips ?? []) as DocumentData[]).map((clip, i) => {
+      const source = typeof clip.path === 'string' ? clip.path : null;
+      const ext = source ? /\.([a-z0-9]{2,5})$/i.exec(source)?.[1]?.toLowerCase() ?? 'bin' : null;
+      const file = source ? `${label}/${session}/${label}_${session}_chat-${id}_clip-${two(i + 1)}.${ext}` : null;
+      return { source, file, row: { participant_id: label, session_id: session, chat_id: id, clip_id: clip.clipId, file, seconds: clip.seconds ?? null, bytes: clip.bytes ?? null, mime_type: clip.mimeType ?? null, stage: clip.stage ?? null, transcribed_ok: clip.ok ?? null, recorded_at: clip.at ?? null } };
+    });
+  });
+}
+
+export function labVoiceDictionary(): Record<string, unknown> {
+  return {
+    MeasurementToolMetadata: { Description: 'MyStory’s AI chat lets participants speak an answer instead of typing it (from 14 October 2026). Each recording is kept as sent and listed here, one row per clip. A voice identifies a person, so the recordings are kept here, in identifying/, for study coordinators only, never in the donations/ dataset. What each clip was written down as, and the words the participant then sent, are in donations/sourcedata/raw/labStoryChats.jsonl (voiceClips, transcript).' },
+    participant_id: { Description: 'sub- followed by the participant ID' },
+    session_id: { Description: 'The phase of the study the conversation belongs to: ses-pre, ses-mid or ses-post (as in donations/phenotype/mystory_chat_<phase>.tsv)' },
+    chat_id: { Description: 'The conversation (chat_id in donations/phenotype/mystory_chat_<phase>.tsv)' },
+    clip_id: { Description: 'Identifier of the clip (voiceClips[].clipId in labStoryChats.jsonl)' },
+    file: { Description: 'Path of the recording, relative to this folder; the clip number is its place in the conversation’s recordings, from 01. n/a when the recording could not be kept (the transcription may still have worked)' },
+    seconds: { Description: 'Length of the recording, as the browser measured it', Units: 's' },
+    bytes: { Description: 'Size of the recording as sent', Units: 'bytes' },
+    mime_type: { Description: 'The format the participant’s browser recorded in (for example audio/webm;codecs=opus, audio/mp4)' },
+    stage: { Description: 'Where in the conversation it was spoken', Levels: { interview: 'An answer to the interviewer', adapt: 'A change asked for to the chosen retelling' } },
+    transcribed_ok: { Description: 'Whether it was written down; if not, the participant was asked to type their answer' },
+    recorded_at: { Description: 'When it was received (ISO 8601, UTC)' },
+  };
 }
 
 /** The lab study's files, binary copies and counts, for runExport to merge with the schools study's. */
@@ -935,12 +1050,10 @@ export function labExport(everything: LabSnapshot, exportedAt: string): { files:
       if (tables.length) derived.push({ source: file.path, paths: tables.flatMap((t) => [`${t.base}.tsv`, `${t.base}.json`]), build: (buffer) => buildArchiveTables(buffer, tables) });
     });
   }
-  // MyStory's spoken answers: the recordings, by conversation, beside the transcripts in labStoryChats.jsonl.
-  for (const chat of snap.storyChats ?? []) {
-    for (const clip of (chat.data.voiceClips ?? []) as { clipId: string; path: string | null }[]) {
-      if (typeof clip.path === 'string') copies.set(clip.path, `${B}/sourcedata/voice/${labLabel(String(chat.data.participantCode))}/${chat.id}_${clip.path.split('/').pop()}`);
-    }
-  }
+  // MyStory's spoken answers: a voice identifies a person, so the recordings go to identifying/, never donations/ (16 October 2026).
+  const voice = labVoiceClips(snap.storyChats ?? []);
+  for (const v of voice) if (v.source) copies.set(v.source, `${I}/${VOICE}/${v.file}`);
+  files.push(tsvFile(`${I}/${VOICE}/clips.tsv`, voice.map((v) => v.row), LAB_VOICE_COLUMNS), jsonFile(`${I}/${VOICE}/clips.json`, labVoiceDictionary()));
   for (const c of snap.consents) {
     const path = c.data.signature?.image?.path;
     if (typeof path === 'string') copies.set(path, `${I}/${labSignatureFile(String(c.data.participantCode), c.data.version)}`);

@@ -114,8 +114,11 @@ Storage at `labStoryVoice/{chatId}/{clipId}` (readable by nobody through the
 website) and has OpenAI's `gpt-4o-mini-transcribe` write it down: never the
 browser's own recogniser, which would send the voice to Apple or Google. Each
 clip is recorded on the conversation (`voiceClips`: length, size, what it was
-written down as); the export copies the recordings to
-`sourcedata/voice/<participant>/` and counts them in `voice_clips`.
+written down as); the export counts them in `voice_clips` and copies the
+recordings to the study's `identifying/` folder, never `donations/`, because a
+voice identifies a person (16 October 2026; before, they were under
+`donations/sourcedata/voice/`): `identifying/mystory_voice/sub-<CODE>/ses-<phase>/sub-<CODE>_ses-<phase>_chat-<chatId>_clip-<nn>.<ext>`,
+numbered in the conversation's order and listed in `mystory_voice/clips.tsv`.
 
 **Settings and limits.** Model, temperature, token and time limits come from
 the TOML file (`gpt-4o`, 0.7, 400 tokens, 30 seconds, 3 attempts, 20 turns). OpenAI is
@@ -206,10 +209,17 @@ rating, each change asked for and each edit, the flags and how it ended. The
 finished story is also filed in `labStories/` like MyStory's other stories
 (`mode: chat`). The hourly export adds
 `social-media-break/donations/phenotype/mystory_chat_<phase>.tsv` (one row per
-conversation: the answers by key in the participant's own words, the persona
-chosen, the rating, changes, the final story, flags, tokens) with a `.json`
+conversation, finished or not: its number in the phase (`chat_n`), everything
+the participant said (`own_words`), the answers by key in their own words, the
+questions covered, the persona chosen, the rating, changes, retellings whose
+check could not run, the final story, flags, tokens) with a `.json`
 dictionary, and every conversation in full in
-`sourcedata/raw/labStoryChats.jsonl`.
+`sourcedata/raw/labStoryChats.jsonl`. `ending` has one set of levels for every
+conversation: `rated-full-marks`, `kept` or `edited` when finished;
+`stopped-early` (the participant stopped) or `model-unavailable` whether or
+not they then pressed Finish (`status` says which); `abandoned` when they left
+partway. Finish is refused when there is neither a story nor anything typed,
+so no empty story is filed.
 
 **In the emulator** a stand-in model answers (it asks the questions in order
 and builds the retellings from the answers), so the whole chat is tested end

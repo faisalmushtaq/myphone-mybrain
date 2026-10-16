@@ -3373,6 +3373,19 @@
 .mpmb-tools__head {
   margin-bottom: 1rem;
 }
+.mpmb-tools__export {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: var(--mpb-muted);
+}
+.mpmb-tools__export.is-stale {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-left: 4px solid var(--mpb-pink);
+  background: var(--mpb-error-bg);
+  color: var(--mpb-ink);
+  font-weight: 700;
+}
 .mpmb-tools__tabs {
   display: flex;
   flex-wrap: wrap;

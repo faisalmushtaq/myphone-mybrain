@@ -338,27 +338,38 @@ schools/                                  the young people's study
                                           year group, site, consent and agreement status, counts
     phenotype/parent_perceptions.tsv + .json  the parent's quick questions, latest answers, with
                                           the question wording and answer levels as the dictionary
+    phenotype/parent_phone_use.tsv + .json    the parent's longer questions
+    phenotype/parent_no_phone.tsv + .json     asked instead when the young person has no phone
     sub-00001/sub-00001_sessions.tsv      one session per screenshot send
     sub-00001/ses-01/beh/
       sub-00001_ses-01_task-screentime_beh.tsv + .json   the images of that send with their checks
     sourcedata/sub-00001/ses-01/
       sub-00001_ses-01_task-screentime_run-01_screenshot.png   the images themselves
-    sourcedata/raw/*.jsonl                every research document as JSON Lines
+    sourcedata/raw/surveys.jsonl, donations.jsonl   every research document as JSON Lines
   identifying/                            coordinators only
     participants_key.tsv                  the key from sub-labels to names, dates of birth,
                                           school, parent or guardian and contact details
     consents.tsv, consent_statements.tsv, assents.tsv, assent_statements.tsv,
-    submissions.tsv, enquiries.tsv, raw/*.jsonl
+    submissions.tsv, enquiries.tsv, opt_outs.tsv, raw/*.jsonl
     signatures/sub-00001/sub-00001_consent-v1_signature.png
+  upn-uploads/                            coordinators only: the UPN lists schools send, as sent,
+                                          what was read from them, and the matches (docs/school-uploads.md)
 social-media-break/                       the adult laboratory study
   README.md
   donations/                              the donated data, BIDS layout, no names
     dataset_description.json, README, CHANGES
-    participants.tsv + .json              one row per code with consent: consent versions,
+    participants.tsv + .json              one row per code with consent: consent versions, age,
                                           phases, sends, check-ins, archives, screenshots,
-                                          platforms sent, platforms not used, phone
+                                          platforms sent, platforms not used, phone, stories,
+                                          the date and status of each lab visit
     phenotype/checkin.tsv + .json         the mid-break check-ins: one row each, one column
                                           per question, with the questions and answer labels
+    phenotype/mystory_pre.tsv, _mid, _post + .json   MyStory written on the form: one row per
+                                          story, the questions placing it spread over columns
+    phenotype/mystory_chat_pre.tsv, _mid, _post + .json   MyStory's AI chat: one row per
+                                          conversation, finished or not (own_words, the answers
+                                          by question, the retelling chosen, rating, changes,
+                                          the story filed, ending, flags, tokens; docs/mystory.md)
     sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_sessions.tsv  one session per phase: ses-pre (the first page,
                                           before the break), ses-mid (screenshots sent with
                                           the check-ins), ses-post (the after-break page),
@@ -371,12 +382,24 @@ social-media-break/                       the adult laboratory study
       ..._task-youtubewatch_, _youtubesearch_, _youtubesubs_             archive, with dictionaries
     sourcedata/sub-MP2670FF90A5F2/ses-pre/
       sub-MP2670FF90A5F2_ses-pre_run-01_archive.zip, ..._run-02_screenshot.png   the files as received
-    sourcedata/raw/*.jsonl
+    sourcedata/README.md
+    sourcedata/raw/labParticipants.jsonl, labDonations.jsonl, labCheckIns.jsonl,
+      labStories.jsonl, labStoryChats.jsonl   every record as stored; labStoryChats holds each chat
+                                          in full (turns, model calls, retellings, flags, what
+                                          each spoken answer was written down as)
   identifying/                            coordinators only
+    README.md
     consents.tsv, consent_statements.tsv  the consent records, with the typed names and the
                                           answers the code was built from (incl. postcode)
+    reminders.tsv                         who asked for a progress email, and when it was sent
+    visits.tsv                            every lab booking, moved, attended or missed, with its messages
+    contacts.tsv                          the email and mobile given when booking
     signatures/sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_consent-v1_signature.png
-    raw/consents.jsonl
+    mystory_voice/clips.tsv + .json       every answer spoken in MyStory's chat (a voice identifies
+                                          a person, so never in donations/)
+    mystory_voice/sub-MP2670FF90A5F2/ses-post/
+      sub-MP2670FF90A5F2_ses-post_chat-<chatId>_clip-01.webm   the recordings, numbered in the chat's order
+    raw/consents.jsonl, bookings.jsonl, contacts.jsonl, reminders.jsonl
 ```
 
 Family participants are labelled `sub-00001`, `sub-00002`… in order of
@@ -414,9 +437,19 @@ minutes, in the background:
    hours; the log is `~/Library/Logs/MyPhoneMyBrain Sync.log`.
    `bash mac-sync-install.sh --add <folder> [bids|all]` mirrors into a
    second place too, by default the de-identified research datasets only
-   (every study's `donations/`, no `identifying/` folder; use `all` only
+   (every study's `donations/` and nothing else: no `identifying/` folder and,
+   since 16 October 2026, not `schools/upn-uploads/` either, which a `bids`
+   folder had been receiving and which the job now removes from one; use `all` only
    where the DPIA allows identifying data, such as the University's own
-   storage). The job discovers the studies from the bucket and mirrors each
+   storage). After each run every folder has `MyPhoneMyBrain data/SYNC STATUS.txt`,
+   saying when it was last copied, which export (the manifest's `exportedAt`) and
+   from which Mac, or when and why the last copy failed; it sits beside
+   `README.md` and `manifest.json`, which are copied file by file, so no
+   mirror removes it. The background job runs the `sync.sh` the installer
+   wrote, so after the installer changes, run it again on the Mac
+   (`--list` is enough) to pick up the new one. The staff page's header says
+   when the export last ran ("Data export last ran: …", highlighted when more
+   than three hours ago). The job discovers the studies from the bucket and mirrors each
    written folder on its own, so anything the team keeps beside them, such
    as `social-media-break/lab-visits/`, is never touched; `--remove <folder>` stops that, `--list`
    shows the folders and runs a copy, `--uninstall` removes it all. Rerun

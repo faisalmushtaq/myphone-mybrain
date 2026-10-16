@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore, type DocumentData, type Firestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { createHash, timingSafeEqual } from 'node:crypto';
@@ -7,6 +8,7 @@ import { labBooking, labJourneyMessages, schools } from './forms.js';
 import { normaliseCode, notUsedOf, phaseCountsOf, toIso } from './lab.js';
 import { participantLinks, schoolUploadLink } from './links.js';
 import { sendMail, settingsFromEnv } from './mail.js';
+import { exportBucketName } from './export.js';
 import { nameKey, optOutFor, optOutsOf } from './exportUpn.js';
 import { reminderPlan } from './familyReminders.js';
 import { countFailure, schoolBySlug, setSchoolPassword } from './schoolUpload.js';
@@ -21,7 +23,7 @@ import { usageSummary } from './usage.js';
  * (scripts/set-staff-key.sh makes it), shared only within the team. One
  * callable, staffApi, does everything the page needs:
  *
- *   overview        the lab slots and bookings from a fortnight ago onwards, and whether email and texts are set up
+ *   overview        the lab slots and bookings from a fortnight ago onwards, whether email and texts are set up, and when the data export last ran
  *   add-slots       new times (one, or a batch the page builds from a pattern)
  *   update-slot     open or close a time, change its places, place name or note
  *   delete-slot     remove a time nobody has booked
@@ -131,10 +133,21 @@ export function validateNewSlots(input: unknown, now = new Date()): { slots: New
   return { slots, problems };
 }
 
+/** When the hourly export last finished, from its manifest.json (export.ts); null if it cannot be read, so the page still opens. */
+async function lastExportAt(): Promise<string | null> {
+  try {
+    const [buffer] = await getStorage().bucket(exportBucketName()).file('manifest.json').download();
+    const at = (JSON.parse(buffer.toString('utf8')) as { exportedAt?: unknown }).exportedAt;
+    return typeof at === 'string' && !Number.isNaN(Date.parse(at)) ? at : null;
+  } catch {
+    return null;
+  }
+}
+
 async function overview(db: Firestore) {
   const now = new Date();
   const from = new Date(now.getTime() - 14 * DAY);
-  const [slotSnap, bookingSnap] = await Promise.all([db.collection('labSlots').where('start', '>=', from).orderBy('start').limit(2000).get(), db.collection('labBookings').where('start', '>=', from).orderBy('start').limit(2000).get()]);
+  const [slotSnap, bookingSnap, exportedAt] = await Promise.all([db.collection('labSlots').where('start', '>=', from).orderBy('start').limit(2000).get(), db.collection('labBookings').where('start', '>=', from).orderBy('start').limit(2000).get(), lastExportAt()]);
   const codes = Array.from(new Set(bookingSnap.docs.map((d) => String(d.data().participantCode))));
   const contacts = new Map(await Promise.all(codes.map(async (c) => [c, await contactOf(db, c)] as const)));
   return {
@@ -142,6 +155,7 @@ async function overview(db: Firestore) {
     slots: slotSnap.docs.map((d) => slotRow(d.id, d.data())),
     bookings: bookingSnap.docs.map((d) => bookingRow(d.id, d.data(), contacts.get(String(d.data().participantCode)) ?? null)),
     ready: { email: Boolean(settingsFromEnv()), sms: await smsReady() },
+    lastExportAt: exportedAt,
     rules: { minutes: labBooking.minutes, minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours, visit2AfterDays: labBooking.visit2AfterDays, location: labBooking.location.name, messages: labJourneyMessages.map((m) => ({ id: m.id, day: m.day })), reminders: labBooking.reminders },
   };
 }

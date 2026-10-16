@@ -11,11 +11,23 @@
 #   bash mac-sync-install.sh --uninstall
 #
 # Scope: "all" mirrors every folder the website writes (one folder per study,
-# each with donations/ and identifying/) into <folder>/MyPhoneMyBrain data;
-# "bids" mirrors the same without any identifying/ folder. Each written folder
-# is mirrored on its own, so the team's own datasets kept beside them (for
-# example social-media-break/lab-visits/) are never touched. Use "bids" for anywhere
-# outside the University's own storage unless the DPIA says otherwise.
+# each with donations/ and identifying/, and schools/upn-uploads/) into
+# <folder>/MyPhoneMyBrain data; "bids" mirrors each study's donations/ only
+# (since 16 October 2026 nothing else, so neither identifying/ nor the schools'
+# UPN lists, and a copy of either left there by an earlier version is removed).
+# Each written folder is mirrored on its own, so the team's own datasets kept
+# beside them (for example social-media-break/lab-visits/) are never touched.
+# Use "bids" for anywhere outside the University's own storage unless the DPIA
+# says otherwise.
+#
+# After every run, each folder gets "MyPhoneMyBrain data/SYNC STATUS.txt": when
+# it was last copied, which export (the manifest's exportedAt) and from which
+# Mac, or when and why the last copy failed. It sits beside README.md and
+# manifest.json, which are copied file by file, so no mirror ever removes it.
+#
+# The background job runs sync.sh, which this script writes. After updating
+# this script, run it again on the Mac (bash mac-sync-install.sh --list is
+# enough) so the job picks up the new sync.sh; until then the old one runs.
 #
 # What it installs, all inside your own account:
 #   ~/Library/Application Support/MyPhoneMyBrain Sync/   rclone (the copying tool), the key, the settings, destinations.txt, sync.sh
@@ -72,16 +84,37 @@ LOG="$LOG"
 DESTS="$DESTS"
 APP_DIR="$APP_DIR"
 now() { date '+%Y-%m-%d %H:%M:%S'; }
-# Offline? Skip quietly; the next run catches up.
+MAC="\$(scutil --get ComputerName 2>/dev/null || hostname)"
+# Offline? Skip quietly; the next run catches up (SYNC STATUS.txt keeps the last real run).
 if ! curl -s --max-time 10 -o /dev/null https://storage.googleapis.com/; then
   echo "\$(now) offline, skipped" >> "\$LOG"
   exit 0
 fi
 status=0
+# Where this run starts in the log, so the last error reported is this run's own.
+from_line=\$(( \$(wc -l < "\$LOG" 2>/dev/null || echo 0) + 1 ))
 RC=("\$RCLONE" --config "\$CONF" --log-file "\$LOG" --log-level NOTICE --stats 0)
-# One file from the bucket root (README, manifest), copied; files beside it are left alone.
+# The last thing that went wrong, for SYNC STATUS.txt: our own FAILED line, or rclone's last ERROR before it.
+fail() {
+  echo "\$(now) \$1" >> "\$LOG"
+  status=1; dest_status=1
+  last_error="\$(tail -n +"\$from_line" "\$LOG" 2>/dev/null | grep -E 'ERROR|could not' | tail -n 1)"
+  [ -n "\$last_error" ] || last_error="\$1"
+}
+# What the people using the folder see: when it was last copied, and which export, or why not (16 October 2026).
+write_status() {
+  local exported
+  if [ "\$2" -eq 0 ]; then
+    exported="\$(sed -n 's/.*"exportedAt": *"\\([^"]*\\)".*/\\1/p' "\$1/manifest.json" 2>/dev/null | head -n 1)"
+    printf 'MyPhone/MyBrain data: copied from the export bucket.\n\nLast successful copy: %s (this Mac'"'"'s time)\nExport copied (manifest.json exportedAt, UTC): %s\nCopied by: %s\n\nThe export runs every hour and this Mac copies it every 15 minutes, so this should never be more than about an hour and a half old. If it is, check that Mac.\n' "\$(now)" "\${exported:-unknown}" "\$MAC" > "\$1/SYNC STATUS.txt.tmp"
+  else
+    printf 'MyPhone/MyBrain data: THE LAST COPY FAILED, so these files may be out of date.\n\nFailed at: %s (this Mac'"'"'s time)\nLast error: %s\nLast successful copy (any folder): %s\nCopied by: %s\n\nThe log on that Mac is ~/Library/Logs/MyPhoneMyBrain Sync.log.\n' "\$(now)" "\${last_error:-unknown}" "\$(cat "\$APP_DIR/last-success" 2>/dev/null || echo never)" "\$MAC" > "\$1/SYNC STATUS.txt.tmp"
+  fi
+  mv -f "\$1/SYNC STATUS.txt.tmp" "\$1/SYNC STATUS.txt"
+}
+# One file from the bucket root (README, manifest), copied; files beside it (SYNC STATUS.txt, README.txt) are left alone.
 copy_file() {
-  "\${RC[@]}" copyto "exports:\$BUCKET/\$1" "\$2/\$1" < /dev/null || { echo "\$(now) copy FAILED: \$1" >> "\$LOG"; status=1; }
+  "\${RC[@]}" copyto "exports:\$BUCKET/\$1" "\$2/\$1" < /dev/null || fail "copy FAILED: \$1"
 }
 # One website-written folder, mirrored exactly; folders beside it (the team's own datasets) are never touched.
 mirror() {
@@ -89,15 +122,19 @@ mirror() {
   if "\${RC[@]}" sync "exports:\$BUCKET/\$1" "\$2/\$1" --exclude ".DS_Store" --exclude "Icon?" --fast-list --transfers 8 --checkers 16 < /dev/null; then
     echo "\$(now) sync finished: \$2/\$1" >> "\$LOG"
   else
-    echo "\$(now) sync FAILED: \$2/\$1" >> "\$LOG"
-    status=1
+    fail "sync FAILED: \$2/\$1"
   fi
 }
 # The studies and their folders are discovered from the bucket, so a new study appears by itself.
-studies="\$("\${RC[@]}" lsf "exports:\$BUCKET" --dirs-only 2>>"\$LOG")" || { echo "\$(now) could not list the bucket" >> "\$LOG"; exit 1; }
+if ! studies="\$("\${RC[@]}" lsf "exports:\$BUCKET" --dirs-only 2>>"\$LOG")"; then
+  fail "could not list the bucket"
+  while IFS=\$'\\t' read -r dest scope; do [ -n "\$dest" ] && [ -d "\$dest/MyPhoneMyBrain data" ] && write_status "\$dest/MyPhoneMyBrain data" 1; done < "\$DESTS"
+  exit 1
+fi
 while IFS=\$'\\t' read -r dest scope; do
   [ -z "\$dest" ] && continue
   target="\$dest/MyPhoneMyBrain data"
+  dest_status=0
   mkdir -p "\$target"
   # Folders from the layout before October 2026 were mirrors too; clear them once.
   for old in bids lab identifying; do [ -d "\$target/\$old" ] && rm -rf "\$target/\$old" && echo "\$(now) removed old-layout folder \$old" >> "\$LOG"; done
@@ -107,10 +144,15 @@ while IFS=\$'\\t' read -r dest scope; do
     copy_file "\$study/README.md" "\$target"
     for sub in \$("\${RC[@]}" lsf "exports:\$BUCKET/\$study" --dirs-only 2>>"\$LOG"); do
       sub="\${sub%/}"
-      if [ "\$sub" = "identifying" ] && [ "\$scope" = "bids" ]; then continue; fi
+      # Research data only: each study's donations/, nothing else the website writes (identifying/, the schools' UPN lists).
+      if [ "\$scope" = "bids" ] && [ "\$sub" != "donations" ]; then
+        [ -d "\$target/\$study/\$sub" ] && rm -rf "\$target/\$study/\$sub" && echo "\$(now) removed \$study/\$sub from a research-only folder" >> "\$LOG"
+        continue
+      fi
       mirror "\$study/\$sub" "\$target"
     done
   done
+  write_status "\$target" "\$dest_status"
 done < "\$DESTS"
 if [ \$status -eq 0 ]; then
   date -u +"%Y-%m-%dT%H:%M:%SZ" > "\$APP_DIR/last-success"

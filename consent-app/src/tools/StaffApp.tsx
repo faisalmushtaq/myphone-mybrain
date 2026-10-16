@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { TextField } from '../components/ui/Field';
-import { callTool, messageOf, type Overview } from './api';
+import { callTool, messageOf, when, type Overview } from './api';
 import { Bookings } from './staff/Bookings';
 import { Families } from './staff/Families';
 import { OptOuts } from './staff/OptOuts';
@@ -12,6 +12,8 @@ import { Times } from './staff/Times';
 import { Usage } from './staff/Usage';
 
 const KEY_STORE = 'mpmb-staff-key';
+/** The export runs every hour (five past); older than three hours means a run, or more, has failed. */
+const EXPORT_STALE_MS = 3 * 3_600_000;
 type Tab = 'times' | 'bookings' | 'participants' | 'families' | 'schools' | 'opt-outs' | 'usage';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'times', label: 'Lab times' },
@@ -127,12 +129,20 @@ export function StaffApp() {
   }
 
   const staff: Staff = { ask, overview, reload };
+  const exportedAt = overview?.lastExportAt ?? null;
+  const exportStale = !exportedAt || Date.now() - Date.parse(exportedAt) > EXPORT_STALE_MS;
   return (
     <div className="mpmb-step mpmb-step--wide mpmb-tools">
       <header className="mpmb-tools__head">
         <div>
           <p className="mpmb-kicker">MyPhone/MyBrain research team</p>
           <h1 className="mpmb-h1">Staff page</h1>
+          {overview && (
+            <p className={`mpmb-tools__export${exportStale ? ' is-stale' : ''}`} role={exportStale ? 'status' : undefined}>
+              Data export last ran: {exportedAt ? when(exportedAt) : 'not known'}
+              {exportStale && ' — more than 3 hours ago or unreadable, so OneDrive is not up to date (see docs/firebase.md, the hourly export)'}
+            </p>
+          )}
         </div>
         <Button variant="ghost" onClick={signOut}>
           Sign out

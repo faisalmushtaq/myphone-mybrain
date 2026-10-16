@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-off: the private bucket the nightly data export is written to, and a
+# One-off: the private bucket the hourly data export is written to, and a
 # read-only key for the one computer that mirrors it into the team's OneDrive
 # folder (see mac-sync-install.sh). The key can read that bucket and nothing
 # else. Safe to rerun; rerun to rotate the key.
@@ -41,9 +41,9 @@ ok "key saved to $KEY (in this Cloud Shell only)"
 
 say "3. First export"
 if gcloud scheduler jobs run "firebase-schedule-exportData-europe-west2" --location=europe-west2 --project="$PROJECT" --quiet >/dev/null 2>&1; then
-  ok "export started; it takes a minute. The bucket then holds README.md, manifest.json, schools/ and social-media-break/, each with bids/ and identifying/"
+  ok "export started; it takes a minute. The bucket then holds README.md, manifest.json, schools/ and social-media-break/, each with donations/ and identifying/ (and schools/upn-uploads/)"
 else
-  echo "  (the export schedule is not deployed yet; the first export runs after the next backend deploy, then nightly at 02:30)"
+  echo "  (the export schedule is not deployed yet; the first export runs after the next backend deploy, then every hour at five past)"
 fi
 
 say "Done. Next, on the Mac that will hold the OneDrive copy:"

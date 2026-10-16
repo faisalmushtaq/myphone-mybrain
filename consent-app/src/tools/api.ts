@@ -66,6 +66,8 @@ export interface Overview {
   slots: StaffSlot[];
   bookings: StaffBooking[];
   ready: { email: boolean; sms: boolean };
+  /** When the hourly data export last ran (its manifest.json); null if it could not be read. */
+  lastExportAt?: string | null;
   rules: { minutes: number; minNoticeHours: number; changeUntilHours: number; visit2AfterDays: { min: number; max: number }; location: string; messages: { id: string; day: number }[]; reminders: { id: string; hoursBefore: number; email: boolean; sms: boolean }[] };
 }
 
