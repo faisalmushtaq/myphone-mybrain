@@ -765,7 +765,7 @@ social-media-break/   the adult laboratory study: cleaned TikTok, YouTube and
                       are in identifying/mystory_voice/
 website-usage/        how the website is used: anonymous page-view counts,
                       a daily table and every view by month; nothing that
-                      identifies anyone, and deleted after a year as the
+                      identifies anyone, and deleted after five years as the
                       privacy page promises
 
   <study>/donations/     what participants gave through the website, as a

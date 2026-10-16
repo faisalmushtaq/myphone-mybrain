@@ -22,13 +22,14 @@ import { addDays, ukDate } from './ukTime.js';
  * nothing about the browser beyond phone, tablet or computer, no form
  * answers, and no participant IDs or reference codes (a link's query string
  * is cut down to a few known switches before it is sent, and again here).
- * Records are deleted after a year. Anyone can turn it off on the privacy
+ * Records are deleted after five years (one year until 16 October 2026). Anyone can turn it off on the privacy
  * page, and browsers that send Global Privacy Control or Do Not Track send
  * nothing.
  */
 
 const REGION = 'europe-west2';
-export const USAGE_RETENTION_DAYS = 365;
+// Five years (decided 16 October 2026; was one year), as the privacy page says.
+export const USAGE_RETENTION_DAYS = 5 * 365 + 1;
 const MAX_EVENTS = 300;
 const MAX_SECONDS = 86_400;
 const PART = /^[A-Za-z0-9>:_-]{1,60}$/;
@@ -252,7 +253,7 @@ export const usage = onRequest({ region: REGION, cors: ALLOWED_ORIGINS, memory: 
   res.status(204).end();
 });
 
-/** Usage records go after a year. */
+/** Usage records go after five years. */
 export const purgeUsage = onSchedule({ region: REGION, schedule: 'every day 03:30', timeZone: 'Europe/London' }, async () => {
   const db = getFirestore();
   const cutoff = addDays(ukDate(new Date()), -USAGE_RETENTION_DAYS);

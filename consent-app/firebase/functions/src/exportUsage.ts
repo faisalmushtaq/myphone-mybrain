@@ -18,7 +18,7 @@ import { jsonFile, jsonlFile, textFile, tsvFile, type Doc, type OutFile, type Ro
  * site, phone, tablet or computer, seconds read per part, links followed,
  * the ids of fields a form said to fix; the view id is a random number made
  * for that page load). The privacy page promises the counts are deleted
- * after a year, and purgeUsage deletes them; the export is a mirror, so a
+ * after five years, and purgeUsage deletes them; the export is a mirror, so a
  * month leaves this folder (and OneDrive) when its records are deleted. A
  * literal folder name, not built from export.ts's values: the two modules
  * import each other.
@@ -107,8 +107,8 @@ for that page load and kept nowhere else. Visitors can turn the counting off
 on the privacy page, and browsers sending Global Privacy Control or Do Not
 Track send nothing.
 
-The privacy page promises the counts are deleted after a year, so they are:
-each day's records are deleted from the database 365 days later, and the
+The privacy page promises the counts are kept for five years, then deleted:
+each day's records are deleted from the database five years later, and the
 export, a mirror, then drops them from daily.tsv and from their month's
 file (a month's file goes when its last record does). Copies kept anywhere
 else must follow the same promise.

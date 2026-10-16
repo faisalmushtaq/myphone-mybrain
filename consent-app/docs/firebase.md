@@ -414,7 +414,7 @@ social-media-break/                       the adult laboratory study
 website-usage/                            the website's anonymous usage counts (usage.ts; nothing
                                           identifies anyone): daily.tsv + .json, one row per day
                                           and page; raw/usage_<YYYY-MM>.jsonl, every view by month.
-                                          Deleted after a year, as the privacy page promises, and
+                                          Deleted after five years, as the privacy page promises, and
                                           the export mirrors that
 ```
 
@@ -571,7 +571,7 @@ withdrawal is not final there until it is emptied.
   IP address is kept (the rate limit hashes it, in memory only), no names,
   answers, participant IDs or reference codes are sent, browsers that send
   Global Privacy Control or Do Not Track send nothing, and records go after
-  a year. The privacy page says so. Name it in the DPIA and the University's
+  five years (one year until 16 October 2026). The privacy page says so. Name it in the DPIA and the University's
   record of processing, and check it against the rules on storage and access
   technologies (PECR as amended by the Data (Use and Access) Act 2025).
 * **The address finder** (off until the study's Ideal Postcodes account is

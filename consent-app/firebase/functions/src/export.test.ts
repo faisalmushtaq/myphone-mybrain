@@ -559,7 +559,7 @@ test('the website’s usage counts get their own folder: every view by month, a 
   assert.equal(daily[2], '2026-10-01\t/take-part/consent/\tfamily\tparent\t2\t1\t0\t1\t1\t40\t50\t1\t1\t0');
   const dictionary = JSON.parse(bodyOf(out.files, 'website-usage/daily.json'));
   assert.ok(USAGE_DAILY_COLUMNS.every((c) => dictionary[c]), 'every column is described');
-  assert.ok(bodyOf(out.files, 'website-usage/README.md').includes('deleted after a year'), 'the README carries the privacy page’s promise');
+  assert.ok(bodyOf(out.files, 'website-usage/README.md').includes('kept for five years'), 'the README carries the privacy page’s promise');
   const all = buildExport(collections({ usage: docs }), new Map(), '2026-10-16T10:05:00.000Z');
   assert.ok(all.files.some((f) => f.path === 'website-usage/daily.tsv') && all.counts.websiteViews === 3);
 });
