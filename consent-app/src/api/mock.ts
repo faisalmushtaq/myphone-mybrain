@@ -240,6 +240,15 @@ export class MockConsentApi implements ConsentApi {
     return { referenceCode, key: s.youngLinkKey };
   }
 
+  async resumeSource(session: SessionInfo, referenceCode: string, phoneSource: 'parent' | 'child' | 'none'): Promise<ResumeSummary> {
+    await sleep(jitter(300, 600));
+    this.checkSession(session);
+    const s = this.submissions.get(referenceCode);
+    if (!s || !s.resumed?.includes(session.sessionId)) throw new ApiError('validation', 'That reference does not belong to this session. Enter it again with the date of birth.');
+    s.consents[s.consents.length - 1].phoneSource = phoneSource;
+    return this.resumeSummaryOf(referenceCode, s);
+  }
+
   async resumeAgree(session: SessionInfo, payload: LateAgreementPayload): Promise<LateAgreementResult> {
     await sleep(jitter(400, 800));
     if (this.flags.failSubmit) throw new ApiError('server', 'The server did not respond.');

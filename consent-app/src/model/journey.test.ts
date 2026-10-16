@@ -15,7 +15,7 @@ const signature = { method: 'typed' as const, imageDataUrl: null, typedName: 'Sa
 function family(route: 'parent' | 'young', age: number): AppState {
   let s = reducer(initialState(), { type: 'set-route', route });
   s = reducer(s, { type: 'update-identity', patch: { firstName: 'Kai', lastName: 'Patel', dateOfBirth: dobFor(age), schoolId: 'DUA', yearGroup: 'Year 9', ...(route === 'young' && age >= 16 ? { postcode: 'LS6 1AB' } : {}) } });
-  s = reducer(s, { type: 'update-guardian', patch: { fullName: 'Sam Patel', relationship: 'mother', address: '1 Long Lane, Leeds', postcode: 'LS6 1AB' } });
+  s = reducer(s, { type: 'update-guardian', patch: { fullName: 'Sam Patel', relationship: 'mother', address: '1 Long Lane, Leeds', postcode: 'LS6 1AB', phone: '07700 900123' } });
   return s;
 }
 

@@ -188,6 +188,10 @@ export class FirebaseConsentApi implements ConsentApi {
     return this.call<{ action: 'young-link'; referenceCode: string }, { referenceCode: string; key: string }>(session, 'resumeRecord', { action: 'young-link', referenceCode });
   }
 
+  resumeSource(session: SessionInfo, referenceCode: string, phoneSource: 'parent' | 'child' | 'none'): Promise<ResumeSummary> {
+    return this.call<{ action: 'source'; referenceCode: string; phoneSource: string }, ResumeSummary>(session, 'resumeRecord', { action: 'source', referenceCode, phoneSource });
+  }
+
   resumeAgree(session: SessionInfo, payload: LateAgreementPayload): Promise<LateAgreementResult> {
     return this.call<LateAgreementPayload & { action: 'agree' }, LateAgreementResult>(session, 'resumeRecord', { action: 'agree', ...payload });
   }

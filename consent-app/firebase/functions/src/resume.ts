@@ -66,6 +66,8 @@ export interface ResumeSummary {
   canAddScreenshots: boolean;
   /** Why nothing can be added, when nothing can: 'unfinished' is a record saved before the parent said whether to share the screen time. */
   reason: 'declined' | 'no-screen-time' | 'unfinished' | 'full' | null;
+  /** An unfinished record: the parent can say now where the screen time comes from (action 'source', 16 October 2026). */
+  canChooseSource: boolean;
 }
 
 /** A reference as typed: upper case, spaces gone, the dashes put back. */
@@ -103,6 +105,7 @@ export function resumeSummary(code: string, submission: DocumentData, participan
     canAgree,
     canAddScreenshots,
     reason,
+    canChooseSource: source === null && !submission.selfConsent && typeof submission.consentId === 'string',
   };
 }
 
@@ -145,7 +148,7 @@ export function validateLateAgreement(input: unknown): string[] {
 export const mayAddTo = (submission: DocumentData, uid: string) => submission.sessionUid === uid || (Array.isArray(submission.resumeUids) && submission.resumeUids.includes(uid));
 
 /**
- * One callable, two actions:
+ * One callable, its actions (also young-link, and source: where the screen time comes from, for a record left before that was chosen):
  *   lookup: the reference and the young person's date of birth find the
  *           record; this session may then add to it, and is told what it can
  *           add. A wrong date of birth counts against the reference, which
@@ -204,6 +207,34 @@ export const resumeRecord = onCall(callOptions, async (request) => {
     await ref.set({ resumeUids: FieldValue.arrayUnion(uid), resumeFailures: 0, lastLookupAt: FieldValue.serverTimestamp(), ...(byLink ? { youngLinkOpens: FieldValue.increment(1), youngLinkLastOpenedAt: FieldValue.serverTimestamp(), ...(submission.youngLinkFirstOpenedAt ? {} : { youngLinkFirstOpenedAt: FieldValue.serverTimestamp() }) } : {}) }, { merge: true });
     logger.info('Record found to carry on', { referenceCode: code, byLink, canAgree: summary.canAgree, canAddScreenshots: summary.canAddScreenshots });
     return summary;
+  }
+
+  if (data.action === 'source') {
+    // An unfinished record (the parent stopped before saying where the screen time comes from): they say it now, from the reminder's link.
+    const code = normaliseReference(data.referenceCode);
+    const chosen = data.phoneSource;
+    if (!code || (chosen !== 'parent' && chosen !== 'child' && chosen !== 'none')) throw new HttpsError('invalid-argument', 'Choose where the screen time comes from.');
+    const ref = db.collection('submissions').doc(code);
+    const submission = (await ref.get()).data();
+    if (!submission || !mayAddTo(submission, uid)) throw new HttpsError('failed-precondition', 'That reference does not belong to this session. Enter it again with the date of birth.');
+    const participantRef = db.collection('participants').doc(String(submission.participantId));
+    const participant = (await participantRef.get()).data();
+    const assent = submission.assentId ? (await db.collection('assents').doc(String(submission.assentId)).get()).data() : undefined;
+    const consent = submission.consentId ? (await db.collection('consents').doc(String(submission.consentId)).get()).data() : undefined;
+    if (!resumeSummary(code, submission, participant, assent, consent?.responses?.['phone-use']?.response).canChooseSource) throw new HttpsError('failed-precondition', 'Where the screen time comes from has already been chosen for this record.');
+    const receivedAt = new Date();
+    const version = Number(submission.version ?? 1) + 1;
+    const batch = db.batch();
+    batch.set(ref, { phoneSource: chosen, version, resumedAt: receivedAt, versions: FieldValue.arrayUnion({ version, kind: 'late-phone-source', phoneSource: chosen, receivedAt }), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    batch.set(participantRef, { phoneSource: chosen, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    await batch.commit();
+    logger.info('Phone source given later', { referenceCode: code, phoneSource: chosen });
+    const after = resumeSummary(code, { ...submission, phoneSource: chosen }, participant, assent, undefined);
+    if (typeof participant?.dateOfBirth === 'string') {
+      const [year, month, day] = participant.dateOfBirth.split('-');
+      Object.assign(after, { dateOfBirth: { day: String(Number(day)), month: String(Number(month)), year } });
+    }
+    return after;
   }
 
   if (data.action === 'agree') {

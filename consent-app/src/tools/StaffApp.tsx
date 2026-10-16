@@ -4,6 +4,7 @@ import { Callout } from '../components/ui/Callout';
 import { TextField } from '../components/ui/Field';
 import { callTool, messageOf, type Overview } from './api';
 import { Bookings } from './staff/Bookings';
+import { Families } from './staff/Families';
 import { OptOuts } from './staff/OptOuts';
 import { Participants } from './staff/Participants';
 import { Schools } from './staff/Schools';
@@ -11,11 +12,12 @@ import { Times } from './staff/Times';
 import { Usage } from './staff/Usage';
 
 const KEY_STORE = 'mpmb-staff-key';
-type Tab = 'times' | 'bookings' | 'participants' | 'schools' | 'opt-outs' | 'usage';
+type Tab = 'times' | 'bookings' | 'participants' | 'families' | 'schools' | 'opt-outs' | 'usage';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'times', label: 'Lab times' },
   { id: 'bookings', label: 'Bookings' },
   { id: 'participants', label: 'Participants' },
+  { id: 'families', label: 'Families not finished' },
   { id: 'schools', label: 'School uploads' },
   { id: 'opt-outs', label: 'Opt-outs' },
   { id: 'usage', label: 'Website use' },
@@ -156,6 +158,7 @@ export function StaffApp() {
         {tab === 'bookings' && <Bookings staff={staff} />}
         {tab === 'participants' && <Participants staff={staff} />}
         {tab === 'schools' && <Schools staff={staff} />}
+        {tab === 'families' && <Families staff={staff} />}
         {tab === 'opt-outs' && <OptOuts staff={staff} />}
         {tab === 'usage' && <Usage staff={staff} />}
       </div>

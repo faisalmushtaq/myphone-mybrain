@@ -126,6 +126,10 @@ export function validateGuardian(guardian: GuardianIdentity): FieldError[] {
   if (guardianFields.phone.enabled && !blank(guardian.phone) && !PHONE.test(guardian.phone.trim())) {
     errors.push({ field: 'guardian-phone', message: 'Enter a phone number using numbers only, for example 07700 900123.' });
   }
+  // A mobile or an email, at least one (16 October 2026), so a family who hasn't finished can be reminded.
+  if (blank(guardian.phone) && blank(guardian.email)) {
+    errors.push({ field: 'guardian-phone', message: 'Enter your mobile number or your email address, so we can remind you if the form isn’t finished.' });
+  }
   return errors;
 }
 

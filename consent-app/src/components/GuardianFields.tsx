@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { addressFinder } from '../config/features';
 import { guardianFields, relationships } from '../config/fields';
 import { study } from '../config/study';
@@ -19,14 +18,12 @@ interface Props {
  * The parent or carer's own details. Used on the combined details screen
  * (parent route) and on the parent-details screen (young person route). The
  * home address and postcode are required (decided 7 October 2026, for
- * linking the young person's records); email and phone are optional. There
+ * linking the young person's records); a mobile or an email, at least one
+ * (16 October 2026: was optional and folded away). There
  * is no parental-responsibility tick: only a parent or carer fills this in.
  */
 export function GuardianFields({ guardian, update, errors: errs, childName }: Props) {
   const needsCareNote = guardian.relationship === 'foster-carer';
-  // Email and phone are optional, so they stay folded away (fewer boxes for a busy parent) unless one is given or asked for (8 October 2026).
-  const [showContact, setShowContact] = useState(Boolean(guardian.email || guardian.phone || errs['guardian-email'] || errs['guardian-phone']));
-  const contactShown = showContact || Boolean(errs['guardian-email'] || errs['guardian-phone']);
 
   return (
     <div className="mpmb-fields">
@@ -43,6 +40,13 @@ export function GuardianFields({ guardian, update, errors: errs, childName }: Pr
       {guardian.relationship === 'other' && (
         <TextField id="guardian-relationship-other" label="Your relationship to the young person" required maxLength={limits.relationship} value={guardian.relationshipOther} onChange={(e) => update({ relationshipOther: e.target.value })} error={errs['guardian-relationship-other']} />
       )}
+      {/* A mobile or an email, at least one (16 October 2026): so the team can remind a family who hasn't finished (familyReminders.ts). */}
+      <fieldset className="mpmb-field">
+        <legend className="mpmb-label">How can we reach you?</legend>
+        <p className="mpmb-hint">Your mobile number or your email, or both. Only to remind you if the form isn’t finished, and to contact you about the study. Nothing else.</p>
+        <TextField id="guardian-phone" type="tel" inputMode="tel" label={guardianFields.phone.label} autoComplete="tel" maxLength={limits.phone} width="half" value={guardian.phone} onChange={(e) => update({ phone: e.target.value })} error={errs['guardian-phone']} />
+        <TextField id="guardian-email" type="email" inputMode="email" label={guardianFields.email.label} autoComplete="email" maxLength={limits.email} value={guardian.email} onChange={(e) => update({ email: e.target.value })} error={errs['guardian-email']} />
+      </fieldset>
       {needsCareNote && (
         <Callout tone="important" role="status">
           <p>
@@ -75,17 +79,6 @@ export function GuardianFields({ guardian, update, errors: errs, childName }: Pr
             error={errs['guardian-postcode']}
           />
         </>
-      )}
-      {(guardianFields.email.enabled || guardianFields.phone.enabled) && !contactShown && (
-        <button type="button" className="mpmb-linkbutton" onClick={() => setShowContact(true)}>
-          + Add your mobile or email for a reminder if you don’t finish (optional)
-        </button>
-      )}
-      {guardianFields.email.enabled && contactShown && (
-        <TextField id="guardian-email" type="email" inputMode="email" label={guardianFields.email.label} hint={guardianFields.email.hint} required={guardianFields.email.required} autoComplete="email" maxLength={limits.email} value={guardian.email} onChange={(e) => update({ email: e.target.value })} error={errs['guardian-email']} />
-      )}
-      {guardianFields.phone.enabled && contactShown && (
-        <TextField id="guardian-phone" type="tel" inputMode="tel" label={guardianFields.phone.label} hint={guardianFields.phone.hint} required={guardianFields.phone.required} autoComplete="tel" maxLength={limits.phone} width="half" value={guardian.phone} onChange={(e) => update({ phone: e.target.value })} error={errs['guardian-phone']} />
       )}
     </div>
   );

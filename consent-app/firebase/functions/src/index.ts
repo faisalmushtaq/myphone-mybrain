@@ -121,6 +121,8 @@ export const submitConsent = onCall(callOptions, async (request) => {
   const changed = previous === null || !same('details') || !same('consent') || !same('assent');
   const version = previous === null ? 1 : Number(previous.version ?? 1) + (changed ? 1 : 0);
   const amendment = previous !== null;
+  // A mobile or an email, at least one, for new records with a parent (16 October 2026); records begun before then may still be changed without.
+  if (!amendment && !(selfConsentOf(payload) && payload.route === 'young') && !payload.guardian.email.trim() && !payload.guardian.phone.trim()) throw new HttpsError('invalid-argument', 'Enter your mobile number or your email address.');
 
   const dob = parseDate(payload.identity.dateOfBirth);
   // Who decided about the screen time, and where it comes from (decided 7 October 2026: 16 or over alone; under 16 the parent first; null until the parent has said).

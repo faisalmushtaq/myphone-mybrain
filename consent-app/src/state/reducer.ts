@@ -190,6 +190,7 @@ export function reducer(state: AppState, action: Action): AppState {
           imageCount: summary.imageCount,
           maxImages: summary.maxImages,
           reason: summary.reason,
+          canChooseSource: Boolean(summary.canChooseSource),
         },
         // The record is on the server already; only the young person's answer, if asked, is still to send.
         submission: { ...fresh.submission, referenceCode: summary.referenceCode, consentStage: summary.canAgree ? 'idle' : 'sent', consentVersion: 1 },

@@ -45,19 +45,19 @@ export const guardianFields = {
     hint: 'For example LS2 9JT.',
     autocomplete: 'postal-code',
   },
-  /** Optional. Since 16 October 2026: one reminder if the form isn't finished (familyReminders.ts), and contact about the study. */
+  /** The email or the mobile, at least one (16 October 2026): reminders if the form isn't finished (familyReminders.ts), and contact about the study. */
   email: {
     enabled: true,
     required: false,
     label: 'Your email address',
-    hint: 'For one reminder if the screen time isn’t sent, and to contact you about the study. Nothing else.',
+    hint: '',
     autocomplete: 'email',
   },
   phone: {
     enabled: true,
     required: false,
     label: 'Your mobile number',
-    hint: 'For one text reminder if the screen time isn’t sent, and to contact you about the study. Nothing else.',
+    hint: '',
     autocomplete: 'tel',
   },
 } satisfies Record<string, FieldConfig>;

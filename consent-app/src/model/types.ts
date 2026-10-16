@@ -253,6 +253,8 @@ export interface ResumeState {
   imageCount: number;
   maxImages: number;
   reason: 'declined' | 'no-screen-time' | 'unfinished' | 'full' | null;
+  /** An unfinished record: the parent can say now where the screen time comes from (16 October 2026). */
+  canChooseSource?: boolean;
 }
 
 export interface PrototypeFlags {

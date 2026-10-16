@@ -7,7 +7,8 @@ import { labBooking, labJourneyMessages, schools } from './forms.js';
 import { normaliseCode, notUsedOf, phaseCountsOf, toIso } from './lab.js';
 import { participantLinks, schoolUploadLink } from './links.js';
 import { sendMail, settingsFromEnv } from './mail.js';
-import { nameKey } from './exportUpn.js';
+import { nameKey, optOutFor, optOutsOf } from './exportUpn.js';
+import { reminderPlan } from './familyReminders.js';
 import { countFailure, schoolBySlug, setSchoolPassword } from './schoolUpload.js';
 import { readSecret } from './secrets.js';
 import { sendSms, smsReady, ukMobile } from './sms.js';
@@ -285,6 +286,51 @@ async function optOutsList(db: Firestore) {
     .sort((a, b) => b.receivedOn.localeCompare(a.receivedOn) || String(b.recordedAt).localeCompare(String(a.recordedAt)));
 }
 
+/**
+ * The schools study's family records that are not finished (16 October 2026): the screen time could still come and hasn't.
+ * With the parent's contact details, what is missing, the reminders sent and the link that finishes it, so the team can
+ * contact the family themselves. Finished records, a no, and young people deciding alone are left out.
+ */
+async function familiesList(db: Firestore) {
+  const [submissions, participants, assents, optOuts] = await Promise.all([
+    db.collection('submissions').where('kind', '==', 'consent').get(),
+    db.collection('participants').get(),
+    db.collection('assents').get(),
+    db.collection('optOuts').get(),
+  ]);
+  const people = new Map(participants.docs.map((d) => [d.id, d.data()]));
+  const assentBy = new Map(assents.docs.map((d) => [d.id, d.data()]));
+  const outs = optOutsOf(optOuts.docs.map((d) => ({ id: d.id, data: d.data() })));
+  const rows = [];
+  for (const d of submissions.docs) {
+    const sub = d.data();
+    const assent = sub.assentId ? assentBy.get(String(sub.assentId)) : undefined;
+    const plan = reminderPlan(sub, typeof assent?.status === 'string' ? assent.status : null, Date.now(), (sub.reminders ?? []).some((r: { kind?: string }) => r.kind === 'screen-time-on'));
+    if (!plan) continue;
+    const p = people.get(String(sub.participantId)) ?? {};
+    const reminders = ((sub.reminders ?? []) as { at?: unknown; outcome?: string; kind?: string; channel?: string }[]).filter((r) => r.channel);
+    rows.push({
+      referenceCode: d.id,
+      startedAt: toIso(sub.createdAt),
+      schoolName: schools.find((x) => x.id === p.schoolId)?.name ?? String(p.schoolId ?? ''),
+      yearGroup: String(p.yearGroup ?? ''),
+      childName: `${String(p.firstName ?? '')} ${String(p.lastName ?? '')}`.trim(),
+      parentName: String(p.guardian?.fullName ?? ''),
+      relationship: String(p.guardian?.relationship ?? ''),
+      phone: p.guardian?.phone ?? null,
+      email: p.guardian?.email ?? null,
+      missing: plan.kind,
+      linkOpened: Boolean(sub.youngLinkFirstOpenedAt),
+      screenTimeOff: Boolean(sub.screenTimeOffAt),
+      reminders: reminders.map((r) => ({ at: toIso(r.at), outcome: String(r.outcome ?? ''), channel: String(r.channel ?? ''), kind: String(r.kind ?? '') })),
+      nextReminderAt: toIso(sub.reminderDueAt),
+      link: plan.link,
+      optedOut: Boolean(optOutFor(p, outs)),
+    });
+  }
+  return rows.sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)));
+}
+
 async function schoolsList(db: Firestore) {
   const [access, uploads] = await Promise.all([db.collection('schoolUploadAccess').get(), db.collection('schoolUploads').get()]);
   const accessBy = new Map(access.docs.map((d) => [d.id, d.data()]));
@@ -453,6 +499,9 @@ export const staffApi = onCall(callOptions, async (request) => {
       await db.collection('schoolUploadAccess').doc(school.slug).set({ active: false, revokedAt: now }, { merge: true });
       return { ok: true };
     }
+
+    case 'families':
+      return { families: await familiesList(db) };
 
     case 'opt-outs':
       return { optOuts: await optOutsList(db), schools: schools.map((x) => ({ id: x.id, name: x.name })) };

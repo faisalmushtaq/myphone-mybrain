@@ -32,6 +32,8 @@ export function Resume() {
   const [dob, setDob] = useState<DateParts>({ day: '', month: '', year: '' });
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [busy, setBusy] = useState(false);
+  // An unfinished record: where the screen time comes from, chosen now (16 October 2026).
+  const [source, setSource] = useState<'parent' | 'child' | 'none' | null>(null);
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
   const range = dateOfBirthRange(study.minAge, study.maxAge + 1);
   const found = state.resume;
@@ -91,6 +93,59 @@ export function Resume() {
   if (found) {
     const name = state.identity.firstName.trim() || 'the young person';
     const alone = decidesAlone(state);
+    if (!found.canAgree && !found.canAddScreenshots && found.canChooseSource) {
+      const choose = async () => {
+        if (!source) {
+          setErrors([{ field: 'resume-source-parent', message: 'Choose an answer.' }]);
+          return;
+        }
+        setErrors([]);
+        setBusy(true);
+        try {
+          const session = state.session ?? (await getApi().startSession());
+          if (!state.session) dispatch({ type: 'session', session });
+          const summary = await getApi().resumeSource(session, found.referenceCode, source);
+          dispatch({ type: 'resume-found', summary, dateOfBirth: summary.dateOfBirth ?? dob });
+        } catch {
+          setErrors([{ field: 'resume-source-parent', message: 'That didn’t save. Check your connection and try again.' }]);
+        } finally {
+          setBusy(false);
+        }
+      };
+      const options: { value: 'parent' | 'child' | 'none'; title: string; body: string }[] = [
+        { value: 'parent', title: 'Yes, from my phone', body: `I can see ${name}’s screen time on my phone, with Apple Family Sharing or Google Family Link.` },
+        { value: 'child', title: `Yes, from ${name}’s phone`, body: `${name} sends the screenshots from their own phone: pass them this phone next, or send them a link.` },
+        { value: 'none', title: 'No, not this time', body: `Without the screenshots, the study has only guesses about how ${name}’s phone is used.` },
+      ];
+      return (
+        <StepShell
+          kicker="Carry on"
+          title={`Can we have ${name}’s screen time?`}
+          intro={<p>Reference {found.referenceCode}. Your answers so far are saved. One thing is left: whether you can share {name}’s screen time. It’s the most useful part of the study: guesses are often wrong by hours.</p>}
+          errors={errors}
+          onContinue={() => void choose()}
+          continueLoading={busy}
+          hideBack
+        >
+          <fieldset className="mpmb-choice mpmb-choice--stack">
+            <legend className="mpmb-sr-only">Whether, and where from, the screen time can be shared</legend>
+            <div className="mpmb-choice__options">
+              {options.map((o) => (
+                <label key={o.value} className={`mpmb-choice__option${source === o.value ? ' is-selected' : ''}`} htmlFor={`resume-source-${o.value}`}>
+                  <input id={`resume-source-${o.value}`} type="radio" name="resume-source" className="mpmb-choice__input" checked={source === o.value} onChange={() => setSource(o.value)} />
+                  <span className="mpmb-choice__dot" aria-hidden="true" />
+                  <span>
+                    <strong>{o.title}</strong>
+                    <br />
+                    <span className="mpmb-hint">{o.body}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </StepShell>
+      );
+    }
     if (!found.canAgree && !found.canAddScreenshots) {
       return (
         <StepShell kicker="Carry on" title="There is nothing to add." hideBack hideContinue secondaryAction={<Button variant="secondary" onClick={startAgain}>Back to the start</Button>}>

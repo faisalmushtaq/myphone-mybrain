@@ -208,12 +208,13 @@ async function inner() {
     await page.getByRole('button', { name: /I’m the parent or carer/ }).click();
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     ok('no parental-responsibility tick: only a parent or carer fills this in', (await page.getByLabel(/parental responsibility for/).count()) === 0);
-    ok('email and phone are folded away until asked for', (await page.getByLabel('Your email address').count()) === 0);
-    await page.getByRole('button', { name: /Add your mobile or email for a reminder/ }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText('Enter your home address.').first().waitFor();
+    ok('a mobile or an email is asked for, at least one, with why', (await page.getByText(/Enter your mobile number or your email address/).count()) >= 1 && (await page.getByText(/Only to remind you if the form isn’t finished/).count()) === 1);
     await page.getByLabel('Your email address').fill('priya@example.com');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByText('Enter your home address.').first().waitFor();
-    ok('the home address and postcode are required; email and phone are not', (await page.getByText('Enter your postcode.').count()) >= 1 && (await page.getByText(/Enter your (email|phone)/).count()) === 0);
+    ok('the home address and postcode are required; with an email, a mobile is not', (await page.getByText('Enter your postcode.').count()) >= 1 && (await page.getByText(/Enter your mobile number or your email/).count()) === 0);
     await page.getByLabel('Your home address').fill('1 Long Lane, Leeds');
     await page.getByLabel('Postcode').fill('ls6 1ab');
     await page.getByRole('button', { name: 'Continue' }).click();
@@ -461,6 +462,7 @@ async function inner() {
     await page.getByLabel('Year group').selectOption('Year 9');
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     await page.getByLabel('Your home address').fill('22 Park Road, Bradford');
+    await page.getByLabel('Your mobile number').fill('07700 900456');
     await page.getByLabel('Postcode').fill('BD7 1AB');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByLabel(/I confirm all of the above/).check();
@@ -529,6 +531,7 @@ async function inner() {
     await page.getByLabel('Year group').selectOption('Year 9');
     await page.getByLabel('Your relationship to the young person').selectOption('father');
     await page.getByLabel('Your home address').fill('5 Mill Street, Leeds');
+    await page.getByLabel('Your mobile number').fill('07700 900456');
     await page.getByLabel('Postcode').fill('LS9 8AB');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByLabel(/I confirm all of the above/).check();
@@ -626,8 +629,47 @@ async function inner() {
     rawZip.file('user_data_tiktok.json', JSON.stringify(tiktokExport));
     const tiktokZip = await rawZip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 
-    // A parent who says no to the screenshots: the quick questions, then the longer ones instead; nothing is asked of the young person.
+    // A parent who signs, then stops before saying where the screen time comes from (16 October 2026): the reminder's link finishes it.
     const yearsAgo = (n, md = '05-20') => `${new Date().getFullYear() - n}-${md}`;
+    await page.evaluate(() => window.sessionStorage.clear());
+    await page.goto(`http://127.0.0.1:${PORT}/index.html?who=parent&school=dua`);
+    await page.getByLabel('First name', { exact: true }).fill('Ruby');
+    await page.getByLabel('Last name', { exact: true }).fill('Shaw');
+    await page.getByLabel('Date of birth', { exact: true }).fill(yearsAgo(13, '02-11'));
+    await page.getByLabel('Year group').selectOption('Year 8');
+    await page.getByLabel('Your relationship to the young person').selectOption('father');
+    await page.getByLabel('Your home address').fill('3 Elm Row, Leeds');
+    await page.getByLabel('Your mobile number').fill('07700 900789');
+    await page.getByLabel('Postcode').fill('LS2 9JT');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByLabel(/I confirm all of the above/).check();
+    await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.6]]);
+    await page.getByLabel('Your full name', { exact: true }).fill('Dan Shaw');
+    await page.getByRole('button', { name: 'Confirm and sign' }).click();
+    await hasOwnPhone(page);
+    await page.locator('.mpmb-quiz__count', { hasText: 'Question 1 of 15' }).waitFor();
+    let ruby = null;
+    for (let i = 0; i < 40 && !ruby; i += 1) {
+      const people = await db.collection('participants').where('firstName', '==', 'Ruby').get();
+      const sub = people.empty ? null : await db.collection('submissions').where('participantId', '==', people.docs[0].id).get();
+      if (sub && !sub.empty) ruby = { code: sub.docs[0].id, data: sub.docs[0].data(), person: people.docs[0].data() };
+      else await new Promise((r) => setTimeout(r, 500));
+    }
+    ok('a parent who stops after signing has their mobile on the record, and a reminder due', ruby?.person.guardian?.phone === '07700 900789' && ruby?.data.phoneSource === null && Boolean(ruby?.data.reminderDueAt));
+    // Days later, from the reminder's link: one question is left, then the screenshots.
+    await page.evaluate(() => window.sessionStorage.clear());
+    await page.goto(`http://127.0.0.1:${PORT}/index.html?finish=${ruby.code}`);
+    await page.getByLabel('The young person’s date of birth').fill(yearsAgo(13, '02-11'));
+    await page.getByRole('button', { name: 'Find my record' }).click();
+    await page.getByRole('heading', { name: 'Can we have Ruby’s screen time?' }).waitFor({ timeout: 30000 });
+    await page.locator('#resume-source-parent').check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: 'We found your record.' }).waitFor({ timeout: 30000 });
+    ok('the link finishes an unfinished record: where the screen time comes from is saved, and the screenshots come next', (await db.collection('submissions').doc(ruby.code).get()).data()?.phoneSource === 'parent' && (await page.getByRole('button', { name: 'Add the screenshots' }).count()) === 1);
+    await page.getByRole('button', { name: 'Not your record? Start again' }).click();
+    await page.waitForFunction(() => !document.body.textContent.includes('We found your record.'));
+
+    // A parent who says no to the screenshots: the quick questions, then the longer ones instead; nothing is asked of the young person.
     await page.evaluate(() => window.sessionStorage.clear());
     await page.goto(`http://127.0.0.1:${PORT}/index.html?who=parent&school=dua`);
     await page.getByLabel('First name', { exact: true }).fill('Lily');
@@ -636,6 +678,7 @@ async function inner() {
     await page.getByLabel('Year group').selectOption('Year 9');
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     await page.getByLabel('Your home address').fill('9 Hill View, Leeds');
+    await page.getByLabel('Your mobile number').fill('07700 900456');
     await page.getByLabel('Postcode').fill('LS2 9JT');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: /Your permission: Lily’s phone use/ }).waitFor();
@@ -692,6 +735,7 @@ async function inner() {
     await page.getByLabel('Year group').selectOption('Year 7');
     await page.getByLabel('Your relationship to the young person').selectOption('father');
     await page.getByLabel('Your home address').fill('4 Park Road, Leeds');
+    await page.getByLabel('Your mobile number').fill('07700 900456');
     await page.getByLabel('Postcode').fill('LS2 9JT');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: /Your permission: Ivy’s phone use/ }).waitFor();
@@ -1367,6 +1411,11 @@ async function inner() {
       await page.getByLabel('Staff key').fill('emulator-staff-key');
       await page.getByRole('button', { name: 'Sign in' }).click();
     }
+    await page.getByRole('button', { name: 'Families not finished', exact: true }).waitFor({ timeout: 30000 });
+    await page.getByRole('button', { name: 'Families not finished', exact: true }).click();
+    const rubyRow = page.locator('.mpmb-tools__row', { hasText: 'Ruby Shaw' });
+    await rubyRow.waitFor({ timeout: 30000 });
+    ok('the staff page lists families who haven’t finished, with what is missing, their contact and a link to finish', (await rubyRow.getByText(/Screenshots from the parent’s phone/).count()) === 1 && (await rubyRow.getByRole('link', { name: '07700 900789' }).count()) === 1 && (await rubyRow.getByRole('button', { name: 'Copy link' }).count()) === 1 && (await page.locator('.mpmb-tools__row', { hasText: 'Noah' }).count()) === 0);
     await page.getByRole('button', { name: 'Opt-outs', exact: true }).waitFor({ timeout: 30000 });
     await page.getByRole('button', { name: 'Opt-outs', exact: true }).click();
     await page.getByLabel('Young person’s first name').fill('Ola');
@@ -1409,6 +1458,7 @@ async function inner() {
     await addressBox.press('ArrowDown');
     await addressBox.press('Enter');
     await page.waitForFunction(() => document.querySelector('#guardian-address').value === '14 Long Lane, Leeds', null, { timeout: 30000 });
+    await page.getByLabel('Your mobile number').fill('07700 900456');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: /Your permission: Mia’s phone use/ }).waitFor();
     await page.getByLabel(/I confirm all of the above/).check();

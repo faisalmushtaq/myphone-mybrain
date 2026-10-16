@@ -428,6 +428,8 @@ export interface ResumeSummary {
   canAddScreenshots: boolean;
   /** Why nothing can be added, when nothing can. */
   reason: 'declined' | 'no-screen-time' | 'unfinished' | 'full' | null;
+  /** An unfinished record: the parent can say now where the screen time comes from. */
+  canChooseSource?: boolean;
   /** Only when opened from the young person's own link (nothing typed): their date of birth, from the record. */
   dateOfBirth?: DateParts;
 }
@@ -493,6 +495,8 @@ export interface ConsentApi {
   youngLink(session: SessionInfo, referenceCode: string): Promise<{ referenceCode: string; key: string }>;
   /** Carrying on later: the young person's answer, given now. */
   resumeAgree(session: SessionInfo, payload: LateAgreementPayload): Promise<LateAgreementResult>;
+  /** For a record left before the parent said where the screen time comes from: they say it now. */
+  resumeSource(session: SessionInfo, referenceCode: string, phoneSource: 'parent' | 'child' | 'none'): Promise<ResumeSummary>;
   requestUploadSlot(sessionId: string, meta: UploadMeta): Promise<UploadSlot>;
   uploadImage(slot: UploadSlot, blob: Blob, onProgress?: (fraction: number) => void): Promise<void>;
   deleteUpload(sessionId: string, uploadId: string): Promise<void>;

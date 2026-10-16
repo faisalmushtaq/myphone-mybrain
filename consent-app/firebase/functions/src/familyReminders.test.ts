@@ -15,7 +15,8 @@ test('a reminder only while the screen time could still come', () => {
   assert.equal(reminderPlan({ ...base, phoneSource: 'child' }, 'declined', now), null, 'never after the young person’s no');
   assert.equal(reminderPlan({ ...base, phoneSource: 'none' }, null, now), null, 'never after the parent’s no');
   assert.equal(reminderPlan({ ...base, phoneSource: 'no-phone' }, null, now), null);
-  assert.equal(reminderPlan({ ...base, phoneSource: null }, null, now), null, 'stopped before the question: nothing a link can finish');
+  assert.equal(reminderPlan({ ...base, phoneSource: null }, null, now), null, 'never signed: nothing saved to finish');
+  assert.equal(reminderPlan({ ...base, phoneSource: null, consentId: 'c1' }, null, now)?.kind, 'choose', 'signed, then stopped before saying where the screen time comes from');
   assert.equal(reminderPlan({ ...base, phoneSource: 'child', selfConsent: true }, 'not-started', now), null, 'a young person deciding alone gave no contact details');
 });
 
@@ -24,12 +25,15 @@ test('a week after "screen time isn’t turned on", the reminder says it is read
   assert.equal(reminderPlan(off(7), 'completed', now)?.kind, 'screen-time-on');
   assert.equal(reminderPlan(off(2), 'completed', now)?.kind, 'young-part', 'not yet a week');
   assert.ok(reminderPlan(off(7), 'completed', now)?.link.endsWith('?finish=MPMB-ABCD-EF2&for=young'));
+  assert.equal(reminderPlan(off(9), 'completed', now, true)?.kind, 'young-part', 'once it has gone, the usual reminders carry on');
 });
 
 test('the words: one link, why it matters, and how to stop', () => {
   const words = reminderMessage({ kind: 'young-part', link: 'https://myphonemybrain.com/take-part/consent/?finish=MPMB-ABCD-EF2&for=young' }, 'Kai', false);
   assert.ok(words.sms.includes('Kai hasn’t done their part yet') && words.sms.includes('?finish=MPMB-ABCD-EF2&for=young'));
-  assert.ok(words.text.includes('guesses are often wrong by hours') && words.text.includes('we won’t send another'));
+  assert.ok(words.text.includes('guesses are often wrong by hours') && words.text.includes('just ignore this message'));
   assert.ok(reminderMessage({ kind: 'young-part', link: 'x?for=young' }, 'Kai', true).sms.includes('Kai opened their link'));
   assert.ok(words.sms.length < 400, 'a short text');
+  assert.ok(reminderMessage({ kind: 'choose', link: 'x' }, 'Kai', false, true).text.includes('This is our last reminder'));
+  assert.ok(reminderMessage({ kind: 'choose', link: 'x' }, 'Kai', false).sms.includes('One thing is left'));
 });
