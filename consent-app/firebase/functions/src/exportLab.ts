@@ -1,6 +1,6 @@
 import type { DocumentData } from 'firebase-admin/firestore';
 import JSZip from 'jszip';
-import { jsonFile, jsonlFile, textFile, toTsv, tsvFile, type Doc, type OutFile, type Row } from './export.js';
+import { jsonFile, jsonlFile, rejectedOf, researchDocs, textFile, toTsv, tsvFile, type Doc, type OutFile, type Row } from './export.js';
 import { cleaner, labCheckInForm, labConsentForm, labStudy, storyChats, storyStructures, type StoryPhase, type StorySignifier } from './forms.js';
 
 /**
@@ -32,6 +32,7 @@ import { cleaner, labCheckInForm, labConsentForm, labStudy, storyChats, storyStr
  *   social-media-break/donations/sourcedata/raw/*.jsonl   every record (labStoryChats: the chats in full)
  *   social-media-break/identifying/consents.tsv, consent_statements.tsv, signatures/,
  *                                               visits.tsv (the lab bookings), contacts.tsv,
+ *                                               lab_times.tsv (the times offered), rejected_uploads.tsv,
  *                                               mystory_voice/ (spoken answers: a voice identifies
  *                                               a person, so never in donations/)
  */
@@ -81,6 +82,8 @@ export function withoutTestAccounts(snap: LabSnapshot): { snap: LabSnapshot; exc
       storyChats: keep(snap.storyChats),
       bookings: keep(snap.bookings),
       contacts: keep(snap.contacts, true),
+      // The times offered belong to no participant.
+      slots: snap.slots ?? [],
     },
     excluded,
   };
@@ -99,6 +102,8 @@ export interface LabSnapshot {
   /** The lab visits and the contact details given when booking (booking.ts). */
   bookings?: Doc[];
   contacts?: Doc[];
+  /** The lab times the team offers (labSlots, booking.ts). */
+  slots?: Doc[];
 }
 
 /** Everything a participant sent in one phase of the study: one BIDS session, however many sends it took. */
@@ -417,7 +422,32 @@ export function labSessionsTable(sessions: LabSession[]): Row[] {
     platforms: Array.from(new Set(s.files.flatMap((f) => (Array.isArray(f.file.platforms) ? (f.file.platforms as string[]) : [])))).sort(),
     phone: last(s.donations)?.data.phone,
     needs_review: s.donations.some((d) => d.data.needsReview === true),
+    // Files the checks refused in this phase's sends, recorded from 16 October 2026 (identifying/rejected_uploads.tsv says why).
+    rejected_n: s.donations.reduce((n, d) => n + rejectedOf(d.data).length, 0),
   }));
+}
+
+export const LAB_SESSION_COLUMNS = ['session_id', 'phase', 'acq_time', 'last_send_at', 'sends_n', 'archives_n', 'screenshots_n', 'platforms', 'phone', 'needs_review', 'rejected_n'];
+
+export const LAB_REJECTED_COLUMNS = ['participant_code', 'participant_id', 'session_id', 'send_id', 'kind', 'upload_id', 'rejected_at', 'reason', 'reasons'];
+
+/** Every file the server refused, with why: from a send that kept others (its labDonations record) or one that kept none (the participant's record). Recorded from 16 October 2026. */
+export function labRejectedTable(snap: LabSnapshot): Row[] {
+  const rows: Row[] = [];
+  for (const d of snap.donations)
+    for (const r of rejectedOf(d.data)) rows.push({ participant_code: d.data.participantCode, participant_id: labLabel(String(d.data.participantCode)), session_id: labSessionLabel(d.data.phase), send_id: d.id, kind: r.kind ?? null, upload_id: r.uploadId, rejected_at: r.at, reason: r.reason, reasons: r.reasons ?? [] });
+  for (const p of snap.participants)
+    for (const r of rejectedOf(p.data)) rows.push({ participant_code: p.id, participant_id: labLabel(p.id), session_id: labSessionLabel(r.phase), send_id: null, kind: r.kind ?? null, upload_id: r.uploadId, rejected_at: r.at, reason: r.reason, reasons: r.reasons ?? [] });
+  return rows.sort((a, b) => String(a.rejected_at).localeCompare(String(b.rejected_at)) || String(a.upload_id).localeCompare(String(b.upload_id)));
+}
+
+export const LAB_TIME_COLUMNS = ['slot_id', 'start', 'end', 'visit', 'capacity', 'booked', 'status', 'location', 'note', 'booking_ids', 'created_at', 'updated_at'];
+
+/** The lab times the team offered, in time order: places, how many booked, open or closed. The booking ids lead to visits.tsv, and a note is free text, so this sits in identifying/. */
+export function labTimesTable(slots: Doc[]): Row[] {
+  return [...slots]
+    .sort((a, b) => String(a.data.start ?? '').localeCompare(String(b.data.start ?? '')) || a.id.localeCompare(b.id))
+    .map(({ id, data: d }) => ({ slot_id: id, start: d.start, end: d.end, visit: d.visit ?? 'either', capacity: d.capacity, booked: d.booked ?? 0, status: d.status, location: d.location ?? null, note: d.note ?? null, booking_ids: Array.isArray(d.bookingIds) ? d.bookingIds : [], created_at: d.createdAt ?? null, updated_at: d.updatedAt ?? null }));
 }
 
 export function labBehTable(s: LabSession): Row[] {
@@ -585,6 +615,9 @@ export function archiveTablePath(s: LabSession, run: number, task: string): stri
 /** Something to build from a stored file once, when its outputs are missing from the bucket. */
 export interface Derivation {
   source: string;
+  /** The archive's own place in the export, and its SHA-256 from the record: what manifest.json names when it cannot be unpacked. */
+  archive: string;
+  sha256?: string | null;
   paths: string[];
   build: (buffer: Buffer) => Promise<OutFile[]>;
 }
@@ -683,7 +716,8 @@ export function labDatasetDescription(exportedAt: string): Record<string, unknow
     Authors: ['The MyPhone/MyBrain team, University of Leeds'],
     EthicsApprovals: ['University of Leeds School of Psychology Research Ethics Committee, SoPREC 4202, approved 11 June 2026'],
     GeneratedBy: [{ Name: 'MyPhone/MyBrain data donation export', Version: `${labConsentForm.id} ${labConsentForm.version}; cleaner ${cleaner.version}`, Description: 'Regenerated every hour from the study database; see the README', CodeURL: CODE_URL }],
-    SourceDatasets: [{ URL: `firestore://${labStudy.studyId}`, Version: exportedAt }],
+    // The day, not the hour: the file then changes once a day, not every run (manifest.json has the exact time).
+    SourceDatasets: [{ URL: `firestore://${labStudy.studyId}`, Version: exportedAt.slice(0, 10) }],
   };
 }
 
@@ -808,10 +842,13 @@ sub-<CODE>/               one session per phase of the study: ses-pre holds
                             task-instagramreels, -posts, -likes   time, url
                             task-instagramsearch   time, search_term
                           The run number ties a table to its archive in the index.
-                          The sessions file gives each phase's first and last send.
+                          The sessions file gives each phase's first and last send,
+                          and (rejected_n, from 16 October 2026) how many files
+                          the checks refused; why is in identifying/rejected_uploads.tsv.
 sourcedata/               the cleaned archives (.zip) and screenshots as received,
                           named by subject, session and run
-sourcedata/raw/           every record as JSON Lines: labParticipants,
+sourcedata/raw/           every record as JSON Lines (without the website's
+                          sign-in ids or anything about the device): labParticipants,
                           labDonations, labCheckIns, labStories (every MyStory
                           story) and labStoryChats (every chat in full: each
                           turn, model call, retelling, change, the safeguarding
@@ -893,6 +930,12 @@ visits.tsv               every lab booking: visit, time, place, booked, moved,
                          and reminder with its outcome
 contacts.tsv             the email address and UK mobile given when booking, and
                          whether texts were wanted
+lab_times.tsv            every lab time offered: start, end, which visit, places,
+                         how many booked (the booking ids lead to visits.tsv),
+                         open or closed, room and the team's note
+rejected_uploads.tsv     every file the checks refused (from 16 October 2026),
+                         with the reason the participant was shown; never the
+                         file, which is not kept
 signatures/              drawn signatures, named by participant ID and version
 mystory_voice/           answers spoken in MyStory's AI chat, as recorded:
                          sub-<CODE>/ses-<phase>/sub-<CODE>_ses-<phase>_chat-<id>_clip-<nn>.<ext>,
@@ -900,7 +943,9 @@ mystory_voice/           answers spoken in MyStory's AI chat, as recorded:
                          clips.tsv (described by clips.json); what each was
                          written down as is in the chat's record in
                          donations/sourcedata/raw/labStoryChats.jsonl
-raw/                     every document as JSON Lines
+raw/                     every document as JSON Lines (consents, bookings,
+                         contacts, reminders, slots), without the website's
+                         sign-in ids
 
 Files are tab-separated UTF-8 with n/a for missing values; timestamps are
 ISO 8601 in UTC. The donated data, labelled by code only, is in the
@@ -981,7 +1026,7 @@ export function labVoiceDictionary(): Record<string, unknown> {
 }
 
 /** The lab study's files, binary copies and counts, for runExport to merge with the schools study's. */
-export function labExport(everything: LabSnapshot, exportedAt: string): { files: OutFile[]; copies: Map<string, string>; derived: Derivation[]; counts: Record<string, number> } {
+export function labExport(everything: LabSnapshot, exportedAt: string): { files: OutFile[]; copies: Map<string, string>; hashes: Map<string, string>; derived: Derivation[]; counts: Record<string, number> } {
   const { snap, excluded } = withoutTestAccounts(everything);
   const sessions = labSessionsOf(snap);
   const behColumns = Object.keys(labBehDictionary()).filter((k) => !['TaskName', 'TaskDescription'].includes(k));
@@ -995,16 +1040,20 @@ export function labExport(everything: LabSnapshot, exportedAt: string): { files:
     tsvFile(`${B}/phenotype/checkin.tsv`, labCheckInTable(snap.checkIns), labCheckInColumns()),
     jsonFile(`${B}/phenotype/checkin.json`, labCheckInDictionary()),
     textFile(`${B}/sourcedata/README.md`, LAB_SOURCEDATA_README, 'text/markdown; charset=utf-8'),
-    jsonlFile(`${B}/sourcedata/raw/labParticipants.jsonl`, snap.participants),
-    jsonlFile(`${B}/sourcedata/raw/labDonations.jsonl`, snap.donations),
-    jsonlFile(`${B}/sourcedata/raw/labCheckIns.jsonl`, snap.checkIns),
-    jsonlFile(`${B}/sourcedata/raw/labStories.jsonl`, snap.stories ?? []),
-    jsonlFile(`${B}/sourcedata/raw/labStoryChats.jsonl`, snap.storyChats ?? []),
+    // Without the sign-in ids (left out of every raw file) or what the device said about itself (kept with the consent in identifying/raw/), 16 October 2026.
+    jsonlFile(`${B}/sourcedata/raw/labParticipants.jsonl`, researchDocs(snap.participants)),
+    jsonlFile(`${B}/sourcedata/raw/labDonations.jsonl`, researchDocs(snap.donations)),
+    jsonlFile(`${B}/sourcedata/raw/labCheckIns.jsonl`, researchDocs(snap.checkIns)),
+    jsonlFile(`${B}/sourcedata/raw/labStories.jsonl`, researchDocs(snap.stories ?? [])),
+    jsonlFile(`${B}/sourcedata/raw/labStoryChats.jsonl`, researchDocs(snap.storyChats ?? [])),
     textFile(`${I}/README.md`, LAB_IDENTIFYING_README, 'text/markdown; charset=utf-8'),
     jsonlFile(`${I}/raw/consents.jsonl`, snap.consents),
     jsonlFile(`${I}/raw/bookings.jsonl`, snap.bookings ?? []),
     jsonlFile(`${I}/raw/contacts.jsonl`, snap.contacts ?? []),
     tsvFile(`${I}/visits.tsv`, labVisitsTable(snap.bookings ?? []), LAB_VISIT_COLUMNS),
+    tsvFile(`${I}/lab_times.tsv`, labTimesTable(snap.slots ?? []), LAB_TIME_COLUMNS),
+    tsvFile(`${I}/rejected_uploads.tsv`, labRejectedTable(snap), LAB_REJECTED_COLUMNS),
+    jsonlFile(`${I}/raw/slots.jsonl`, snap.slots ?? []),
     tsvFile(
       `${I}/contacts.tsv`,
       (snap.contacts ?? []).map(({ id, data: d }) => ({ participant_code: id, participant_id: labLabel(id), email: d.email, mobile: d.mobile, sms_reminders: d.smsReminders, updated_at: d.updatedAt })),
@@ -1032,7 +1081,7 @@ export function labExport(everything: LabSnapshot, exportedAt: string): { files:
     bySubject.get(s.label)!.push(s);
   }
   for (const [label, mine] of bySubject) {
-    files.push(tsvFile(`${B}/${label}/${label}_sessions.tsv`, labSessionsTable(mine), ['session_id', 'phase', 'acq_time', 'last_send_at', 'sends_n', 'archives_n', 'screenshots_n', 'platforms', 'phone', 'needs_review']));
+    files.push(tsvFile(`${B}/${label}/${label}_sessions.tsv`, labSessionsTable(mine), LAB_SESSION_COLUMNS));
     for (const s of mine) {
       const base = `${B}/${label}/${s.session}/beh/${label}_${s.session}_task-${TASK}_beh`;
       files.push(tsvFile(`${base}.tsv`, labBehTable(s), behColumns), jsonFile(`${base}.json`, labBehDictionary()));
@@ -1040,14 +1089,18 @@ export function labExport(everything: LabSnapshot, exportedAt: string): { files:
   }
 
   const copies = new Map<string, string>();
+  // The SHA-256 each record holds for its stored file, which the export stamps on the copy (exportWrite.ts).
+  const hashes = new Map<string, string>();
   const derived: Derivation[] = [];
   for (const s of sessions) {
     s.files.forEach(({ file }, i) => {
       if (typeof file.path !== 'string') return;
-      copies.set(file.path, `${B}/${labFile(s, i + 1, file)}`);
+      const archive = `${B}/${labFile(s, i + 1, file)}`;
+      copies.set(file.path, archive);
+      if (typeof file.sha256 === 'string') hashes.set(file.path, file.sha256);
       if (file.kind !== 'archive') return;
       const tables = archiveTablesFor(file).map((table) => ({ table, base: `${B}/${archiveTablePath(s, i + 1, table.task)}` }));
-      if (tables.length) derived.push({ source: file.path, paths: tables.flatMap((t) => [`${t.base}.tsv`, `${t.base}.json`]), build: (buffer) => buildArchiveTables(buffer, tables) });
+      if (tables.length) derived.push({ source: file.path, archive, sha256: typeof file.sha256 === 'string' ? file.sha256 : null, paths: tables.flatMap((t) => [`${t.base}.tsv`, `${t.base}.json`]), build: (buffer) => buildArchiveTables(buffer, tables) });
     });
   }
   // MyStory's spoken answers: a voice identifies a person, so the recordings go to identifying/, never donations/ (16 October 2026).
@@ -1057,6 +1110,7 @@ export function labExport(everything: LabSnapshot, exportedAt: string): { files:
   for (const c of snap.consents) {
     const path = c.data.signature?.image?.path;
     if (typeof path === 'string') copies.set(path, `${I}/${labSignatureFile(String(c.data.participantCode), c.data.version)}`);
+    if (typeof path === 'string' && typeof c.data.signature?.image?.sha256 === 'string') hashes.set(path, c.data.signature.image.sha256);
   }
 
   const all = sessions.flatMap((s) => s.files.map((f) => f.file));
@@ -1074,5 +1128,5 @@ export function labExport(everything: LabSnapshot, exportedAt: string): { files:
     labBookings: (snap.bookings ?? []).filter((b) => b.data.status !== 'cancelled').length,
     labTestRecordsLeftOut: excluded,
   };
-  return { files, copies, derived, counts };
+  return { files, copies, hashes, derived, counts };
 }

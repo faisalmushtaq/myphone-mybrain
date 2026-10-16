@@ -388,15 +388,19 @@ export const submitDonation = onCall(callOptions, async (request) => {
   const participantId = submission.participantId as string;
   const images: StoredImage[] = [];
   const rejected: { uploadId: string; reason: string }[] = [];
+  // Why each refused image was refused, kept for the team (16 October 2026): on the send's record, or on the family's if nothing was kept. Never the image.
+  const refused: { uploadId: string; reason: string; reasons: string[]; at: string }[] = [];
   for (const upload of payload.uploads) {
     try {
       images.push(await acceptUpload(uid, participantId, upload));
     } catch (error) {
       if (!(error instanceof RejectedUpload)) throw error;
       rejected.push({ uploadId: upload.uploadId, reason: error.reason });
+      refused.push({ uploadId: upload.uploadId, reason: error.reason, reasons: error.quality?.reasons ?? [], at: receivedAt.toISOString() });
       logger.warn('Image rejected', { referenceCode: payload.referenceCode, uploadId: upload.uploadId, reasons: error.quality?.reasons ?? [error.reason] });
     }
   }
+  if (refused.length && !images.length) await submissionRef.update({ rejected: FieldValue.arrayUnion(...refused), updatedAt: FieldValue.serverTimestamp() });
 
   let donationId: string | null = null;
   if (images.length) {
@@ -421,6 +425,7 @@ export const submitDonation = onCall(callOptions, async (request) => {
       assentStatusAtSend: assent?.status ?? null,
       youngPersonAgreedInApp: payload.agreement !== null,
       needsReview: images.some((i) => i.quality.verdict === 'review'),
+      rejected: refused,
       // Sent later, from a device that came back with the reference (often after the workshop).
       late: later,
       receivedAt,

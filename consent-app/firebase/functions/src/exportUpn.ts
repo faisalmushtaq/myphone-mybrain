@@ -11,6 +11,7 @@ import { textFile, tsvFile, type Doc, type OutFile, type Row } from './export.js
  *   schools/upn-uploads/upn_matches.tsv      each family's record on the website with
  *                                            the UPN it matches, and how sure the match is
  *   schools/upn-uploads/upn_unmatched.tsv    pupils on a school's list with no record here
+ *   schools/upn-uploads/problems.tsv         every row the reader flagged in each file, with why
  *
  * Both tables flag pupils whose parent or carer opted them out of the
  * workshop by email (the team logs each email on the staff page, optOuts/),
@@ -128,10 +129,12 @@ export function pupilsBySchool(uploads: Doc[]): Map<string, SchoolPupil[]> {
   return new Map(Array.from(out, ([k, v]) => [k, Array.from(v.values())]));
 }
 
-export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<string, string>, optOutDocs: Doc[] = []): { files: OutFile[]; copies: Map<string, string>; counts: Record<string, number>; optOutTable: Row[] } {
+export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<string, string>, optOutDocs: Doc[] = []): { files: OutFile[]; copies: Map<string, string>; hashes: Map<string, string>; counts: Record<string, number>; optOutTable: Row[] } {
   const optOuts = optOutsOf(optOutDocs);
   const files: OutFile[] = [textFile(`${UPN_ROOT}/README.md`, UPN_README, 'text/markdown; charset=utf-8')];
   const copies = new Map<string, string>();
+  const hashes = new Map<string, string>();
+  const problemRows: Row[] = [];
   const sorted = [...uploads].sort((a, b) => String(a.data.receivedAt ?? '').localeCompare(String(b.data.receivedAt ?? '')));
   const uploadRows: Row[] = [];
   for (const u of sorted) {
@@ -140,6 +143,8 @@ export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<strin
     const base = `${UPN_ROOT}/${slug}/${day(d.receivedAt)}_${short(u.id)}`;
     const original = `${base}_${safe(d.fileName)}`;
     if (typeof d.path === 'string') copies.set(d.path, original);
+    if (typeof d.path === 'string' && typeof d.sha256 === 'string') hashes.set(d.path, d.sha256);
+    for (const p of (Array.isArray(d.problems) ? d.problems : []) as { row?: unknown; message?: unknown }[]) problemRows.push({ upload_id: u.id, school_id: d.schoolId, received_at: d.receivedAt, file_name: d.fileName, row: p.row ?? null, problem: p.message ?? null });
     files.push(
       tsvFile(
         `${base}_pupils.tsv`,
@@ -149,6 +154,8 @@ export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<strin
     );
     uploadRows.push({ upload_id: u.id, school_id: d.schoolId, school_name: d.schoolName, received_at: d.receivedAt, file_name: d.fileName, stored_as: original.slice(UPN_ROOT.length + 1), pupils_n: d.pupilCount, valid_upns_n: d.validUpns, problems_n: Array.isArray(d.problems) ? d.problems.length : 0, uploader_name: d.uploader?.name, uploader_role: d.uploader?.role, uploader_email: d.uploader?.email, note: d.note, sha256: d.sha256 });
   }
+  // Every row the reader flagged, in full (16 October 2026; the staff page and uploads.tsv give only the number): the message may quote the cell, so coordinators only, like the rest of this folder.
+  files.push(tsvFile(`${UPN_ROOT}/problems.tsv`, problemRows, ['upload_id', 'school_id', 'received_at', 'file_name', 'row', 'problem']));
   files.push(tsvFile(`${UPN_ROOT}/uploads.tsv`, uploadRows, ['upload_id', 'school_id', 'school_name', 'received_at', 'file_name', 'stored_as', 'pupils_n', 'valid_upns_n', 'problems_n', 'uploader_name', 'uploader_role', 'uploader_email', 'note', 'sha256']));
 
   const bySchool = pupilsBySchool(uploads);
@@ -204,7 +211,7 @@ export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<strin
       };
     })
     .sort((a, b) => String(a.received_on).localeCompare(String(b.received_on)) || String(a.opt_out_id).localeCompare(String(b.opt_out_id)));
-  return { files, copies, optOutTable, counts: { upnUploads: uploads.length, upnPupils: Array.from(bySchool.values()).reduce((n, p) => n + p.length, 0), upnMatched: matchRows.filter((r) => r.upn).length, optOuts: optOuts.filter((o) => o.status === 'active').length } };
+  return { files, copies, hashes, optOutTable, counts: { upnUploads: uploads.length, upnPupils: Array.from(bySchool.values()).reduce((n, p) => n + p.length, 0), upnMatched: matchRows.filter((r) => r.upn).length, optOuts: optOuts.filter((o) => o.status === 'active').length } };
 }
 
 const UPN_README = `The UPN lists schools sent through their upload page
@@ -229,6 +236,9 @@ upn_matches.tsv        each family's record on the website (participant_id is
                        Names are compared ignoring accents, spaces, hyphens and
                        capitals. When a UPN appears in more than one file from a
                        school, the latest file is used.
+problems.tsv           every row the reader flagged in each file (no UPN, not a
+                       UPN, the same UPN twice, a name missing, a date of birth
+                       it could not read), with the file and row
 upn_unmatched.tsv      pupils on a school's lists with no record on the website
                        Both tables say opted_out (and which opt-out) for a pupil
                        whose parent or carer opted them out of the workshop by

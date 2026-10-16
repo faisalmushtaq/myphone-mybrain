@@ -329,7 +329,9 @@ beside it in the study folder, never inside it, and the Mac mirror copies each
 written folder on its own so those siblings are left alone:
 
 ```
-README.md, manifest.json                  what is here, when it ran, how many of each thing
+README.md, manifest.json                  what is here, when it ran, how many of each thing,
+                                          and what is still to come or failed (status,
+                                          binaryBacklog, copyFailures, unpackFailures, writeFailures)
 schools/                                  the young people's study
   README.md
   donations/                              the research dataset, BIDS layout, no names
@@ -340,20 +342,27 @@ schools/                                  the young people's study
                                           the question wording and answer levels as the dictionary
     phenotype/parent_phone_use.tsv + .json    the parent's longer questions
     phenotype/parent_no_phone.tsv + .json     asked instead when the young person has no phone
-    sub-00001/sub-00001_sessions.tsv      one session per screenshot send
+    sub-00001/sub-00001_sessions.tsv      one session per screenshot send (rejected_n: screenshots
+                                          the checks refused, from 16 October 2026)
     sub-00001/ses-01/beh/
       sub-00001_ses-01_task-screentime_beh.tsv + .json   the images of that send with their checks
     sourcedata/sub-00001/ses-01/
       sub-00001_ses-01_task-screentime_run-01_screenshot.png   the images themselves
-    sourcedata/raw/surveys.jsonl, donations.jsonl   every research document as JSON Lines
+    sourcedata/raw/surveys.jsonl, donations.jsonl   every research document as JSON Lines, labelled
+                                          participant_id (sub-…) in place of the database id,
+                                          without device details
   identifying/                            coordinators only
     participants_key.tsv                  the key from sub-labels to names, dates of birth,
                                           school, parent or guardian and contact details
     consents.tsv, consent_statements.tsv, assents.tsv, assent_statements.tsv,
     submissions.tsv, enquiries.tsv, opt_outs.tsv, raw/*.jsonl
+    rejected_uploads.tsv                  every screenshot the checks refused, with why (never the image)
+    school_upload_access.tsv              each school's upload page: active, set, stopped (never the
+                                          password hash or salt)
     signatures/sub-00001/sub-00001_consent-v1_signature.png
   upn-uploads/                            coordinators only: the UPN lists schools send, as sent,
-                                          what was read from them, and the matches (docs/school-uploads.md)
+                                          what was read from them, and the matches (docs/school-uploads.md);
+                                          problems.tsv, every row the reader flagged
 social-media-break/                       the adult laboratory study
   README.md
   donations/                              the donated data, BIDS layout, no names
@@ -394,13 +403,28 @@ social-media-break/                       the adult laboratory study
     reminders.tsv                         who asked for a progress email, and when it was sent
     visits.tsv                            every lab booking, moved, attended or missed, with its messages
     contacts.tsv                          the email and mobile given when booking
+    lab_times.tsv                         every lab time offered: places, booked, open or closed
+    rejected_uploads.tsv                  every file the checks refused, with why
     signatures/sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_consent-v1_signature.png
     mystory_voice/clips.tsv + .json       every answer spoken in MyStory's chat (a voice identifies
                                           a person, so never in donations/)
     mystory_voice/sub-MP2670FF90A5F2/ses-post/
       sub-MP2670FF90A5F2_ses-post_chat-<chatId>_clip-01.webm   the recordings, numbered in the chat's order
-    raw/consents.jsonl, bookings.jsonl, contacts.jsonl, reminders.jsonl
+    raw/consents.jsonl, bookings.jsonl, contacts.jsonl, reminders.jsonl, slots.jsonl
+website-usage/                            the website's anonymous usage counts (usage.ts; nothing
+                                          identifies anyone): daily.tsv + .json, one row per day
+                                          and page; raw/usage_<YYYY-MM>.jsonl, every view by month.
+                                          Deleted after a year, as the privacy page promises, and
+                                          the export mirrors that
 ```
+
+No raw file holds the anonymous sign-in ids or key hashes the website uses
+to let a device add to a record (`sessionUid`, `resumeUids`, `hashes`,
+`youngLinkHash` and the like); the research datasets' raw files also leave
+out what the device said about itself (`client`, `userAgent`), which stays in
+the consent records in `identifying/raw/`. The export never reads
+`ratelimits`, `meta`, the quarantine folders or the staff key, and reads
+`schoolUploadAccess` for its dates only.
 
 Family participants are labelled `sub-00001`, `sub-00002`… in order of
 consent (the number is stored on the participant record the first time it is
@@ -411,14 +435,22 @@ and `ses-post`, set by the page each send came from (nobody is asked), so a
 late-arriving export sent days after the first still lands in the same
 session; a check-in screenshot's `check_in_id` points at its row in
 `phenotype/checkin.tsv`. Declined families appear in `schools/identifying/` only, without a label. Tables are
-BIDS-style TSV (tab-separated, `n/a` for missing, UTF-8), rewritten each run;
-images and signatures are copied once; anything deleted from the study (a
-withdrawal) disappears from the bucket too. The screenshots have no BIDS
+BIDS-style TSV (tab-separated, `n/a` for missing, UTF-8), written only when
+they change (compared by MD5, so a quiet hour changes nothing in OneDrive);
+images, signatures, archives and recordings are copied bucket to bucket, at
+most 500 a run (`binaryBacklog` in `manifest.json` counts the rest, which
+later runs copy), each stamped with the file it came from and copied again if
+its name ever holds another file (`docs/decisions.md`, 16 October 2026);
+anything deleted from the study (a withdrawal) disappears from the bucket too.
+An archive that cannot be unpacked into tables is listed in
+`unpackFailures` and tried again a day later. The screenshots have no BIDS
 modality of their own, so they sit under `sourcedata/` and each send is a
 session whose `beh` table lists them; a future derivatives dataset can hold
 whatever is extracted from them.
 
-**The OneDrive copy.** No Microsoft integration is needed, and no key is
+**The OneDrive copy.** Since 16 October 2026 this is the team's main way to
+check and use the data, so the University OneDrive or SharePoint copy uses
+scope `all` and holds everything the export writes. No Microsoft integration is needed, and no key is
 stored anywhere Microsoft can see. One Mac that is regularly on (it may
 sleep or be offline; a missed run is simply skipped and the next catches
 up) mirrors the bucket into a folder the OneDrive app syncs, every 15
@@ -435,19 +467,34 @@ minutes, in the background:
    every 15 minutes, and runs the first copy. Offline runs are skipped
    quietly; a real failure shows a macOS notification at most every six
    hours; the log is `~/Library/Logs/MyPhoneMyBrain Sync.log`.
-   `bash mac-sync-install.sh --add <folder> [bids|all]` mirrors into a
-   second place too, by default the de-identified research datasets only
-   (every study's `donations/` and nothing else: no `identifying/` folder and,
-   since 16 October 2026, not `schools/upn-uploads/` either, which a `bids`
-   folder had been receiving and which the job now removes from one; use `all` only
-   where the DPIA allows identifying data, such as the University's own
-   storage). After each run every folder has `MyPhoneMyBrain data/SYNC STATUS.txt`,
+   The folder it asks for gets everything (scope `all`, the default): choose
+   the University's own OneDrive or SharePoint library.
+   `bash mac-sync-install.sh --add <folder> [all|bids]` mirrors into a
+   second place too, also `all` by default; use `bids` for any copy outside
+   the University's own storage: the de-identified research datasets only
+   (every study's `donations/` and nothing else: no `identifying/`, no
+   `schools/upn-uploads/`, no `website-usage/`; identifying data found in such
+   a folder is deleted outright).
+   With scope `all` the job copies every file the export writes at the top
+   and in each study's folder (not just `README.md` and `manifest.json`),
+   every folder in each study, and every other top-level folder whole (such
+   as `website-usage/`). Nothing it deletes or overwrites vanishes: rclone's
+   `--backup-dir` puts it in `MyPhoneMyBrain removed/<YYYY-MM-DD>/` beside the
+   data folder, kept for 90 days, then pruned (so a withdrawal is final there
+   90 days later, and once OneDrive's recycle bin is emptied). The folders of
+   the layout before October 2026 (`bids/`, `lab/`, `identifying/` inside
+   `MyPhoneMyBrain data`) are moved there once, never again. A bucket or study
+   folder that cannot be listed counts as a failed copy.
+   After each run every folder has `MyPhoneMyBrain data/SYNC STATUS.txt`,
    saying when it was last copied, which export (the manifest's `exportedAt`) and
-   from which Mac, or when and why the last copy failed; it sits beside
-   `README.md` and `manifest.json`, which are copied file by file, so no
-   mirror removes it. The background job runs the `sync.sh` the installer
-   wrote, so after the installer changes, run it again on the Mac
-   (`--list` is enough) to pick up the new one. The staff page's header says
+   from which Mac, whether the export itself has files still to copy or
+   failures (`binaryBacklog`, `copyFailures`, `unpackFailures`,
+   `writeFailures`), or when and why the last copy failed; it sits beside
+   `README.md` and `manifest.json`, which are copied, never mirrored, so
+   nothing removes it. The background job runs the `sync.sh` the installer
+   wrote, so **after the installer changes, run it again on the Mac**
+   (`bash mac-sync-install.sh --list` is enough) to pick up the new one;
+   until then the old one runs. The 16 October 2026 changes need this. The staff page's header says
    when the export last ran ("Data export last ran: …", highlighted when more
    than three hours ago). The job discovers the studies from the bucket and mirrors each
    written folder on its own, so anything the team keeps beside them, such
@@ -457,7 +504,8 @@ minutes, in the background:
 
 Use a restricted SharePoint or Teams library with sync turned off for
 everyone except that Mac, and give researchers access to the `donations/`
-folders only.
+folders only (coordinators to the rest, including `MyPhoneMyBrain removed`,
+which can hold identifying files).
 Note that OneDrive keeps deleted files in its recycle bin for a while, so a
 withdrawal is not final there until it is emptied.
 

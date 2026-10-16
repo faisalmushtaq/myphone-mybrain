@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Timestamp } from 'firebase-admin/firestore';
-import { ageAt, agreementTables, behTable, exportBucketName, participantsKey, participantsTable, phenotypeDictionary, phenotypeTable, plain, screenshotFile, sessionsOf, subjectLabel, toTsv, type Snapshot } from './export.js';
+import { createHash } from 'node:crypto';
+import { ageAt, agreementTables, behTable, buildExport, COLLECTIONS, exportBucketName, participantsKey, participantsTable, phenotypeDictionary, phenotypeTable, plain, screenshotFile, sessionsOf, subjectLabel, toTsv, withoutSecrets, type Snapshot } from './export.js';
+import { USAGE_DAILY_COLUMNS, usageExport } from './exportUsage.js';
+import { copyState, md5Of, needsWrite, planCopies, staleObjects, stampFor, unpackDue } from './exportWrite.js';
 
 const empty = (): Snapshot => ({ participants: [], consents: [], assents: [], submissions: [], enquiries: [], surveys: [], donations: [], labels: new Map() });
 
@@ -145,7 +148,7 @@ test('the lab dataset is labelled by participant ID, has one session per phase, 
   assert.equal(beh[1].received_at, '2026-10-08T10:00:00.000Z');
   assert.equal(labBehTable(post)[0].verdict, 'review');
   const sessionRows = labSessionsTable(sessions);
-  assert.deepEqual(sessionRows[0], { session_id: 'ses-pre', phase: 'pre', acq_time: '2026-10-05T10:00:00.000Z', last_send_at: '2026-10-08T10:00:00.000Z', sends_n: 2, archives_n: 1, screenshots_n: 1, platforms: ['tiktok'], phone: 'iphone', needs_review: true });
+  assert.deepEqual(sessionRows[0], { session_id: 'ses-pre', phase: 'pre', acq_time: '2026-10-05T10:00:00.000Z', last_send_at: '2026-10-08T10:00:00.000Z', sends_n: 2, archives_n: 1, screenshots_n: 1, platforms: ['tiktok'], phone: 'iphone', needs_review: true, rejected_n: 0 });
   assert.equal(labSessionsOf({ ...snap, donations: [{ id: 'dx', data: { participantCode: 'MP2670FF90A5F2', receivedAt: '2026-10-05T10:00:00.000Z', files: [] } }] })[0].session, 'ses-unspecified', 'a send without a phase keeps its own session');
   assert.equal(labSignatureFile('MP2670FF90A5F2', 1), 'signatures/sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_consent-v1_signature.png');
   const { records, statements } = labConsentTables(snap.consents);
@@ -398,4 +401,186 @@ test('MyStory’s chat: every conversation keeps the participant’s words, ends
   const donationsText = out.files.filter((f) => f.path.startsWith('social-media-break/donations/')).map((f) => f.body).join('\n');
   assert.ok(!donationsText.includes('sourcedata/voice') && donationsText.includes('identifying/mystory_voice'), 'the READMEs and dictionary point to the recordings in identifying/');
   assert.equal(out.counts.labStoryVoiceClips, 3);
+});
+
+/* ── 16 October 2026: the export as the team's main way into the data ── */
+
+const collections = (over: Partial<import('./export.js').Collections> = {}): import('./export.js').Collections => {
+  const out = Object.fromEntries(COLLECTIONS.map((c) => [c, []])) as unknown as import('./export.js').Collections;
+  return { ...out, ...over };
+};
+const bodyOf = (files: { path: string; body: string }[], path: string) => {
+  const f = files.find((x) => x.path === path);
+  assert.ok(f, `${path} is written`);
+  return f.body;
+};
+
+test('an image withdrawn from an automatic save does not leave another image under its name: copies are stamped with their source and re-copied when it differs', () => {
+  const people = { participants: [{ id: 'p1', data: { kind: 'consent', studyNumber: 1 } }], submissions: [{ id: 'MPMB-AAAA-AAA', data: { participantId: 'p1' } }] };
+  const image = (n: string) => ({ uploadId: n, path: `donations/p1/${n}.png`, sha256: `sha-${n}` });
+  const auto = (images: unknown[]) => ({ id: 'd1', data: { participantId: 'p1', receivedAt: '2026-10-16T10:00:00.000Z', sendPressed: false, images } });
+  const labels = new Map([['p1', 'sub-00001']]);
+  const first = buildExport(collections({ ...people, donations: [auto([image('a'), image('b'), image('c')])] }), labels, '2026-10-16T10:05:00.000Z');
+  const sources = new Map(['a', 'b', 'c'].map((n) => [`donations/p1/${n}.png`, { name: `donations/p1/${n}.png`, md5Hash: `md5-${n}`, contentType: 'image/png' }]));
+  const run = (n: number) => `schools/donations/sourcedata/sub-00001/ses-01/sub-00001_ses-01_task-screentime_run-0${n}_screenshot.png`;
+  assert.deepEqual(first.jobs.filter((j) => j.target.includes('/sourcedata/')).map((j) => [j.source, j.target]), [['donations/p1/a.png', run(1)], ['donations/p1/b.png', run(2)], ['donations/p1/c.png', run(3)]]);
+  // The first run copies all three, stamped.
+  const firstPlan = planCopies(first.jobs, new Map(), sources);
+  assert.equal(firstPlan.toCopy.length, 3);
+  const bucket = new Map(firstPlan.toCopy.map((j) => [j.target, { name: j.target, metadata: j.stamp }]));
+  assert.equal(planCopies(first.jobs, bucket, sources).toCopy.length, 0, 'nothing to do while nothing changes');
+
+  // The family removes image a before pressing Send: b and c move up a place.
+  sources.delete('donations/p1/a.png');
+  const second = buildExport(collections({ ...people, donations: [auto([image('b'), image('c')])] }), labels, '2026-10-16T11:05:00.000Z');
+  const plan = planCopies(second.jobs, bucket, sources);
+  assert.deepEqual(plan.toCopy.map((j) => [j.source, j.target, j.state]), [['donations/p1/b.png', run(1), 'other-source'], ['donations/p1/c.png', run(2), 'other-source']], 'run-01 held a, run-02 held b: both are copied again');
+  // The old rule (copy only when the name is missing) would have left a under b's name and b under c's, and never copied c.
+  assert.equal(second.jobs.filter((j) => !bucket.has(j.target)).length, 0);
+  const expected = new Set([...second.files.map((f) => f.path), ...second.jobs.map((j) => j.target)]);
+  assert.deepEqual(staleObjects([...bucket.values()], expected).map((f) => f.name), [run(3)], 'and the third name, no longer used, goes');
+
+  // Copies from before stamping are copied again once; a record without a SHA-256 is stamped with the source's MD5; a missing source is reported, not copied.
+  assert.equal(copyState({ name: run(1) }, { mpmbSource: 'donations/p1/b.png', mpmbSourceSha256: 'sha-b' }), 'unstamped');
+  assert.deepEqual(stampFor('signatures/p1/c1.png', null, { name: 'signatures/p1/c1.png', md5Hash: 'xyz' }), { mpmbSource: 'signatures/p1/c1.png', mpmbSourceMd5: 'xyz' });
+  assert.equal(stampFor('gone.png', 'sha', undefined), null);
+  const withLegacy = planCopies([...second.jobs, { source: 'gone.png', target: 'x/gone.png' }], new Map([[run(1), { name: run(1) }]]), sources);
+  assert.deepEqual(withLegacy.toCopy.map((j) => j.state), ['missing', 'unstamped'], 'names holding another file first, then missing ones, then unstamped ones');
+  assert.deepEqual(withLegacy.missingSource.map((j) => j.target), ['x/gone.png']);
+});
+
+test('an archive that cannot be unpacked is tried again a day later, not every hour', () => {
+  const failed = [{ archive: 'social-media-break/donations/sourcedata/sub-X/ses-pre/sub-X_ses-pre_run-01_archive.zip', sha256: 'aa', error: 'bad zip', at: '2026-10-16T09:05:00.000Z' }];
+  assert.equal(unpackDue(failed, 'elsewhere.zip', 'aa', new Date('2026-10-16T10:05:00.000Z')), false, 'the same archive (by SHA-256), an hour later');
+  assert.equal(unpackDue(failed, 'elsewhere.zip', 'aa', new Date('2026-10-17T09:05:00.000Z')), true, 'a day later');
+  assert.equal(unpackDue(failed, 'other.zip', 'bb', new Date('2026-10-16T10:05:00.000Z')), true, 'another archive');
+  assert.equal(unpackDue([{ ...failed[0], sha256: null }], failed[0].archive, null, new Date('2026-10-16T10:05:00.000Z')), false, 'by place when there is no SHA-256');
+});
+
+test('files that have not changed are not written again (by MD5), so OneDrive is not churned every hour', () => {
+  const body = 'participant_id\tage\nsub-00001\t13\n';
+  const there = { name: 'x.tsv', md5Hash: md5Of(body) };
+  assert.equal(md5Of('abc'), createHash('md5').update('abc').digest('base64'), 'as Cloud Storage reports it');
+  assert.equal(needsWrite(undefined, { body }), true, 'missing');
+  assert.equal(needsWrite(there, { body }), false, 'same content');
+  assert.equal(needsWrite(there, { body: `${body}sub-00002\t12\n` }), true, 'changed');
+  assert.equal(needsWrite(there, { body, metadata: { mpmbSource: 'a.zip' } }), true, 'same content, built from another archive');
+  assert.equal(needsWrite({ ...there, metadata: { mpmbSource: 'a.zip' } }, { body, metadata: { mpmbSource: 'a.zip' } }), false);
+  // The datasets' descriptions carry the day, not the hour, so they change once a day.
+  const a = buildExport(collections(), new Map(), '2026-10-16T10:05:00.000Z').files;
+  const b = buildExport(collections(), new Map(), '2026-10-16T11:05:00.000Z').files;
+  const differ = a.filter((f, i) => f.body !== b[i].body).map((f) => f.path);
+  assert.deepEqual(differ, [], 'two runs in the same day write the same files');
+});
+
+test('raw files hold no sign-in ids or key hashes, research raw files no device details and the sub- label in place of the database id', async () => {
+  const labels = new Map([['p1', 'sub-00001']]);
+  const client = { userAgent: 'Mozilla/5.0 (iPhone)', timezoneOffset: -60 };
+  const out = buildExport(
+    collections({
+      participants: [{ id: 'p1', data: { kind: 'consent', studyNumber: 1, sessionUid: 'uid-1' } }, { id: 'p2', data: { kind: 'declined' } }],
+      consents: [{ id: 'c1', data: { participantId: 'p1', sessionUid: 'uid-1', client } }],
+      submissions: [{ id: 'MPMB-AAAA-AAA', data: { participantId: 'p1', sessionUid: 'uid-1', resumeUids: ['uid-2'], hashes: { details: 'details-digest-1' }, youngLinkHash: 'f'.repeat(64), userAgent: 'Mozilla/5.0 (iPhone)' } }],
+      surveys: [{ id: 's1', data: { participantId: 'p1', status: 'completed' } }, { id: 's2', data: { participantId: 'p2', status: 'completed' } }],
+      donations: [{ id: 'd1', data: { participantId: 'p1', receivedAt: '2026-10-16T10:00:00.000Z', images: [{ path: 'donations/p1/a.png', sha256: 'aa' }], client, sessionUid: 'uid-1' } }],
+      labParticipants: [{ id: 'MP2670FF90A5F2', data: { consentId: 'lc1', sessionUids: ['uid-3'] } }],
+      labConsents: [{ id: 'lc1', data: { participantCode: 'MP2670FF90A5F2', sessionUid: 'uid-3', client } }],
+      labDonations: [{ id: 'ld1', data: { participantCode: 'MP2670FF90A5F2', phase: 'pre', files: [], sessionUid: 'uid-3', client } }],
+      labCheckIns: [{ id: 'k1', data: { participantCode: 'MP2670FF90A5F2', sessionUid: 'uid-3', client } }],
+      labStories: [{ id: 'st1', data: { participantCode: 'MP2670FF90A5F2', sessionUid: 'uid-3', client } }],
+      labStoryChats: [{ id: 'ch1', data: { participantCode: 'MP2670FF90A5F2', phase: 'pre', sessionUid: 'uid-3', client, transcript: [], calls: [] } }],
+      labBookings: [{ id: 'b1', data: { participantCode: 'MP2670FF90A5F2', sessionUid: 'uid-3', client } }],
+    }),
+    labels,
+    '2026-10-16T10:05:00.000Z',
+  );
+  const raw = out.files.filter((f) => f.path.endsWith('.jsonl'));
+  for (const f of raw) for (const secret of ['uid-1', 'uid-2', 'uid-3', 'details-digest-1', 'f'.repeat(64), '"sessionUid"', '"resumeUids"', '"hashes"', '"youngLinkHash"']) assert.ok(!f.body.includes(secret), `${f.path} holds ${secret}`);
+  const research = raw.filter((f) => f.path.includes('/donations/'));
+  assert.ok(research.length >= 7);
+  for (const f of research) assert.ok(!f.body.includes('Mozilla') && !f.body.includes('"client"'), `${f.path} holds device details`);
+  assert.ok(bodyOf(out.files, 'schools/identifying/raw/consents.jsonl').includes('Mozilla'), 'the consent keeps its device details, in identifying/');
+  assert.ok(bodyOf(out.files, 'social-media-break/identifying/raw/consents.jsonl').includes('Mozilla'));
+  const surveys = bodyOf(out.files, 'schools/donations/sourcedata/raw/surveys.jsonl').trim().split('\n').map((l) => JSON.parse(l));
+  assert.deepEqual(surveys, [{ id: 's1', participant_id: 'sub-00001', status: 'completed' }], 'labelled like the tables, the database id gone, families without a label left out');
+  assert.equal(JSON.parse(bodyOf(out.files, 'schools/donations/sourcedata/raw/donations.jsonl')).participant_id, 'sub-00001');
+  assert.ok(!bodyOf(out.files, 'schools/donations/sourcedata/raw/donations.jsonl').includes('"participantId"'));
+  assert.equal(JSON.parse(bodyOf(out.files, 'schools/identifying/raw/unlabelled_surveys.jsonl')).participantId, 'p2', 'answers without a label stay in identifying/');
+  assert.deepEqual(withoutSecrets({ a: [{ hash: 'x', salt: 'y', sha256: 'keep' }] }), { a: [{ sha256: 'keep' }] }, 'at any depth; a file’s SHA-256 is data and stays');
+});
+
+test('screenshots the checks refused are counted per session and listed with why, for both studies', async () => {
+  const { labExport } = await import('./exportLab.js');
+  const labels = new Map([['p1', 'sub-00001']]);
+  const refused = (id: string, at: string) => ({ uploadId: id, reason: 'This looks like a photo of a screen.', reasons: ['Low flatness.'], at });
+  const out = buildExport(
+    collections({
+      participants: [{ id: 'p1', data: { kind: 'consent', studyNumber: 1 } }],
+      submissions: [{ id: 'MPMB-AAAA-AAA', data: { participantId: 'p1', rejected: [refused('u3', '2026-10-16T12:00:00.000Z')] } }],
+      donations: [{ id: 'd1', data: { participantId: 'p1', receivedAt: '2026-10-16T10:00:00.000Z', images: [{ path: 'donations/p1/a.png' }], rejected: [refused('u2', '2026-10-16T10:00:00.000Z')] } }],
+    }),
+    labels,
+    '2026-10-16T12:05:00.000Z',
+  );
+  const sessions = bodyOf(out.files, 'schools/donations/sub-00001/sub-00001_sessions.tsv').split('\n');
+  assert.ok(sessions[0].endsWith('\tsend_pressed\trejected_n') && sessions[1].endsWith('\t1'), sessions.join(' | '));
+  assert.equal(
+    bodyOf(out.files, 'schools/identifying/rejected_uploads.tsv'),
+    'participant_id\treference_code\tdonation_id\tsession_id\tupload_id\trejected_at\treason\treasons\n' +
+      'sub-00001\tMPMB-AAAA-AAA\td1\tses-01\tu2\t2026-10-16T10:00:00.000Z\tThis looks like a photo of a screen.\tLow flatness.\n' +
+      'sub-00001\tMPMB-AAAA-AAA\tn/a\tn/a\tu3\t2026-10-16T12:00:00.000Z\tThis looks like a photo of a screen.\tLow flatness.\n',
+  );
+  assert.equal(out.counts.screenshotsRejected, 2);
+  const lab = labExport(
+    {
+      participants: [{ id: 'MP2670FF90A5F2', data: { consentId: 'c1', rejected: [{ ...refused('l2', '2026-10-16T11:00:00.000Z'), kind: 'archive', phase: 'post', reason: 'This file is not a ZIP archive.' }] } }],
+      consents: [],
+      donations: [{ id: 'ld1', data: { participantCode: 'MP2670FF90A5F2', phase: 'pre', receivedAt: '2026-10-16T10:00:00.000Z', files: [{ kind: 'screenshot', path: 'lab/MP2670FF90A5F2/u.png' }], rejected: [{ ...refused('l1', '2026-10-16T10:00:00.000Z'), kind: 'screenshot', phase: 'pre' }] } }],
+      reminders: [],
+      checkIns: [],
+    },
+    '2026-10-16T12:05:00.000Z',
+  );
+  assert.ok(bodyOf(lab.files, 'social-media-break/donations/sub-MP2670FF90A5F2/sub-MP2670FF90A5F2_sessions.tsv').split('\n')[1].endsWith('\t1'));
+  const labRejected = bodyOf(lab.files, 'social-media-break/identifying/rejected_uploads.tsv').split('\n');
+  assert.equal(labRejected[1], 'MP2670FF90A5F2\tsub-MP2670FF90A5F2\tses-pre\tld1\tscreenshot\tl1\t2026-10-16T10:00:00.000Z\tThis looks like a photo of a screen.\tLow flatness.');
+  assert.equal(labRejected[2], 'MP2670FF90A5F2\tsub-MP2670FF90A5F2\tses-post\tn/a\tarchive\tl2\t2026-10-16T11:00:00.000Z\tThis file is not a ZIP archive.\tLow flatness.');
+});
+
+test('the website’s usage counts get their own folder: every view by month, a daily table with its dictionary', () => {
+  const view = (id: string, day: string, over: Record<string, unknown> = {}) => ({ id, data: { page: '/take-part/consent/', app: 'family', variant: 'parent', device: 'phone', day, startedAt: `${day}T09:00:00.000Z`, active: 60, scroll: 50, order: ['details', 'done'], events: [{ t: 3, type: 'errors', part: 'details', fields: ['postcode'] }], ...over } });
+  const docs = [view('v1', '2026-09-30'), view('v2', '2026-10-01', { device: 'computer', active: 20, order: ['details'], events: [{ t: 2, type: 'save-failed', part: 'details' }] }), view('v3', '2026-10-01')];
+  const out = usageExport(docs);
+  const paths = out.files.map((f) => f.path);
+  assert.deepEqual(paths, ['website-usage/README.md', 'website-usage/daily.tsv', 'website-usage/daily.json', 'website-usage/raw/usage_2026-09.jsonl', 'website-usage/raw/usage_2026-10.jsonl']);
+  assert.equal(bodyOf(out.files, 'website-usage/raw/usage_2026-10.jsonl').trim().split('\n').length, 2);
+  const daily = bodyOf(out.files, 'website-usage/daily.tsv').split('\n');
+  assert.equal(daily[0], USAGE_DAILY_COLUMNS.join('\t'));
+  assert.equal(daily[2], '2026-10-01\t/take-part/consent/\tfamily\tparent\t2\t1\t0\t1\t1\t40\t50\t1\t1\t0');
+  const dictionary = JSON.parse(bodyOf(out.files, 'website-usage/daily.json'));
+  assert.ok(USAGE_DAILY_COLUMNS.every((c) => dictionary[c]), 'every column is described');
+  assert.ok(bodyOf(out.files, 'website-usage/README.md').includes('deleted after a year'), 'the README carries the privacy page’s promise');
+  const all = buildExport(collections({ usage: docs }), new Map(), '2026-10-16T10:05:00.000Z');
+  assert.ok(all.files.some((f) => f.path === 'website-usage/daily.tsv') && all.counts.websiteViews === 3);
+});
+
+test('also exported: the lab times offered, the schools’ upload access (never the password hash or salt), every problem in a school’s list; never ratelimits or meta', () => {
+  const out = buildExport(
+    collections({
+      labSlots: [{ id: 'slot1', data: { start: '2026-10-20T09:00:00.000Z', end: '2026-10-20T10:30:00.000Z', visit: 1, capacity: 2, booked: 1, bookingIds: ['b1'], location: 'Room 1', note: null, status: 'open' } }],
+      schoolUploadAccess: [{ id: 'dua', data: { schoolId: 'DUA', slug: 'dua', hash: 'deadbeef', salt: 'cafebabe', active: false, setAt: '2026-10-01T09:00:00.000Z', revokedAt: '2026-10-10T09:00:00.000Z' } }],
+      schoolUploads: [{ id: 'aaaaaaaa-1111', data: { schoolId: 'DUA', schoolSlug: 'dua', fileName: 'Year 9.csv', path: 'schoolupns/dua/aaaaaaaa-1111/Year 9.csv', sha256: 'ff', receivedAt: '2026-10-07T09:00:00.000Z', pupils: [], problems: [{ row: 4, message: 'No UPN.' }, { row: 7, message: '“X1” is not a UPN.' }] } }],
+    }),
+    new Map(),
+    '2026-10-16T10:05:00.000Z',
+  );
+  assert.equal(bodyOf(out.files, 'social-media-break/identifying/lab_times.tsv').split('\n')[1], 'slot1\t2026-10-20T09:00:00.000Z\t2026-10-20T10:30:00.000Z\t1\t2\t1\topen\tRoom 1\tn/a\tb1\tn/a\tn/a');
+  const access = bodyOf(out.files, 'schools/identifying/school_upload_access.tsv');
+  assert.equal(access, 'slug\tschool_id\tactive\tset_at\trevoked_at\ndua\tDUA\tfalse\t2026-10-01T09:00:00.000Z\t2026-10-10T09:00:00.000Z\n');
+  const everything = out.files.map((f) => f.body).join('\n');
+  assert.ok(!everything.includes('deadbeef') && !everything.includes('cafebabe'), 'no hash or salt in any file');
+  assert.equal(bodyOf(out.files, 'schools/upn-uploads/problems.tsv'), 'upload_id\tschool_id\treceived_at\tfile_name\trow\tproblem\naaaaaaaa-1111\tDUA\t2026-10-07T09:00:00.000Z\tYear 9.csv\t4\tNo UPN.\naaaaaaaa-1111\tDUA\t2026-10-07T09:00:00.000Z\tYear 9.csv\t7\t“X1” is not a UPN.\n');
+  assert.deepEqual(out.jobs.find((j) => j.source.startsWith('schoolupns/')), { source: 'schoolupns/dua/aaaaaaaa-1111/Year 9.csv', target: 'schools/upn-uploads/dua/2026-10-07_aaaaaaaa_Year 9.csv', sha256: 'ff' });
+  assert.ok(!COLLECTIONS.some((c) => /ratelimit|meta|quarantine|staff/i.test(c)), 'never read');
+  assert.ok(out.files.every((f) => /^(README\.md|schools\/|social-media-break\/|website-usage\/)/.test(f.path)), 'every file in a known folder');
 });

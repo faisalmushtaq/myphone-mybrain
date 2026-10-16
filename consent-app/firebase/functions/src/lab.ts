@@ -671,12 +671,15 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
 
   const stored: StoredLabFile[] = [];
   const rejected: { uploadId: string; reason: string }[] = [];
+  // Why each refused file was refused, kept for the team (16 October 2026): on the send's record, or on the participant's if nothing was kept. Never the file.
+  const refused: { uploadId: string; kind: string; phase: string; reason: string; reasons: string[]; at: string }[] = [];
   for (const upload of payload.uploads) {
     try {
       stored.push(await acceptLabUpload(uid, code, upload));
     } catch (error) {
       if (!(error instanceof RejectedUpload)) throw error;
       rejected.push({ uploadId: upload.uploadId, reason: error.reason });
+      refused.push({ uploadId: upload.uploadId, kind: upload.kind, phase: payload.phase, reason: error.reason, reasons: error.quality?.reasons ?? [], at: receivedAt.toISOString() });
       logger.warn('Lab file rejected', { participantCode: code, uploadId: upload.uploadId, kind: upload.kind, reasons: error.quality?.reasons ?? [error.reason] });
     }
   }
@@ -698,6 +701,7 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
       phase: payload.phase,
       phone: payload.phone ?? null,
       checkInId: payload.checkInId ?? null,
+      rejected: refused,
       sessionUid: uid,
       client: payload.client,
       receivedAt,
@@ -728,6 +732,8 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
     );
     await batch.commit();
     await settleReminder(db, code, receivedAt, phase);
+  } else if (refused.length) {
+    await participantRef.set({ rejected: FieldValue.arrayUnion(...refused), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   }
   logger.info('Lab files recorded', { participantCode: code, donationId, accepted: stored.length, rejected: rejected.length });
   return { donationId, receivedAt: receivedAt.toISOString(), accepted: stored.map((f) => f.uploadId), rejected };

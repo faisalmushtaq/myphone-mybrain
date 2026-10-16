@@ -3,8 +3,10 @@ import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions/v2';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { labExport } from './exportLab.js';
+import { labExport, type Derivation } from './exportLab.js';
 import { optOutFor, optOutsOf, upnExport } from './exportUpn.js';
+import { usageExport } from './exportUsage.js';
+import { COPY_LIMIT, needsWrite, planCopies, staleObjects, stampFor, copyState, UNPACK_LIMIT, unpackDue, type CopyJob, type ObjectInfo, type UnpackFailure } from './exportWrite.js';
 import { moreQuestionTopics, moreQuestionWording, noPhoneQuestionWording, parentMoreForm, parentNoPhoneForm, parentQuestionsForm, questionWording, study, type ServedQuestionForm } from './forms.js';
 
 /**
@@ -28,17 +30,22 @@ import { moreQuestionTopics, moreQuestionWording, noPhoneQuestionWording, parent
  *                            donations/ holds the donated archives and
  *                            screenshots, identifying/ the consent records
  *                            (exportLab.ts).
+ *   website-usage/           the website's anonymous usage counts
+ *                            (exportUsage.ts).
  *
  * Each study's datasets are named by what they are, because the website's is
  * one source among several: the teams keep their own datasets (workshop EEG,
  * laboratory visits) beside donations/ in the study folder. The folders the
  * export writes are mirrors, so nothing may be added inside them.
  *
- * The bucket is a mirror of the current records: every run rewrites the
- * tables, copies any image or signature that is missing, and deletes
- * anything that no longer belongs (for example after a withdrawal). A
- * read-only key for the bucket lets one computer mirror it into OneDrive
- * (scripts/setup-exports.sh, scripts/mac-sync-install.sh).
+ * The bucket is a mirror of the current records: every run writes the
+ * tables that changed, copies any image or signature that is missing or
+ * holds the wrong file (exportWrite.ts), and deletes anything that no longer
+ * belongs (for example after a withdrawal). A read-only key for the bucket
+ * lets one computer mirror it into OneDrive (scripts/setup-exports.sh,
+ * scripts/mac-sync-install.sh), which since 16 October 2026 is the team's
+ * main way into the data: manifest.json says what the last run did and
+ * anything it could not do.
  */
 
 const REGION = 'europe-west2';
@@ -60,7 +67,17 @@ export type Row = Record<string, unknown>;
 export interface Manifest {
   exportedAt: string;
   bucket: string;
+  /** complete: everything copied; incomplete: files still to copy (binaryBacklog) or something failed (the lists below). copying: written before the copies start, replaced when they end. */
+  status: 'complete' | 'incomplete' | 'copying';
   counts: Record<string, number>;
+  /** Images, signatures, archives, recordings and archive tables still to copy or build: later runs catch up. */
+  binaryBacklog: number;
+  /** Files that could not be copied this run (or whose record points at nothing in storage), with why. */
+  copyFailures: { file: string; error: string }[];
+  /** Archives that could not be unpacked into tables; each is tried again a day later. */
+  unpackFailures: UnpackFailure[];
+  /** Tables and text files that could not be written this run. */
+  writeFailures: { file: string; error: string }[];
   files: string[];
 }
 
@@ -95,8 +112,39 @@ export function toTsv(rows: Row[], columns?: string[]): string {
   return `${[cols.join('\t'), ...rows.map((row) => cols.map((c) => cell(row[c])).join('\t'))].join('\n')}\n`;
 }
 
+/**
+ * Keys never written to any raw file, at any depth (16 October 2026): the
+ * anonymous sign-in ids that let a session add to a record, the hashes the
+ * server compares a link key or the last save with, and any password hash
+ * or salt. They are means of access, not data.
+ */
+export const SECRET_KEYS: ReadonlySet<string> = new Set(['sessionUid', 'sessionUids', 'resumeUids', 'hashes', 'youngLinkHash', 'linkKey', 'linkKeyHash', 'hash', 'salt', 'passwordHash']);
+
+/** A record without the secret keys, at any depth. */
+export function withoutSecrets(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutSecrets);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([k]) => !SECRET_KEYS.has(k)).map(([k, v]) => [k, withoutSecrets(v)]));
+  return value;
+}
+
+/** JSON Lines, one document a line, the secret keys left out. */
 export function toJsonl(docs: Doc[]): string {
-  return docs.map((d) => JSON.stringify({ id: d.id, ...d.data })).join('\n') + (docs.length ? '\n' : '');
+  return docs.map((d) => JSON.stringify(withoutSecrets({ id: d.id, ...d.data }))).join('\n') + (docs.length ? '\n' : '');
+}
+
+/** What a device said about itself (user agent, time zone): kept in identifying/ raw files only, never in a research dataset's. */
+export const CLIENT_KEYS: ReadonlySet<string> = new Set(['client', 'userAgent']);
+
+/** Records for a research dataset's raw files: no device details, and (for the schools' study) the sub- label in place of the database's participant id, so the dataset stands alone. Records without a label are left out. */
+export function researchDocs(docs: Doc[], labels?: Map<string, string>): Doc[] {
+  return docs.flatMap(({ id, data }) => {
+    const out: DocumentData = Object.fromEntries(Object.entries(data).filter(([k]) => !CLIENT_KEYS.has(k)));
+    if (!labels) return [{ id, data: out }];
+    const label = labels.get(String(data.participantId));
+    if (!label) return [];
+    delete out.participantId;
+    return [{ id, data: { participant_id: label, ...out } }];
+  });
 }
 
 const two = (n: number) => String(n).padStart(2, '0');
@@ -265,7 +313,46 @@ export function sessionsTable(sessions: Session[]): Row[] {
     added_later: Boolean(s.donation.data.late),
     // Saved by the page when the screenshots were left on it; true when Send was pressed (always, before 15 October 2026).
     send_pressed: s.donation.data.sendPressed !== false,
+    // Screenshots sent with this send that the checks refused, recorded from 16 October 2026 (identifying/rejected_uploads.tsv says why).
+    rejected_n: rejectedOf(s.donation.data).length,
   }));
+}
+
+/** The columns of each sub-<label>_sessions.tsv, in order. */
+export const SESSION_COLUMNS = ['session_id', 'acq_time', 'platform', 'screenshots_n', 'young_person_agreed_in_app', 'assent_status_at_send', 'needs_review', 'added_later', 'send_pressed', 'rejected_n'];
+
+/** A refused upload, as submitDonation and submitLabDonation record it (16 October 2026): never the image, only why. */
+export interface RejectedRecord {
+  uploadId: string;
+  reason: string;
+  reasons?: string[];
+  at: string;
+  kind?: string;
+  phase?: string;
+}
+export const rejectedOf = (d: DocumentData | undefined): RejectedRecord[] => (Array.isArray(d?.rejected) ? (d!.rejected as RejectedRecord[]) : []);
+
+export const REJECTED_COLUMNS = ['participant_id', 'reference_code', 'donation_id', 'session_id', 'upload_id', 'rejected_at', 'reason', 'reasons'];
+
+/**
+ * Every screenshot the server refused, with why: from a send that kept
+ * others (on its donation record, and so its session) or one that kept none
+ * (on the family's submission). Recorded from 16 October 2026.
+ */
+export function rejectedUploadsTable(snap: Snapshot, sessions: Session[] = sessionsOf(snap)): Row[] {
+  const sessionOf = new Map(sessions.map((s) => [s.donation.id, s.session]));
+  const codeOf = new Map(snap.submissions.map((s) => [String(s.data.participantId), s.id]));
+  const rows: Row[] = [];
+  for (const d of snap.donations)
+    for (const r of rejectedOf(d.data)) rows.push({ participant_id: snap.labels.get(String(d.data.participantId)) ?? null, reference_code: codeOf.get(String(d.data.participantId)) ?? null, donation_id: d.id, session_id: sessionOf.get(d.id) ?? null, upload_id: r.uploadId, rejected_at: r.at, reason: r.reason, reasons: r.reasons ?? [] });
+  for (const s of snap.submissions)
+    for (const r of rejectedOf(s.data)) rows.push({ participant_id: snap.labels.get(String(s.data.participantId)) ?? null, reference_code: s.id, donation_id: null, session_id: null, upload_id: r.uploadId, rejected_at: r.at, reason: r.reason, reasons: r.reasons ?? [] });
+  return rows.sort((a, b) => String(a.rejected_at).localeCompare(String(b.rejected_at)) || String(a.upload_id).localeCompare(String(b.upload_id)));
+}
+
+/** The schools' upload passwords: when each was set and whether it works, never the hash or its salt. */
+export function schoolUploadAccessTable(docs: Doc[]): Row[] {
+  return docs.map(({ id, data: d }) => ({ slug: d.slug ?? id, school_id: d.schoolId ?? null, active: d.active === true, set_at: d.setAt ?? null, revoked_at: d.revokedAt ?? null })).sort((a, b) => String(a.slug).localeCompare(String(b.slug)));
 }
 
 export function behTable(s: Session): Row[] {
@@ -425,7 +512,8 @@ export function datasetDescription(exportedAt: string): Record<string, unknown> 
     Authors: ['The MyPhone/MyBrain team, University of Leeds'],
     EthicsApprovals: ['University of Leeds School of Psychology Research Ethics Committee, SoPREC 4202, approved 11 June 2026'],
     GeneratedBy: [{ Name: 'MyPhone/MyBrain consent app export', Version: `${parentQuestionsForm.id} ${parentQuestionsForm.version}`, Description: 'Regenerated every hour from the study database; see the README', CodeURL: CODE_URL }],
-    SourceDatasets: [{ URL: `firestore://${study.studyId}`, Version: exportedAt }],
+    // The day, not the hour: the file then changes once a day, not every run (manifest.json has the exact time).
+    SourceDatasets: [{ URL: `firestore://${study.studyId}`, Version: exportedAt.slice(0, 10) }],
   };
 }
 
@@ -556,7 +644,13 @@ sub-<label>/              one session (ses-01, ses-02, ...) per occasion on
                           beh/*_task-screentime_beh.tsv listing the images with
                           the automatic quality checks, and a sessions file
 sourcedata/               the screenshot images themselves, named by subject,
-                          session and run, plus raw JSON Lines dumps
+                          session and run, plus raw JSON Lines dumps of the
+                          answers and the sends, labelled by participant_id
+                          like the tables (no database ids, no device details)
+
+Each sub-<label>_sessions.tsv says, per send, how many screenshots were
+kept and (rejected_n, from 16 October 2026) how many the checks refused;
+why each was refused is in identifying/rejected_uploads.tsv.
 
 Participants are labelled in order of consent. The key from labels to names,
 dates of birth and contact details, together with the consent records and
@@ -569,7 +663,11 @@ Timestamps are ISO 8601 in UTC. Missing values are n/a.
 
 const SOURCEDATA_README = `Screenshot images as received (re-encoded to remove device metadata), named
 sub-<label>_ses-<nn>_task-screentime_run-<nn>_screenshot.png or .jpg, and
-raw JSON Lines dumps of the research collections. See ../README.
+raw JSON Lines dumps of the research collections (raw/surveys.jsonl, the
+parent's answers; raw/donations.jsonl, the sends), one record a line,
+labelled participant_id (sub-<label>) as in the tables, without the
+database's own ids for people or anything about the device. Each image file
+records where it came from in its metadata. See ../README.
 `;
 
 const IDENTIFYING_README = `Identifying data for the MyPhone/MyBrain young people's study. Study
@@ -589,6 +687,12 @@ assents.tsv                every young person's agreement record
 assent_statements.tsv      one row per statement per agreement record
 submissions.tsv            one row per family: reference code, current record
                            ids, image counts
+rejected_uploads.tsv       every screenshot the checks refused (from 16 October
+                           2026), with the reason the family was shown and the
+                           checks' own notes; never the image, which is not kept
+school_upload_access.tsv   each school's upload page: whether its password
+                           works, when it was set and when it was stopped (the
+                           password itself is never exported)
 enquiries.tsv              messages from the website's contact and school forms
 opt_outs.tsv               every opt-out from the workshop a parent or carer
                            emailed, as the team logged it on the staff page,
@@ -597,7 +701,11 @@ opt_outs.tsv               every opt-out from the workshop a parent or carer
                            (including linking); after the workshop, the data
                            is withdrawn as far as possible
 signatures/                drawn signatures, named by participant label and record
-raw/                       every document as JSON Lines
+raw/                       every document as JSON Lines, without the
+                           sign-in ids and key hashes the website uses to let
+                           a device add to a record; unlabelled_surveys.jsonl
+                           holds answers from families without a label (they
+                           are not in the research dataset)
 
 Files are tab-separated UTF-8 with n/a for missing values; timestamps are
 ISO 8601 in UTC. The research data, labelled by participant only, is in the
@@ -655,6 +763,10 @@ social-media-break/   the adult laboratory study: cleaned TikTok, YouTube and
                       labelled by their participant ID; the recordings of
                       answers spoken in that chat identify a voice, so they
                       are in identifying/mystory_voice/
+website-usage/        how the website is used: anonymous page-view counts,
+                      a daily table and every view by month; nothing that
+                      identifies anyone, and deleted after a year as the
+                      privacy page promises
 
   <study>/donations/     what participants gave through the website, as a
                          research dataset in BIDS layout, no names; for
@@ -669,13 +781,21 @@ workshop recordings, tracking) belong beside donations/ in the study's
 folder, never inside it. The Mac mirror copies each written folder on its
 own, so such sibling folders are left alone.
 
-manifest.json says when the last export ran and how many of each thing it holds.
+manifest.json says when the last export ran, how many of each thing it
+holds, and whether anything is still to come: status is "complete" when
+every file is in place; binaryBacklog counts images, archives, signatures
+and recordings still to be copied (at most 500 are copied each hour, so a
+large backlog clears over a few hours), and copyFailures, unpackFailures and
+writeFailures list anything that could not be done, with why. Files that
+have not changed are not rewritten.
 `;
 
 export interface OutFile {
   path: string;
   body: string;
   contentType: string;
+  /** Custom metadata to store with it: the stamp of the archive a table was built from (exportWrite.ts). */
+  metadata?: Record<string, string>;
 }
 
 export const tsvFile = (path: string, rows: Row[], columns?: string[]): OutFile => ({ path, body: toTsv(rows, columns), contentType: 'text/tab-separated-values; charset=utf-8' });
@@ -714,29 +834,24 @@ async function ensureBucket(name: string): Promise<void> {
   logger.info('Export bucket created', { bucket: name });
 }
 
-/** Builds the whole export and makes the bucket match it. Returns what was written. */
-export async function runExport(): Promise<Manifest> {
-  const db = getFirestore();
-  const source = getStorage().bucket();
-  const bucketName = exportBucketName();
-  await ensureBucket(bucketName);
-  const dest = getStorage().bucket(bucketName);
-  const exportedAt = new Date().toISOString();
+/** The collections the export reads. Never ratelimits, meta (counters), or anything holding a password hash, salt or the staff key: schoolUploadAccess is read for its audit fields only (schoolUploadAccessTable). */
+export const COLLECTIONS = ['participants', 'consents', 'assents', 'submissions', 'enquiries', 'surveys', 'donations', 'labParticipants', 'labConsents', 'labDonations', 'labReminders', 'labCheckIns', 'labStories', 'labBookings', 'labContacts', 'schoolUploads', 'optOuts', 'labStoryChats', 'labSlots', 'schoolUploadAccess', 'usage'] as const;
+export type Collections = Record<(typeof COLLECTIONS)[number], Doc[]>;
 
-  const load = async (name: string): Promise<Doc[]> => (await db.collection(name).get()).docs.map((d) => ({ id: d.id, data: plain(d.data()) as DocumentData }));
-  const [participants, consents, assents, submissions, enquiries, surveys, donations, labParticipants, labConsents, labDonations, labReminders, labCheckIns, labStories, labBookings, labContacts, schoolUploads, optOuts, labStoryChats] = await Promise.all(
-    ['participants', 'consents', 'assents', 'submissions', 'enquiries', 'surveys', 'donations', 'labParticipants', 'labConsents', 'labDonations', 'labReminders', 'labCheckIns', 'labStories', 'labBookings', 'labContacts', 'schoolUploads', 'optOuts', 'labStoryChats'].map(load),
-  );
-  const labels = await assignLabels(db, participants);
-  const snap: Snapshot = { participants, consents, assents, submissions, enquiries, surveys, donations, optOuts, labels };
+/** What the export is made of, from the records alone: the files to write, the files to copy, the tables to build from archives, and the counts. No bucket involved. */
+export function buildExport(c: Collections, labels: Map<string, string>, exportedAt: string): { files: OutFile[]; jobs: CopyJob[]; derived: Derivation[]; counts: Record<string, number>; sessions: Session[] } {
+  const snap: Snapshot = { participants: c.participants, consents: c.consents, assents: c.assents, submissions: c.submissions, enquiries: c.enquiries, surveys: c.surveys, donations: c.donations, optOuts: c.optOuts, labels };
   const sessions = sessionsOf(snap);
-  const lab = labExport({ participants: labParticipants, consents: labConsents, donations: labDonations, reminders: labReminders, checkIns: labCheckIns, stories: labStories, storyChats: labStoryChats, bookings: labBookings, contacts: labContacts }, exportedAt);
-  const upn = upnExport(schoolUploads, participants, labels, optOuts);
+  const lab = labExport({ participants: c.labParticipants, consents: c.labConsents, donations: c.labDonations, reminders: c.labReminders, checkIns: c.labCheckIns, stories: c.labStories, storyChats: c.labStoryChats, bookings: c.labBookings, contacts: c.labContacts, slots: c.labSlots }, exportedAt);
+  const upn = upnExport(c.schoolUploads, c.participants, labels, c.optOuts);
+  const usage = usageExport(c.usage);
 
   const tsv = tsvFile;
   const json = jsonFile;
   const text = textFile;
   const jsonl = jsonlFile;
+  // The research dataset's raw files carry the sub- label, not the database's ids (16 October 2026); answers from families without a label go to identifying/ only.
+  const unlabelledSurveys = c.surveys.filter((s) => !labels.has(String(s.data.participantId)));
 
   const files: OutFile[] = [
     text('README.md', ROOT_README, 'text/markdown; charset=utf-8'),
@@ -753,22 +868,25 @@ export async function runExport(): Promise<Manifest> {
     tsv(`${B}/phenotype/parent_no_phone.tsv`, phenotypeTable(snap, parentNoPhoneForm), ['participant_id', ...parentNoPhoneForm.questions.map((q) => snake(q.id)), 'status', 'form_version', 'completed_at']),
     json(`${B}/phenotype/parent_no_phone.json`, noPhoneDictionary()),
     text(`${B}/sourcedata/README.md`, SOURCEDATA_README, 'text/markdown; charset=utf-8'),
-    jsonl(`${B}/sourcedata/raw/surveys.jsonl`, surveys),
-    jsonl(`${B}/sourcedata/raw/donations.jsonl`, donations),
+    jsonl(`${B}/sourcedata/raw/surveys.jsonl`, researchDocs(c.surveys, labels)),
+    jsonl(`${B}/sourcedata/raw/donations.jsonl`, researchDocs(c.donations, labels)),
     text(`${I}/README.md`, IDENTIFYING_README, 'text/markdown; charset=utf-8'),
     tsv(`${I}/participants_key.tsv`, participantsKey(snap)),
     tsv(`${I}/submissions.tsv`, submissionsTable(snap)),
-    tsv(`${I}/enquiries.tsv`, enquiriesTable(enquiries)),
+    tsv(`${I}/enquiries.tsv`, enquiriesTable(c.enquiries)),
+    tsv(`${I}/rejected_uploads.tsv`, rejectedUploadsTable(snap, sessions), REJECTED_COLUMNS),
+    tsv(`${I}/school_upload_access.tsv`, schoolUploadAccessTable(c.schoolUploadAccess), ['slug', 'school_id', 'active', 'set_at', 'revoked_at']),
     tsv(`${I}/opt_outs.tsv`, upn.optOutTable, ['opt_out_id', 'status', 'received_on', 'after_workshop', 'school_id', 'first_name', 'last_name', 'date_of_birth', 'year_group', 'class', 'parent_name', 'notes', 'recorded_at', 'website_participant_id', 'website_firestore_id', 'upn', 'upn_match']),
-    jsonl(`${I}/raw/opt_outs.jsonl`, optOuts),
-    jsonl(`${I}/raw/participants.jsonl`, participants),
-    jsonl(`${I}/raw/consents.jsonl`, consents),
-    jsonl(`${I}/raw/assents.jsonl`, assents),
-    jsonl(`${I}/raw/submissions.jsonl`, submissions),
-    jsonl(`${I}/raw/enquiries.jsonl`, enquiries),
+    jsonl(`${I}/raw/opt_outs.jsonl`, c.optOuts),
+    jsonl(`${I}/raw/participants.jsonl`, c.participants),
+    jsonl(`${I}/raw/consents.jsonl`, c.consents),
+    jsonl(`${I}/raw/assents.jsonl`, c.assents),
+    jsonl(`${I}/raw/submissions.jsonl`, c.submissions),
+    jsonl(`${I}/raw/enquiries.jsonl`, c.enquiries),
+    jsonl(`${I}/raw/unlabelled_surveys.jsonl`, unlabelledSurveys),
   ];
   for (const kind of ['consent', 'assent'] as const) {
-    const { records, statements } = agreementTables(kind, kind === 'consent' ? consents : assents, labels);
+    const { records, statements } = agreementTables(kind, kind === 'consent' ? c.consents : c.assents, labels);
     files.push(tsv(`${I}/${kind}s.tsv`, records), tsv(`${I}/${kind}_statements.tsv`, statements));
   }
   const bySubject = new Map<string, Session[]>();
@@ -778,113 +896,228 @@ export async function runExport(): Promise<Manifest> {
   }
   const behColumns = Object.keys(behDictionary()).filter((k) => !['TaskName', 'TaskDescription'].includes(k));
   for (const [label, mine] of bySubject) {
-    files.push(tsv(`${B}/${label}/${label}_sessions.tsv`, sessionsTable(mine), ['session_id', 'acq_time', 'platform', 'screenshots_n', 'young_person_agreed_in_app', 'assent_status_at_send', 'needs_review', 'added_later', 'send_pressed']));
+    files.push(tsv(`${B}/${label}/${label}_sessions.tsv`, sessionsTable(mine), SESSION_COLUMNS));
     for (const s of mine) {
       const base = `${B}/${label}/${s.session}/beh/${label}_${s.session}_task-${TASK}_beh`;
       files.push(tsv(`${base}.tsv`, behTable(s), behColumns), json(`${base}.json`, behDictionary()));
     }
   }
+  files.push(...lab.files, ...upn.files, ...usage.files);
 
-  files.push(...lab.files, ...upn.files);
-
-  // Binary files: copied once, deleted when their record goes.
-  const copies = new Map<string, string>([...lab.copies, ...upn.copies]);
-  for (const s of sessions) s.images.forEach((img, i) => typeof img.path === 'string' && copies.set(img.path, `${B}/${screenshotFile(s, i + 1, img.path)}`));
+  // Binary files: copied bucket to bucket, each stamped with its source (exportWrite.ts), deleted when their record goes.
+  const jobs: CopyJob[] = [];
+  const hashes = new Map<string, string>([...lab.hashes, ...upn.hashes]);
+  for (const [from, to] of [...lab.copies, ...upn.copies]) jobs.push({ source: from, target: to, sha256: hashes.get(from) ?? null });
+  for (const s of sessions) s.images.forEach((img, i) => typeof img.path === 'string' && jobs.push({ source: img.path, target: `${B}/${screenshotFile(s, i + 1, img.path)}`, sha256: typeof img.sha256 === 'string' ? img.sha256 : null }));
   for (const kind of ['consent', 'assent'] as const) {
-    for (const d of kind === 'consent' ? consents : assents) {
-      const path = d.data.signature?.image?.path;
-      if (typeof path === 'string') copies.set(path, `${I}/${signatureFile(labels.get(String(d.data.participantId)), String(d.data.participantId), kind, d.data.version)}`);
+    for (const d of kind === 'consent' ? c.consents : c.assents) {
+      const image = d.data.signature?.image;
+      if (typeof image?.path === 'string') jobs.push({ source: image.path, target: `${I}/${signatureFile(labels.get(String(d.data.participantId)), String(d.data.participantId), kind, d.data.version)}`, sha256: typeof image.sha256 === 'string' ? image.sha256 : null });
     }
   }
 
-  const [existing] = await dest.getFiles();
-  const present = new Set(existing.map((f) => f.name));
-  const expected = new Set<string>([...files.map((f) => f.path), ...copies.values(), 'manifest.json']);
+  const counts = {
+    participants: labels.size,
+    declined: c.participants.length - labels.size,
+    consents: c.consents.length,
+    assents: c.assents.length,
+    submissions: c.submissions.length,
+    enquiries: c.enquiries.length,
+    surveys: c.surveys.length,
+    sessions: sessions.length,
+    screenshots: sessions.reduce((n, s) => n + s.images.length, 0),
+    screenshotsRejected: rejectedUploadsTable(snap, sessions).length,
+    signatures: jobs.filter((j) => j.target.startsWith(`${I}/signatures/`)).length,
+    ...lab.counts,
+    ...upn.counts,
+    ...usage.counts,
+  };
+  return { files, jobs, derived: lab.derived, counts, sessions };
+}
 
-  // Tables unpacked from archives: built once, when any of them is missing; a lost archive is logged like a lost copy.
-  let built = 0;
-  for (const d of lab.derived) {
-    for (const p of d.paths) expected.add(p);
-    if (d.paths.every((p) => present.has(p))) continue;
-    const file = source.file(d.source);
-    const [exists] = await file.exists();
-    if (!exists) {
-      logger.warn('Export: archive referenced by a record is missing', { path: d.source });
-      continue;
-    }
+/** What a listing says of an object. */
+function objectInfo(f: { name: string; metadata: { md5Hash?: string; contentType?: string; metadata?: Record<string, unknown> } }): ObjectInfo {
+  const custom = f.metadata.metadata ?? {};
+  return { name: f.name, md5Hash: f.metadata.md5Hash, contentType: f.metadata.contentType, metadata: Object.fromEntries(Object.entries(custom).map(([k, v]) => [k, String(v ?? '')])) };
+}
+
+const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error)).slice(0, 300);
+
+/** Runs a task over items a batch at a time; one failing never stops the others. Returns how many it started (it stops starting batches once the deadline passes). */
+async function settle<T>(items: T[], task: (item: T) => Promise<unknown>, failed: (item: T, error: unknown) => void, deadline = Infinity, size = BATCH): Promise<number> {
+  let started = 0;
+  for (let i = 0; i < items.length && Date.now() < deadline; i += size) {
+    const batch = items.slice(i, i + size);
+    started += batch.length;
+    const results = await Promise.allSettled(batch.map(task));
+    results.forEach((r, j) => r.status === 'rejected' && failed(batch[j], r.reason));
+  }
+  return started;
+}
+
+/** How long a run may spend copying and unpacking before it writes its manifest and stops: the function has 540 seconds. */
+const BUDGET_MS = 400_000;
+
+/** Builds the whole export and makes the bucket match it: tables first, then the clean-up, then the copies, each part independent of the others. Returns the manifest. */
+export async function runExport(): Promise<Manifest> {
+  const deadline = Date.now() + BUDGET_MS;
+  const db = getFirestore();
+  const source = getStorage().bucket();
+  const bucketName = exportBucketName();
+  await ensureBucket(bucketName);
+  const dest = getStorage().bucket(bucketName);
+  const now = new Date();
+  const exportedAt = now.toISOString();
+
+  const load = async (name: string): Promise<Doc[]> => (await db.collection(name).get()).docs.map((d) => ({ id: d.id, data: plain(d.data()) as DocumentData }));
+  const loaded = await Promise.all(COLLECTIONS.map(load));
+  const c = Object.fromEntries(COLLECTIONS.map((name, i) => [name, loaded[i]])) as Collections;
+  const labels = await assignLabels(db, c.participants);
+  const { files, jobs, derived, counts } = buildExport(c, labels, exportedAt);
+
+  // What is there already, what the last run left undone, and what the study's storage holds (listed, not fetched one by one).
+  const [existingFiles] = await dest.getFiles();
+  const existing = new Map(existingFiles.map((f) => [f.name, objectInfo(f)]));
+  let previous: Partial<Manifest> = {};
+  if (existing.has('manifest.json')) {
     try {
-      const [buffer] = await file.download();
-      files.push(...(await d.build(buffer)));
-      built += 1;
+      previous = JSON.parse((await dest.file('manifest.json').download())[0].toString('utf8')) as Partial<Manifest>;
     } catch (error) {
-      logger.warn('Export: archive could not be unpacked into tables', { path: d.source, error: error instanceof Error ? error.message : String(error) });
+      logger.warn('Export: the last manifest could not be read', { error: errorText(error) });
     }
   }
-
-  const toCopy = Array.from(copies.entries()).filter(([, target]) => !present.has(target));
-  let copied = 0;
-  let missing = 0;
-  for (let i = 0; i < toCopy.length; i += BATCH) {
-    await Promise.all(
-      toCopy.slice(i, i + BATCH).map(async ([from, to]) => {
-        const file = source.file(from);
-        const [exists] = await file.exists();
-        if (!exists) {
-          missing += 1;
-          logger.warn('Export: file referenced by a record is missing', { path: from });
-          return;
-        }
-        const [buffer] = await file.download();
-        const [meta] = await file.getMetadata();
-        await dest.file(to).save(buffer, { contentType: String(meta.contentType ?? 'application/octet-stream'), resumable: false });
-        copied += 1;
-      }),
-    );
+  const sources = new Map<string, ObjectInfo>();
+  for (const prefix of new Set([...jobs.map((j) => j.source), ...derived.map((d) => d.source)].map((p) => `${p.split('/')[0]}/`))) {
+    const [listed] = await source.getFiles({ prefix });
+    for (const f of listed) sources.set(f.name, objectInfo(f));
   }
 
-  const screenshots = sessions.reduce((n, s) => n + s.images.length, 0);
-  const manifest: Manifest = {
+  // 1. Tables and text: written only when they changed.
+  const writeFailures: Manifest['writeFailures'] = [];
+  let written = 0;
+  const save = (f: OutFile) => dest.file(f.path).save(f.body, { contentType: f.contentType, resumable: false, metadata: { cacheControl: 'private, max-age=0', ...(f.metadata ? { metadata: f.metadata } : {}) } });
+  const changed = files.filter((f) => needsWrite(existing.get(f.path), f));
+  await settle(
+    changed,
+    async (f) => {
+      await save(f);
+      written += 1;
+    },
+    (f, error) => writeFailures.push({ file: f.path, error: errorText(error) }),
+  );
+
+  // 2. Clean-up: anything that no longer belongs. Every file a record still points at is expected, copied or not, so a copy that fails is never deleted here.
+  const expected = new Set<string>([...files.map((f) => f.path), ...jobs.map((j) => j.target), ...derived.flatMap((d) => d.paths), 'manifest.json']);
+  const stale = staleObjects(existingFiles.map((f) => objectInfo(f)), expected);
+  let removed = 0;
+  await settle(
+    stale,
+    async (f) => {
+      await dest.file(f.name).delete({ ignoreNotFound: true });
+      removed += 1;
+    },
+    (f, error) => logger.warn('Export: a stale file could not be deleted', { path: f.name, error: errorText(error) }),
+  );
+
+  // What needs copying or building, and a first manifest saying so, so the tables' state is on record even if the copies run out of time.
+  const plan = planCopies(jobs, existing, sources);
+  const toBuild = derived.flatMap((d) => {
+    const stamp = stampFor(d.source, d.sha256, sources.get(d.source));
+    if (!stamp) return [];
+    const states = d.paths.map((p) => copyState(existing.get(p), stamp));
+    return states.every((s) => s === 'up-to-date') ? [] : [{ d, stamp, otherSource: d.paths.filter((p, i) => states[i] === 'other-source') }];
+  });
+  // An archive missing from storage is reported once, by its own copy.
+  const copyFailures: Manifest['copyFailures'] = plan.missingSource.map((j) => ({ file: j.target, error: 'not found in the study’s storage: the record points at a file that is not there' }));
+  const manifestOf = (status: Manifest['status'], extra: { binaryBacklog: number; unpackFailures: UnpackFailure[]; copied: number; built: number }): Manifest => ({
     exportedAt,
     bucket: bucketName,
-    counts: {
-      participants: labels.size,
-      declined: participants.length - labels.size,
-      consents: consents.length,
-      assents: assents.length,
-      submissions: submissions.length,
-      enquiries: enquiries.length,
-      surveys: surveys.length,
-      sessions: sessions.length,
-      screenshots,
-      signatures: Array.from(copies.values()).filter((t) => t.startsWith(`${I}/signatures/`)).length,
-      ...lab.counts,
-      ...upn.counts,
-      filesCopiedThisRun: copied,
-      archivesUnpackedThisRun: built,
-      filesMissing: missing,
-    },
+    status,
+    counts: { ...counts, filesWrittenThisRun: written, filesUnchanged: files.length - changed.length, filesRemovedThisRun: removed, filesCopiedThisRun: extra.copied, archivesUnpackedThisRun: extra.built, filesMissing: copyFailures.filter((f) => f.error.startsWith('not found')).length },
+    binaryBacklog: extra.binaryBacklog,
+    copyFailures,
+    unpackFailures: extra.unpackFailures,
+    writeFailures,
     files: Array.from(expected).sort(),
+  });
+  const writeManifest = async (m: Manifest) => {
+    try {
+      await save(jsonFile('manifest.json', m));
+    } catch (error) {
+      logger.error('Export: manifest.json could not be written', { error: errorText(error) });
+    }
   };
-  files.push(json('manifest.json', manifest));
-  for (let i = 0; i < files.length; i += BATCH) {
-    await Promise.all(files.slice(i, i + BATCH).map((f) => dest.file(f.path).save(f.body, { contentType: f.contentType, resumable: false, metadata: { cacheControl: 'private, max-age=0' } })));
+  const earlierFailures = Array.isArray(previous.unpackFailures) ? previous.unpackFailures : [];
+  await writeManifest(manifestOf('copying', { binaryBacklog: plan.toCopy.length + toBuild.length, unpackFailures: earlierFailures, copied: 0, built: 0 }));
+
+  // 3. Archive tables: built when any is missing or from another archive; an archive that failed is tried again a day later.
+  const unpackFailures: UnpackFailure[] = [];
+  let built = 0;
+  let unpackBacklog = 0;
+  let attempts = 0;
+  for (const { d, stamp, otherSource } of toBuild) {
+    const due = unpackDue(earlierFailures, d.archive, d.sha256, now);
+    if (!due || attempts >= UNPACK_LIMIT || Date.now() >= deadline) {
+      if (!due) unpackFailures.push(earlierFailures.find((f) => (d.sha256 ? f.sha256 === d.sha256 : f.archive === d.archive))!);
+      else unpackBacklog += 1;
+      // Tables known to be from another archive are not left in place under this one's name.
+      await Promise.allSettled(otherSource.map((p) => dest.file(p).delete({ ignoreNotFound: true })));
+      continue;
+    }
+    attempts += 1;
+    try {
+      const [buffer] = await source.file(d.source).download();
+      const out = (await d.build(buffer)).map((f) => ({ ...f, metadata: stamp }));
+      const results = await Promise.allSettled(out.map(save));
+      const failed = results.findIndex((r) => r.status === 'rejected');
+      if (failed >= 0) throw (results[failed] as PromiseRejectedResult).reason;
+      built += 1;
+    } catch (error) {
+      unpackFailures.push({ archive: d.archive, sha256: d.sha256 ?? null, error: errorText(error), at: exportedAt });
+      logger.warn('Export: archive could not be unpacked into tables', { archive: d.archive, error: errorText(error) });
+      await Promise.allSettled(otherSource.map((p) => dest.file(p).delete({ ignoreNotFound: true })));
+    }
   }
 
-  const stale = existing.filter((f) => !expected.has(f.name));
-  for (let i = 0; i < stale.length; i += BATCH) await Promise.all(stale.slice(i, i + BATCH).map((f) => f.delete({ ignoreNotFound: true })));
-  logger.info('Export written', { ...manifest.counts, removed: stale.length });
+  // 4. Binary files: at most COPY_LIMIT a run, server side, the most needed first; the rest wait for the next run.
+  const batch = plan.toCopy.slice(0, COPY_LIMIT);
+  let copied = 0;
+  const startedCopies = await settle(
+    batch,
+    async (job) => {
+      await source.file(job.source).copy(dest.file(job.target), { contentType: job.contentType, cacheControl: 'private, max-age=0', metadata: job.stamp });
+      copied += 1;
+    },
+    (job, error) => {
+      copyFailures.push({ file: job.target, error: errorText(error) });
+      logger.warn('Export: file could not be copied', { target: job.target, error: errorText(error) });
+      // A name known to hold another file must not keep it: removed, and copied again next run.
+      if (job.state === 'other-source') void dest.file(job.target).delete({ ignoreNotFound: true }).catch(() => undefined);
+    },
+    deadline,
+    BATCH * 2,
+  );
+  // Known to hold another file, but not reached this run: removed too, so no name holds the wrong file while it waits.
+  const notReached = plan.toCopy.slice(startedCopies);
+  await Promise.allSettled(notReached.filter((j) => j.state === 'other-source').map((j) => dest.file(j.target).delete({ ignoreNotFound: true })));
+
+  const binaryBacklog = notReached.length + unpackBacklog;
+  const failures = copyFailures.length + unpackFailures.length + writeFailures.length;
+  const manifest = manifestOf(binaryBacklog || failures ? 'incomplete' : 'complete', { binaryBacklog, unpackFailures, copied, built });
+  await writeManifest(manifest);
+  logger.info('Export written', { ...manifest.counts, status: manifest.status, binaryBacklog, copyFailures: copyFailures.length, unpackFailures: unpackFailures.length, writeFailures: writeFailures.length });
   return manifest;
 }
 
-/** Every hour, five minutes past. */
-export const exportData = onSchedule({ region: REGION, schedule: '5 * * * *', timeZone: 'Europe/London', memory: '1GiB', timeoutSeconds: 540, retryCount: 1 }, async () => {
+/** Every hour, five minutes past. 2GiB: an archive is unpacked in memory to build its tables. */
+export const exportData = onSchedule({ region: REGION, schedule: '5 * * * *', timeZone: 'Europe/London', memory: '2GiB', timeoutSeconds: 540, retryCount: 1 }, async () => {
   await runExport();
 });
 
 /** Emulator only: lets the end-to-end test run the export on demand. Not deployed. */
 export const exportNow =
   process.env.FUNCTIONS_EMULATOR === 'true'
-    ? onRequest({ region: REGION, memory: '1GiB', timeoutSeconds: 540 }, async (_req, res) => {
+    ? onRequest({ region: REGION, memory: '2GiB', timeoutSeconds: 540 }, async (_req, res) => {
         res.json(await runExport());
       })
     : undefined;
