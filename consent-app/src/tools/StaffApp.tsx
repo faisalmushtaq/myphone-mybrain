@@ -15,17 +15,47 @@ import { Usage } from './staff/Usage';
 const KEY_STORE = 'mpmb-staff-key';
 /** The export runs every hour (five past); older than three hours means a run, or more, has failed. */
 const EXPORT_STALE_MS = 3 * 3_600_000;
-type Tab = 'dashboard' | 'times' | 'bookings' | 'participants' | 'families' | 'schools' | 'opt-outs' | 'usage';
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'dashboard', label: 'How it’s going' },
-  { id: 'times', label: 'Lab times' },
-  { id: 'bookings', label: 'Bookings' },
-  { id: 'participants', label: 'Participants' },
-  { id: 'families', label: 'Families not finished' },
-  { id: 'schools', label: 'School uploads' },
-  { id: 'opt-outs', label: 'Opt-outs' },
-  { id: 'usage', label: 'Website use' },
+type Tab = 'schools-dashboard' | 'families' | 'schools' | 'opt-outs' | 'break-dashboard' | 'times' | 'bookings' | 'participants' | 'usage';
+type Area = 'schools' | 'break' | 'site';
+/**
+ * The two studies kept apart (16 October 2026): the schools study (parents,
+ * young people, schools) and the social media break study (adults at the
+ * lab) each have their own tabs and their own dashboard; website use is the
+ * site's, for both.
+ */
+const AREAS: { id: Area; label: string; tabs: { id: Tab; label: string }[] }[] = [
+  {
+    id: 'schools',
+    label: 'Schools study (parents and young people)',
+    tabs: [
+      { id: 'schools-dashboard', label: 'How it’s going' },
+      { id: 'families', label: 'Families not finished' },
+      { id: 'schools', label: 'School uploads' },
+      { id: 'opt-outs', label: 'Opt-outs' },
+    ],
+  },
+  {
+    id: 'break',
+    label: 'Social media break study',
+    tabs: [
+      { id: 'break-dashboard', label: 'How it’s going' },
+      { id: 'times', label: 'Lab times' },
+      { id: 'bookings', label: 'Bookings' },
+      { id: 'participants', label: 'Participants' },
+    ],
+  },
+  { id: 'site', label: 'Website', tabs: [{ id: 'usage', label: 'Website use' }] },
 ];
+const AREA_STORE = 'mpmb-staff-area';
+
+function readArea(): Area {
+  try {
+    const v = window.sessionStorage.getItem(AREA_STORE);
+    return v === 'break' || v === 'site' ? v : 'schools';
+  } catch {
+    return 'schools';
+  }
+}
 
 function readKey(): string {
   try {
@@ -55,7 +85,18 @@ export function StaffApp() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [overview, setOverview] = useState<Overview | null>(null);
-  const [tab, setTab] = useState<Tab>('dashboard');
+  const [area, setAreaState] = useState<Area>(readArea);
+  const [tab, setTab] = useState<Tab>(() => AREAS.find((a) => a.id === readArea())!.tabs[0].id);
+  const setArea = (next: Area) => {
+    setAreaState(next);
+    setTab(AREAS.find((a) => a.id === next)!.tabs[0].id);
+    try {
+      window.sessionStorage.setItem(AREA_STORE, next);
+    } catch {
+      /* Remembered for this tab only, when it can be. */
+    }
+  };
+  const tabs = AREAS.find((a) => a.id === area)!.tabs;
 
   const ask = useCallback(<T,>(action: string, data: Record<string, unknown> = {}) => callTool<T>('staffApi', { ...data, staffKey: key, action }), [key]);
 
@@ -158,8 +199,15 @@ export function StaffApp() {
           </p>
         </Callout>
       )}
+      <nav className="mpmb-tools__areas" aria-label="Studies">
+        {AREAS.map((a) => (
+          <button key={a.id} type="button" className={`mpmb-tools__area${area === a.id ? ' is-current' : ''}`} aria-current={area === a.id ? 'page' : undefined} onClick={() => setArea(a.id)}>
+            {a.label}
+          </button>
+        ))}
+      </nav>
       <nav className="mpmb-tools__tabs" aria-label="Sections">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t.id} type="button" className={`mpmb-tools__tab${tab === t.id ? ' is-current' : ''}`} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
             {t.label}
           </button>
@@ -170,7 +218,8 @@ export function StaffApp() {
         {tab === 'bookings' && <Bookings staff={staff} />}
         {tab === 'participants' && <Participants staff={staff} />}
         {tab === 'schools' && <Schools staff={staff} />}
-        {tab === 'dashboard' && <Dashboard staff={staff} />}
+        {tab === 'schools-dashboard' && <Dashboard staff={staff} study="schools" />}
+        {tab === 'break-dashboard' && <Dashboard staff={staff} study="break" />}
         {tab === 'families' && <Families staff={staff} />}
         {tab === 'opt-outs' && <OptOuts staff={staff} />}
         {tab === 'usage' && <Usage staff={staff} />}

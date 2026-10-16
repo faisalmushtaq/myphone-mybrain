@@ -1349,9 +1349,13 @@ async function inner() {
     const sentTile = await tileOf('Screen time sent');
     const consentRecords = (await db.collection('submissions').where('kind', '==', 'consent').get()).docs.map((d) => d.data());
     ok('the dashboard counts the forms saved and the screen time sent, as the records say', formsSaved === consentRecords.length && sentTile === consentRecords.filter((r) => Number(r.imageCount ?? 0) > 0).length && formsSaved > 0, `${formsSaved} ${sentTile} ${consentRecords.length}`);
-    ok('the dashboard shows the break study, per school, and a table for each chart', (await page.getByRole('heading', { name: 'Social media break study' }).count()) === 1 && (await page.locator('.mpmb-table tbody tr').count()) >= 1 && (await page.getByText('Show as a table').count()) === 3);
+    ok('the schools study’s dashboard shows that study only, per school, with a table for each chart', (await page.getByRole('heading', { name: 'Social media break study' }).count()) === 0 && (await page.locator('.mpmb-table tbody tr').count()) >= 1 && (await page.getByText('Show as a table').count()) === 2 && (await page.getByRole('button', { name: 'Lab times', exact: true }).count()) === 0);
     // To look at it: MPMB_E2E_SHOTS=<folder> saves a picture of the dashboard.
     if (process.env.MPMB_E2E_SHOTS) await page.screenshot({ path: `${process.env.MPMB_E2E_SHOTS}/staff-dashboard.png`, fullPage: true });
+    // The break study apart (16 October 2026): its own dashboard and tabs.
+    await page.getByRole('button', { name: 'Social media break study', exact: true }).click();
+    await page.getByRole('heading', { name: 'Social media break study' }).waitFor({ timeout: 30000 });
+    ok('the break study has its own dashboard and tabs, with none of the families’', (await page.getByRole('heading', { name: 'Schools study: families' }).count()) === 0 && (await page.getByRole('button', { name: 'Families not finished', exact: true }).count()) === 0 && (await page.getByRole('button', { name: 'Lab times', exact: true }).count()) === 1);
     await page.getByRole('button', { name: 'Lab times', exact: true }).click();
     await page.getByRole('heading', { name: 'Add lab times' }).waitFor({ timeout: 30000 });
     ok('the staff page says when the data export last ran, not as a warning while it is recent', (await page.locator('.mpmb-tools__export').innerText()).startsWith('Data export last ran: ') && (await page.locator('.mpmb-tools__export.is-stale').count()) === 0, await page.locator('.mpmb-tools__export').innerText().catch(() => 'missing'));
@@ -1383,6 +1387,7 @@ async function inner() {
     const detailText = await page.locator('.mpmb-tools__detail').innerText();
     ok('a participant’s detail shows the messages sent, every personal link and the links for the lab computer', detailText.includes('https://myphonemybrain.com/break/check-in/?code=MP2670FF90A5F2') && detailText.includes('https://myphonemybrain.com/break/mystory/?phase=mid&code=MP2670FF90A5F2') && detailText.includes('https://myphonemybrain.com/break/mystory/?phase=pre&at=lab&code=MP2670FF90A5F2') && detailText.includes('check-in-1: email not-configured') && detailText.includes('Both visits booked.'));
     await toolsSnap('participant');
+    await page.getByRole('button', { name: 'Schools study (parents and young people)', exact: true }).click();
     await page.getByRole('button', { name: 'School uploads', exact: true }).click();
     const duaCard = page.locator('section.mpmb-card', { has: page.getByRole('heading', { name: 'Dixons Unity Academy' }) });
     await duaCard.getByRole('button', { name: 'Make a password' }).click();
@@ -1428,6 +1433,7 @@ async function inner() {
       await page.getByLabel('Staff key').fill('emulator-staff-key');
       await page.getByRole('button', { name: 'Sign in' }).click();
     }
+    await page.getByRole('button', { name: 'Schools study (parents and young people)', exact: true }).click();
     await page.getByRole('button', { name: 'Families not finished', exact: true }).waitFor({ timeout: 30000 });
     await page.getByRole('button', { name: 'Families not finished', exact: true }).click();
     const rubyRow = page.locator('.mpmb-tools__row', { hasText: 'Ruby Shaw' });
@@ -1446,6 +1452,7 @@ async function inner() {
     ok('the opt-out is logged with the school, the date and who sent it', loggedOptOuts.length === 1 && loggedOptOuts[0].schoolId === 'DUA' && loggedOptOuts[0].parentName === 'Ewa Nowak' && loggedOptOuts[0].status === 'active' && /^\d{4}-\d{2}-\d{2}$/.test(loggedOptOuts[0].receivedOn));
     ok('the staff page lists it', (await page.locator('.mpmb-tools__row', { hasText: 'Ola Nowak' }).count()) === 1 && (await page.getByText(/Opted out \(1\)/).count()) === 1);
     await toolsSnap('opt-outs');
+    await page.getByRole('button', { name: 'Website', exact: true }).click();
     await page.getByRole('button', { name: 'Website use', exact: true }).click();
     await page.getByRole('heading', { name: 'The online forms' }).waitFor({ timeout: 30000 });
     ok('the staff page’s “Website use” tab shows how each page is read', (await page.locator('.mpmb-usage__card summary', { hasText: '/information/' }).count()) === 1);

@@ -132,12 +132,12 @@ function Daily({ title, days }: { title: string; days: DayCount[] }) {
 }
 
 /**
- * The staff page's first tab (16 October 2026): how both studies are going,
- * at a glance. Counts only, worked out from the records when the tab opens;
+ * Each study's first tab on the staff page (16 October 2026): how it is
+ * going, at a glance; the studies are shown apart. Counts only, worked out from the records when the tab opens;
  * the break study leaves out the team's test accounts. Who to contact is on
  * "Families not finished"; the data itself is in the OneDrive export.
  */
-export function Dashboard({ staff }: { staff: Staff }) {
+export function Dashboard({ staff, study }: { staff: Staff; study: 'schools' | 'break' }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -165,80 +165,84 @@ export function Dashboard({ staff }: { staff: Staff }) {
     <div className="mpmb-tools__section mpmb-dash">
       <p className="mpmb-hint">Counted {when(data.generatedAt)}. Reload the page for the latest.</p>
 
-      <section aria-labelledby="dash-schools">
-        <h2 className="mpmb-h2" id="dash-schools">
-          Schools study: families
-        </h2>
-        <div className="mpmb-dash__tiles">
-          <Tile label="Forms saved" value={started} />
-          <Tile label="Screen time sent" value={sent} note={`${pct(sent, started)} of forms`} />
-          <Tile label="Waiting for screen time" value={s.other.waiting} note="said yes, nothing sent yet" />
-          <Tile label="Questions answered" value={s.other.questionsAnswered} note={`${pct(s.other.questionsAnswered, started)} of forms`} />
-          <Tile label="Screenshots received" value={s.other.screenshots} />
-        </div>
-        <div className="mpmb-dash__grid">
-          <Funnel title="From form to screen time" stages={s.stages} />
-          <div className="mpmb-dash__chart">
-            <p className="mpmb-h3">Answers along the way</p>
-            <ul className="mpmb-dash__facts" role="list">
-              <li>{count(yes, 'family said yes to sharing the screen time', 'families said yes to sharing the screen time')}</li>
-              <li>
-                {count(s.other.youngAgreed, 'young person agreed to share', 'young people agreed to share')}; {count(s.other.youngSaidNo, 'said no', 'said no')}
-              </li>
-              <li>{count(s.other.saidNo, 'parent said no to sharing', 'parents said no to sharing')}</li>
-              <li>{count(s.other.noPhone, 'young person has no phone of their own', 'young people have no phone of their own')}</li>
-            </ul>
+      {study === 'schools' && (
+        <section aria-labelledby="dash-schools">
+          <h2 className="mpmb-h2" id="dash-schools">
+            Schools study: families
+          </h2>
+          <div className="mpmb-dash__tiles">
+            <Tile label="Forms saved" value={started} />
+            <Tile label="Screen time sent" value={sent} note={`${pct(sent, started)} of forms`} />
+            <Tile label="Waiting for screen time" value={s.other.waiting} note="said yes, nothing sent yet" />
+            <Tile label="Questions answered" value={s.other.questionsAnswered} note={`${pct(s.other.questionsAnswered, started)} of forms`} />
+            <Tile label="Screenshots received" value={s.other.screenshots} />
           </div>
-          <Daily title="Forms saved per day" days={s.daily.started} />
-          <Daily title="Screen time sends per day" days={s.daily.sent} />
-        </div>
-        <h3 className="mpmb-h3">By school</h3>
-        <div className="mpmb-dash__scroll">
-          <table className="mpmb-table">
-            <thead>
-              <tr>
-                <th scope="col">School</th>
-                <th scope="col">Forms saved</th>
-                <th scope="col">Said yes</th>
-                <th scope="col">Screen time sent</th>
-                <th scope="col">Sent, of forms</th>
-              </tr>
-            </thead>
-            <tbody>
-              {s.bySchool.length ? (
-                s.bySchool.map((r) => (
-                  <tr key={r.id}>
-                    <th scope="row">{r.name}</th>
-                    <td>{r.started}</td>
-                    <td>{r.yes}</td>
-                    <td>{r.sent}</td>
-                    <td>{pct(r.sent, r.started)}</td>
-                  </tr>
-                ))
-              ) : (
+          <div className="mpmb-dash__grid">
+            <Funnel title="From form to screen time" stages={s.stages} />
+            <div className="mpmb-dash__chart">
+              <p className="mpmb-h3">Answers along the way</p>
+              <ul className="mpmb-dash__facts" role="list">
+                <li>{count(yes, 'family said yes to sharing the screen time', 'families said yes to sharing the screen time')}</li>
+                <li>
+                  {count(s.other.youngAgreed, 'young person agreed to share', 'young people agreed to share')}; {count(s.other.youngSaidNo, 'said no', 'said no')}
+                </li>
+                <li>{count(s.other.saidNo, 'parent said no to sharing', 'parents said no to sharing')}</li>
+                <li>{count(s.other.noPhone, 'young person has no phone of their own', 'young people have no phone of their own')}</li>
+              </ul>
+            </div>
+            <Daily title="Forms saved per day" days={s.daily.started} />
+            <Daily title="Screen time sends per day" days={s.daily.sent} />
+          </div>
+          <h3 className="mpmb-h3">By school</h3>
+          <div className="mpmb-dash__scroll">
+            <table className="mpmb-table">
+              <thead>
                 <tr>
-                  <td colSpan={5}>No forms yet.</td>
+                  <th scope="col">School</th>
+                  <th scope="col">Forms saved</th>
+                  <th scope="col">Said yes</th>
+                  <th scope="col">Screen time sent</th>
+                  <th scope="col">Sent, of forms</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody>
+                {s.bySchool.length ? (
+                  s.bySchool.map((r) => (
+                    <tr key={r.id}>
+                      <th scope="row">{r.name}</th>
+                      <td>{r.started}</td>
+                      <td>{r.yes}</td>
+                      <td>{r.sent}</td>
+                      <td>{pct(r.sent, r.started)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5}>No forms yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
-      <section aria-labelledby="dash-break">
-        <h2 className="mpmb-h2" id="dash-break">
-          Social media break study
-        </h2>
-        <div className="mpmb-dash__tiles">
-          <Tile label="Signed up" value={b.stages[0]?.n ?? 0} />
-          <Tile label="Finished (second visit)" value={b.stages[5]?.n ?? 0} note={`${pct(b.stages[5]?.n ?? 0, b.stages[0]?.n ?? 0)} of sign-ups`} />
-          <Tile label="MyStory stories" value={b.stories.pre + b.stories.mid + b.stories.post} note={`${b.stories.pre} before, ${b.stories.mid} during, ${b.stories.post} after`} />
-        </div>
-        <div className="mpmb-dash__grid">
-          <Funnel title="Through the study" stages={b.stages} />
-          <Daily title="Sign-ups per day" days={b.daily.signedUp} />
-        </div>
-      </section>
+      {study === 'break' && (
+        <section aria-labelledby="dash-break">
+          <h2 className="mpmb-h2" id="dash-break">
+            Social media break study
+          </h2>
+          <div className="mpmb-dash__tiles">
+            <Tile label="Signed up" value={b.stages[0]?.n ?? 0} />
+            <Tile label="Finished (second visit)" value={b.stages[5]?.n ?? 0} note={`${pct(b.stages[5]?.n ?? 0, b.stages[0]?.n ?? 0)} of sign-ups`} />
+            <Tile label="MyStory stories" value={b.stories.pre + b.stories.mid + b.stories.post} note={`${b.stories.pre} before, ${b.stories.mid} during, ${b.stories.post} after`} />
+          </div>
+          <div className="mpmb-dash__grid">
+            <Funnel title="Through the study" stages={b.stages} />
+            <Daily title="Sign-ups per day" days={b.daily.signedUp} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

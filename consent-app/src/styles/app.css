@@ -4263,3 +4263,9 @@
 .mpmb-dash__table { margin-top: 0.5rem; font-size: 0.9rem; }
 .mpmb-dash__table summary { cursor: pointer; color: var(--mpb-teal); }
 .mpmb-dash__scroll { overflow-x: auto; }
+
+/* The studies kept apart on the staff page: a study first, then its tabs. */
+.mpmb-tools__areas { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0 0.5rem; }
+.mpmb-app .mpmb-tools__area { font: inherit; font-weight: 700; padding: 0.6rem 1rem; border: 2px solid var(--mpb-teal); border-radius: 8px; background: var(--mpb-white); color: var(--mpb-teal); cursor: pointer; }
+.mpmb-app .mpmb-tools__area.is-current { background: var(--mpb-teal); color: var(--mpb-white); }
+.mpmb-app .mpmb-tools__area:focus-visible { outline: 3px solid var(--mpb-yellow-dark); outline-offset: 2px; }
