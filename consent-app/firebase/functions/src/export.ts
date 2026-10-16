@@ -220,14 +220,24 @@ export function participantsTable(snap: Snapshot): Row[] {
         screenshots_n: mine.reduce((n, s) => n + s.images.length, 0),
         platform: mine.length ? mine[mine.length - 1].donation.data.platform : null,
         added_later_on: typeof submission?.data.resumedAt === 'string' ? submission.data.resumedAt.slice(0, 10) : null,
+        young_link_opened_on: dayOf(submission?.data.youngLinkFirstOpenedAt),
+        screen_time_off_on: dayOf(submission?.data.screenTimeOffAt),
+        reminders_sent: ((submission?.data.reminders ?? []) as { outcome?: string }[]).filter((r) => r.outcome === 'sent').length,
         opted_out: Boolean(optOutFor(p.data, optOuts)),
       };
     })
     .sort(byLabel);
 }
 
+/** A date (YYYY-MM-DD) from a stored time, as an ISO string or a Firestore timestamp. */
+function dayOf(value: unknown): string | null {
+  if (typeof value === 'string' && value) return value.slice(0, 10);
+  if (value && typeof (value as { toDate?: unknown }).toDate === 'function') return (value as { toDate: () => Date }).toDate().toISOString().slice(0, 10);
+  return null;
+}
+
 /** The columns of participants.tsv, in order. */
-export const PARTICIPANT_COLUMNS = ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'no_phone_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'added_later_on', 'opted_out'];
+export const PARTICIPANT_COLUMNS = ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'no_phone_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'added_later_on', 'young_link_opened_on', 'screen_time_off_on', 'reminders_sent', 'opted_out'];
 
 export function phenotypeTable(snap: Snapshot, form: ServedQuestionForm = parentQuestionsForm): Row[] {
   const ids = form.questions.map((q) => q.id);
@@ -438,6 +448,9 @@ export function participantsDictionary(): Record<string, unknown> {
     screenshots_n: { Description: 'Screenshots accepted in total' },
     platform: { Description: 'Phone type reported at the latest send', Levels: { ios: 'iPhone', android: 'Android', other: 'Something else, or not sure' } },
     added_later_on: { Description: 'Date the family last came back with their reference to add the young person’s agreement or screenshots (often after the workshop); n/a when everything came at once. Each screenshot session’s own time is in the sessions files.' },
+    young_link_opened_on: { Description: 'Date the young person’s own link was first opened (from 16 October 2026); n/a when it was not made, or not opened' },
+    screen_time_off_on: { Description: 'Date the family said the phone was not keeping track of screen time and would turn it on (from 16 October 2026)' },
+    reminders_sent: { Description: 'Reminders sent to the parent or carer to finish the screen time, by text or email (from 16 October 2026; at most one after 48 hours, and one a week after screen_time_off_on)' },
     opted_out: { Description: 'Whether a parent or carer has opted the young person out of the workshop and the study by email (identifying/opt_outs.tsv): if true, their data is not to be used, and is withdrawn as far as possible' },
   };
 }

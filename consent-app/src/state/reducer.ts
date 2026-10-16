@@ -120,6 +120,7 @@ export type Action =
   | { type: 'images-sent'; ids: string[] }
   | { type: 'donation-status'; status: DonationStatus }
   | { type: 'donation-unconfirmed'; ids: string[] }
+  | { type: 'screen-time-off' }
   | { type: 'submission'; patch: Partial<SubmissionState> }
   | { type: 'session'; session: SessionInfo | null }
   | { type: 'prototype'; patch: Partial<PrototypeFlags> };
@@ -332,6 +333,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, donation: { ...state.donation, images: state.donation.images.map((img) => (action.ids.includes(img.id) ? { ...img, status: 'sent', progress: 1, error: null } : img)) } };
     case 'donation-status':
       return { ...state, donation: { ...state.donation, status: action.status } };
+    case 'screen-time-off':
+      return { ...state, donation: { ...state.donation, screenTimeOff: true, status: state.donation.images.some((i) => i.status === 'sent') ? 'completed' : 'skipped' } };
     case 'donation-unconfirmed':
       return { ...state, donation: { ...state.donation, unconfirmed: action.ids } };
     case 'submission':

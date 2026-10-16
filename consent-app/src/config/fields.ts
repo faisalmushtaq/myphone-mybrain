@@ -45,19 +45,19 @@ export const guardianFields = {
     hint: 'For example LS2 9JT.',
     autocomplete: 'postal-code',
   },
-  /** Optional. Nothing is emailed to families; this is only for contact about the study. */
+  /** Optional. Since 16 October 2026: one reminder if the form isn't finished (familyReminders.ts), and contact about the study. */
   email: {
     enabled: true,
     required: false,
     label: 'Your email address',
-    hint: 'Only if you are happy for us to email you about the study.',
+    hint: 'For one reminder if the screen time isn’t sent, and to contact you about the study. Nothing else.',
     autocomplete: 'email',
   },
   phone: {
     enabled: true,
     required: false,
-    label: 'Your phone number',
-    hint: 'Only if you are happy for us to call or text about the study.',
+    label: 'Your mobile number',
+    hint: 'For one text reminder if the screen time isn’t sent, and to contact you about the study. Nothing else.',
     autocomplete: 'tel',
   },
 } satisfies Record<string, FieldConfig>;

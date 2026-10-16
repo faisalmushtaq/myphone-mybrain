@@ -37,12 +37,14 @@ const AUTO_SAVE_AFTER_MS = 45_000;
 export function PhoneUse() {
   const { state, dispatch } = useStore();
   const uploader = useUploader();
-  const { sendDonation, submission } = useSync();
+  const { sendDonation, reportScreenTimeOff, submission } = useSync();
   const [editing, setEditing] = useState<DonationImage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [howOpen, setHowOpen] = useState<boolean | null>(null);
   const [appeal, setAppeal] = useState(false);
+  // The phone has not been keeping a screen-time summary (16 October 2026): how to turn it on, and come back in a week.
+  const [offOpen, setOffOpen] = useState(false);
   const [confirmDoubtful, setConfirmDoubtful] = useState(false);
   const [rejectedNote, setRejectedNote] = useState<string | null>(null);
   const images = state.donation.images;
@@ -277,6 +279,46 @@ export function PhoneUse() {
             <p className="mpmb-hint">Screenshots go to Photos (iPhone) or Gallery (Android) on the phone you took them on. If that is not this phone, send them to this phone first, or use “Take a photo of the screen” below. Then come back to this page and add them; your progress is saved while this tab is open.</p>
           </div>
         </details>
+      )}
+
+      <p>
+        <Button variant="link" onClick={() => setOffOpen(!offOpen)} aria-expanded={offOpen}>
+          {young ? 'My phone isn’t keeping track of screen time' : 'The phone isn’t keeping track of screen time'}
+        </Button>
+      </p>
+      {offOpen && (
+        <Callout tone="info" title="Turn it on now, and come back in a week">
+          <p>Some phones only start keeping a summary once it is switched on. It takes a few seconds:</p>
+          <ul className="mpmb-list">
+            <li>
+              <strong>iPhone:</strong> Settings, then Screen Time, then “Turn On App &amp; Website Activity”.
+            </li>
+            <li>
+              <strong>Android:</strong> Settings, then Digital Wellbeing (or search Settings for “wellbeing”). If it asks you to set it up, follow the steps; on some phones, turn on “Show your data”.
+            </li>
+            {familyView && (
+              <li>
+                <strong>Family Sharing or Family Link:</strong> Screen Time needs to be on for {childName}, on their phone or in your family settings.
+              </li>
+            )}
+          </ul>
+          <p>
+            From then on the phone keeps track. Come back in a week {state.resume ? 'with the same link' : 'with your reference'} and send the screenshots: it takes a minute. {state.submission.referenceCode && !state.resume ? `Your reference is ${state.submission.referenceCode}.` : ''}
+          </p>
+          <div className="mpmb-callout__actions">
+            <Button
+              variant="primary"
+              onClick={() => {
+                skipped.current = true;
+                void reportScreenTimeOff();
+                dispatch({ type: 'screen-time-off' });
+                dispatch({ type: 'next' });
+              }}
+            >
+              I’ve turned it on: finish for now
+            </Button>
+          </div>
+        </Callout>
       )}
 
       <div id="mpmb-capture-choose" tabIndex={-1}>

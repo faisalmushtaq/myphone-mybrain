@@ -50,6 +50,12 @@ test('a photograph with no screen-time words is rejected; an unclear image is ke
   const photo = assess({ width: 3000, height: 4000, flatness: 0.08, vision: { safeSearch: safe, text: 'Happy birthday' }, acknowledgedWarning: true });
   assert.equal(photo.verdict, 'rejected');
   assert.equal(photo.familyReason, FAMILY_REASONS.notScreen);
+  // A photo of a phone in another language: no English words, but a list of times.
+  const polish = assess({ width: 3000, height: 4000, flatness: 0.1, vision: { safeSearch: safe, text: 'Czas przed ekranem\nŚrednia dzienna 3 godz. 12 min\nTikTok 1 godz. 40 min\nYouTube 55 min' }, acknowledgedWarning: false });
+  assert.equal(polish.verdict, 'review', 'a Polish screen-time page is recognised');
+  assert.ok(polish.termsFound.includes('czas przed ekranem'));
+  const arabic = assess({ width: 3000, height: 4000, flatness: 0.1, vision: { safeSearch: safe, text: 'تيك توك ٣ س ١٢ د\nيوتيوب ٥٥ د\nواتساب ٢٠ د\nسناب ١٠ د' }, acknowledgedWarning: false });
+  assert.equal(arabic.verdict, 'review', 'many numbers in another script: kept for review, not rejected');
   const unclear = assess({ width: 1170, height: 2532, flatness: 0.6, vision: { safeSearch: safe, text: 'Settings\nGeneral\nAbout' }, acknowledgedWarning: false });
   assert.equal(unclear.verdict, 'review');
   assert.equal(unclear.familyReason, null);

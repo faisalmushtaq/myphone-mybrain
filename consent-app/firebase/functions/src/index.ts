@@ -10,6 +10,7 @@ import { checkImage, cleanImage, RejectedUpload, type CleanImage } from './image
 import type { Quality } from './quality.js';
 import { signatureRecord, storeSignature } from './signatures.js';
 import { LAB_QUARANTINE } from './lab.js';
+import { firstReminderDue, screenTimeReminderDue } from './familyReminders.js';
 import { mayAddTo } from './resume.js';
 import { parseDate, selfConsentOf, validateConsentPayload, validateDonationPayload, type ConsentPayload, type DonationPayload } from './validate.js';
 
@@ -24,6 +25,7 @@ export { schoolUpload } from './schoolUpload.js';
 export { staffApi } from './staff.js';
 export { purgeUsage, usage } from './usage.js';
 export { findAddresses } from './address.js';
+export { familyReminders } from './familyReminders.js';
 
 initializeApp();
 
@@ -263,7 +265,8 @@ export const submitConsent = onCall(callOptions, async (request) => {
     userAgent: payload.client.userAgent.slice(0, 200),
     answersSavedAt: receivedAt,
     ...(changed ? { versions: FieldValue.arrayUnion({ version, kind: payload.kind, consentId: consentRef?.id ?? null, assentId: assentRef.id, receivedAt }) } : {}),
-    ...(amendment ? { updatedAt: FieldValue.serverTimestamp() } : { donationIds: [], imageCount: 0, createdAt: FieldValue.serverTimestamp() }),
+    // One reminder 48 hours after the record is first saved, if the screen time could still come and hasn't (familyReminders.ts).
+    ...(amendment ? { updatedAt: FieldValue.serverTimestamp() } : { donationIds: [], imageCount: 0, createdAt: FieldValue.serverTimestamp(), reminderDueAt: firstReminderDue(receivedAt) }),
   };
   batch.set(submissionRef, submission, { merge: amendment });
 
@@ -356,6 +359,9 @@ export const submitDonation = onCall(callOptions, async (request) => {
   const assent = (await assentRef.get()).data();
   if (assent?.status === 'declined') throw new HttpsError('failed-precondition', 'The young person said no to sharing their screen time.');
   if ((source === 'child' || submission.selfConsent) && assent?.status !== 'completed') throw new HttpsError('failed-precondition', 'The young person has not agreed to share their screen time.');
+  // Their phone has not been keeping a screen-time summary: they will turn it on and come back (the reminder a week later, familyReminders).
+  if (payload.screenTimeOff) await submissionRef.update({ screenTimeOffAt: receivedAt, reminderDueAt: screenTimeReminderDue(receivedAt), updatedAt: FieldValue.serverTimestamp() });
+
   // Removed or edited on the page after the page saved them, before Send: deleted. Images Send has confirmed stay.
   let withdrawn = 0;
   if (payload.withdraw?.length) {

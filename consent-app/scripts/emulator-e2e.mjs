@@ -209,7 +209,7 @@ async function inner() {
     await page.getByLabel('Your relationship to the young person').selectOption('mother');
     ok('no parental-responsibility tick: only a parent or carer fills this in', (await page.getByLabel(/parental responsibility for/).count()) === 0);
     ok('email and phone are folded away until asked for', (await page.getByLabel('Your email address').count()) === 0);
-    await page.getByRole('button', { name: /Add an email or phone number/ }).click();
+    await page.getByRole('button', { name: /Add your mobile or email for a reminder/ }).click();
     await page.getByLabel('Your email address').fill('priya@example.com');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByText('Enter your home address.').first().waitFor();
@@ -481,6 +481,9 @@ async function inner() {
     const code2 = (await page.locator('.mpmb-save strong').innerText()).trim();
     await page.getByRole('radio', { name: 'Android' }).check();
     ok('the instructions are for Google Family Link on the parent’s own phone', (await page.getByText(/How to find Amira’s screen time in Google Family Link/).count()) === 1);
+    await page.getByRole('button', { name: 'The phone isn’t keeping track of screen time' }).click();
+    ok('if the phone isn’t keeping track, it says how to turn it on and to come back in a week', (await page.getByText(/Turn it on now, and come back in a week/).count()) === 1 && (await page.getByRole('button', { name: 'I’ve turned it on: finish for now' }).count()) === 1);
+    await page.getByRole('button', { name: 'The phone isn’t keeping track of screen time' }).click();
     await input.setInputFiles([{ name: 'c.png', mimeType: 'image/png', buffer: await png('Today') }]);
     await page.waitForFunction(() => document.querySelectorAll('.mpmb-upload').length === 1);
     // Left on the page without pressing Send (the page hidden: another app, the phone locked): saved anyway.
@@ -538,9 +541,10 @@ async function inner() {
     await page.getByRole('button', { name: 'Skip these questions' }).click();
     await page.locator('#phone-source-child').check();
     await page.getByRole('button', { name: 'Continue' }).click();
-    // Young people are rarely beside their parent: the link comes first, passing the phone second.
-    await page.getByRole('heading', { name: 'Now send Noah their link.' }).waitFor({ timeout: 30000 });
-    ok('after the parent’s part, sending Noah his link comes first; passing the phone is the second option', (await page.getByRole('button', { name: 'Noah is with me: pass them this phone' }).count()) === 1);
+    // Passing the phone comes first (a link sent for later is the route most often left unfinished); the link is one tap away.
+    await page.getByRole('heading', { name: 'Now it’s Noah’s turn.' }).waitFor({ timeout: 30000 });
+    ok('after the parent’s part, passing the phone comes first, and no link is made until asked for', (await page.getByRole('button', { name: 'Noah is with me: pass them this phone' }).count()) === 1 && (await page.locator('.mpmb-carryon__url').count()) === 0);
+    await page.getByRole('button', { name: 'Noah isn’t with me: send them a link' }).click();
     await page.locator('.mpmb-handover__link .mpmb-carryon__url').waitFor({ timeout: 60000 });
     const handoverLink = (await page.locator('.mpmb-handover__link .mpmb-carryon__url').innerText()).trim();
     ok('the handover gives a link to send Noah, to do his part on his own phone, by WhatsApp, text, email or copy', /\?finish=MPMB-.*&for=young&k=[A-Za-z0-9_-]{22}$/.test(handoverLink) && (await page.getByText(/It is just for Noah: please send it only to them/).count()) === 1 && (await page.getByRole('link', { name: 'WhatsApp' }).count()) === 1 && (await page.getByRole('link', { name: 'Text message' }).count()) === 1 && (await page.getByRole('button', { name: 'Copy the link' }).count()) === 1);
@@ -566,6 +570,8 @@ async function inner() {
     await noahPage.goto(carryOnUrl);
     await noahPage.getByRole('heading', { name: /Do you want to share your screen time/ }).waitFor({ timeout: 30000 });
     ok('Noah’s own link opens his part straight away: no birthday, no reference, nothing to sign in, and the key gone from the address', (await noahPage.getByLabel('Your date of birth').count()) === 0 && !noahPage.url().includes('k=') && !noahPage.url().includes('finish='), noahPage.url());
+    const opened = (await db.collection('submissions').doc(noahCode).get()).data();
+    ok('opening Noah’s own link is recorded, and one reminder is due 48 hours after the record was first saved', Boolean(opened?.youngLinkFirstOpenedAt) && opened?.youngLinkOpens === 1 && Math.abs(opened?.reminderDueAt?.toMillis() - opened?.createdAt?.toMillis() - 48 * 3600_000) < 60_000);
     // A link whose key is not this record's asks for the birthday instead.
     await noahPage.goto(carryOnUrl.replace(/&k=.*$/, '&k=AAAAAAAAAAAAAAAAAAAAAA'));
     await noahPage.getByText(/This link didn’t open your part/).first().waitFor({ timeout: 30000 });
@@ -1472,7 +1478,7 @@ async function inner() {
     ok('MyStory is exported by phase, the triangle over three columns', midTsv.split('\n')[0].includes('pull_habit\tpull_people_and_connection\tpull_boredom_or_stress\tpull_status') && midTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && midTsv.includes('\tThe bus\t') && midTsv.includes('\tnot-sure\t') && !postTsv.includes('flatmates') && postChatTsv.includes('sub-MP2670FF90A5F2\tses-post\t') && postChatTsv.includes('\tdone\tedited\t') && /\t0\t0\tcasual\t0\.\d+\t7\t1\ttrue\t/.test(postChatTsv) && postChatTsv.split('\n')[0].includes('\tretellings_added\tretellings_still_added\tchosen_persona\tchosen_similarity\t') && finalManifest.counts?.labStoryChats === 1 && finalManifest.counts?.labStoryVoiceClips === 1 && postChatTsv.split('\n')[0].includes('\tvoice_clips\t') && preTsv.includes('sub-MP2670FF90A5F2\tses-pre\t') && preTsv.includes('\tLate nights\t') && finalManifest.counts?.labStories === 3, JSON.stringify(finalManifest.counts));
     ok('the visits and contact details are exported to identifying/, the visit date to the research table', visitsTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\t1\t') && visitsTsv.includes('\tmoved\t') && visitsTsv.includes('day-before-email:not-configured') && contactsTsv.includes('jane.smith@example.org\t+447700900123\ttrue') && labPeople.includes(`\t${v1a.toISOString().slice(0, 10)}\tbooked\t`) && !labPeople.includes('jane@'));
     ok('the opt-out is flagged on the school’s list and listed in identifying/ with the UPN it names', unmatchedTsv.split('\n').some((l) => l.startsWith('DUA\tA123456789013\tOla\tNowak') && l.includes('\ttrue\t')) && optOutsTsv.includes('\tactive\t') && optOutsTsv.includes('\tOla\tNowak\t') && optOutsTsv.includes('\tEwa Nowak\t') && optOutsTsv.includes('\tA123456789013\tname-only'), optOutsTsv.split('\n')[1]);
-    ok('the research table says who decided, where the screen time came from, and the longer answers have their own table', familiesTsv.split('\n')[0].includes('\tself_consent\tphone_source\t') && familiesTsv.split('\n')[0].endsWith('\tadded_later_on\topted_out') && familiesTsv.includes(`\t${new Date().toISOString().slice(0, 10)}\tfalse`) && familiesTsv.includes('\ttrue\tchild\tcompleted\t') && familiesTsv.includes('\tfalse\tnone\tnot-started\t') && phoneUseTsv.split('\n')[0].startsWith('participant_id\town_phone_age\tsocial_media_age\tschool_day_time') && phoneUseTsv.includes('\t12\t11\t3-4\t'), familiesTsv);
+    ok('the research table says who decided, where the screen time came from, and the longer answers have their own table', familiesTsv.split('\n')[0].includes('\tself_consent\tphone_source\t') && familiesTsv.split('\n')[0].endsWith('\tadded_later_on\tyoung_link_opened_on\tscreen_time_off_on\treminders_sent\topted_out') && new RegExp(`\t${new Date().toISOString().slice(0, 10)}\t${new Date().toISOString().slice(0, 10)}\t[^\t]*\t0\tfalse`).test(familiesTsv) && familiesTsv.includes('\ttrue\tchild\tcompleted\t') && familiesTsv.includes('\tfalse\tnone\tnot-started\t') && phoneUseTsv.split('\n')[0].startsWith('participant_id\town_phone_age\tsocial_media_age\tschool_day_time') && phoneUseTsv.includes('\t12\t11\t3-4\t'), familiesTsv);
     ok('the school’s file and what was read sit in schools/upn-uploads/, and the UPN is matched to the family’s record', finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/\d{4}-\d{2}-\d{2}_[0-9a-f]{8}_Year 8\.csv$/.test(n)) && finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/.*_pupils\.tsv$/.test(n)) && matchesTsv.includes('\tKai\tPatel\t2013-03-14\t') && matchesTsv.includes('\tA123456789012\tname-and-dob\t') && unmatchedTsv.includes('DUA\tA123456789013\tOla\tNowak') && finalManifest.counts?.upnUploads === 1 && finalManifest.counts?.upnMatched === 1, JSON.stringify(finalManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {

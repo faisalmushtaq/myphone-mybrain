@@ -200,7 +200,7 @@ export function Resume() {
         />
         <DateField id="resume-dob" label="The young person’s date of birth" hint="To check it is your record." value={dob} onChange={setDob} error={errs['resume-dob']} autofill="off" min={range.min} max={range.max} />
       </div>
-      <p className="mpmb-hint">No reference? Just start a new form: it takes about five minutes. Or email {study.contact.email} and the team will help.</p>
+      <p className="mpmb-hint">No reference? Just start a new form: it takes about 10 minutes. Or email {study.contact.email} and the team will help.</p>
     </StepShell>
   );
 }

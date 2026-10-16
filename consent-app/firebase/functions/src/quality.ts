@@ -96,8 +96,25 @@ const TERMS = [
   'total screen time',
   'time on screen',
   'usage time',
+  // The same pages on phones set to other languages common in Bradford and Leeds (16 October 2026). A missing or
+  // wrong word here only means fewer matches: a photo with many numbers on it is kept for review, not rejected.
+  'tiempo de uso', 'bienestar digital', // Spanish
+  "temps d'écran", 'temps d’écran', 'bien-être numérique', // French
+  'bildschirmzeit', 'digitales wohlbefinden', // German
+  'tempo di utilizzo', 'benessere digitale', // Italian
+  'tempo de uso', 'tempo de ecrã', 'bem-estar digital', // Portuguese
+  'czas przed ekranem', 'cyfrowa równowaga', // Polish
+  'timp de utilizare', 'bunăstare digitală', 'echilibru digital', // Romanian
+  'čas u obrazovky', 'digitální rovnováha', // Czech
+  'čas pred obrazovkou', 'digitálna rovnováha', // Slovak
+  'ekran süresi', 'dijital denge', // Turkish
+  'مدة استخدام الجهاز', 'الصحة الرقمية', // Arabic
+  'اسکرین ٹائم', 'ڈیجیٹل ویل بیئنگ', // Urdu
+  'স্ক্রিন টাইম', 'ডিজিটাল সুস্থতা', // Bengali
 ];
-const DURATION = /\b\d{1,2}\s?(h|hr|hrs|hour|hours|m|min|mins|minutes)\b/g;
+const DURATION = /\b\d{1,2}\s?(h|hr|hrs|hour|hours|m|min|mins|minutes|godz|std|sa|dk|ore|heures?|horas?|minut[oy]?|minuti|minutos)\b/g;
+/** Groups of digits in any script (Latin, Arabic-Indic, Eastern Arabic-Indic, Bengali): a list of times shows many. */
+const NUMBERS = /[0-9\u0660-\u0669\u06F0-\u06F9\u09E6-\u09EF]+/g;
 
 export const FAMILY_REASONS = {
   unsafe: 'This image can’t be accepted. Please send a screenshot of the phone’s screen-time page instead.',
@@ -181,7 +198,10 @@ export function assess(input: QualityInput): Quality {
       return { ...base, verdict: reasons.length ? 'review' : 'accepted', familyReason: null };
     }
     reasons.push(input.vision.text.trim() ? 'No screen-time words in the text found.' : 'No text found in the image.');
-    if (input.flatness < 0.2) {
+    // A photograph with many numbers may be a phone in another language showing its list of apps: kept for review.
+    const numbers = input.vision.text.match(NUMBERS)?.length ?? 0;
+    if (numbers >= 4) reasons.push(`${numbers} numbers in the text: may be a screen-time page in another language.`);
+    if (input.flatness < 0.2 && numbers < 4) {
       reasons.push('Looks like a photograph, not a screenshot.');
       return { ...base, verdict: 'rejected', familyReason: FAMILY_REASONS.notScreen };
     }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { StepShell } from '../components/StepShell';
+import { Callout } from '../components/ui/Callout';
 import { Disclosure } from '../components/ui/Disclosure';
 import type { PhoneSource as Source } from '../model/types';
 import { useStore } from '../state/context';
@@ -37,13 +38,13 @@ export function PhoneSource() {
       value: 'child',
       title: `Yes, from ${childName}’s phone`,
       body: parentRoute
-        ? `${childName} sends the screenshots from their own phone, if they want to: it is their choice. You send them a link next; they don’t need to be with you.`
-        : `${childName} sends the screenshots from this phone next, if they want to: it is their choice.`,
+        ? `${childName} sends the screenshots from their own phone. Next you pass them this phone, or send them a link if they aren’t with you.`
+        : `${childName} sends the screenshots from this phone next.`,
     },
     {
       value: 'none',
-      title: 'No',
-      body: `That’s fine: your answers already help the study.`,
+      title: 'No, not this time',
+      body: `Without the screenshots, the study has only guesses about how ${childName}’s phone is used.`,
     },
   ];
 
@@ -111,6 +112,14 @@ export function PhoneSource() {
           ))}
         </div>
       </fieldset>
+      {/* Said at the moment of choosing No (16 October 2026): the answer is still theirs to give. */}
+      {choice === 'none' && (
+        <Callout tone="important" title="Before you choose No">
+          <p>
+            Sharing takes a few minutes. It shows only which apps are used and for how long, never messages or photos, and the school never sees it. It is the one thing nobody else can tell us, so every family that shares makes the results more accurate. If you are sure, that’s fine: press Continue.
+          </p>
+        </Callout>
+      )}
       <Disclosure summary="What the screenshots show">
         <p>
           The Screen Time page (iPhone) or the Digital Wellbeing page (Android), with the list of apps. We ask for the apps as well as the total because how a phone is used matters as much as how long. The images are

@@ -93,6 +93,8 @@ export interface DonationPayload {
   confirm?: string[];
   /** Images saved automatically, then removed or edited on the page: deleted from the server (before Send only). */
   withdraw?: string[];
+  /** The phone has not been keeping a screen-time summary yet: they will turn it on and come back. */
+  screenTimeOff?: boolean;
   client: ClientInfo;
 }
 

@@ -16,7 +16,8 @@ import { initialState } from './reducer';
  */
 /** v8: the form as changed on 7 October 2026 (address required, no screenshots or recontact statements, saved from signing). Older progress is not read. */
 const KEY = 'mpmb-consent:v8';
-const MAX_AGE_MS = 2 * 60 * 60 * 1000;
+// 24 hours since 16 October 2026 (was 2): progress kept in this tab only (sessionStorage), for a family that pauses and comes back.
+const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 type Persisted = Omit<AppState, 'handover' | 'restored' | 'prototype' | 'clearedReason'> & { savedAt: string };
 

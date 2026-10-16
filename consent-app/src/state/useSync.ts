@@ -246,9 +246,17 @@ export function useSync() {
     }
   }, [dispatch, sendConsent, withSession]);
 
+  /** Tells the server the phone has not been keeping a screen-time summary, so they can be reminded once it has (best effort). */
+  const reportScreenTimeOff = useCallback(async (): Promise<void> => {
+    const consent = await sendConsent();
+    if (!consent) return;
+    const s = stateRef.current;
+    await withSession((session) => getApi().submitDonation(session, { referenceCode: consent.referenceCode, platform: s.donation.platform, uploads: [], agreement: null, screenTimeOff: true, client: clientInfo() })).catch(() => undefined);
+  }, [sendConsent, withSession]);
+
   // Carrying on later sends answers, never amendments, so nothing is ever waiting to be re-sent.
   const snapshot = state.resume ? null : snapshotOf(state);
   const dirty = snapshot !== null && state.submission.sentSnapshot !== null && state.submission.sentSnapshot !== snapshot;
 
-  return { sendConsent, sendDonation, dirty, snapshot, submission: state.submission };
+  return { sendConsent, sendDonation, reportScreenTimeOff, dirty, snapshot, submission: state.submission };
 }

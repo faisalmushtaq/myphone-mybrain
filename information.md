@@ -17,7 +17,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <div class="participant-next-step" id="share">
         <h3>What we need from you: share your child’s screen time.</h3>
         <a class="btn btn-primary" href="{{ '/take-part/consent/?who=parent' | relative_url }}">Start now &nbsp;→</a>
-        <p>Five minutes online: a few questions about your child’s phone and, if you are happy to, their screen time. Please do it as soon as you can. Nothing else is needed: your child is already invited to the workshop.</p>
+        <p>About 10 minutes online: a few questions about your child’s phone and, if you are happy to, their screen time. Please do it as soon as you can. Nothing else is needed: your child is already invited to the workshop.</p>
         <a class="text-link" href="{{ '/take-part/consent/?finish' | relative_url }}">Started already? Finish with your reference &nbsp;→</a>
         <p class="participant-next-step__optout">Don’t want your child to take part? <a href="#opting-out">How to opt out</a></p>
       </div>
@@ -51,7 +51,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <li class="consent-route consent-route--mist">
         <span class="consent-route__tag">Opt-in</span>
         <h3>Your answers about their phone</h3>
-        <p>Online, on this website, and only if you choose: you answer a few questions about your child’s phone habits, and can share screenshots of their screen time. <strong>It takes about five minutes.</strong></p>
+        <p>Online, on this website, and only if you choose: you answer a few questions about your child’s phone habits, and can share screenshots of their screen time. <strong>It takes about 10 minutes.</strong></p>
         <p>If the screenshots come from your child’s own phone, it is their choice too. From 16, young people can do this themselves.</p>
         <a class="text-link" href="#screen-time">More about screen time and phone habits &nbsp;→</a>
       </li>
@@ -116,7 +116,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <details class="info-fold" id="screen-time">
       <summary><h2>Screen time and phone habits</h2></summary>
       <div class="info-fold__body">
-    <p class="section-subheading">Separate from the workshop, and only if you choose: online, on this website, you answer a few questions about your child’s phone habits and can share screenshots of their phone’s screen-time summary. It takes about five minutes.</p>
+    <p class="section-subheading">Separate from the workshop, and only if you choose: online, on this website, you answer a few questions about your child’s phone habits and can share screenshots of their phone’s screen-time summary. It takes about 10 minutes.</p>
     <div class="participant-info-grid">
       <div class="info-panel">
         <h3>What the screenshots show</h3>

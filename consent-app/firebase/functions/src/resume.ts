@@ -200,7 +200,8 @@ export const resumeRecord = onCall(callOptions, async (request) => {
       const [year, month, day] = participant.dateOfBirth.split('-');
       Object.assign(summary, { dateOfBirth: { day: String(Number(day)), month: String(Number(month)), year } });
     }
-    await ref.set({ resumeUids: FieldValue.arrayUnion(uid), resumeFailures: 0, lastLookupAt: FieldValue.serverTimestamp() }, { merge: true });
+    // When the young person's own link is opened (16 October 2026): the team, and the reminder, can tell a link that was never opened.
+    await ref.set({ resumeUids: FieldValue.arrayUnion(uid), resumeFailures: 0, lastLookupAt: FieldValue.serverTimestamp(), ...(byLink ? { youngLinkOpens: FieldValue.increment(1), youngLinkLastOpenedAt: FieldValue.serverTimestamp(), ...(submission.youngLinkFirstOpenedAt ? {} : { youngLinkFirstOpenedAt: FieldValue.serverTimestamp() }) } : {}) }, { merge: true });
     logger.info('Record found to carry on', { referenceCode: code, byLink, canAgree: summary.canAgree, canAddScreenshots: summary.canAddScreenshots });
     return summary;
   }

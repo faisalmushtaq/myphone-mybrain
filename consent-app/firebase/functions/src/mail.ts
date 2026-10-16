@@ -11,7 +11,7 @@ import { readSecret } from './secrets.js';
  * scripts/set-mail-password.sh; the other settings come from the functions'
  * environment (see .env.example and the deploy workflow). Until the secret
  * exists, messages are still stored, nobody is emailed, and the stored record
- * and the logs say so. Nothing is ever emailed to families; adult participants
+ * and the logs say so. Families get at most a reminder (familyReminders.ts), and only if they gave an email; adult participants
  * in the social media break study can ask for a progress email (lab.ts), and
  * get their booking confirmations and reminders (booking.ts).
  */

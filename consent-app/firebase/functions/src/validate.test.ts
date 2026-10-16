@@ -308,6 +308,8 @@ test('screenshots left on the page are saved without an agreement, and a later p
   const withdraw = { ...validDonation(), uploads: [], withdraw: [validDonation().uploads[0].uploadId] };
   assert.deepEqual(validateDonationPayload(withdraw), [], 'an image saved automatically, then removed or edited');
   assert.ok(validateDonationPayload({ ...withdraw, withdraw: ['nope'] }).some((m) => m.includes('withdraw')));
+  assert.deepEqual(validateDonationPayload({ ...validDonation(), uploads: [], agreement: null, screenTimeOff: true }), [], 'screen time switched off: nothing to send yet');
+  assert.ok(validateDonationPayload({ ...validDonation(), uploads: [], agreement: null, screenTimeOff: 'yes' }).some((m) => m.includes('switched off')));
 });
 
 test('a young person with no phone of their own: the no-phone questions in the longer questions’ slot, and only then', () => {

@@ -44,10 +44,10 @@ export const walkthroughs: Record<PlatformId, Walkthrough> = {
       {
         title: 'Tap “See All App & Website Activity”',
         detail: 'It is just under the bar chart at the top.',
-        note: 'On older iPhones this may say “See All Activity”. If it says “Turn On App & Website Activity”, your phone has not been keeping a summary, so there is nothing to share yet: skip this part.',
+        note: 'On older iPhones this may say “See All Activity”. If it says “Turn On App & Website Activity”, your phone has not been keeping a summary yet: choose “isn’t keeping track of screen time” below the steps.',
         illustration: 'see-all-activity',
       },
-      { title: 'Choose “Week”', detail: 'Tap “Week” at the top so the summary shows the last 7 days.', illustration: 'week-view' },
+      { title: 'Choose “Week”', detail: 'Tap “Week” at the top so the summary shows the last 7 days: one day can be unusual, so a week shows what is normal.', illustration: 'week-view' },
       {
         title: 'Take a screenshot',
         detail: 'With the list of apps on the screen, press the side button and the volume-up button at the same time, then let go.',
@@ -73,7 +73,7 @@ export const walkthroughs: Record<PlatformId, Walkthrough> = {
       {
         title: 'Tap “Digital Wellbeing & parental controls”',
         detail: 'Scroll down to find it. You can also type “wellbeing” in the search box at the top of Settings.',
-        note: 'On some phones this is called “Digital Wellbeing”, “Screen time” or “Digital balance”.',
+        note: 'On some phones this is called “Digital Wellbeing”, “Screen time” or “Digital balance”. If it asks you to set it up, or shows no data, the phone has not been keeping track yet: choose “isn’t keeping track of screen time” below the steps.',
         illustration: 'wellbeing-row',
       },
       {
@@ -82,7 +82,12 @@ export const walkthroughs: Record<PlatformId, Walkthrough> = {
         note: 'On Samsung phones, tap the “Screen time” number.',
         illustration: 'dashboard',
       },
-      { title: 'Choose the weekly view', detail: 'If there is a choice between “Day” and “Week”, choose “Week”.', note: 'If your phone only shows one day, that is fine.', illustration: 'week-view' },
+      {
+        title: 'Choose the weekly view',
+        detail: 'If there is a choice between “Day” and “Week”, choose “Week”: one day can be unusual (a school day, a weekend), so a week shows what is normal.',
+        note: 'If your phone only shows one day at a time, take a screenshot of today, then tap the arrow at the top to go back a day and take another. A few days is great; up to 6 screenshots in all.',
+        illustration: 'week-view',
+      },
       {
         title: 'Take a screenshot',
         detail: 'With the list of apps on the screen, press the power (side) button and the volume-down button together — a quick press, don’t hold.',
@@ -101,7 +106,7 @@ export const walkthroughs: Record<PlatformId, Walkthrough> = {
     id: 'other',
     name: 'Other phones',
     screenName: 'screen time',
-    intro: 'Most phones have a screen-time or wellbeing summary somewhere in Settings. If you cannot find it, that is okay — you can skip this part.',
+    intro: 'Most phones have a screen-time or wellbeing summary somewhere in Settings. If you cannot find it, choose “isn’t keeping track of screen time” below the steps.',
     steps: [
       { title: 'Open Settings', detail: 'Look for the gear icon.', illustration: 'settings' },
       { title: 'Search for “screen time” or “wellbeing”', detail: 'Use the search box at the top of Settings if there is one.', illustration: 'wellbeing-row' },
@@ -130,7 +135,7 @@ export const familyWalkthroughs: Record<'ios' | 'android', Walkthrough> = {
       {
         title: 'Tap your child’s name',
         detail: 'It is listed under “Family”, further down the page.',
-        note: 'No “Family” list? Then Screen Time is not shared with you: go back and choose another way, or skip this part.',
+        note: 'No “Family” list? Then Screen Time is not shared with you: go back and choose “Yes, from their phone” instead.',
         illustration: 'screen-time-row',
       },
       { title: 'Tap “See All App & Website Activity”, then “Week”', detail: 'So the summary shows the last 7 days.', illustration: 'week-view' },

@@ -32,9 +32,12 @@ export const study = {
 
   /**
    * Minutes without any interaction before the form clears itself. Protects
-   * families using a shared or borrowed device.
+   * families using a shared or borrowed device. Two hours since 16 October
+   * 2026 (was 30 minutes): finding the screen time means leaving the form for
+   * Settings, and families get interrupted. The thank-you page still clears
+   * after 10 minutes.
    */
-  inactivityMinutes: 30,
+  inactivityMinutes: 120,
 
   /**
    * Show the required consent statements as a list under ONE confirmation

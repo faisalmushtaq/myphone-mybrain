@@ -80,7 +80,7 @@ export function Welcome() {
           </li>
           <li>
             <Icon name="phone" size={20} />
-            <span>It takes about 5 minutes.</span>
+            <span>It takes about 10 minutes.</span>
           </li>
           <li>
             <Icon name="shield" size={20} />
@@ -112,7 +112,7 @@ export function Welcome() {
         Share screen time with MyPhone/MyBrain.
       </h1>
       <p className="mpmb-lead">
-        About five minutes. Choose whether to share screenshots of the young person’s screen-time summary (which apps they use, and for how long), and, for parents and carers, answer a few questions about their phone use. It is all optional.
+        About 10 minutes. Choose whether to share screenshots of the young person’s screen-time summary (which apps they use, and for how long), and, for parents and carers, answer a few questions about their phone use. It is all optional.
       </p>
       <div className="mpmb-callout mpmb-callout--info">
         <p>
@@ -125,7 +125,7 @@ export function Welcome() {
           <p>
             {state.clearedReason === 'inactivity'
               ? 'For privacy, the form was cleared after a while without any activity. You can start again below.'
-              : 'For privacy, the answers saved on this device were cleared because they were more than two hours old. You can start again below.'}
+              : 'For privacy, the answers saved on this device were cleared because they were more than a day old. If you had signed, your answers are saved: carry on with your reference instead.'}
           </p>
         </div>
       )}

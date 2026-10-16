@@ -20,7 +20,9 @@ type CopyStatus = { kind: 'idle' } | { kind: 'working' } | { kind: 'done'; fileN
  * The thank-you screen: why taking part matters, the reference, what happens
  * next, a copy of the record to download, how to withdraw, and a way to clear
  * the device. Everything has already been sent by the time this is shown.
- * Nothing is emailed to families; the downloaded PDF is their copy.
+ * Nothing is emailed to families except one reminder if the screen time is
+ * still to come and they gave a mobile or email (familyReminders.ts); the
+ * downloaded PDF is their copy.
  */
 export function Done() {
   const { state, dispatch } = useStore();
@@ -177,7 +179,7 @@ export function Done() {
         ))}
       </ol>
 
-      {(partLater || shotsLater) && submission.referenceCode && <CarryOnLink referenceCode={submission.referenceCode} childName={childName} forYoung={partLater && state.assent.deferredBy === 'parent'} />}
+      {(partLater || shotsLater) && submission.referenceCode && <CarryOnLink referenceCode={submission.referenceCode} childName={childName} forYoung={partLater} />}
 
       <div className="mpmb-card mpmb-card--mist">
         <h2 className="mpmb-h3">Changing your mind</h2>

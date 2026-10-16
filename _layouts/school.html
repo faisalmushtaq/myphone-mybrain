@@ -9,7 +9,7 @@ layout: default
   <div class="container">
     <p class="hero-kicker">For parents and carers at {{ school.name }}</p>
     <h1>Your child is invited to <span>MyPhone/<wbr>MyBrain.</span></h1>
-    <p class="school-hero__intro">In the coming weeks, your child will take part in MyPhone/MyBrain at {{ school.name }}: a University of Leeds study about young people’s phones, brains and growing up. Here is what it involves, and the one thing we ask you to do online now. It takes about five minutes.</p>
+    <p class="school-hero__intro">In the coming weeks, your child will take part in MyPhone/MyBrain at {{ school.name }}: a University of Leeds study about young people’s phones, brains and growing up. Here is what it involves, and the one thing we ask you to do online now. It takes about 10 minutes.</p>
     <div class="school-hero__actions">
       <a class="btn btn-primary" href="{{ form_url }}">Start now &nbsp;&rarr;</a>
       <a class="school-hero__more" href="#what-it-involves">Read what it involves first</a>
@@ -23,11 +23,11 @@ layout: default
       <div class="info-panel" id="what-it-involves">
         <h2>What taking part involves</h2>
         <ul class="info-checklist">
-          <li>A workshop at school with our researchers, for the classes taking part: young people learn how the brain works, and wear a lightweight headset that records brain activity (EEG) while they do simple computer tasks. It is safe and painless, and it cannot read thoughts.</li>
-          <li>Short questionnaires about everyday life, phones and how your child feels.</li>
-          <li>Linking, through Connected West Yorkshire, with records already held about your child (health records, and school records held by the Department for Education), using a code instead of a name and only with the approvals in place.</li>
-          <li>Only if you want to: screenshots of the phone’s screen-time summary, showing which apps are used and for how long.</li>
+          <li>Screenshots of the phone’s screen-time summary, showing which apps are used and for how long: the most useful thing a family can give us, and only if you agree.</li>
           <li>We never read messages, look at photos or see what is posted.</li>
+          <li>Short questionnaires about everyday life, phones and how your child feels.</li>
+          <li>A workshop at school with our researchers, for the classes taking part: young people learn how the brain works, and wear a lightweight headset that records brain activity (EEG) while they do simple computer tasks. It is safe and painless, and it cannot read thoughts.</li>
+          <li>Linking, through Connected West Yorkshire, with records already held about your child (health records, and school records held by the Department for Education), using a code instead of a name and only with the approvals in place.</li>
         </ul>
         <p class="school-landing__note">You don’t need to do anything for your child to take part in the workshop. On the day they can say no to any part, or stop at any time, and it will not affect anything at school.</p>
       </div>
@@ -39,7 +39,7 @@ layout: default
           <li>You send screenshots from your own phone, if you can see their screen time there (Apple Family Sharing or Google Family Link); or your child sends them from theirs, if they want to.</li>
           <li>Young people aged 16 or over can do this themselves.</li>
         </ol>
-        <p class="school-landing__now">Please do this as soon as you get this page: it takes about five minutes.</p>
+        <p class="school-landing__now">Please do this as soon as you get this page: it takes about 10 minutes.</p>
         <a class="btn btn-primary" href="{{ form_url }}">Start now &nbsp;&rarr;</a>
         <p class="school-landing__hint">The form already has <strong>{{ school.name }}</strong> filled in. Not your child’s school? You can change it in the form. Started already? <a href="{{ '/take-part/consent/' | relative_url }}?finish">Finish with your reference</a>.</p>
       </div>
@@ -70,7 +70,7 @@ layout: default
       <p>Copy one of these into your usual way of contacting families: a text, the school app, an email or the newsletter. Short and plain works best: most families will read it on a phone.</p>
       <div class="school-staff__message">
         <label for="staff-message-short"><strong>Short</strong> (a text message or the school app)</label>
-        <textarea id="staff-message-short" rows="6" readonly>{{ school.name }}: your child’s class is taking part in MyPhone/MyBrain, a University of Leeds study about phones and the brain. Please fill in this short form now. It takes 5 minutes: {{ short_link }}</textarea>
+        <textarea id="staff-message-short" rows="6" readonly>{{ school.name }}: your child’s class is taking part in MyPhone/MyBrain, a University of Leeds study about phones and the brain. Please fill in this short form now. It takes about 10 minutes: {{ short_link }}</textarea>
         <div class="school-staff__actions"><button type="button" class="btn btn-secondary" data-copy-from="staff-message-short">Copy</button><span class="copy-status" aria-live="polite"></span></div>
       </div>
       <div class="school-staff__message">
@@ -79,7 +79,7 @@ layout: default
 
 In the coming weeks, your child’s class will take part in MyPhone/MyBrain, a University of Leeds study about young people’s phones, brains and wellbeing. Researchers will run a workshop at school.
 
-Please fill in a short online form as soon as you can. It takes about five minutes: {{ short_link }}
+Please fill in a short online form as soon as you can. It takes about 10 minutes: {{ short_link }}
 
 That page also explains what the study involves, and how to opt your child out if you don’t want them to take part.
 

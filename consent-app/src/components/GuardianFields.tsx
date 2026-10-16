@@ -78,7 +78,7 @@ export function GuardianFields({ guardian, update, errors: errs, childName }: Pr
       )}
       {(guardianFields.email.enabled || guardianFields.phone.enabled) && !contactShown && (
         <button type="button" className="mpmb-linkbutton" onClick={() => setShowContact(true)}>
-          + Add an email or phone number (optional)
+          + Add your mobile or email for a reminder if you don’t finish (optional)
         </button>
       )}
       {guardianFields.email.enabled && contactShown && (

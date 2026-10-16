@@ -108,6 +108,8 @@ export interface DonationPayload {
   confirm?: string[];
   /** Images saved automatically that were then removed or edited on the page: deleted (only before Send is pressed). */
   withdraw?: string[];
+  /** The phone has not been keeping a screen-time summary: they will turn it on and come back (no images). */
+  screenTimeOff?: boolean;
   client: ClientInfo;
 }
 
@@ -372,7 +374,7 @@ export function validateDonationPayload(input: unknown): string[] {
 
   if (!Array.isArray(p.uploads)) problems.push('Uploads are malformed.');
   else {
-    if (p.uploads.length === 0 && !(Array.isArray(p.confirm) && p.confirm.length) && !(Array.isArray(p.withdraw) && p.withdraw.length)) problems.push('No images were sent.');
+    if (p.uploads.length === 0 && !(Array.isArray(p.confirm) && p.confirm.length) && !(Array.isArray(p.withdraw) && p.withdraw.length) && p.screenTimeOff !== true) problems.push('No images were sent.');
     if (p.uploads.length > study.maxImages) problems.push(`At most ${study.maxImages} images can be sent.`);
     const seen = new Set<string>();
     for (const u of p.uploads) {
@@ -400,6 +402,7 @@ export function validateDonationPayload(input: unknown): string[] {
   if (p.auto && a) problems.push('An automatic save carries no agreement.');
   if (p.confirm !== undefined && (!Array.isArray(p.confirm) || p.confirm.length > 20 || p.confirm.some((id) => typeof id !== 'string' || !DONATION_ID.test(id)))) problems.push('The saves to confirm are malformed.');
   if (p.auto && p.confirm?.length) problems.push('An automatic save confirms nothing.');
+  if (p.screenTimeOff !== undefined && typeof p.screenTimeOff !== 'boolean') problems.push('The screen time switched off flag is malformed.');
   if (p.withdraw !== undefined && (!Array.isArray(p.withdraw) || p.withdraw.length > study.maxImages || p.withdraw.some((id) => typeof id !== 'string' || !UUID.test(id)))) problems.push('The images to withdraw are malformed.');
 
   validateClient(p.client, problems);

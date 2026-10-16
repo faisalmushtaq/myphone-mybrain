@@ -17,6 +17,8 @@ export function HandoverScreen() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   // The young person has chosen to pass this phone to their parent or carer, rather than send them a link.
   const [passing, setPassing] = useState(false);
+  // The parent has said the young person isn't with them, so their link is made and shown.
+  const [sendingLink, setSendingLink] = useState(false);
   const handover = state.handover;
 
   useEffect(() => {
@@ -35,8 +37,8 @@ export function HandoverScreen() {
   // On every other route, the young person's turn can also be sent as their own link (the parent route above leads with it).
   const sendYoungLink = !toParent && firstTime && study.allowDeferredAssent && !state.resume;
 
-  // The parent's part is done and the young person's comes next. Young people are rarely sat beside their parent, so sending them a link
-  // to do it on their own phone comes first (decided 8 October 2026); passing this phone is for when they happen to be there.
+  // The parent's part is done and the young person's comes next. Passing this phone comes first (16 October 2026, reversing
+  // 8 October): a link sent for later is the route most often left unfinished. The link is one tap away when they aren't there.
   // The young person isn't here: their part waits, the parent finishes theirs, and the young person does theirs from the link.
   const finishMine = () => {
     dispatch({ type: 'set-child-present', present: false });
@@ -52,21 +54,34 @@ export function HandoverScreen() {
         </div>
         <p className="mpmb-kicker mpmb-kicker--onhandover">{childName}’s turn</p>
         <h1 className="mpmb-h1 mpmb-handover__title" id="mpmb-handover-title" tabIndex={-1} ref={headingRef}>
-          Now send {childName} their link.
+          Now it’s {childName}’s turn.
         </h1>
         <div className="mpmb-handover__body">
-          <p>{childName} does the next part on their own phone, whenever suits them: they say yes or no to sharing their screen time, and if yes, they send it. It takes a few minutes. It is their choice.</p>
-        </div>
-        <div className="mpmb-handover__link">
-          {state.submission.referenceCode ? <CarryOnLink referenceCode={state.submission.referenceCode} childName={childName} forYoung /> : <p className="mpmb-hint">Saving your answers: the link appears in a moment.</p>}
-          <Button variant="primary" onClick={finishMine}>
-            I’ve sent it: finish my part
-          </Button>
+          <p>{childName} reads a short summary, signs, and sends their screen time. It takes a few minutes, and it is the most useful part of the study. If {childName} is with you, the quickest way is to pass them this phone now.</p>
         </div>
         <div className="mpmb-handover__actions">
-          <Button variant="ghost" onClick={() => dispatch({ type: 'confirm-handover' })}>
+          <Button variant="primary" arrow onClick={() => dispatch({ type: 'confirm-handover' })}>
             {childName} is with me: pass them this phone
           </Button>
+        </div>
+        <div className="mpmb-handover__link">
+          {sendingLink ? (
+            <>
+              <p className="mpmb-handover__or">
+                <strong>Send {childName} their own link.</strong> It opens their part on their own phone, with nothing to sign in. Please send it today, while it’s fresh.
+              </p>
+              {state.submission.referenceCode ? <CarryOnLink referenceCode={state.submission.referenceCode} childName={childName} forYoung /> : <p className="mpmb-hint">Saving your answers: the link appears in a moment.</p>}
+              <Button variant="secondary" onClick={finishMine}>
+                I’ve sent it: finish my part
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" onClick={() => setSendingLink(true)}>
+              {childName} isn’t with me: send them a link
+            </Button>
+          )}
+        </div>
+        <div className="mpmb-handover__actions">
           <Button variant="link" className="mpmb-btn--onhandover" onClick={() => dispatch({ type: 'cancel-handover' })}>
             ← Go back
           </Button>
@@ -89,7 +104,7 @@ export function HandoverScreen() {
           Now your parent or carer does their part.
         </h1>
         <div className="mpmb-handover__body">
-          <p>You’re under 16, so your parent or carer says yes or no first. It takes them about five minutes. Then it’s your turn.</p>
+          <p>You’re under 16, so your parent or carer says yes or no first. It takes them about 10 minutes. Then it’s your turn.</p>
         </div>
         <div className="mpmb-handover__actions">
           <Button variant="primary" arrow onClick={() => setPassing(true)}>
@@ -121,7 +136,7 @@ export function HandoverScreen() {
         <div className="mpmb-handover__body">
           {phase === 'details' || handover.nextStep === 'parent-details' ? (
             <p>
-              <strong>For the parent or carer:</strong> {childName} has started the MyPhone/MyBrain form about phone use. The next part asks for your details, your permission and a few quick questions. It takes about five minutes.
+              <strong>For the parent or carer:</strong> {childName} has started the MyPhone/MyBrain form about phone use. The next part asks for your details, your permission and a few quick questions. It takes about 10 minutes.
             </p>
           ) : handover.nextStep === 'parent-more' ? (
             <p>
@@ -132,7 +147,7 @@ export function HandoverScreen() {
               <strong>For the parent or carer:</strong> the next part is your section: the information, your permission for sharing {childName}’s screen time, and a few quick questions.
             </p>
           )}
-          {handover.nextStep !== 'parent-more' && <p>You will be asked to answer each permission separately and to sign with your finger.</p>}
+          {handover.nextStep !== 'parent-more' && <p>You will be asked to read a short summary, tick one box and sign with your finger.</p>}
         </div>
       ) : (
         <div className="mpmb-handover__body">

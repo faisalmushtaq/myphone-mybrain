@@ -187,6 +187,8 @@ export interface PhoneUseDonation {
   status: DonationStatus;
   /** Saves the page made on its own (screenshots left without pressing Send), waiting for Send to confirm them. */
   unconfirmed?: string[];
+  /** They said the phone has not been keeping a screen-time summary, and will turn it on and come back. */
+  screenTimeOff?: boolean;
 }
 
 /* ────────────────────────────────────────────────────────────────────────
