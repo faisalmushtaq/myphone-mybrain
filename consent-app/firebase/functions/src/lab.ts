@@ -11,6 +11,7 @@ import type { Quality } from './quality.js';
 import { sendMail } from './mail.js';
 import { signatureRecord, storeSignature } from './signatures.js';
 import { ukMobile } from './sms.js';
+import { ukDate } from './ukTime.js';
 import { blank, isObj, ISO_DATE, limits, str, UUID, validateClient, validateResponses, validateSignature, validTime, type ClientInfo, type SignatureRecord, type StatementRecord } from './validate.js';
 
 /**
@@ -446,57 +447,70 @@ export const submitLabConsent = onCall(callOptions, async (request) => {
   const db = getFirestore();
   const receivedAt = new Date();
   const participantRef = db.collection('labParticipants').doc(code);
-  const previous = (await participantRef.get()).data() ?? null;
-  if (!previous && tooOldToJoin(payload.codeParts.dateOfBirth, receivedAt)) {
-    logger.warn('Sign-up refused: over the age range', { participantCode: code });
-    throw new HttpsError('invalid-argument', `This study is for people aged ${labStudy.minAge} to ${labStudy.maxAge}.`);
-  }
-  const version = Number(previous?.consentVersion ?? 0) + 1;
-  const consentRef = db.collection('labConsents').doc();
   const contactRef = db.collection('labContacts').doc(code);
-  const contactBefore = (await contactRef.get()).data();
+  // The same consent sent again (a second tap, or "Confirm and sign" again after the answer was lost on a poor
+  // connection) is recognised by what was agreed, the name and the signature, and filed once (the swarm test, 17 October
+  // 2026). A changed consent is a new version, as before.
   const sig = payload.consent.signature;
+  const sameConsent = createHash('sha256')
+    .update(JSON.stringify([code, payload.consent.formId, payload.consent.formVersion, Object.keys(payload.consent.responses).sort().map((k) => [k, payload.consent.responses[k]?.response ?? null]), payload.consent.typedName.trim(), sig?.method ?? null, sig?.imageDataUrl ?? sig?.typedName ?? null]))
+    .digest('hex')
+    .slice(0, 27);
+  const consentRef = db.collection('labConsents').doc(`c${sameConsent}`);
   const stored = sig?.method === 'drawn' && sig.imageDataUrl ? await storeSignature(`lab/${code}`, consentRef.id, sig.imageDataUrl) : null;
 
-  const batch = db.batch();
-  batch.set(consentRef, {
-    studyId: labStudy.studyId,
-    participantCode: code,
-    version,
-    supersedes: (previous?.consentId as string | undefined) ?? null,
-    formId: payload.consent.formId,
-    formVersion: payload.consent.formVersion,
-    informationVersion: payload.consent.informationVersion,
-    responses: payload.consent.responses,
-    typedName: payload.consent.typedName.trim(),
-    signature: signatureRecord(sig, stored),
-    confirmedDate: payload.consent.confirmedDate,
-    completedAt: payload.consent.completedAt,
-    codeParts: normaliseCodeParts(payload.codeParts),
-    sessionUid: uid,
-    client: payload.client,
-    receivedAt,
-    createdAt: FieldValue.serverTimestamp(),
-  });
-  batch.set(
-    participantRef,
-    {
+  const result = await db.runTransaction(async (tx) => {
+    const [held, previousSnap, contactSnap] = await Promise.all([tx.get(consentRef), tx.get(participantRef), tx.get(contactRef)]);
+    const before = held.data();
+    if (before) return { participantCode: code, consentId: consentRef.id, receivedAt: before.receivedAt?.toDate?.().toISOString?.() ?? receivedAt.toISOString(), version: Number(before.version ?? 1), first: false };
+    const previous = previousSnap.data() ?? null;
+    if (!previous && tooOldToJoin(payload.codeParts.dateOfBirth, receivedAt)) {
+      logger.warn('Sign-up refused: over the age range', { participantCode: code });
+      throw new HttpsError('invalid-argument', `This study is for people aged ${labStudy.minAge} to ${labStudy.maxAge}.`);
+    }
+    const version = Number(previous?.consentVersion ?? 0) + 1;
+    const contactBefore = contactSnap.data();
+    tx.create(consentRef, {
       studyId: labStudy.studyId,
       participantCode: code,
-      consentId: consentRef.id,
-      consentVersion: version,
-      consentedAt: previous?.consentedAt ?? receivedAt,
-      lastConsentAt: receivedAt,
-      sessionUids: FieldValue.arrayUnion(uid),
-      ...(previous ? { updatedAt: FieldValue.serverTimestamp() } : { archiveCount: 0, screenshotCount: 0, phaseCounts: emptyPhases(), donationIds: [], checkInCount: 0, checkInIds: [], createdAt: FieldValue.serverTimestamp() }),
-    },
-    { merge: true },
-  );
-  // The mobile number goes with the contact details, apart from the consent and the data; text reminders start on, and the booking page lets them untick it.
-  batch.set(contactRef, { participantCode: code, mobile: ukMobile(payload.mobile), ...(typeof contactBefore?.smsReminders === 'boolean' ? {} : { smsReminders: true }), mobileGivenAt: receivedAt, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  await batch.commit();
-  logger.info(version > 1 ? 'Lab consent amended' : 'Lab consent recorded', { participantCode: code, consentId: consentRef.id, version });
-  return { participantCode: code, consentId: consentRef.id, receivedAt: receivedAt.toISOString(), version };
+      version,
+      supersedes: (previous?.consentId as string | undefined) ?? null,
+      formId: payload.consent.formId,
+      formVersion: payload.consent.formVersion,
+      informationVersion: payload.consent.informationVersion,
+      responses: payload.consent.responses,
+      typedName: payload.consent.typedName.trim(),
+      signature: signatureRecord(sig, stored),
+      confirmedDate: payload.consent.confirmedDate,
+      completedAt: payload.consent.completedAt,
+      codeParts: normaliseCodeParts(payload.codeParts),
+      sessionUid: uid,
+      client: payload.client,
+      receivedAt,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    tx.set(
+      participantRef,
+      {
+        studyId: labStudy.studyId,
+        participantCode: code,
+        consentId: consentRef.id,
+        consentVersion: version,
+        consentedAt: previous?.consentedAt ?? receivedAt,
+        lastConsentAt: receivedAt,
+        sessionUids: FieldValue.arrayUnion(uid),
+        ...(previous ? { updatedAt: FieldValue.serverTimestamp() } : { archiveCount: 0, screenshotCount: 0, phaseCounts: emptyPhases(), donationIds: [], checkInCount: 0, checkInIds: [], createdAt: FieldValue.serverTimestamp() }),
+      },
+      { merge: true },
+    );
+    // The mobile number goes with the contact details, apart from the consent and the data; text reminders start on, and the booking page lets them untick it.
+    tx.set(contactRef, { participantCode: code, mobile: ukMobile(payload.mobile), ...(typeof contactBefore?.smsReminders === 'boolean' ? {} : { smsReminders: true }), mobileGivenAt: receivedAt, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return { participantCode: code, consentId: consentRef.id, receivedAt: receivedAt.toISOString(), version, first: true };
+  });
+  if (result.first) logger.info(result.version > 1 ? 'Lab consent amended' : 'Lab consent recorded', { participantCode: code, consentId: consentRef.id, version: result.version });
+  const { first: _first, ...answer } = result;
+  void _first;
+  return answer;
 });
 
 /** Whether a code already has consent on file, so someone can carry on from another device. Rate-limited per session. */
@@ -766,28 +780,39 @@ export const submitLabCheckIn = onCall(callOptions, async (request) => {
   const db = getFirestore();
   await rateLimitLookups(db, uid, 'lab-checkin', CHECKINS_PER_HOUR);
   const participantRef = db.collection('labParticipants').doc(code);
-  const participant = (await participantRef.get()).data();
-  if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please check your details.');
   const receivedAt = new Date();
-  const ref = db.collection('labCheckIns').doc();
-  const count = Number(participant.checkInCount ?? 0) + 1;
-  const batch = db.batch();
-  batch.set(ref, {
-    studyId: labStudy.studyId,
-    participantCode: code,
-    number: count,
-    formId: payload.formId,
-    formVersion: payload.formVersion,
-    answers: Object.fromEntries(Object.entries(payload.answers).filter(([, v]) => v !== '' && v !== null && v !== undefined).map(([k, v]) => [k, String(v).trim()])),
-    sessionUid: uid,
-    client: payload.client,
-    receivedAt,
-    createdAt: FieldValue.serverTimestamp(),
+  const answers = Object.fromEntries(Object.entries(payload.answers).filter(([, v]) => v !== '' && v !== null && v !== undefined).map(([k, v]) => [k, String(v).trim()]));
+  // The same check-in sent again the same day (a second tap, or again after the answer was lost on a poor connection) is
+  // filed once: its id comes from the participant, the day and the answers (the swarm test, 17 October 2026).
+  const same = createHash('sha256')
+    .update(JSON.stringify([code, payload.formId, payload.formVersion, ukDate(receivedAt), Object.keys(answers).sort().map((k) => [k, answers[k]])]))
+    .digest('hex')
+    .slice(0, 27);
+  const ref = db.collection('labCheckIns').doc(`k${same}`);
+  const result = await db.runTransaction(async (tx) => {
+    const [held, participantSnap] = await Promise.all([tx.get(ref), tx.get(participantRef)]);
+    const before = held.data();
+    if (before) return { checkInId: ref.id, receivedAt: before.receivedAt?.toDate?.().toISOString?.() ?? receivedAt.toISOString(), count: Number(before.number ?? 1), first: false };
+    const participant = participantSnap.data();
+    if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please check your details.');
+    const count = Number(participant.checkInCount ?? 0) + 1;
+    tx.create(ref, {
+      studyId: labStudy.studyId,
+      participantCode: code,
+      number: count,
+      formId: payload.formId,
+      formVersion: payload.formVersion,
+      answers,
+      sessionUid: uid,
+      client: payload.client,
+      receivedAt,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    tx.set(participantRef, { checkInIds: FieldValue.arrayUnion(ref.id), checkInCount: FieldValue.increment(1), lastCheckInAt: receivedAt, sessionUids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return { checkInId: ref.id, receivedAt: receivedAt.toISOString(), count, first: true };
   });
-  batch.set(participantRef, { checkInIds: FieldValue.arrayUnion(ref.id), checkInCount: FieldValue.increment(1), lastCheckInAt: receivedAt, sessionUids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  await batch.commit();
-  logger.info('Lab check-in recorded', { participantCode: code, checkInId: ref.id, number: count });
-  return { checkInId: ref.id, receivedAt: receivedAt.toISOString(), count };
+  if (result.first) logger.info('Lab check-in recorded', { participantCode: code, checkInId: ref.id, number: result.count });
+  return { checkInId: result.checkInId, receivedAt: result.receivedAt, count: result.count };
 });
 
 export type { DocumentData };

@@ -698,7 +698,19 @@ export const bookLabSlot = onCall(callOptions, async (request) => {
   if (!email) throw new HttpsError('invalid-argument', 'Enter your email address, so we can send you the details.');
   if (!mobile) throw new HttpsError('invalid-argument', 'Enter your mobile number, so the team can contact you about your visits.');
   const now = new Date();
-  const result = await placeVisits(db, { code, choices: p.visits.map((v) => ({ visit: v.visit, slotId: v.slotId })), by: 'participant', uid, client: p.client }, now);
+  let result: PlaceResult;
+  try {
+    result = await placeVisits(db, { code, choices: p.visits.map((v) => ({ visit: v.visit, slotId: v.slotId })), by: 'participant', uid, client: p.client }, now);
+  } catch (error) {
+    // The same booking sent again (a second tap, or "Book" again after the answer was lost on a poor connection): the
+    // times are theirs already, so it is a success, with nothing booked or emailed twice (the swarm test, 17 October 2026).
+    const snap = error instanceof HttpsError ? await db.collection('labBookings').where('participantCode', '==', code).get() : null;
+    const held = snap ? p.visits.map((v) => snap.docs.find((d) => d.data().status === 'booked' && d.data().visit === v.visit && d.data().slotId === v.slotId)) : [];
+    if (!snap || !held.length || held.some((d) => !d)) throw error;
+    const first = held[0]!.data().confirmation ?? {};
+    logger.info('Lab visits already booked: the same booking sent again', { participantCode: code });
+    return { booked: held.map((d) => bookingView(bookingFrom(d!.id, d!.data()), now)), kind: 'booked', email: first.email ?? 'sent', sms: first.sms ?? 'not-wanted' };
+  }
   const contact: Contact = { email, mobile, smsReminders: p.smsReminders };
   if (email !== onFile.email || mobile !== onFile.mobile || contact.smsReminders !== onFile.smsReminders) await db.collection('labContacts').doc(code).set({ participantCode: code, ...contact, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   const kind = result.replaced.length ? 'moved' : 'booked';

@@ -168,15 +168,18 @@ async function faithful(db: Firestore, ref: DocumentReference, model: ModelCall,
 
 /** Counts a model call against the study's daily ceiling; refuses once it is reached. */
 async function spendCall(db: Firestore, n = 1): Promise<void> {
+  // The day's count is spread over several records, each added to without a transaction: with one record, many
+  // conversations at once collided on it and their model calls failed as if the model were down (the swarm test,
+  // 17 October 2026). The ceiling is checked against the sum.
   const day = new Date().toISOString().slice(0, 10);
-  const ref = db.collection('ratelimits').doc(`story-calls-${day}`);
-  const used = await db.runTransaction(async (tx) => {
-    const count = Number((await tx.get(ref)).data()?.count ?? 0) + n;
-    tx.set(ref, { count, updatedAt: FieldValue.serverTimestamp() });
-    return count;
-  });
+  const shards = Array.from({ length: CALL_SHARDS }, (_, k) => db.collection('ratelimits').doc(`story-calls-${day}-${k}`));
+  await shards[Math.floor(Math.random() * CALL_SHARDS)].set({ count: FieldValue.increment(n), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  const used = (await db.getAll(...shards)).reduce((sum, snap) => sum + Number(snap.data()?.count ?? 0), 0);
   if (used > CALLS_PER_DAY) throw new ModelError('rate_limit', 'the daily ceiling on model calls is reached', false);
 }
+
+/** How many records the day's count of model calls is spread over. */
+const CALL_SHARDS = 10;
 
 /** One model call, recorded on the conversation whatever happens. */
 async function call<T>(db: Firestore, ref: DocumentReference, model: ModelCall, prompt: Prompt, protocol: ChatProtocol, stage: string): Promise<T> {
@@ -229,42 +232,54 @@ async function retell(db: Firestore, ref: DocumentReference, model: ModelCall, p
 /** The story the participant ended with, filed as MyStory's story for the phase. */
 async function fileStory(db: Firestore, ref: DocumentReference, chat: ChatDoc & Record<string, unknown>, story: string, how: string, uid: string) {
   const receivedAt = new Date();
-  const storyRef = db.collection('labStories').doc();
+  // One story per conversation, filed under the conversation's own id: a "Keep this story" sent twice (a double tap, or
+  // again after the answer was lost on a poor connection) finds it already filed (the swarm test, 17 October 2026).
+  const storyRef = db.collection('labStories').doc(ref.id);
   const participantRef = db.collection('labParticipants').doc(chat.participantCode);
   const chosen = chat.candidates.find((c) => c.index === chat.chosenIndex) ?? null;
   // How close the filed story is to their words, after their changes; not measured when it is their words.
   const [finalSimilarity = null] = story && how !== 'stopped-early' && how !== 'model-unavailable' ? await similarities(db, ref, chat.transcript, [story]) : [null];
-  const batch = db.batch();
-  batch.set(storyRef, {
-    studyId: labStudy.studyId,
-    participantCode: chat.participantCode,
-    phase: chat.phase,
-    mode: 'chat',
-    chatId: ref.id,
-    structureId: chat.protocolKey,
-    structureVersion: chat.protocolVersion,
-    promptId: null,
-    promptText: null,
-    title: null,
-    story,
-    answers: {},
-    extraction: chat.extraction ?? null,
-    chosenPersona: chosen?.persona ?? null,
-    rating: chat.rating ?? null,
-    ending: how,
-    finalSimilarity,
-    source: chat.source ?? 'story',
-    checkInId: chat.checkInId ?? null,
-    sessionUid: uid,
-    client: chat.client ?? null,
-    receivedAt,
-    createdAt: FieldValue.serverTimestamp(),
+  const filed = await db.runTransaction(async (tx) => {
+    const now = (await tx.get(ref)).data();
+    if (now?.status === 'done') return { storyId: String(now.storyId ?? storyRef.id), receivedAt: toIsoString(now.finishedAt) ?? receivedAt.toISOString(), ending: String(now.ending ?? how), first: false };
+    tx.create(storyRef, {
+      studyId: labStudy.studyId,
+      participantCode: chat.participantCode,
+      phase: chat.phase,
+      mode: 'chat',
+      chatId: ref.id,
+      structureId: chat.protocolKey,
+      structureVersion: chat.protocolVersion,
+      promptId: null,
+      promptText: null,
+      title: null,
+      story,
+      answers: {},
+      extraction: chat.extraction ?? null,
+      chosenPersona: chosen?.persona ?? null,
+      rating: chat.rating ?? null,
+      ending: how,
+      finalSimilarity,
+      source: chat.source ?? 'story',
+      checkInId: chat.checkInId ?? null,
+      sessionUid: uid,
+      client: chat.client ?? null,
+      receivedAt,
+      createdAt: FieldValue.serverTimestamp(),
   });
-  batch.update(ref, { status: 'done', finalScenario: story, ending: how, finalSimilarity, storyId: storyRef.id, finishedAt: receivedAt, updatedAt: FieldValue.serverTimestamp() });
-  batch.set(participantRef, { storyIds: FieldValue.arrayUnion(storyRef.id), storyCounts: { [chat.phase]: FieldValue.increment(1) }, lastStoryAt: receivedAt, sessionUids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  await batch.commit();
-  logger.info('Story recorded from the chat', { participantCode: chat.participantCode, storyId: storyRef.id, phase: chat.phase, ending: how });
-  return { storyId: storyRef.id, receivedAt: receivedAt.toISOString(), ending: how };
+  tx.update(ref, { status: 'done', finalScenario: story, ending: how, finalSimilarity, storyId: storyRef.id, finishedAt: receivedAt, updatedAt: FieldValue.serverTimestamp() });
+  tx.set(participantRef, { storyIds: FieldValue.arrayUnion(storyRef.id), storyCounts: { [chat.phase]: FieldValue.increment(1) }, lastStoryAt: receivedAt, sessionUids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  return { storyId: storyRef.id, receivedAt: receivedAt.toISOString(), ending: how, first: true };
+  });
+  if (filed.first) logger.info('Story recorded from the chat', { participantCode: chat.participantCode, storyId: storyRef.id, phase: chat.phase, ending: how });
+  return { storyId: filed.storyId, receivedAt: filed.receivedAt, ending: filed.ending };
+}
+
+/** A stored time as an ISO string, or null. */
+function toIsoString(v: unknown): string | null {
+  if (v instanceof Date) return v.toISOString();
+  if (v && typeof (v as { toDate?: () => Date }).toDate === 'function') return (v as { toDate: () => Date }).toDate().toISOString();
+  return typeof v === 'string' ? v : null;
 }
 
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -291,9 +306,20 @@ export const labStoryChat = onCall(callOptions, async (request) => {
     const model = await modelFor();
     // Not set up yet (no key stored): the page offers MyStory's own form instead.
     if (!model) return { available: false };
-    await rateLimitLookups(db, uid, 'story-chat', CHATS_PER_HOUR);
     const participant = (await db.collection('labParticipants').doc(code!).get()).data();
     if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please check your details.');
+    // "Start the chat" sent again (after its answer was lost on a poor connection): the chat this device has just begun,
+    // with nothing said yet, is given back, not a second one (the swarm test, 17 October 2026).
+    const recent = (await db.collection('labStoryChats').where('sessionUid', '==', uid).get()).docs.find((d) => {
+      const c = d.data();
+      const opened = c.startedAt?.toDate?.() as Date | undefined;
+      return c.participantCode === code && c.phase === phase && c.status === 'interview' && Number(c.turns ?? 0) === 0 && Array.isArray(c.transcript) && c.transcript.some((m: ChatMessage) => m.role === 'assistant') && opened && Date.now() - opened.getTime() < 15 * 60_000;
+    });
+    if (recent) {
+      const opening = (recent.data().transcript as ChatMessage[]).find((m) => m.role === 'assistant')!.content;
+      return { available: true, chatId: recent.id, protocol: { key: protocol.key, version: protocol.version }, screens: screensFor(protocol), reply: opening };
+    }
+    await rateLimitLookups(db, uid, 'story-chat', CHATS_PER_HOUR);
     const ref = db.collection('labStoryChats').doc();
     const startedAt = new Date();
     await ref.set({
@@ -348,12 +374,25 @@ export const labStoryChat = onCall(callOptions, async (request) => {
 
   switch (data.action) {
     case 'reply': {
+      // An answer sent again (after its reply was lost on a poor connection, or "Try again"): the page says which answer
+      // it is, counting from 0. Already taken: Remi's reply to it is given again, or the next step if the interview has
+      // moved on; nothing is added twice (the swarm test, 17 October 2026).
+      const asked = chat.transcript.filter((m) => m.role === 'user').length;
+      const repeat = typeof data.turn === 'number' && Number.isInteger(data.turn) && data.turn >= 0 && data.turn < asked;
+      if (repeat) {
+        if (chat.status === 'choose') return { stage: 'choose', candidates: chat.candidates.map(({ index, text: t }) => ({ index, text: t })) };
+        if (chat.status === 'stopped') return { stage: 'stopped', text: chat.stoppedEarly ? STOPPED_EARLY : protocol.screens.fallbackText };
+        let seen = -1;
+        const after = chat.transcript.findIndex((m) => m.role === 'user' && ++seen === data.turn);
+        const answer = chat.transcript.slice(after + 1).find((m) => m.role === 'assistant');
+        if (chat.status === 'interview' && answer && data.turn === asked - 1) return { stage: 'interview', reply: answer.content };
+      }
       if (chat.status !== 'interview') throw new HttpsError('failed-precondition', 'The interview is already over.');
-      const said = text(data.text, protocol.maxChars);
+      const said = repeat ? (chat.transcript.filter((m) => m.role === 'user').at(-1)?.content ?? '') : text(data.text, protocol.maxChars);
       if (said.length < protocol.minChars) return { stage: 'interview', reply: 'Could you say a little more?', again: true };
-      const transcript: ChatMessage[] = [...chat.transcript.map(({ role, content }) => ({ role, content })), { role: 'user', content: said }];
-      const turns = chat.turns + 1;
-      await ref.update({ transcript: FieldValue.arrayUnion({ role: 'user', content: said, at: new Date().toISOString() }), turns, updatedAt: FieldValue.serverTimestamp() });
+      const transcript: ChatMessage[] = repeat ? chat.transcript.map(({ role, content }) => ({ role, content })) : [...chat.transcript.map(({ role, content }) => ({ role, content })), { role: 'user', content: said }];
+      const turns = repeat ? chat.turns : chat.turns + 1;
+      if (!repeat) await ref.update({ transcript: FieldValue.arrayUnion({ role: 'user', content: said, at: new Date().toISOString() }), turns, updatedAt: FieldValue.serverTimestamp() });
       await flag(ref, protocol, said, 'collect', chat.participantCode);
       if (!model) return await fallback(ref, protocol, 'no model');
       try {
@@ -387,6 +426,8 @@ export const labStoryChat = onCall(callOptions, async (request) => {
       }
     }
     case 'choose': {
+      // Chosen already (the same choice sent again): the next step again.
+      if (chat.status === 'rate' && chat.chosenIndex === data.index) return { stage: 'rate', story: chat.finalScenario };
       if (chat.status !== 'choose') throw new HttpsError('failed-precondition', 'There is nothing to choose from yet.');
       const picked = chat.candidates.find((c) => c.index === data.index);
       if (!picked) throw new HttpsError('invalid-argument', 'Choose one of the stories.');
@@ -394,6 +435,7 @@ export const labStoryChat = onCall(callOptions, async (request) => {
       return { stage: 'rate', story: picked.text };
     }
     case 'rate': {
+      if (chat.status === 'adapt' && chat.rating === data.rating) return { stage: 'adapt', story: chat.finalScenario };
       if (chat.status !== 'rate') throw new HttpsError('failed-precondition', 'There is nothing to rate yet.');
       const rating = typeof data.rating === 'number' && Number.isInteger(data.rating) && data.rating >= 0 && data.rating <= 10 ? data.rating : null;
       if (rating === null) throw new HttpsError('invalid-argument', 'Choose a number from 0 to 10.');

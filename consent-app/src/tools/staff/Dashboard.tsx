@@ -25,6 +25,47 @@ export interface DashboardData {
     stories: { pre: number; mid: number; post: number };
     daily: { signedUp: DayCount[] };
   };
+  /** The last data health check (firebase/functions/src/health.ts), or null before the first export has run. */
+  health?: {
+    checkedAt: string;
+    ok: boolean;
+    problems: { area: 'schools' | 'break' | 'uploads'; what: string; action: string; count: number; examples: string[] }[];
+    notes: string[];
+  } | null;
+}
+
+/**
+ * The data health check at the top of each study's dashboard (17 October 2026): checked with the hourly export, the
+ * records against each other and the stored files. Fine is one line; a problem is shown in full, with what to do.
+ */
+function Health({ health, area }: { health: DashboardData['health']; area: 'schools' | 'break' }) {
+  if (!health) return <p className="mpmb-hint">The data check has not run yet: it runs with the hourly export.</p>;
+  const mine = health.problems.filter((p) => p.area === area || p.area === 'uploads');
+  const others = health.problems.length - mine.length;
+  const stale = Date.now() - Date.parse(health.checkedAt) > 3 * 3600_000;
+  if (!mine.length)
+    return (
+      <p className="mpmb-hint">
+        Data check {when(health.checkedAt)}: every record holds what it says, every file is stored, nothing is stored twice.
+        {others ? ` The other study has ${others} problem${others === 1 ? '' : 's'}: see its tab.` : ''}
+        {stale ? ' This check is more than three hours old: the hourly export may have stopped. Tell the developer.' : ''}
+      </p>
+    );
+  return (
+    <Callout tone="important" role="alert">
+      <p>
+        <strong>Data check {when(health.checkedAt)}: {mine.length} problem{mine.length === 1 ? '' : 's'} found.</strong> The same is in DATA HEALTH.txt in the export folder.
+      </p>
+      <ul>
+        {mine.map((p) => (
+          <li key={p.what}>
+            {p.what}: <strong>{p.count}</strong>. {p.action}
+            {p.examples.length > 0 && <span className="mpmb-dash__muted"> ({p.examples.slice(0, 3).join('; ')}{p.count > 3 ? '; …' : ''})</span>}
+          </li>
+        ))}
+      </ul>
+    </Callout>
+  );
 }
 
 /** "1 parent", "2 parents". */
@@ -164,6 +205,7 @@ export function Dashboard({ staff, study }: { staff: Staff; study: 'schools' | '
   return (
     <div className="mpmb-tools__section mpmb-dash">
       <p className="mpmb-hint">Counted {when(data.generatedAt)}. Reload the page for the latest.</p>
+      <Health health={data.health ?? null} area={study} />
 
       {study === 'schools' && (
         <section aria-labelledby="dash-schools">

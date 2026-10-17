@@ -293,7 +293,8 @@ export interface LabStoryResult {
 /** MyStory's AI chat (firebase/functions/src/storyChat.ts): one step of the conversation. */
 export type LabStoryChatRequest =
   | { action: 'start'; participantCode: string; phase: LabPhase; source: LabStoryPayload['source']; checkInId: string | null; client: ClientInfo }
-  | { action: 'reply'; chatId: string; text: string }
+  /** turn: which answer this is, from 0, so an answer sent again is recognised and not added twice. */
+  | { action: 'reply'; chatId: string; text: string; turn?: number }
   | { action: 'choose'; chatId: string; index: number }
   | { action: 'rate'; chatId: string; rating: number }
   | { action: 'adapt'; chatId: string; request: string; story: string }

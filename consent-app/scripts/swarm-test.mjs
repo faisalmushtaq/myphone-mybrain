@@ -25,8 +25,22 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const PROJECT = 'demo-mpmb';
-const BUCKET = `${PROJECT}.appspot.com`;
+/**
+ * SWARM_PROJECT=<id>: run against a separate Firebase test project instead of the emulators, to see real Google servers
+ * under the crowd (docs/test-project.md). It needs the test project's web settings (VITE_FIREBASE_API_KEY and
+ * VITE_FIREBASE_APP_ID) and a key for it (GOOGLE_APPLICATION_CREDENTIALS). Never the live project.
+ */
+const TARGET = process.env.SWARM_PROJECT ?? null;
+if (TARGET === 'myphone-mybrain') {
+  console.error('SWARM_PROJECT is the live project. The swarm makes hundreds of test records: run it against a separate test project (docs/test-project.md).');
+  process.exit(2);
+}
+const PROJECT = TARGET ?? 'demo-mpmb';
+const BUCKET = TARGET ? (process.env.SWARM_BUCKET ?? process.env.VITE_FIREBASE_STORAGE_BUCKET ?? `${TARGET}.firebasestorage.app`) : `${PROJECT}.appspot.com`;
+/** The requests to the backend: the emulators here, Google's servers for a test project. */
+const BACKEND = TARGET ? /(cloudfunctions\.net|\.run\.app|identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com|firebasestorage\.googleapis\.com|firestore\.googleapis\.com)/ : /127\.0\.0\.1:(5001|9099|9199|8080)/;
+const isFunction = (url) => (TARGET ? /cloudfunctions\.net|\.run\.app/.test(url) : url.includes(':5001/'));
+const SITE = TARGET ? 'dist-swarm' : 'dist-emulator';
 const PORT = 8440;
 const FAMILIES = Number(process.env.SWARM_FAMILIES ?? 120);
 const AT_ONCE = Number(process.env.SWARM_AT_ONCE ?? 20);
@@ -42,15 +56,33 @@ const CHAOS = process.env.SWARM_CHAOS === '1';
 
 /** The journeys, and how often each happens (out of 100). */
 const JOURNEYS = [
-  ['parent-phone', 35], // screenshots from the parent's own phone (Family Sharing / Family Link)
+  ['parent-phone', 30], // screenshots from the parent's own phone (Family Sharing / Family Link)
   ['child-phone', 20], // the young person is there: pass the phone, they agree and send
-  ['child-link', 10], // the young person isn't there: send them their link
+  ['child-link', 10], // the young person isn't there: the parent sends their link, and they do their part on their own phone
   ['says-no', 15], // no to sharing
-  ['stops-after-signing', 10], // signs, then closes the page during the questions
-  ['leaves-unsent', 10], // adds screenshots, switches app, never presses Send
+  ['stops-after-signing', 8], // signs, then closes the page during the questions
+  ['leaves-unsent', 7], // adds screenshots, switches app, never presses Send
+  ['comes-back', 10], // signs, stops, then days later opens the reminder's link on another device and sends the screenshots
 ];
 
-if (process.env.MPMB_SWARM_INNER !== '1') {
+if (process.env.MPMB_SWARM_INNER !== '1' && TARGET) {
+  for (const name of ['VITE_FIREBASE_API_KEY', 'VITE_FIREBASE_APP_ID', 'GOOGLE_APPLICATION_CREDENTIALS'])
+    if (!process.env[name]) {
+      console.error(`${name} is needed for a test-project run (docs/test-project.md).`);
+      process.exit(2);
+    }
+  console.log(`Building the app against the test project ${TARGET}…`);
+  const env = { ...process.env, VITE_MPMB_BACKEND: 'firebase', VITE_FIREBASE_EMULATOR_HOST: '', VITE_FIREBASE_PROJECT_ID: TARGET, VITE_FIREBASE_AUTH_DOMAIN: `${TARGET}.firebaseapp.com`, VITE_FIREBASE_STORAGE_BUCKET: BUCKET };
+  execSync(`npx vite build --mode production --outDir ${SITE}`, { cwd: root, stdio: 'inherit', env });
+  // Belt and braces: the build must not point at the live project.
+  const built = fs.readdirSync(path.join(root, SITE)).filter((f) => f.endsWith('.js')).map((f) => fs.readFileSync(path.join(root, SITE, f), 'utf8')).join('');
+  if (built.includes('myphone-mybrain.firebaseapp.com') || built.includes('"myphone-mybrain"')) {
+    console.error('The test build points at the live project. Stopping.');
+    process.exit(2);
+  }
+  const result = spawn('node', [path.join(root, 'scripts/swarm-test.mjs')], { cwd: root, stdio: 'inherit', env: { ...process.env, MPMB_SWARM_INNER: '1' } });
+  result.on('exit', (code) => process.exit(code ?? 1));
+} else if (process.env.MPMB_SWARM_INNER !== '1') {
   console.log('Building the app against the emulators…');
   const env = {
     ...process.env,
@@ -97,22 +129,24 @@ function quantile(xs, q) {
 }
 
 async function inner() {
-  const say = (...a) => console.log('SWARM', ...a);
+  const say = (...a) => (TARGET ? console.log(...a) : console.log('SWARM', ...a));
   const require = createRequire(import.meta.url);
   const { chromium } = require(process.env.PLAYWRIGHT_MODULE ?? '/opt/node22/lib/node_modules/playwright');
   const admin = createRequire(path.join(root, 'firebase/functions/node_modules/x.js'));
   const { initializeApp } = admin('firebase-admin/app');
   const { getFirestore } = admin('firebase-admin/firestore');
   const { getStorage } = admin('firebase-admin/storage');
-  process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
-  process.env.FIREBASE_STORAGE_EMULATOR_HOST = '127.0.0.1:9199';
-  process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
+  if (!TARGET) {
+    process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+    process.env.FIREBASE_STORAGE_EMULATOR_HOST = '127.0.0.1:9199';
+    process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
+  }
   initializeApp({ projectId: PROJECT, storageBucket: BUCKET });
   const db = getFirestore();
   const bucket = getStorage().bucket();
   const { dashboardOf } = await import(path.join(root, 'firebase/functions/lib/dashboard.js'));
 
-  const server = spawn('python3', ['-m', 'http.server', String(PORT), '-d', path.join(root, 'dist-emulator')], { stdio: 'ignore' });
+  const server = spawn('python3', ['-m', 'http.server', String(PORT), '-d', path.join(root, SITE)], { stdio: 'ignore' });
   await new Promise((r) => setTimeout(r, 1200));
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 
@@ -180,6 +214,118 @@ async function inner() {
     await page.mouse.up();
   };
 
+  /** A new phone (its own browser), on the same slow, unreliable connection; the parent's reflexes under SWARM_CHAOS. */
+  async function phone(f, pageErrors) {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const page = await context.newPage();
+    page.setDefaultTimeout(180_000);
+    page.on('pageerror', (e) => pageErrors.push(e.message));
+    await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
+    await page.route(BACKEND, (r) => slowRoute(f, r));
+    const reflex = CHAOS ? setInterval(() => tapAgain(page), 1500) : null;
+    return { context, page, close: async () => { if (reflex) clearInterval(reflex); await context.close().catch(() => undefined); } };
+  }
+
+  /** The young person's own link, opened on their own phone. */
+  async function youngLater(f, pageErrors) {
+    const { page, close } = await phone(f, pageErrors);
+    try {
+      await page.goto(f.youngLink);
+      await page.getByRole('heading', { name: /Do you want to share your screen time/ }).waitFor();
+      await draw(page, '#assent-signature');
+      await page.getByRole('button', { name: 'Sign and continue' }).click();
+      await page.getByRole('radio', { name: 'Android' }).check();
+      await page.locator('input[type=file]').first().setInputFiles([{ name: 'own.png', mimeType: 'image/png', buffer: png }]);
+      await page.waitForFunction(() => document.querySelectorAll('.mpmb-upload').length === 1);
+      const send = page.getByRole('button', { name: /Send this screenshot/ });
+      await send.click();
+      if (f.doubleTap) await send.click({ timeout: 2000 }).catch(() => undefined);
+      await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor();
+    } catch (error) {
+      await page.screenshot({ path: path.join(path.dirname(REPORT), `swarm-fail-${f.i}-young.png`), fullPage: true }).catch(() => undefined);
+      throw error;
+    } finally {
+      await close();
+    }
+  }
+
+  /** Days later, on another device, from the reminder's link: says where the screen time comes from and sends two screenshots. */
+  async function comeBack(f, pageErrors) {
+    let code = null;
+    for (let k = 0; k < 120 && !code; k += 1) {
+      const people = await db.collection('participants').where('firstName', '==', f.first).get();
+      const sub = people.empty ? null : await db.collection('submissions').where('participantId', '==', people.docs[0].id).get();
+      if (sub && !sub.empty) code = sub.docs[0].id;
+      else await new Promise((r) => setTimeout(r, 500));
+    }
+    if (!code) {
+      // Under SWARM_CHAOS the first save may never have arrived before the page was closed: there is nothing to come back to.
+      f.nothingToComeBackTo = true;
+      return;
+    }
+    f.code = code;
+    const { page, close } = await phone(f, pageErrors);
+    try {
+      await page.goto(`http://127.0.0.1:${PORT}/index.html?finish=${code}`);
+      await page.getByLabel('The young person’s date of birth').fill(f.dob);
+      await page.getByRole('button', { name: 'Find my record' }).click();
+      await page.getByRole('heading', { name: /Can we have .* screen time\?/ }).waitFor();
+      await page.locator('#resume-source-parent').check();
+      await page.getByRole('button', { name: 'Continue' }).click();
+      await page.getByRole('heading', { name: 'We found your record.' }).waitFor();
+      await page.getByRole('button', { name: 'Add the screenshots' }).click();
+      await page.getByRole('radio', { name: 'Android' }).check();
+      await page.locator('input[type=file]').first().setInputFiles([0, 1].map((k) => ({ name: `later${k}.png`, mimeType: 'image/png', buffer: png })));
+      await page.waitForFunction(() => document.querySelectorAll('.mpmb-upload').length === 2);
+      const send = page.getByRole('button', { name: /Send these 2 screenshots/ });
+      await send.click();
+      if (f.doubleTap) await send.click({ timeout: 2000 }).catch(() => undefined);
+      await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor();
+    } catch (error) {
+      await page.screenshot({ path: path.join(path.dirname(REPORT), `swarm-fail-${f.i}-back.png`), fullPage: true }).catch(() => undefined);
+      throw error;
+    } finally {
+      await close();
+    }
+  }
+
+  async function slowRoute(f, r) {
+    await new Promise((res) => setTimeout(res, 50 + Math.random() * 1450));
+    if (CHAOS && r.request().method() !== 'OPTIONS') {
+      const x = Math.random();
+      const fn = isFunction(r.request().url());
+      f.chaos = f.chaos ?? { dropped: 0, lost: 0, failed: 0 };
+      if (x < 0.08) {
+        f.chaos.dropped += 1;
+        return r.abort('failed').catch(() => undefined);
+      }
+      if (fn && x < 0.13) {
+        // The server does the work; the answer is lost on the way back.
+        f.chaos.lost += 1;
+        await r.fetch().catch(() => undefined);
+        return r.abort('failed').catch(() => undefined);
+      }
+      if (fn && x < 0.18) {
+        f.chaos.failed += 1;
+        return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { status: 'INTERNAL', message: 'Simulated server error' } }) }).catch(() => undefined);
+      }
+    }
+    await r.continue().catch(() => undefined);
+  }
+
+  /** What a parent does when the page says something went wrong: taps "Try again", or presses Send again. */
+  async function tapAgain(page) {
+    try {
+      const again = page.getByRole('button', { name: /^Try again/ });
+      if ((await again.count()) && (await again.first().isVisible())) await again.first().click({ timeout: 1000 });
+      const sendError = page.locator('.mpmb-error, [role=alert]', { hasText: /could not be sent|did not upload|didn’t save|not been saved|could not be saved|try again/i });
+      const send = page.getByRole('button', { name: /^Send (this|these)/ });
+      if ((await sendError.count()) && (await send.count()) && (await send.first().isEnabled())) await send.first().click({ timeout: 1000 });
+    } catch {
+      /* The page moved on. */
+    }
+  }
+
   async function run(f) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const page = await context.newPage();
@@ -188,43 +334,8 @@ async function inner() {
     page.on('pageerror', (e) => pageErrors.push(e.message));
     await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
     // A slow, uneven mobile connection to the backend (and, under SWARM_CHAOS, an unreliable one).
-    await page.route(/127\.0\.0\.1:(5001|9099|9199|8080)/, async (r) => {
-      await new Promise((res) => setTimeout(res, 50 + Math.random() * 1450));
-      if (CHAOS && r.request().method() !== 'OPTIONS') {
-        const x = Math.random();
-        const fn = r.request().url().includes(':5001/');
-        f.chaos = f.chaos ?? { dropped: 0, lost: 0, failed: 0 };
-        if (x < 0.08) {
-          f.chaos.dropped += 1;
-          return r.abort('failed').catch(() => undefined);
-        }
-        if (fn && x < 0.13) {
-          // The server does the work; the answer is lost on the way back.
-          f.chaos.lost += 1;
-          await r.fetch().catch(() => undefined);
-          return r.abort('failed').catch(() => undefined);
-        }
-        if (fn && x < 0.18) {
-          f.chaos.failed += 1;
-          return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { status: 'INTERNAL', message: 'Simulated server error' } }) }).catch(() => undefined);
-        }
-      }
-      await r.continue().catch(() => undefined);
-    });
-    // What a parent does when the page says something went wrong: taps "Try again", or presses Send again.
-    const reflex = CHAOS
-      ? setInterval(async () => {
-          try {
-            const again = page.getByRole('button', { name: /^Try again/ });
-            if ((await again.count()) && (await again.first().isVisible())) await again.first().click({ timeout: 1000 });
-            const sendError = page.locator('.mpmb-error, [role=alert]', { hasText: /could not be sent|did not upload|didn’t save|not been saved|could not be saved|try again/i });
-            const send = page.getByRole('button', { name: /^Send (this|these)/ });
-            if ((await sendError.count()) && (await send.count()) && (await send.first().isEnabled())) await send.first().click({ timeout: 1000 });
-          } catch {
-            /* The page moved on. */
-          }
-        }, 1500)
-      : null;
+    await page.route(BACKEND, (r) => slowRoute(f, r));
+    const reflex = CHAOS ? setInterval(() => tapAgain(page), 1500) : null;
     const t = async (name, fn) => {
       const s = Date.now();
       await fn();
@@ -257,10 +368,17 @@ async function inner() {
         if (await page.getByRole('heading', { name: /First: does/ }).count()) await page.getByRole('button', { name: 'Yes', exact: true }).click();
         await page.getByRole('heading', { name: /Some questions about .*’s phone use/ }).waitFor();
       });
-      if (f.journey === 'stops-after-signing') {
+      if (f.journey === 'stops-after-signing' || f.journey === 'comes-back') {
         await page.locator('.mpmb-quiz__count', { hasText: 'Question 1 of 15' }).waitFor();
         // Reads the first question for a few seconds, then closes the page.
         await page.waitForTimeout(3000);
+        if (f.journey === 'comes-back') {
+          await context.close().catch(() => undefined);
+          await t('comes-back', () => comeBack(f, pageErrors));
+          f.ok = pageErrors.length === 0;
+          if (pageErrors.length) f.error = `page errors: ${pageErrors.slice(0, 2).join(' | ')}`;
+          return;
+        }
         f.ok = true;
         return;
       }
@@ -351,14 +469,22 @@ async function inner() {
         await t('link', async () => {
           await page.getByRole('button', { name: `${f.first} isn’t with me: send them a link` }).click();
           await page.locator('.mpmb-carryon__url').waitFor();
+          f.youngLink = (await page.locator('.mpmb-handover__link .mpmb-carryon__url').innerText()).trim();
           await page.getByRole('button', { name: 'I’ve sent it: finish my part' }).click();
           await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
           await page.getByRole('button', { name: /Everything is right/ }).click();
           await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor();
         });
+        const ref = page.locator('.mpmb-done__ref strong');
+        if (await ref.count()) f.code = (await ref.innerText()).trim();
+        await context.close().catch(() => undefined);
+        // Later, on their own phone: the young person opens the link, agrees and sends their screenshot.
+        await t('young-later', () => youngLater(f, pageErrors));
       }
-      const ref = page.locator('.mpmb-done__ref strong');
-      if (await ref.count()) f.code = (await ref.innerText()).trim();
+      if (f.journey !== 'child-link') {
+        const ref = page.locator('.mpmb-done__ref strong');
+        if (await ref.count()) f.code = (await ref.innerText()).trim();
+      }
       f.ok = pageErrors.length === 0;
       if (pageErrors.length) f.error = `page errors: ${pageErrors.slice(0, 2).join(' | ')}`;
     } catch (error) {
@@ -417,7 +543,7 @@ async function inner() {
     const why = (m) => problems.push(`${f.first} (${f.journey}): ${m}`);
     // Under SWARM_CHAOS a parent who signs, has the save fail on their connection and closes the page seconds later has sent
     // nothing that reached us: not a loss the site could prevent, and counted apart.
-    if (recs.length === 0 && CHAOS && f.journey === 'stops-after-signing' && (f.chaos?.dropped || f.chaos?.failed)) {
+    if (recs.length === 0 && CHAOS && (f.journey === 'stops-after-signing' || f.nothingToComeBackTo) && (f.chaos?.dropped || f.chaos?.failed)) {
       neverArrived.push(f.first);
       continue;
     }
@@ -432,14 +558,17 @@ async function inner() {
     const expect = {
       'parent-phone': () => s.phoneSource === 'parent' && images === 2 && s.imageCount === 2 && ds.every((d) => d.sendPressed !== false),
       'child-phone': () => s.phoneSource === 'child' && images === 1 && s.imageCount === 1 && assents.get(String(s.assentId))?.status === 'completed',
-      'child-link': () => s.phoneSource === 'child' && images === 0 && Boolean(s.youngLinkHash),
+      'child-link': () => s.phoneSource === 'child' && images === 1 && s.imageCount === 1 && Boolean(s.youngLinkHash) && assents.get(String(s.assentId))?.status === 'completed' && ds.every((d) => d.late === true),
+      'comes-back': () => s.phoneSource === 'parent' && images === 2 && s.imageCount === 2 && ds.every((d) => d.late === true),
       'says-no': () => s.phoneSource === 'none' && images === 0,
       'stops-after-signing': () => s.phoneSource === null && Boolean(s.consentId) && Boolean(s.reminderDueAt),
       'leaves-unsent': () => s.phoneSource === 'parent' && images === 1 && ds.some((d) => d.sendPressed === false),
     }[f.journey];
     // Closed straight after Send: whatever arrived must be whole and consistent (checked for every record below); nothing more is owed.
     if (f.closed) {
-      if (s.phoneSource !== 'parent' || images > 2) why(`closed mid-send: phoneSource=${s.phoneSource} images=${images}`);
+      // On a failing connection the answer "from my phone" may not have arrived either; then nothing after it did, and the reminder (reminderDueAt) follows them up.
+      const fine = (s.phoneSource === 'parent' && images <= 2) || (s.phoneSource === null && images === 0 && Boolean(s.reminderDueAt));
+      if (!fine) why(`closed mid-send: phoneSource=${s.phoneSource} images=${images}`);
     } else if (!expect()) why(`stored phoneSource=${s.phoneSource} images=${images} imageCount=${s.imageCount}`);
     if (!people.get(String(s.participantId))?.guardian?.phone) why('no mobile stored');
   }
@@ -468,19 +597,25 @@ async function inner() {
   check('nothing left half-uploaded, apart from screenshots never sent', quarantine.length <= families.filter((f) => !f.ok || f.closed || f.chaos?.lost).length * 2, `${quarantine.length} in quarantine`);
 
   const dash = await dashboardOf(db);
-  const swarmSent = families.filter((f) => f.ok && !f.closed && ['parent-phone', 'child-phone', 'leaves-unsent'].includes(f.journey)).length;
+  const swarmSent = families.filter((f) => f.ok && !f.closed && !f.nothingToComeBackTo && ['parent-phone', 'child-phone', 'leaves-unsent', 'child-link', 'comes-back'].includes(f.journey)).length;
   check('the staff dashboard counts every form and every family that sent screen time', dash.schools.stages[0].n >= families.filter((f) => f.code).length && dash.schools.stages[2].n >= swarmSent, `forms ${dash.schools.stages[0].n}, sent ${dash.schools.stages[2].n}`);
 
-  const tx = Date.now();
-  const exportRes = await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' });
-  const exportSecs = (Date.now() - tx) / 1000;
-  const [files] = await getStorage().bucket(`${PROJECT}-exports`).getFiles({ prefix: 'schools/donations/sourcedata/' });
-  const exportedShots = files.filter((f) => /screenshot\.(png|jpe?g|webp)$/.test(f.name)).length;
-  check('the export copies every screenshot', exportRes.ok && exportedShots === stored, `${exportedShots} of ${stored} in ${exportSecs.toFixed(1)} s`);
+  if (TARGET) {
+    say('The export and the data health check run on the test project every hour: see DATA HEALTH.txt in its export bucket after the next run.');
+  } else {
+    const tx = Date.now();
+    const exportRes = await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/exportNow`, { method: 'POST' });
+    const exportSecs = (Date.now() - tx) / 1000;
+    const [files] = await getStorage().bucket(`${PROJECT}-exports`).getFiles({ prefix: 'schools/donations/sourcedata/' });
+    const exportedShots = files.filter((f) => /screenshot\.(png|jpe?g|webp)$/.test(f.name)).length;
+    check('the export copies every screenshot', exportRes.ok && exportedShots === stored, `${exportedShots} of ${stored} in ${exportSecs.toFixed(1)} s`);
+    const health = (await db.collection('health').doc('latest').get()).data();
+    check('the data health check, run with the export, finds nothing wrong', health?.ok === true, health ? health.problems.map((x) => `${x.what}: ${x.count} (${x.examples.slice(0, 3).join('; ')})`).join(' | ') : 'no report');
+  }
 
   // ---- Report ------------------------------------------------------------
   const ok = families.filter((f) => f.ok);
-  const stepNames = ['open', 'details', 'sign', 'questions', 'screenshots', 'young-person', 'link', 'finish'];
+  const stepNames = ['open', 'details', 'sign', 'questions', 'screenshots', 'young-person', 'link', 'young-later', 'comes-back', 'finish'];
   const timings = Object.fromEntries(stepNames.map((n) => [n, families.map((f) => f.steps[n]).filter((x) => typeof x === 'number')]).filter(([, xs]) => xs.length).map(([n, xs]) => [n, { median_s: quantile(xs, 0.5) / 1000, p95_s: quantile(xs, 0.95) / 1000, max_s: Math.max(...xs) / 1000 }]));
   const report = {
     families: FAMILIES,

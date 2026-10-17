@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
@@ -129,28 +130,34 @@ export const submitLabStory = onCall(callOptions, async (request) => {
     }),
   );
   const receivedAt = new Date();
-  const ref = db.collection('labStories').doc();
-  const batch = db.batch();
-  batch.set(ref, {
-    studyId: labStudy.studyId,
-    participantCode: code,
-    phase: p.phase,
-    structureId: p.structureId,
-    structureVersion: p.structureVersion,
-    promptId: p.promptId,
-    promptText: structure.prompts.find((x) => x.id === p.promptId)!.text,
-    title: p.title.trim(),
-    story: p.story.trim(),
-    answers,
-    source: p.source,
-    checkInId: p.checkInId ?? null,
-    sessionUid: uid,
-    client: p.client,
-    receivedAt,
-    createdAt: FieldValue.serverTimestamp(),
+  // The same story sent twice (a double tap, or again after the answer was lost on a poor connection) is filed once: its
+  // id comes from the participant, the phase and the words (the swarm test, 17 October 2026).
+  const same = createHash('sha256').update([code, p.phase, p.checkInId ?? '', p.promptId, p.title.trim(), p.story.trim()].join('\u0000')).digest('hex').slice(0, 28);
+  const ref = db.collection('labStories').doc(`s${same}`);
+  const filed = await db.runTransaction(async (tx) => {
+    const held = (await tx.get(ref)).data();
+    if (held) return { storyId: ref.id, receivedAt: held.receivedAt?.toDate?.().toISOString?.() ?? receivedAt.toISOString(), first: false };
+    tx.create(ref, {
+      studyId: labStudy.studyId,
+      participantCode: code,
+      phase: p.phase,
+      structureId: p.structureId,
+      structureVersion: p.structureVersion,
+      promptId: p.promptId,
+      promptText: structure.prompts.find((x) => x.id === p.promptId)!.text,
+      title: p.title.trim(),
+      story: p.story.trim(),
+      answers,
+      source: p.source,
+      checkInId: p.checkInId ?? null,
+      sessionUid: uid,
+      client: p.client,
+      receivedAt,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    tx.set(participantRef, { storyIds: FieldValue.arrayUnion(ref.id), storyCounts: { [p.phase]: FieldValue.increment(1) }, lastStoryAt: receivedAt, sessionUids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return { storyId: ref.id, receivedAt: receivedAt.toISOString(), first: true };
   });
-  batch.set(participantRef, { storyIds: FieldValue.arrayUnion(ref.id), storyCounts: { [p.phase]: FieldValue.increment(1) }, lastStoryAt: receivedAt, sessionUids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  await batch.commit();
-  logger.info('Story recorded', { participantCode: code, storyId: ref.id, phase: p.phase });
-  return { storyId: ref.id, receivedAt: receivedAt.toISOString() };
+  if (filed.first) logger.info('Story recorded', { participantCode: code, storyId: ref.id, phase: p.phase });
+  return { storyId: filed.storyId, receivedAt: filed.receivedAt };
 });

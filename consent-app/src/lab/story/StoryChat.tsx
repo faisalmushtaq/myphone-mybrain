@@ -258,10 +258,11 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
     if (!text || !chatId || working) return;
     const voice = pendingNotes.current;
     pendingNotes.current = [];
+    const turn = bubbles.filter((b) => b.from === 'me').length;
     setBubbles((b) => [...b, { from: 'me', text, ...(voice.length ? { voice } : {}) }]);
     setDraft('');
     setVoiceTrouble(null);
-    if (stage === 'interview') void run({ action: 'reply', chatId, text });
+    if (stage === 'interview') void run({ action: 'reply', chatId, text, turn });
     else if (stage === 'adapt') void run({ action: 'adapt', chatId, request: text, story });
   };
   const voice = useVoice({

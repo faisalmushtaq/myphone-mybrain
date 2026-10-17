@@ -8,6 +8,7 @@ import { optOutFor, optOutsOf, upnExport } from './exportUpn.js';
 import { usageExport } from './exportUsage.js';
 import { COPY_LIMIT, needsWrite, planCopies, staleObjects, stampFor, copyState, UNPACK_LIMIT, unpackDue, type CopyJob, type ObjectInfo, type UnpackFailure } from './exportWrite.js';
 import { moreQuestionTopics, moreQuestionWording, noPhoneQuestionWording, parentMoreForm, parentNoPhoneForm, parentQuestionsForm, questionWording, study, type ServedQuestionForm } from './forms.js';
+import { healthFiles, healthOf } from './health.js';
 
 /**
  * The hourly export: everything the studies have recorded, written into a
@@ -788,6 +789,11 @@ and recordings still to be copied (at most 500 are copied each hour, so a
 large backlog clears over a few hours), and copyFailures, unpackFailures and
 writeFailures list anything that could not be done, with why. Files that
 have not changed are not rewritten.
+
+DATA HEALTH.txt says whether the records and files check out: every file a
+record points at is stored, each record's counts match what it holds, and
+nothing is stored twice. It is checked with every export; anything wrong is
+listed with what to do (data-health.json has the same, for programs).
 `;
 
 export interface OutFile {
@@ -990,6 +996,18 @@ export async function runExport(): Promise<Manifest> {
   for (const prefix of new Set([...jobs.map((j) => j.source), ...derived.map((d) => d.source)].map((p) => `${p.split('/')[0]}/`))) {
     const [listed] = await source.getFiles({ prefix });
     for (const f of listed) sources.set(f.name, objectInfo(f));
+  }
+
+  // The data health check (health.ts): the records against each other and against the files stored, written beside the data and kept for the staff page.
+  try {
+    const listings = await Promise.all(['quarantine/', 'labquarantine/'].map((prefix) => source.getFiles({ prefix })));
+    const quarantine = listings.flatMap(([listed]) => listed.map((f) => ({ name: f.name, created: f.metadata.timeCreated ? String(f.metadata.timeCreated) : null })));
+    const health = healthOf(c, new Set(sources.keys()), quarantine, now);
+    files.push(...healthFiles(health));
+    await db.collection('health').doc('latest').set(health);
+    if (!health.ok) logger.error('Data health: problems found', { problems: health.problems.map((p) => `${p.what}: ${p.count}`) });
+  } catch (error) {
+    logger.error('Data health: the check could not run', { error: errorText(error) });
   }
 
   // 1. Tables and text: written only when they changed.

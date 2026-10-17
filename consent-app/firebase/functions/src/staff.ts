@@ -515,8 +515,11 @@ export const staffApi = onCall(callOptions, async (request) => {
       return { ok: true };
     }
 
-    case 'dashboard':
-      return dashboardOf(db);
+    case 'dashboard': {
+      // With the last data health check (health.ts, run with the hourly export).
+      const [counts, health] = await Promise.all([dashboardOf(db), db.collection('health').doc('latest').get()]);
+      return { ...counts, health: health.data() ?? null };
+    }
 
     case 'families':
       return { families: await familiesList(db) };

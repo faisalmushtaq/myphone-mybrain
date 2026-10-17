@@ -40,6 +40,9 @@ const UPLOAD_ROOT = 'quarantine';
 /** The lab study's uploads: cleaned archives as well as screenshots, under their own rules. */
 const LAB_UPLOAD_ROOT = 'labquarantine';
 
+/** How long to wait before each quiet retry of a call that is safe to repeat. */
+const RETRY_WAITS_MS = [1000, 3000, 6000];
+
 function mapError(error: unknown): ApiError {
   if (error instanceof ApiError) return error;
   if (error instanceof FirebaseError) {
@@ -164,15 +167,25 @@ export class FirebaseConsentApi implements ConsentApi {
     }
   }
 
-  private async call<Req, Res>(session: SessionInfo, name: string, payload: Req): Promise<Res> {
+  /**
+   * Calls a function. With `retry`, for calls that are safe to repeat (lookups, and saves the server recognises when they
+   * come again), a dropped connection or a server error is tried again, quietly, up to three more times over about ten
+   * seconds before the page is told: on a poor mobile signal one failed request is common (the swarm test, 17 October 2026).
+   */
+  private async call<Req, Res>(session: SessionInfo, name: string, payload: Req, retry = false): Promise<Res> {
     const user = await this.user();
     if (user.uid !== session.sessionId) throw new ApiError('expired', 'Your session has changed. Please try again.');
     const fn = httpsCallable<Req, Res>(this.functions, name, { timeout: 120_000 });
-    try {
-      const result = await fn(payload);
-      return result.data;
-    } catch (error) {
-      throw mapError(error);
+    const waits = retry ? RETRY_WAITS_MS : [];
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const result = await fn(payload);
+        return result.data;
+      } catch (error) {
+        const mapped = mapError(error);
+        if (attempt >= waits.length || (mapped.code !== 'network' && mapped.code !== 'server')) throw mapped;
+        await new Promise((r) => setTimeout(r, waits[attempt]));
+      }
     }
   }
 
@@ -197,27 +210,27 @@ export class FirebaseConsentApi implements ConsentApi {
   }
 
   resumeLookup(session: SessionInfo, payload: ResumeLookupPayload): Promise<ResumeSummary> {
-    return this.call<ResumeLookupPayload & { action: 'lookup' }, ResumeSummary>(session, 'resumeRecord', { action: 'lookup', ...payload });
+    return this.call<ResumeLookupPayload & { action: 'lookup' }, ResumeSummary>(session, 'resumeRecord', { action: 'lookup', ...payload }, true);
   }
 
   youngLink(session: SessionInfo, referenceCode: string): Promise<{ referenceCode: string; key: string }> {
-    return this.call<{ action: 'young-link'; referenceCode: string }, { referenceCode: string; key: string }>(session, 'resumeRecord', { action: 'young-link', referenceCode });
+    return this.call<{ action: 'young-link'; referenceCode: string }, { referenceCode: string; key: string }>(session, 'resumeRecord', { action: 'young-link', referenceCode }, true);
   }
 
   resumeSource(session: SessionInfo, referenceCode: string, phoneSource: 'parent' | 'child' | 'none'): Promise<ResumeSummary> {
-    return this.call<{ action: 'source'; referenceCode: string; phoneSource: string }, ResumeSummary>(session, 'resumeRecord', { action: 'source', referenceCode, phoneSource });
+    return this.call<{ action: 'source'; referenceCode: string; phoneSource: string }, ResumeSummary>(session, 'resumeRecord', { action: 'source', referenceCode, phoneSource }, true);
   }
 
   resumeAgree(session: SessionInfo, payload: LateAgreementPayload): Promise<LateAgreementResult> {
-    return this.call<LateAgreementPayload & { action: 'agree' }, LateAgreementResult>(session, 'resumeRecord', { action: 'agree', ...payload });
+    return this.call<LateAgreementPayload & { action: 'agree' }, LateAgreementResult>(session, 'resumeRecord', { action: 'agree', ...payload }, true);
   }
 
   submitLabConsent(session: SessionInfo, payload: LabConsentPayload): Promise<LabConsentResult> {
-    return this.call<LabConsentPayload, LabConsentResult>(session, 'submitLabConsent', payload);
+    return this.call<LabConsentPayload, LabConsentResult>(session, 'submitLabConsent', payload, true);
   }
 
   lookupLabParticipant(session: SessionInfo, participantCode: string): Promise<LabLookupResult> {
-    return this.call<{ participantCode: string }, LabLookupResult>(session, 'lookupLabParticipant', { participantCode });
+    return this.call<{ participantCode: string }, LabLookupResult>(session, 'lookupLabParticipant', { participantCode }, true);
   }
 
   async requestLabUploadSlot(sessionId: string, meta: { contentType: string; size: number }): Promise<UploadSlot> {
@@ -237,7 +250,7 @@ export class FirebaseConsentApi implements ConsentApi {
   }
 
   submitLabDonation(session: SessionInfo, payload: LabDonationPayload): Promise<LabDonationResult> {
-    return this.call<LabDonationPayload, LabDonationResult>(session, 'submitLabDonation', payload);
+    return this.call<LabDonationPayload, LabDonationResult>(session, 'submitLabDonation', payload, true);
   }
 
   requestLabReminder(session: SessionInfo, payload: { participantCode: string; email: string; phase: LabPhase }): Promise<LabReminderResult> {
@@ -245,19 +258,19 @@ export class FirebaseConsentApi implements ConsentApi {
   }
 
   submitLabCheckIn(session: SessionInfo, payload: LabCheckInPayload): Promise<LabCheckInResult> {
-    return this.call<LabCheckInPayload, LabCheckInResult>(session, 'submitLabCheckIn', payload);
+    return this.call<LabCheckInPayload, LabCheckInResult>(session, 'submitLabCheckIn', payload, true);
   }
 
   updateLabPlatforms(session: SessionInfo, payload: { participantCode: string; notUsed: LabPlatform[] }): Promise<{ notUsed: LabPlatform[] }> {
-    return this.call<{ participantCode: string; notUsed: LabPlatform[] }, { notUsed: LabPlatform[] }>(session, 'updateLabPlatforms', payload);
+    return this.call<{ participantCode: string; notUsed: LabPlatform[] }, { notUsed: LabPlatform[] }>(session, 'updateLabPlatforms', payload, true);
   }
 
   labBookingOptions(session: SessionInfo, participantCode: string): Promise<LabBookingOptions> {
-    return this.call<{ participantCode: string }, LabBookingOptions>(session, 'labBookingOptions', { participantCode });
+    return this.call<{ participantCode: string }, LabBookingOptions>(session, 'labBookingOptions', { participantCode }, true);
   }
 
   bookLabSlot(session: SessionInfo, payload: LabBookPayload): Promise<LabBookResult> {
-    return this.call<LabBookPayload, LabBookResult>(session, 'bookLabSlot', payload);
+    return this.call<LabBookPayload, LabBookResult>(session, 'bookLabSlot', payload, true);
   }
 
   cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingIds?: string[] | null }): Promise<LabCancelResult> {
@@ -265,11 +278,11 @@ export class FirebaseConsentApi implements ConsentApi {
   }
 
   submitLabStory(session: SessionInfo, payload: LabStoryPayload): Promise<LabStoryResult> {
-    return this.call<LabStoryPayload, LabStoryResult>(session, 'submitLabStory', payload);
+    return this.call<LabStoryPayload, LabStoryResult>(session, 'submitLabStory', payload, true);
   }
 
   labStoryChat(session: SessionInfo, request: LabStoryChatRequest): Promise<LabStoryChatResponse> {
-    return this.call<LabStoryChatRequest, LabStoryChatResponse>(session, 'labStoryChat', request);
+    return this.call<LabStoryChatRequest, LabStoryChatResponse>(session, 'labStoryChat', request, request.action !== 'adapt');
   }
 
   labStoryVoice(session: SessionInfo, request: LabStoryVoiceRequest): Promise<LabStoryVoiceResponse> {

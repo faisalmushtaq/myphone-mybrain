@@ -7,6 +7,12 @@
 #
 #   bash consent-app/firebase/scripts/setup-project.sh <project-id> [billing-account-id]
 #
+# For a separate test project (for the swarm tests against real servers, docs/test-project.md):
+#
+#   MPMB_TEST_PROJECT=1 bash consent-app/firebase/scripts/setup-project.sh <test-project-id> [billing-account-id]
+#
+# which writes the settings to consent-app/.env.test-project (never committed) and leaves the live site alone.
+#
 # It is safe to run more than once: every step checks before it changes
 # anything. Steps that need a person (a card for billing, the Auth
 # "Get started" click if the API refuses) print the exact link and wait.
@@ -19,6 +25,11 @@ DOMAIN="myphonemybrain.com"
 REPO="faisalmushtaq/myphone-mybrain"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"   # consent-app/firebase
 
+TEST="${MPMB_TEST_PROJECT:-}"
+if [[ -n "$TEST" && "$PROJECT" == "myphone-mybrain" ]]; then
+  echo "myphone-mybrain is the live project: give a separate project for testing."
+  exit 1
+fi
 if [[ -z "$PROJECT" ]]; then
   echo "Usage: $0 <project-id> [billing-account-id]"
   echo "  project-id: lower-case letters, digits and hyphens, globally unique, e.g. myphone-mybrain-leeds"
@@ -137,13 +148,23 @@ else
 fi
 CONFIG="$($FIREBASE apps:sdkconfig WEB "$APP_ID" --project "$PROJECT" --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const c=JSON.parse(s).result.sdkConfig;console.log([`MPMB_BACKEND=firebase`,`FIREBASE_API_KEY=${c.apiKey}`,`FIREBASE_PROJECT_ID=${c.projectId}`,`FIREBASE_APP_ID=${c.appId}`,`FIREBASE_AUTH_DOMAIN=${c.authDomain}`,`FIREBASE_STORAGE_BUCKET=${c.storageBucket||c.projectId+".firebasestorage.app"}`].join("\n"))})')"
 echo "$CONFIG" > "$HERE/.site-variables.txt"
-ENV_FILE="$HERE/../.env.production"
-{
-  echo "# Firebase settings for the live site, written by firebase/scripts/setup-project.sh."
-  echo "# Public identifiers (they are in the page anyway); access is governed by the security rules. Commit this file."
-  echo "$CONFIG" | sed 's/^MPMB_BACKEND=/VITE_MPMB_BACKEND=/; s/^FIREBASE_/VITE_FIREBASE_/'
-} > "$ENV_FILE"
-ok "settings written to consent-app/.env.production (commit it to point the live site at this project)"
+if [[ -n "$TEST" ]]; then
+  ENV_FILE="$HERE/../.env.test-project"
+  {
+    echo "# Firebase settings for the TEST project $PROJECT, written by firebase/scripts/setup-project.sh (MPMB_TEST_PROJECT=1)."
+    echo "# For the swarm tests only (docs/test-project.md). Never committed: the live site keeps .env.production."
+    echo "$CONFIG" | sed 's/^MPMB_BACKEND=/VITE_MPMB_BACKEND=/; s/^FIREBASE_/VITE_FIREBASE_/'
+  } > "$ENV_FILE"
+  ok "settings written to consent-app/.env.test-project (the live site is not touched)"
+else
+  ENV_FILE="$HERE/../.env.production"
+  {
+    echo "# Firebase settings for the live site, written by firebase/scripts/setup-project.sh."
+    echo "# Public identifiers (they are in the page anyway); access is governed by the security rules. Commit this file."
+    echo "$CONFIG" | sed 's/^MPMB_BACKEND=/VITE_MPMB_BACKEND=/; s/^FIREBASE_/VITE_FIREBASE_/'
+  } > "$ENV_FILE"
+  ok "settings written to consent-app/.env.production (commit it to point the live site at this project)"
+fi
 
 say "9. Deploying the security rules and the Cloud Functions"
 [[ -f "$HERE/functions/.env" ]] || cp "$HERE/functions/.env.example" "$HERE/functions/.env"
@@ -182,7 +203,9 @@ ENQ="$(curl -sS -X POST "https://$REGION-$PROJECT.cloudfunctions.net/enquiry" -H
 if echo "$ENQ" | grep -q '"ok":false'; then ok "enquiry answers (rejects an empty form, as it should)"; else echo "  ✗ enquiry did not answer as expected: $(echo "$ENQ" | head -c 160)"; fi
 
 say "10. Pointing the website at the project"
-if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+if [[ -n "$TEST" ]]; then
+  ok "a test project: the website stays pointed at the live project. Next: docs/test-project.md, step 3."
+elif command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   (cd "$HERE/../.." && git add consent-app/.env.production && git -c user.name="setup-project" -c user.email="setup@myphonemybrain.com" commit -q -m "Point the live site at the Firebase project" && git push -q) && ok "committed and pushed consent-app/.env.production; the site is rebuilding: https://github.com/$REPO/actions"
 else
   echo "  Commit consent-app/.env.production to the repository, or paste its contents to Claude, who can. Its contents:"
