@@ -90,23 +90,23 @@ test('who can book what: nothing until the data is in, then both visits together
   assert.deepEqual(bookingState({ consentId: 'c', screenshotCount: 1, archiveCount: 1 }, [], now).toBook, [1, 2]);
 });
 
-test('the days each visit can be on: the second 28 to 35 days after the first', () => {
+test('the days each visit can be on: the second 30 to 35 days after the first, once the break is over', () => {
   const now = new Date('2026-10-01T12:00:00Z');
-  assert.deepEqual(labBooking.visit2AfterDays, { min: 28, max: 35 });
+  assert.deepEqual(labBooking.visit2AfterDays, { min: 30, max: 35 });
   assert.deepEqual(visitWindow(1, null, now), { from: '2026-10-01', to: addDays('2026-10-01', labBooking.horizonDays) });
-  assert.deepEqual(visitWindow(2, null, now), { from: '2026-10-29', to: addDays(addDays('2026-10-01', labBooking.horizonDays), 35) });
-  assert.deepEqual(visitWindow(2, new Date('2026-10-14T09:00:00Z'), now), { from: '2026-11-11', to: '2026-11-18' });
-  // A first visit moved against a second that stays: 28 to 35 days before it, never in the past.
-  assert.deepEqual(visitWindow(1, new Date('2026-11-13T10:00:00Z'), now), { from: '2026-10-09', to: '2026-10-16' });
-  assert.deepEqual(visitWindow(1, new Date('2026-11-01T10:00:00Z'), now), { from: '2026-10-01', to: '2026-10-04' });
-  // The page's lists: the second visit's from 28 days on, or sooner after a first visit already held.
+  assert.deepEqual(visitWindow(2, null, now), { from: '2026-10-31', to: addDays(addDays('2026-10-01', labBooking.horizonDays), 35) });
+  assert.deepEqual(visitWindow(2, new Date('2026-10-14T09:00:00Z'), now), { from: '2026-11-13', to: '2026-11-18' });
+  // A first visit moved against a second that stays: 30 to 35 days before it, never in the past.
+  assert.deepEqual(visitWindow(1, new Date('2026-11-13T10:00:00Z'), now), { from: '2026-10-09', to: '2026-10-14' });
+  assert.deepEqual(visitWindow(1, new Date('2026-11-01T10:00:00Z'), now), { from: '2026-10-01', to: '2026-10-02' });
+  // The page's lists: the second visit's from 30 days on, or sooner after a first visit already held.
   const ready = { consentId: 'c', screenshotCount: 1, archiveCount: 1 };
-  assert.deepEqual(offerWindows(bookingState(ready, [], now), now)[2].from, '2026-10-29');
-  assert.deepEqual(offerWindows(bookingState(ready, [booking({ status: 'attended', start: new Date('2026-09-20T09:00:00Z') })], now), now)[2].from, '2026-10-18');
+  assert.deepEqual(offerWindows(bookingState(ready, [], now), now)[2].from, '2026-10-31');
+  assert.deepEqual(offerWindows(bookingState(ready, [booking({ status: 'attended', start: new Date('2026-09-20T09:00:00Z') })], now), now)[2].from, '2026-10-20');
   assert.deepEqual(offerWindows(bookingState(ready, [booking({ status: 'attended', start: new Date('2026-08-01T09:00:00Z') })], now), now)[2].from, '2026-10-01');
-  assert.deepEqual(offerWindows(bookingState(ready, [booking()], now), now)[2].from, '2026-10-29');
+  assert.deepEqual(offerWindows(bookingState(ready, [booking()], now), now)[2].from, '2026-10-31');
   // Near midnight the UK date counts, not the UTC one: 23:30 UTC on 30 June is 1 July in Leeds.
-  assert.equal(visitWindow(2, new Date('2026-06-30T23:30:00Z'), now).from, '2026-07-29');
+  assert.equal(visitWindow(2, new Date('2026-06-30T23:30:00Z'), now).from, '2026-07-31');
 });
 
 test('a slot can take a visit only when open, not full, for that visit, with notice, in the window', () => {
@@ -124,8 +124,8 @@ test('a slot can take a visit only when open, not full, for that visit, with not
   assert.equal(slotProblem(slot({ start: new Date('2026-11-13T10:00:00Z') }), 2, { from: '2026-11-11', to: '2026-11-18' }, now), null);
   assert.equal(slotProblem(slot({ start: new Date('2026-11-18T22:30:00Z') }), 2, { from: '2026-11-11', to: '2026-11-18' }, now), null, 'the last day counts until midnight UK time');
   const late = slotProblem(slot({ start: new Date('2026-11-20T10:00:00Z') }), 2, { from: '2026-11-11', to: '2026-11-18' }, now)!;
-  assert.equal(late, 'Your second visit needs to be 28 to 35 days after your first: between Wednesday 11 November 2026 and Wednesday 18 November 2026.');
-  assert.match(slotProblem(slot({ start: new Date('2026-10-20T09:00:00Z') }), 1, { from: '2026-10-09', to: '2026-10-16' }, now)!, /first visit needs to be 28 to 35 days before your second/);
+  assert.equal(late, 'Your second visit needs to be 30 to 35 days after your first: between Wednesday 11 November 2026 and Wednesday 18 November 2026.');
+  assert.match(slotProblem(slot({ start: new Date('2026-10-20T09:00:00Z') }), 1, { from: '2026-10-09', to: '2026-10-16' }, now)!, /first visit needs to be 30 to 35 days before your second/);
 });
 
 test('visit reminders: due times, texts only in the daytime, nothing after a late booking or too close to the visit', () => {
@@ -160,7 +160,7 @@ test('break-time messages: weekly check-ins and the end of the break, on their d
   assert.equal(journeyAction(checkIn1, ctx, new Date(due.getTime() + 2 * D)), 'skip-stale');
   assert.equal(journeyAction(checkIn1, { ...ctx, lastCheckInAt: new Date(due.getTime() - D) }, due), 'skip-unless');
   assert.equal(journeyAction(checkIn1, { ...ctx, lastCheckInAt: new Date(due.getTime() - 4 * D) }, due), 'send');
-  // A second visit 28 days on: the day-28 check-in and the day-30 message give way to the visit's own reminders.
+  // A second visit 28 days on (the team can book any day): the day-28 check-in and the day-30 message give way to the visit's own reminders.
   const end = labJourneyMessages.find((m) => m.id === 'end-of-break')!;
   const checkIn4 = labJourneyMessages.find((m) => m.id === 'check-in-4')!;
   const early2 = booking({ id: 'b2', visit: 2, start: new Date('2026-11-11T10:00:00Z'), end: new Date('2026-11-11T12:00:00Z') });

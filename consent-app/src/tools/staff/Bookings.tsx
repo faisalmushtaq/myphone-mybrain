@@ -153,7 +153,7 @@ export function Bookings({ staff }: { staff: Staff }) {
         <h2 className="mpmb-h3" id="bookings-for">
           Book someone in
         </h2>
-        <p className="mpmb-hint">One visit at a time: for example, a visit arranged by email. If the participant already has that visit booked, it moves to the new time. The team can book at short notice and outside the 28 to 35 days; the participant needs consent on file. The confirmation lists both visits. Leave email and mobile empty to use the ones on file.</p>
+        <p className="mpmb-hint">One visit at a time: for example, a visit arranged by email. If the participant already has that visit booked, it moves to the new time. The team can book at short notice and outside the 30 to 35 days; the participant needs consent on file. The confirmation lists both visits. Leave email and mobile empty to use the ones on file.</p>
         <div className="mpmb-tools__grid">
           <TextField id="for-code" label="Participant ID" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="mpmb-input--upper" />
           <SelectField id="for-visit" label="Visit" value={form.visit} onChange={(e) => setForm({ ...form, visit: e.target.value || '1' })} placeholder="First visit" options={[{ value: '2', label: 'Second visit' }]} />

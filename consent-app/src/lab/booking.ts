@@ -8,7 +8,7 @@
  * break, then the visits. Nothing can be booked until the screenshots and at
  * least one app's cleaned data have arrived, because the team cannot use a
  * visit without them. Both visits are then booked at the same sitting, so
- * people commit to both: the second ends the break, 28 to 35 days after the
+ * people commit to both: the second ends the break, 30 to 35 days after the
  * first (docs/decisions.md, 7 October 2026).
  *
  * Times are UK times (Europe/London) everywhere: on the page, in the emails
@@ -34,8 +34,12 @@ export const labBooking = {
   ] as LabVisit[],
   /** Length of a visit, unless a slot says otherwise. */
   minutes: 120,
-  /** The second visit ends the 30-day break: this many days after the first (inclusive, UK dates). Both are booked together. */
-  visit2AfterDays: { min: 28, max: 35 },
+  /**
+   * The second visit comes once the 30-day break is over: 30 to 35 days after the first (inclusive, UK dates), so the
+   * break is always the full 30 days (17 October 2026; it was 28 to 35, which could cut the break short). Both are
+   * booked together.
+   */
+  visit2AfterDays: { min: 30, max: 35 },
   /** A slot must start at least this long after it is booked online. */
   minNoticeHours: 24,
   /** Lab hours, UK time (14 October 2026): every visit starts at `from` or later and is over by `until`, so a two-hour visit starts by 15:00. */

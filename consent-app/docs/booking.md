@@ -5,7 +5,7 @@ order: **consent, then the data from before the break, then both visits**.
 Nothing can be booked until the screenshots and at least one app's cleaned
 data have arrived (the team cannot use a visit without them). Then both
 visits are booked **at the same sitting**, so people commit to both: the
-first starts the 30-day break and the second, **28 to 35 days later**, ends
+first starts the 30-day break and the second, **30 to 35 days later**, comes once it is over; it
 it (decided 7 October 2026, `decisions.md`).
 
 Everything after that runs by itself: confirmations with a calendar file per
@@ -16,9 +16,9 @@ break, and the end-of-break message.
 
 | Where | What |
 | --- | --- |
-| `/break/take-part/`, the summary at the end | Once the data is in: **Book your two lab visits** → choose the first visit's time; the second visit's times then show, only those 28 to 35 days after it; **Book both visits** |
+| `/break/take-part/`, the summary at the end | Once the data is in: **Book your two lab visits** → choose the first visit's time; the second visit's times then show, only those 30 to 35 days after it; **Book both visits** |
 | `/break/check-in/` and `/break/after/`, the summary | The visits still to come (or, if a visit was missed or cancelled, booking it again) |
-| `/break/book/` (its own page; the personal link in every email) | Both visits: add to calendar (`.ics` file or Google Calendar); **Change my times** (keep either time or choose a new one; the second must still be 28 to 35 days after the first); **Cancel your visits** (cancels both; to take part they book both again) |
+| `/break/book/` (its own page; the personal link in every email) | Both visits: add to calendar (`.ics` file or Google Calendar); **Change my times** (keep either time or choose a new one; the second must still be 30 to 35 days after the first); **Cancel your visits** (cancels both; to take part they book both again) |
 
 The **mobile number** is asked for at sign-up, on the first page with the
 four details (it is not part of the participant ID), and is **required**: the
@@ -132,7 +132,7 @@ closed:
   participant, emailed with a calendar cancellation, or silently), and
   **Book someone in**, one visit at a time (for example a time arranged by
   email; if that visit is already booked it moves; the team is not held to
-  the notice, the 28 to 35 days or the data check).
+  the notice, the 30 to 35 days or the data check).
 - **Participants**: everyone with consent, where they stand (files, visits,
   check-ins, stories), and one participant in detail: the messages sent,
   stopping or restarting their automatic messages, their **personal
@@ -204,5 +204,5 @@ the research table `participants.tsv` gains `visit1_on`, `visit1_status`,
 
 In `src/lab/booking.ts`: the building and room (people are met at the main
 entrance of the School of Psychology), the notice (24 hours) and the
-cut-off for online changes (24 hours). The second visit's 28 to 35 days
+cut-off for online changes (24 hours). The second visit's 30 to 35 days
 may change later (`visit2AfterDays`). See `content-placeholders.md`.

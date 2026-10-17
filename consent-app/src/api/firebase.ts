@@ -125,10 +125,19 @@ export class FirebaseConsentApi implements ConsentApi {
     return this.signingIn;
   }
 
+  /** Signs in (or finds the user this browser already has), tried again quietly on a dropped connection like a safe call. */
   async startSession(): Promise<SessionInfo> {
-    const user = await this.user();
-    const token = await user.getIdTokenResult();
-    return { sessionId: user.uid, csrfToken: '', expiresAt: token.expirationTime };
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const user = await this.user();
+        const token = await user.getIdTokenResult();
+        return { sessionId: user.uid, csrfToken: '', expiresAt: token.expirationTime };
+      } catch (error) {
+        const mapped = mapError(error);
+        if (attempt >= RETRY_WAITS_MS.length || (mapped.code !== 'network' && mapped.code !== 'server')) throw mapped;
+        await new Promise((r) => setTimeout(r, RETRY_WAITS_MS[attempt]));
+      }
+    }
   }
 
   async requestUploadSlot(sessionId: string, meta: UploadMeta): Promise<UploadSlot> {
@@ -173,12 +182,13 @@ export class FirebaseConsentApi implements ConsentApi {
    * seconds before the page is told: on a poor mobile signal one failed request is common (the swarm test, 17 October 2026).
    */
   private async call<Req, Res>(session: SessionInfo, name: string, payload: Req, retry = false): Promise<Res> {
-    const user = await this.user();
-    if (user.uid !== session.sessionId) throw new ApiError('expired', 'Your session has changed. Please try again.');
     const fn = httpsCallable<Req, Res>(this.functions, name, { timeout: 120_000 });
     const waits = retry ? RETRY_WAITS_MS : [];
     for (let attempt = 0; ; attempt += 1) {
       try {
+        // Signing in is part of the try: on a new device it is the first request, and can fail like any other.
+        const user = await this.user();
+        if (user.uid !== session.sessionId) throw new ApiError('expired', 'Your session has changed. Please try again.');
         const result = await fn(payload);
         return result.data;
       } catch (error) {

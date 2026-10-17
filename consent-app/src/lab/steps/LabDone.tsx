@@ -58,9 +58,9 @@ function VisitsCard({ onBook }: { onBook: () => void }) {
         <h2 className="mpmb-h3">{bookBoth ? 'Book your two lab visits.' : `Book your ${visitName(missing!)}.`}</h2>
         <p>
           {bookBoth
-            ? `Your data from before the break is in, so you can book your visits now, both together: the first starts your 30-day break, and the second, ${gap.min} to ${gap.max} days later, ends it. Each takes about two hours.`
+            ? `Your data from before the break is in, so you can book your visits now, both together: the first starts your 30-day break, and the second is once the break is over, ${gap.min} to ${gap.max} days after the first. Each takes about two hours.`
             : missing === 2
-              ? `Your second visit ends your break, ${gap.min} to ${gap.max} days after the first. Choose a time for it now, so it is in your calendar.`
+              ? `Your second visit is once your 30-day break is over, ${gap.min} to ${gap.max} days after the first. Choose a time for it now, so it is in your calendar.`
               : 'Choose a new time for your first visit.'}
         </p>
         <Button variant="primary" arrow onClick={onBook}>

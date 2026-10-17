@@ -141,7 +141,7 @@ async function inner() {
   };
   const slots = [
     ...Array.from({ length: SLOTS_PER_VISIT }, (_, k) => ({ start: nineUtc(10 + k).toISOString(), minutes: 120, capacity: SPACES, visit: 1 })),
-    ...Array.from({ length: SLOTS_PER_VISIT }, (_, k) => ({ start: nineUtc(41 + k).toISOString(), minutes: 120, capacity: SPACES, visit: 2 })),
+    ...Array.from({ length: SLOTS_PER_VISIT }, (_, k) => ({ start: nineUtc(42 + k).toISOString(), minutes: 120, capacity: SPACES, visit: 2 })),
   ];
   const added = await staffCall({ action: 'add-slots', slots });
   if (added.result?.created !== slots.length) throw new Error(`Could not add the lab times: ${JSON.stringify(added)}`);

@@ -413,7 +413,8 @@ async function inner() {
       } else if (f.journey === 'parent-phone' || f.journey === 'leaves-unsent') {
         await t('screenshots', async () => {
           await page.getByRole('heading', { name: /screen time from your phone/ }).waitFor();
-          await page.getByRole('radio', { name: 'Android' }).check();
+          // A banner appearing as they tap can move the page: they tap again.
+          await page.getByRole('radio', { name: 'Android' }).check().catch(() => page.getByRole('radio', { name: 'Android' }).check());
           const n = f.journey === 'leaves-unsent' ? 1 : 2;
           await page.locator('input[type=file]').first().setInputFiles(Array.from({ length: n }, (_, k) => ({ name: `s${k}.png`, mimeType: 'image/png', buffer: png })));
           await page.waitForFunction((n) => document.querySelectorAll('.mpmb-upload').length === n, n);

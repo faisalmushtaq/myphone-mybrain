@@ -26,7 +26,7 @@ import { isObj, str, validateClient, type ClientInfo } from './validate.js';
  *
  * Nothing can be booked until the data from before the break has arrived
  * (labBooking.requires); then both visits are booked together, the second
- * 28 to 35 days after the first (docs/decisions.md). Every booking, change
+ * 30 to 35 days after the first (docs/decisions.md). Every booking, change
  * and cancellation is emailed to the participant with a calendar file per
  * visit and copied to Miftah and the team inbox (labBooking.copyTo);
  * reminders go by email and, for people who asked, by text. Every quarter of
@@ -142,9 +142,9 @@ export function bookingState(participant: DocumentData | undefined, bookings: Bo
 const GAP = labBooking.visit2AfterDays;
 
 /**
- * The UK dates a visit can be on: the first from today; the second 28 to 35
+ * The UK dates a visit can be on: the first from today; the second 30 to 35
  * days after the first; and, when only the first is being chosen against a
- * second that stays, 28 to 35 days before it.
+ * second that stays, 30 to 35 days before it.
  */
 export function visitWindow(visit: Visit, other: Date | null, now: Date): { from: string; to: string } {
   const today = ukDate(now);
@@ -481,7 +481,7 @@ export interface PlaceResult {
 /**
  * Books visits in one transaction. A participant books both visits together
  * (or the one a missed or cancelled visit left), with consent and the data
- * from before the break in, the second 28 to 35 days after the first, each
+ * from before the break in, the second 30 to 35 days after the first, each
  * at least 24 hours ahead; choosing a new time for a visit already booked
  * moves it (up to 24 hours before). The team may book any open time with
  * room, one visit at a time, without the notice, window or data checks.
@@ -661,7 +661,7 @@ export const labBookingOptions = onCall(callOptions, async (request) => {
   const bookings = await bookingsOf(db, code);
   const state = bookingState(participant, bookings, now);
   const anyBooked = Boolean(state.active[1] || state.active[2]);
-  // Open times for each visit, widely: the page narrows the second to 28 to 35 days after the first chosen (or kept).
+  // Open times for each visit, widely: the page narrows the second to 30 to 35 days after the first chosen (or kept).
   const offer = !state.missing.length && (state.toBook.length || anyBooked);
   const windows = offerWindows(state, now);
   const [first, second] = offer ? await Promise.all([openSlots(db, 1, windows[1], now), openSlots(db, 2, windows[2], now)]) : [[], []];

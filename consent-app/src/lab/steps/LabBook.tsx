@@ -106,7 +106,7 @@ const both = (xs: { start: string; end: string }[]) => xs.map((b) => `${ukDayYea
 
 /**
  * Booking the two lab visits, together: the first starts the 30-day break
- * and the second, 28 to 35 days later, ends it, and taking part means coming
+ * and the second comes once it is over, 30 to 35 days later, and taking part means coming
  * to both. Nothing can be booked until the data from before the break has
  * arrived. People choose the first visit, then the second from the times that
  * fit; the booking is emailed with a calendar file per visit and copied to
@@ -183,12 +183,12 @@ export function LabBook() {
   };
   const slotOf = (v: LabVisit, id: string | null) => (id && id !== KEEP ? (options?.slots[v].find((s) => s.slotId === id) ?? null) : null);
 
-  // The first visit's times: any, unless the second stays where it is, when 28 to 35 days before it.
+  // The first visit's times: any, unless the second stays where it is, when 30 to 35 days before it.
   const fixed2 = role(2) === 'fixed' ? current(2) : null;
   const list1 = !options ? [] : fixed2 ? options.slots[1].filter((s) => onDays(s.start, firstVisitDays(fixed2.start, gap))) : options.slots[1];
   const valid1 = role(1) === 'fixed' || (choice[1] === KEEP ? role(1) === 'keep' : list1.some((s) => s.slotId === choice[1]));
   const firstStart = role(1) === 'fixed' ? current(1)!.start : !valid1 ? null : choice[1] === KEEP ? current(1)!.start : slotOf(1, choice[1])!.start;
-  // The second visit's times: 28 to 35 days after the first, chosen or kept.
+  // The second visit's times: 30 to 35 days after the first, chosen or kept.
   const days2 = firstStart ? secondVisitDays(firstStart, gap) : null;
   const list2 = days2 && options ? options.slots[2].filter((s) => onDays(s.start, days2)) : [];
   const keep2 = role(2) === 'keep' && days2 && onDays(current(2)!.start, days2) ? current(2) : null;
@@ -351,7 +351,7 @@ export function LabBook() {
       <div className="mpmb-booking__visit" key={v}>
         <h3 className="mpmb-h3">{heading}</h3>
         <p>
-          {info} It is {gap.min} to {gap.max} days after the first{days2 ? `: between ${ukDateWords(days2.from)} and ${ukDateWords(days2.to)}` : ''}.
+          {info} It is once your 30-day break is over: {gap.min} to {gap.max} days after the first{days2 ? `: between ${ukDateWords(days2.from)} and ${ukDateWords(days2.to)}` : ''}.
         </p>
         {!days2 ? (
           <p className="mpmb-hint" id="lab-slot-2" tabIndex={-1}>
@@ -482,7 +482,7 @@ export function LabBook() {
           </h2>
           {toBook.length === 2 && !changing && (
             <p>
-              Your first visit starts your 30-day social media break; your second, {gap.min} to {gap.max} days later, ends it. Please book both now: taking part means coming to both.
+              Your first visit starts your 30-day social media break. Your second visit is once the break is over: {gap.min} to {gap.max} days after the first. Please book both now: taking part means coming to both.
             </p>
           )}
           {changing && <p>Keep either time or choose a new one. The second visit needs to be {gap.min} to {gap.max} days after the first.</p>}

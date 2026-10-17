@@ -48,13 +48,13 @@ describe('lab visit times', () => {
     expect(url.searchParams.get('details')).toContain('MP2670FF90A5F2');
   });
 
-  it('the second visit: 28 to 35 days after the first, by UK date', () => {
+  it('the second visit: 30 to 35 days after the first, once the break is over, by UK date', () => {
     const gap = labBooking.visit2AfterDays;
-    expect(gap).toEqual({ min: 28, max: 35 });
-    expect(secondVisitDays('2026-10-14T09:00:00.000Z', gap)).toEqual({ from: '2026-11-11', to: '2026-11-18' });
+    expect(gap).toEqual({ min: 30, max: 35 });
+    expect(secondVisitDays('2026-10-14T09:00:00.000Z', gap)).toEqual({ from: '2026-11-13', to: '2026-11-18' });
     // 23:30 UTC on 30 June is already 1 July in Leeds.
-    expect(secondVisitDays('2026-06-30T23:30:00.000Z', gap).from).toBe('2026-07-29');
-    expect(firstVisitDays('2026-11-13T10:00:00.000Z', gap)).toEqual({ from: '2026-10-09', to: '2026-10-16' });
+    expect(secondVisitDays('2026-06-30T23:30:00.000Z', gap).from).toBe('2026-07-31');
+    expect(firstVisitDays('2026-11-13T10:00:00.000Z', gap)).toEqual({ from: '2026-10-09', to: '2026-10-14' });
     expect(onDays('2026-11-18T22:30:00.000Z', { from: '2026-11-11', to: '2026-11-18' })).toBe(true);
     expect(onDays('2026-11-19T00:30:00.000Z', { from: '2026-11-11', to: '2026-11-18' })).toBe(false);
     // Across the clocks going back: still whole days.

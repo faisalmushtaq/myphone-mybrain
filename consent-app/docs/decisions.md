@@ -130,7 +130,7 @@ part without a birthday check (the parent is trusted to send it only to them).
 
 | Decision | Where |
 | --- | --- |
-| Participants book **both** lab visits at the first sitting, committing to both; the second is **28 to 35 days** after the first. (May change later.) | `src/lab/booking.ts`, the booking page, `booking.ts` in the functions |
+| Participants book **both** lab visits at the first sitting, committing to both; the second is **30 to 35 days** after the first, once the 30-day break is over (17 October 2026: it was 28 to 35, which could cut the approved 30-day break short and read as inconsistent with it). | `src/lab/booking.ts`, the booking page, `booking.ts` in the functions |
 | Texts through **Twilio**, sender **MyPhoneStdy** (11 characters, letters only: networks reject hyphens and longer names). | Deploy workflow (`MPMB_SMS_FROM`), `docs/booking.md` |
 | Emails come from the study's Gmail; replies go to Miftah; **Miftah and brainpop@leeds.ac.uk are copied** on every booking, change and cancellation. | `src/lab/booking.ts` (`copyTo`) |
 | Before a visit: bring the phone, charged; clean, dry hair with no products; glasses (or contact lenses) if worn; arrive 10 minutes early: the team meets participants at the **main entrance of the School of Psychology**. The building and room stay a placeholder for now. | `src/lab/booking.ts` |

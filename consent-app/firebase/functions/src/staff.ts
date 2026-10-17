@@ -161,7 +161,7 @@ async function overview(db: Firestore) {
   };
 }
 
-/** For a visit still to book while the other stands: the days it can be on (28 to 35 days from the other), as the participant would be offered. */
+/** For a visit still to book while the other stands: the days it can be on (30 to 35 days from the other), as the participant would be offered. */
 function windowsOf(state: BookingState, now: Date): Partial<Record<Visit, { from: string; to: string }>> {
   const out: Partial<Record<Visit, { from: string; to: string }>> = {};
   for (const v of state.toBook) {
