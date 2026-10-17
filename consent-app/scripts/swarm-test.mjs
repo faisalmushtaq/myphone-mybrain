@@ -456,7 +456,7 @@ async function inner() {
           await draw(page, '#assent-signature');
           await page.getByRole('button', { name: 'Sign and continue' }).click();
           await page.getByRole('heading', { name: /Share your screen time/ }).waitFor();
-          await page.getByRole('radio', { name: 'iPhone' }).check();
+          await page.getByRole('radio', { name: 'iPhone' }).check().catch(() => page.getByRole('radio', { name: 'iPhone' }).check());
           await page.locator('input[type=file]').first().setInputFiles([{ name: 'kid.png', mimeType: 'image/png', buffer: png }]);
           await page.waitForFunction(() => document.querySelectorAll('.mpmb-upload').length === 1);
           const send = page.getByRole('button', { name: /Send this screenshot/ });

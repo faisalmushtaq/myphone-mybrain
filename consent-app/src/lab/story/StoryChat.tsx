@@ -319,6 +319,22 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
     </Button>
   ) : null;
 
+  // "Keep this story" tapped while Remi is still showing a rewrite: kept as soon as it has finished, with the story as it
+  // then stands, rather than the tap being lost (the swarm test, 17 October 2026).
+  const [keepWhenReady, setKeepWhenReady] = useState(false);
+  useEffect(() => {
+    if (!keepWhenReady || working) return;
+    setKeepWhenReady(false);
+    if (stage === 'adapt' && chatId && story.trim()) void run({ action: 'finish', chatId, story: story.trim() });
+    // run is recreated each render; the tap is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keepWhenReady, working, stage, chatId, story]);
+  const keep = () => {
+    if (!chatId || busy) return;
+    if (typing) setKeepWhenReady(true);
+    else void run({ action: 'finish', chatId, story: story.trim() });
+  };
+
   if (!open) {
     return (
       <LabShell kicker={labMyStory.name} title="A short chat about your break." intro={<p>MyStory is a chat with {name}, an AI chatbot the research team set up for this study. {name} asks you a few questions, one at a time, then writes back what it heard in three different ways. You pick the one that fits best and can change anything that isn’t right. It takes about fifteen minutes.</p>} hideContinue hideBack width="wide" secondaryAction={leaveButton}>
@@ -473,7 +489,7 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
             </div>
           )}
           {stage === 'adapt' && (
-            <Button variant="primary" block arrow loading={working} disabled={!story.trim()} onClick={() => chatId && void run({ action: 'finish', chatId, story: story.trim() })}>
+            <Button variant="primary" block arrow loading={busy || keepWhenReady} disabled={!story.trim()} onClick={keep}>
               Keep this story
             </Button>
           )}
