@@ -240,7 +240,7 @@ export function useSync() {
       else dispatch({ type: 'images-sent', ids: [...acceptedIds, ...(images ?? s.donation.images).filter((i) => i.status === 'saved').map((i) => i.id)] });
       for (const rejected of result.rejected) {
         const image = uploads.find((i) => i.uploadId === rejected.uploadId);
-        if (image) dispatch({ type: 'update-image', id: image.id, patch: { status: 'failed', uploadId: null, progress: 0, error: rejected.reason } });
+        if (image) dispatch({ type: 'update-image', id: image.id, patch: { status: 'failed', uploadId: null, progress: 0, error: rejected.reason, refused: true } });
       }
       if (auto) {
         if (result.donationId) dispatch({ type: 'donation-unconfirmed', ids: [...(s.donation.unconfirmed ?? []), result.donationId] });

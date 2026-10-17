@@ -30,6 +30,11 @@ export function Check() {
   // The prompt being shown, kept from the moment Finish was pressed (it is marked as shown then, so lastCall no longer offers it).
   const [asking, setAsking] = useState<NonNullable<ReturnType<typeof lastCall>> | null>(null);
   const [finishing, setFinishing] = useState(false);
+  // Finish was pressed but the save hasn't got through yet (17 October 2026): move on by itself once it has.
+  const [finishWhenSaved, setFinishWhenSaved] = useState(false);
+  useEffect(() => {
+    if (finishWhenSaved && submission.consentStage === 'sent' && !dirty) dispatch({ type: 'go-to', stepId: 'done', returnTo: null });
+  }, [finishWhenSaved, submission.consentStage, dirty, dispatch]);
   // Busy only once Finish is pressed (17 October 2026): a save the page makes on its own no longer holds the buttons, since Finish waits for it.
   const saving = finishing;
   const promptRef = useRef<HTMLHeadingElement>(null);
@@ -52,9 +57,18 @@ export function Check() {
     if (submission.consentStage !== 'sent' || dirty) {
       setFinishing(true);
       // The first waits for any save already on its way; the second sends what changed after it began (or nothing, if nothing did).
-      const saved = (await sendConsent()) && (await sendConsent());
+      // Tried three times, a few seconds apart, on a patchy connection; then the save message says so, with "Try again".
+      let saved = null;
+      for (let attempt = 0; attempt < 3 && !saved; attempt += 1) {
+        if (attempt) await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 4000));
+        saved = (await sendConsent()) && (await sendConsent());
+      }
       setFinishing(false);
-      if (!saved) return;
+      if (!saved) {
+        // Still not through: the page keeps trying on its own, and finishes as soon as it is saved.
+        setFinishWhenSaved(true);
+        return;
+      }
     }
     dispatch({ type: 'go-to', stepId: 'done', returnTo: null });
   };
@@ -101,6 +115,11 @@ export function Check() {
           </Button>
         </div>
         {submission.consentStage === 'failed' && <SaveStatus />}
+        {finishWhenSaved && (
+          <p className="mpmb-hint" role="status">
+            Your connection is slow, so this is taking a little longer. Keep this page open: it moves on by itself as soon as everything is saved.
+          </p>
+        )}
       </div>
     );
   }
@@ -118,6 +137,11 @@ export function Check() {
         hideBack
       >
         <SaveStatus />
+        {finishWhenSaved && (
+          <p className="mpmb-hint" role="status">
+            Your connection is slow, so this is taking a little longer. Keep this page open: it moves on by itself as soon as everything is saved.
+          </p>
+        )}
       </StepShell>
     );
   }

@@ -18,6 +18,7 @@ import type { DonationImage } from '../model/types';
 import { useStore } from '../state/context';
 import { useSync } from '../state/useSync';
 import { useUploader } from '../state/useUploader';
+import { imageStore } from '../lib/imageStore';
 
 /** Screenshots left on the page are saved after this long without a change (and at once if the page is hidden or closed). */
 const AUTO_SAVE_AFTER_MS = 45_000;
@@ -37,7 +38,7 @@ const AUTO_SAVE_AFTER_MS = 45_000;
 export function PhoneUse() {
   const { state, dispatch } = useStore();
   const uploader = useUploader();
-  const { sendDonation, reportScreenTimeOff, submission } = useSync();
+  const { sendDonation, reportScreenTimeOff } = useSync();
   const [editing, setEditing] = useState<DonationImage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -66,6 +67,10 @@ export function PhoneUse() {
   // while a screenshot is open to hide parts of it, and not after "Skip the screenshots". Editing or removing a saved
   // screenshot deletes it from the server (useUploader).
   const [autoSaving, setAutoSaving] = useState(false);
+  // After a save that didn't get through, the next try comes sooner, and keeps coming (17 October 2026).
+  const [autoRetry, setAutoRetry] = useState(0);
+  // Waiting to be saved: added, uploaded but not yet saved, or failed on the way while the image is still on this device.
+  const waiting = (i: DonationImage) => i.status === 'pending' || i.status === 'uploaded' || (i.status === 'failed' && !i.refused && Boolean(imageStore.get(i.id)));
   const autoInFlight = useRef(false);
   const skipped = useRef(false);
   const latest = useRef({ images, editing, sending });
@@ -74,7 +79,7 @@ export function PhoneUse() {
   autoSave.current = () => {
     const now = latest.current;
     // Waiting to go: added, or uploaded but not yet saved (a save that failed on a patchy connection is tried again).
-    if (autoInFlight.current || skipped.current || now.editing || now.sending || !now.images.some((i) => i.status === 'pending' || i.status === 'uploaded')) return;
+    if (autoInFlight.current || skipped.current || now.editing || now.sending || !now.images.some(waiting)) return;
     autoInFlight.current = true;
     setAutoSaving(true);
     void (async () => {
@@ -85,18 +90,20 @@ export function PhoneUse() {
       } finally {
         autoInFlight.current = false;
         setAutoSaving(false);
+        // Still something waiting: try again in a little while.
+        window.setTimeout(() => setAutoRetry((n) => (latest.current.images.some(waiting) ? n + 1 : 0)), 0);
       }
     })();
   };
   const pendingKey = images
-    .filter((i) => i.status === 'pending' || i.status === 'uploaded')
-    .map((i) => `${i.id}:${i.size}`)
+    .filter(waiting)
+    .map((i) => `${i.id}:${i.size}:${i.status}`)
     .join();
   useEffect(() => {
     if (!pendingKey || editing || sending) return;
-    const timer = window.setTimeout(() => autoSave.current(), AUTO_SAVE_AFTER_MS);
+    const timer = window.setTimeout(() => autoSave.current(), autoRetry ? 10_000 : AUTO_SAVE_AFTER_MS);
     return () => window.clearTimeout(timer);
-  }, [pendingKey, editing, sending]);
+  }, [pendingKey, editing, sending, autoRetry]);
   useEffect(() => {
     const onHidden = () => {
       if (document.visibilityState === 'hidden') autoSave.current();
@@ -113,7 +120,8 @@ export function PhoneUse() {
   }, []);
 
   useEffect(() => {
-    if (error && images.length && !failed) setError(null);
+    // Only the "add a screenshot" prompt goes away by itself; a failed send stays until the next press.
+    if (error && error.startsWith('Add ') && images.length && !failed) setError(null);
   }, [error, failed, images.length]);
 
   // Fold the instructions away once the first image arrives (they can be reopened).
@@ -151,14 +159,22 @@ export function PhoneUse() {
     setError(null);
     setSending(true);
     try {
-      const { ok, images: fresh } = await uploader.uploadPending();
-      if (!ok) {
-        setError('One of your images did not upload. Try again, or remove it.');
-        return;
+      // On a patchy connection a send is tried three times, a few seconds apart, before the page says it didn't work
+      // (found by the failure test, 17 October 2026: a send that failed once said nothing, and the page sat there).
+      let result: Awaited<ReturnType<typeof sendDonation>> = null;
+      let problem: string | null = null;
+      for (let attempt = 0; attempt < 3 && !result; attempt += 1) {
+        if (attempt) await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 4000));
+        const { ok, images: fresh } = await uploader.uploadPending();
+        if (!ok) {
+          problem = 'One of your images did not upload. Check your connection, then press Send again, or remove it.';
+          continue;
+        }
+        result = await sendDonation(fresh.map((i) => (acknowledged.includes(i.id) ? { ...i, acknowledged: true } : i)));
+        if (!result) problem = 'The screenshots could not be sent just now. Check your connection, then press Send again: nothing you have added is lost.';
       }
-      const result = await sendDonation(fresh.map((i) => (acknowledged.includes(i.id) ? { ...i, acknowledged: true } : i)));
       if (!result) {
-        setError(submission.consentError ?? submission.donationError ?? 'The screenshots could not be sent. Please try again.');
+        setError(problem);
         return;
       }
       if (result.rejected.length) {

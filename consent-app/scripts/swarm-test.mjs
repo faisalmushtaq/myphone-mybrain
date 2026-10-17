@@ -31,6 +31,14 @@ const PORT = 8440;
 const FAMILIES = Number(process.env.SWARM_FAMILIES ?? 120);
 const AT_ONCE = Number(process.env.SWARM_AT_ONCE ?? 20);
 const REPORT = process.env.SWARM_REPORT ?? path.join(process.cwd(), 'swarm-report.json');
+/**
+ * SWARM_CHAOS=1: things go wrong, as on real phones. Of the requests to the backend, about 8% are dropped before they
+ * arrive, 5% reach the server but the answer never comes back (the server did the work; the phone doesn't know), and 5%
+ * get a server error. Some families lose their connection for a few seconds while sending screenshots, and some close the
+ * page straight after pressing Send. The parents do what parents do: when the page says something went wrong and offers
+ * "Try again", they tap it. Then the same strict checks: one record each, holding everything that got through.
+ */
+const CHAOS = process.env.SWARM_CHAOS === '1';
 
 /** The journeys, and how often each happens (out of 100). */
 const JOURNEYS = [
@@ -148,6 +156,10 @@ async function inner() {
       // Misbehaviour on top of the journey.
       doubleTap: i % 7 === 3,
       refresh: i % 9 === 4,
+      // Under SWARM_CHAOS: the connection drops for a few seconds while sending, or the page is closed straight after Send.
+      offline: CHAOS && i % 6 === 1,
+      closesMidSend: CHAOS && i % 11 === 5,
+      closed: false,
       code: null,
       ok: false,
       error: null,
@@ -175,11 +187,44 @@ async function inner() {
     const pageErrors = [];
     page.on('pageerror', (e) => pageErrors.push(e.message));
     await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ body: '', contentType: 'text/css' }));
-    // A slow, uneven mobile connection to the backend.
+    // A slow, uneven mobile connection to the backend (and, under SWARM_CHAOS, an unreliable one).
     await page.route(/127\.0\.0\.1:(5001|9099|9199|8080)/, async (r) => {
       await new Promise((res) => setTimeout(res, 50 + Math.random() * 1450));
+      if (CHAOS && r.request().method() !== 'OPTIONS') {
+        const x = Math.random();
+        const fn = r.request().url().includes(':5001/');
+        f.chaos = f.chaos ?? { dropped: 0, lost: 0, failed: 0 };
+        if (x < 0.08) {
+          f.chaos.dropped += 1;
+          return r.abort('failed').catch(() => undefined);
+        }
+        if (fn && x < 0.13) {
+          // The server does the work; the answer is lost on the way back.
+          f.chaos.lost += 1;
+          await r.fetch().catch(() => undefined);
+          return r.abort('failed').catch(() => undefined);
+        }
+        if (fn && x < 0.18) {
+          f.chaos.failed += 1;
+          return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { status: 'INTERNAL', message: 'Simulated server error' } }) }).catch(() => undefined);
+        }
+      }
       await r.continue().catch(() => undefined);
     });
+    // What a parent does when the page says something went wrong: taps "Try again", or presses Send again.
+    const reflex = CHAOS
+      ? setInterval(async () => {
+          try {
+            const again = page.getByRole('button', { name: /^Try again/ });
+            if ((await again.count()) && (await again.first().isVisible())) await again.first().click({ timeout: 1000 });
+            const sendError = page.locator('.mpmb-error, [role=alert]', { hasText: /could not be sent|did not upload|didn’t save|not been saved|could not be saved|try again/i });
+            const send = page.getByRole('button', { name: /^Send (this|these)/ });
+            if ((await sendError.count()) && (await send.count()) && (await send.first().isEnabled())) await send.first().click({ timeout: 1000 });
+          } catch {
+            /* The page moved on. */
+          }
+        }, 1500)
+      : null;
     const t = async (name, fn) => {
       const s = Date.now();
       await fn();
@@ -267,9 +312,20 @@ async function inner() {
           await send.click();
           // An impatient second tap on Send.
           if (f.doubleTap) await send.click({ timeout: 2000 }).catch(() => undefined);
+          if (f.closesMidSend) {
+            // Closes the page straight after pressing Send, without waiting to see it go.
+            await page.waitForTimeout(400);
+            f.closed = true;
+            return;
+          }
+          if (f.offline) {
+            await context.setOffline(true);
+            await page.waitForTimeout(6000);
+            await context.setOffline(false);
+          }
           await page.getByRole('heading', { name: /Check what you’ve sent/ }).waitFor();
         });
-        if (f.journey === 'parent-phone')
+        if (f.journey === 'parent-phone' && !f.closed)
           await t('finish', async () => {
             await page.getByRole('button', { name: /Everything is right/ }).click();
             await page.getByRole('heading', { name: /^Thank you\.$/ }).waitFor();
@@ -310,6 +366,7 @@ async function inner() {
       const shot = path.join(path.dirname(REPORT), `swarm-fail-${f.i}.png`);
       await page.screenshot({ path: shot, fullPage: true }).catch(() => undefined);
     } finally {
+      if (reflex) clearInterval(reflex);
       f.finished = Date.now();
       await context.close().catch(() => undefined);
     }
@@ -354,9 +411,16 @@ async function inner() {
   const donations = new Map((await db.collection('donations').get()).docs.map((d) => [d.id, d.data()]));
 
   const problems = [];
+  const neverArrived = [];
   for (const f of families) {
     const recs = byName.get(f.first) ?? [];
     const why = (m) => problems.push(`${f.first} (${f.journey}): ${m}`);
+    // Under SWARM_CHAOS a parent who signs, has the save fail on their connection and closes the page seconds later has sent
+    // nothing that reached us: not a loss the site could prevent, and counted apart.
+    if (recs.length === 0 && CHAOS && f.journey === 'stops-after-signing' && (f.chaos?.dropped || f.chaos?.failed)) {
+      neverArrived.push(f.first);
+      continue;
+    }
     if (recs.length !== 1) {
       why(`${recs.length} records${recs.map((r) => ` [${r.id} uid=${String(r.sessionUid).slice(0, 6)} created=${r.createdAt?.toDate?.().toISOString?.() ?? r.createdAt} pid=${String(r.participantId).slice(0, 8)} ${people.get(String(r.participantId))?.lastName} v${r.version}]`).join('')}`);
       continue;
@@ -373,10 +437,18 @@ async function inner() {
       'stops-after-signing': () => s.phoneSource === null && Boolean(s.consentId) && Boolean(s.reminderDueAt),
       'leaves-unsent': () => s.phoneSource === 'parent' && images === 1 && ds.some((d) => d.sendPressed === false),
     }[f.journey];
-    if (!expect()) why(`stored phoneSource=${s.phoneSource} images=${images} imageCount=${s.imageCount}`);
+    // Closed straight after Send: whatever arrived must be whole and consistent (checked for every record below); nothing more is owed.
+    if (f.closed) {
+      if (s.phoneSource !== 'parent' || images > 2) why(`closed mid-send: phoneSource=${s.phoneSource} images=${images}`);
+    } else if (!expect()) why(`stored phoneSource=${s.phoneSource} images=${images} imageCount=${s.imageCount}`);
     if (!people.get(String(s.participantId))?.guardian?.phone) why('no mobile stored');
   }
   check('every family has exactly one record, holding what they did', problems.length === 0, problems.slice(0, 8).join('; '));
+  if (neverArrived.length) say(`note: ${neverArrived.length} famil${neverArrived.length === 1 ? 'y' : 'ies'} closed the page seconds after signing while their connection was failing, so nothing reached the server: ${neverArrived.join(', ')}`);
+  const mismatched = subs.filter((s) => Number(s.imageCount ?? 0) !== (s.donationIds ?? []).reduce((n, id) => n + (donations.get(id)?.images?.length ?? 0), 0));
+  check('every record’s screenshot count matches the screenshots it holds', mismatched.length === 0, mismatched.slice(0, 5).map((s) => `${s.id}: ${s.imageCount}`).join(', '));
+  const uploadIds = [...donations.values()].flatMap((d) => (d.images ?? []).map((i) => i.uploadId));
+  check('no screenshot is stored twice', new Set(uploadIds).size === uploadIds.length, `${uploadIds.length - new Set(uploadIds).size} twice`);
   const codes = subs.map((s) => s.id);
   check('no two families share a reference', new Set(codes).size === codes.length);
   const pids = subs.map((s) => String(s.participantId));
@@ -393,10 +465,10 @@ async function inner() {
   }
   check('every screenshot recorded is stored', missing === 0 && stored > 0, `${stored} stored, ${missing} missing`);
   const [quarantine] = await bucket.getFiles({ prefix: 'quarantine/' });
-  check('nothing left half-uploaded, apart from screenshots never sent', quarantine.length <= families.filter((f) => !f.ok).length * 2, `${quarantine.length} in quarantine`);
+  check('nothing left half-uploaded, apart from screenshots never sent', quarantine.length <= families.filter((f) => !f.ok || f.closed || f.chaos?.lost).length * 2, `${quarantine.length} in quarantine`);
 
   const dash = await dashboardOf(db);
-  const swarmSent = families.filter((f) => f.ok && ['parent-phone', 'child-phone', 'leaves-unsent'].includes(f.journey)).length;
+  const swarmSent = families.filter((f) => f.ok && !f.closed && ['parent-phone', 'child-phone', 'leaves-unsent'].includes(f.journey)).length;
   check('the staff dashboard counts every form and every family that sent screen time', dash.schools.stages[0].n >= families.filter((f) => f.code).length && dash.schools.stages[2].n >= swarmSent, `forms ${dash.schools.stages[0].n}, sent ${dash.schools.stages[2].n}`);
 
   const tx = Date.now();
@@ -417,13 +489,15 @@ async function inner() {
     familiesPerHour: Math.round((FAMILIES / elapsed) * 3600),
     finishedWithoutAProblem: ok.length,
     byJourney: Object.fromEntries(JOURNEYS.map(([j]) => [j, { families: families.filter((f) => f.journey === j).length, ok: ok.filter((f) => f.journey === j).length }])),
-    failures: families.filter((f) => !f.ok).map((f) => ({ family: f.first, journey: f.journey, doubleTap: f.doubleTap, refresh: f.refresh, error: f.error })),
+    chaos: CHAOS ? families.reduce((a, f) => ({ dropped: a.dropped + (f.chaos?.dropped ?? 0), lost: a.lost + (f.chaos?.lost ?? 0), failed: a.failed + (f.chaos?.failed ?? 0), offline: a.offline + (f.offline ? 1 : 0), closedMidSend: a.closedMidSend + (f.closed ? 1 : 0) }), { dropped: 0, lost: 0, failed: 0, offline: 0, closedMidSend: 0 }) : null,
+    failures: families.filter((f) => !f.ok).map((f) => ({ family: f.first, journey: f.journey, doubleTap: f.doubleTap, refresh: f.refresh, offline: f.offline, error: f.error })),
     timings,
     wholeJourney: { median_s: quantile(ok.map((f) => f.finished - f.started), 0.5) / 1000, p95_s: quantile(ok.map((f) => f.finished - f.started), 0.95) / 1000 },
     checks,
   };
   fs.writeFileSync(REPORT, JSON.stringify(report, null, 2));
   say(`\n${ok.length}/${FAMILIES} families finished without a problem in ${Math.round(elapsed)} s (${report.familiesPerHour} an hour at ${AT_ONCE} at once).`);
+  if (report.chaos) say(`Chaos: ${report.chaos.dropped} requests dropped, ${report.chaos.lost} answers lost after the server acted, ${report.chaos.failed} server errors, ${report.chaos.offline} families offline mid-send, ${report.chaos.closedMidSend} pages closed mid-send.`);
   say(`Whole journey: median ${report.wholeJourney.median_s} s, 95th percentile ${report.wholeJourney.p95_s} s.`);
   for (const [n, v] of Object.entries(timings)) say(`  ${n.padEnd(13)} median ${v.median_s.toFixed(1)} s · 95% ${v.p95_s.toFixed(1)} s · slowest ${v.max_s.toFixed(1)} s`);
   for (const x of report.failures.slice(0, 15)) say(`  problem: ${x.family} ${x.journey}${x.doubleTap ? ' (double tap)' : ''}${x.refresh ? ' (refresh)' : ''}: ${x.error}`);

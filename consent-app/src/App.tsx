@@ -111,11 +111,27 @@ function SyncManager() {
       state.resume.canAgree && stepId === 'phone-use' && ready && consentStage === 'idle'
     : ready && (consentStage === 'idle' || (consentStage === 'sent' && dirty) || (consentStage === 'failed' && snapshot !== failedOn.current));
   const dueRef = useRef(due);
-  dueRef.current = due;
+  // Leaving the page also tries a failed save again.
+  dueRef.current = due || (consentStage === 'failed' && ready && !state.resume);
 
   useEffect(() => {
     if (consentStage === 'failed') usage.saveFailed();
   }, [consentStage]);
+
+  // A save that failed is tried again on its own, sooner then less often, for as long as the page is open (found by the
+  // failure test, 17 October 2026: before, it was tried again only when something changed, so a parent who signed and moved
+  // on, or closed the page, could leave nothing saved). "Try again" still shows, for anyone who'd rather tap.
+  const retries = useRef(0);
+  useEffect(() => {
+    if (consentStage === 'sent') retries.current = 0;
+    if (consentStage !== 'failed' || !ready || state.resume) return;
+    const wait = [2000, 5000, 10000, 20000, 40000][retries.current] ?? 60000;
+    const timer = window.setTimeout(() => {
+      retries.current += 1;
+      void sendConsent();
+    }, wait);
+    return () => window.clearTimeout(timer);
+  }, [consentStage, ready, state.resume, sendConsent]);
 
   useEffect(() => {
     if (!due) return;

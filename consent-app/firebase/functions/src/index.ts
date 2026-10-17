@@ -102,12 +102,28 @@ export const submitConsent = onCall(callOptions, async (request) => {
     code = payload.referenceCode;
     participantRef = db.collection('participants').doc(previous.participantId as string);
   } else {
-    // The same form's first save, already made (the page was refreshed while it was on its way): update that record, never a second one.
-    const same = payload.draftId ? await db.collection('submissions').where('sessionUid', '==', uid).where('draftId', '==', payload.draftId).limit(1).get() : null;
-    if (same && !same.empty) {
-      previous = same.docs[0].data();
-      code = same.docs[0].id;
-      participantRef = db.collection('participants').doc(previous.participantId as string);
+    // The same form's first save, already made or on its way (the page was refreshed, or its answer was lost, and it saved
+    // again): update that record, never a second one. The draft is claimed in a transaction (17 October 2026: two first saves
+    // arriving together both found nothing and both made a record), so only one save ever makes it.
+    if (payload.draftId) {
+      const draftRef = db.collection('drafts').doc(`${uid}_${payload.draftId}`);
+      const candidate = await unusedReferenceCode(db);
+      const candidatePid = db.collection('participants').doc().id;
+      const claim = await db.runTransaction(async (tx) => {
+        const held = (await tx.get(draftRef)).data();
+        if (held) return { code: String(held.referenceCode), participantId: String(held.participantId), first: false };
+        tx.create(draftRef, { referenceCode: candidate, participantId: candidatePid, sessionUid: uid, createdAt: FieldValue.serverTimestamp() });
+        return { code: candidate, participantId: candidatePid, first: true };
+      });
+      code = claim.code;
+      participantRef = db.collection('participants').doc(claim.participantId);
+      if (!claim.first) {
+        // The first save may still be writing: wait a moment for it, then amend it.
+        for (let i = 0; i < 20 && !previous; i += 1) {
+          previous = (await db.collection('submissions').doc(code).get()).data() ?? null;
+          if (!previous) await new Promise((r) => setTimeout(r, 250));
+        }
+      }
     } else {
       code = await unusedReferenceCode(db);
       participantRef = db.collection('participants').doc();
@@ -392,14 +408,23 @@ export const submitDonation = onCall(callOptions, async (request) => {
     if (withdrawn) await submissionRef.update({ imageCount: FieldValue.increment(-withdrawn), updatedAt: FieldValue.serverTimestamp() });
     submission.imageCount = Number(submission.imageCount ?? 0) - withdrawn;
   }
-  if (Number(submission.imageCount ?? 0) + payload.uploads.length > study.maxImages) throw new HttpsError('invalid-argument', `At most ${study.maxImages} images can be sent in total.`);
+  // Screenshots already stored (found by the failure test, 17 October 2026): when the answer to a send is lost on the way back,
+  // the phone sends again. Those are accepted again, never refused as "not uploaded" and never stored twice.
+  const storedBefore = new Map<string, { donationId: string; auto: boolean }>();
+  for (const id of ((submission.donationIds as string[] | undefined) ?? [])) {
+    const before = (await db.collection('donations').doc(id).get()).data();
+    for (const image of (before?.images ?? []) as StoredImage[]) storedBefore.set(image.uploadId, { donationId: id, auto: before?.sendPressed === false });
+  }
+  const again = payload.uploads.filter((u) => storedBefore.has(u.uploadId));
+  const fresh = payload.uploads.filter((u) => !storedBefore.has(u.uploadId));
+  if (Number(submission.imageCount ?? 0) + fresh.length > study.maxImages) throw new HttpsError('invalid-argument', `At most ${study.maxImages} images can be sent in total.`);
 
   const participantId = submission.participantId as string;
   const images: StoredImage[] = [];
   const rejected: { uploadId: string; reason: string }[] = [];
   // Why each refused image was refused, kept for the team (16 October 2026): on the send's record, or on the family's if nothing was kept. Never the image.
   const refused: { uploadId: string; reason: string; reasons: string[]; at: string }[] = [];
-  for (const upload of payload.uploads) {
+  for (const upload of fresh) {
     try {
       images.push(await acceptUpload(uid, participantId, upload));
     } catch (error) {
@@ -447,16 +472,17 @@ export const submitDonation = onCall(callOptions, async (request) => {
 
   // Send pressed: the automatic saves before it are confirmed, with the young person's agreement (given by pressing it).
   const known = new Set<string>((submission.donationIds as string[] | undefined) ?? []);
-  const confirmed = (payload.confirm ?? []).filter((id) => known.has(id));
-  if (confirmed.length || (images.length && !payload.auto)) {
+  // A send again of screenshots the page had saved on its own confirms those saves too.
+  const confirmed = Array.from(new Set([...(payload.confirm ?? []), ...(payload.auto ? [] : again.map((u) => storedBefore.get(u.uploadId)!).filter((x) => x.auto).map((x) => x.donationId))])).filter((id) => known.has(id));
+  if (confirmed.length || ((images.length || again.length) && !payload.auto)) {
     const batch = db.batch();
     for (const id of confirmed) batch.update(db.collection('donations').doc(id), { sendPressed: true, sendPressedAt: receivedAt, agreement: source === 'parent' ? null : payload.agreement, youngPersonAgreedInApp: payload.agreement !== null, updatedAt: FieldValue.serverTimestamp() });
     if (source !== 'parent' && payload.agreement && assent?.status === 'completed' && assent?.responses?.['phone-use']?.response !== 'agreed') batch.update(assentRef, { 'responses.phone-use': payload.agreement, updatedAt: FieldValue.serverTimestamp() });
     await batch.commit();
   }
 
-  logger.info('Screenshots recorded', { referenceCode: payload.referenceCode, donationId, auto: Boolean(payload.auto), confirmed: confirmed.length, withdrawn, accepted: images.length, rejected: rejected.length, review: images.filter((i) => i.quality.verdict === 'review').length });
-  return { donationId, receivedAt: receivedAt.toISOString(), accepted: images.map((i) => i.uploadId), rejected };
+  logger.info('Screenshots recorded', { referenceCode: payload.referenceCode, donationId, auto: Boolean(payload.auto), confirmed: confirmed.length, withdrawn, accepted: images.length, again: again.length, rejected: rejected.length, review: images.filter((i) => i.quality.verdict === 'review').length });
+  return { donationId: donationId ?? (again.length ? storedBefore.get(again[0].uploadId)!.donationId : null), receivedAt: receivedAt.toISOString(), accepted: [...images.map((i) => i.uploadId), ...again.map((u) => u.uploadId)], rejected };
 });
 
 /** Deletes quarantine objects that were never submitted, from both the family app's and the lab study's folders. A bucket lifecycle rule can do the same. */

@@ -221,6 +221,15 @@ export const resumeRecord = onCall(callOptions, async (request) => {
     const participant = (await participantRef.get()).data();
     const assent = submission.assentId ? (await db.collection('assents').doc(String(submission.assentId)).get()).data() : undefined;
     const consent = submission.consentId ? (await db.collection('consents').doc(String(submission.consentId)).get()).data() : undefined;
+    // Asked again because the answer was lost on the way back (17 October 2026): the same choice, already saved, is a success.
+    if (submission.phoneSource === chosen) {
+      const already = resumeSummary(code, submission, participant, assent, undefined);
+      if (typeof participant?.dateOfBirth === 'string') {
+        const [year, month, day] = participant.dateOfBirth.split('-');
+        Object.assign(already, { dateOfBirth: { day: String(Number(day)), month: String(Number(month)), year } });
+      }
+      return already;
+    }
     if (!resumeSummary(code, submission, participant, assent, consent?.responses?.['phone-use']?.response).canChooseSource) throw new HttpsError('failed-precondition', 'Where the screen time comes from has already been chosen for this record.');
     const receivedAt = new Date();
     const version = Number(submission.version ?? 1) + 1;
@@ -252,6 +261,10 @@ export const resumeRecord = onCall(callOptions, async (request) => {
     const participant = (await db.collection('participants').doc(String(submission.participantId)).get()).data();
     const consent = !submission.phoneSource && submission.consentId ? (await db.collection('consents').doc(String(submission.consentId)).get()).data() : undefined;
     const summary = resumeSummary(code, submission, participant, previous, consent?.responses?.['phone-use']?.response);
+    // The same answer, already saved by an earlier send whose answer was lost on the way back (17 October 2026): a success, not an error.
+    if (!summary.canAgree && previous?.late === true && previous?.status === assentIn.status && previous?.sessionUid === uid) {
+      return { referenceCode: code, receivedAt: String(previous.receivedAt?.toDate?.().toISOString?.() ?? new Date().toISOString()), version: Number(submission.version ?? 1), status: assentIn.status };
+    }
     if (!summary.canAgree) throw new HttpsError('failed-precondition', summary.assentStatus === 'completed' ? 'The young person has already agreed: you can add screenshots.' : 'The young person’s agreement cannot be added to this record. Please contact the team.');
 
     const participantId = String(submission.participantId);

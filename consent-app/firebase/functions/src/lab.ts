@@ -657,8 +657,17 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
   const participant = (await participantRef.get()).data();
   if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please give your consent first.');
   const phase = payload.phase as Phase;
-  const archives = payload.uploads.filter((u) => u.kind === 'archive').length;
-  const screenshots = payload.uploads.length - archives;
+  // Files already stored (17 October 2026): when the answer to a send is lost on the way back, the page sends again. Those
+  // are accepted again, never refused as "not uploaded" and never stored twice.
+  const storedBefore = new Set<string>();
+  for (const id of ((participant.donationIds as string[] | undefined) ?? [])) {
+    const before = (await db.collection('labDonations').doc(id).get()).data();
+    for (const f of (before?.files ?? []) as StoredLabFile[]) storedBefore.add(f.uploadId);
+  }
+  const again = payload.uploads.filter((u) => storedBefore.has(u.uploadId)).map((u) => u.uploadId);
+  const fresh = payload.uploads.filter((u) => !storedBefore.has(u.uploadId));
+  const archives = fresh.filter((u) => u.kind === 'archive').length;
+  const screenshots = fresh.length - archives;
   const already = phaseCountsOf(participant)[phase];
   const maxShots = phase === 'mid' ? labStudy.maxCheckInScreenshots : labStudy.maxScreenshots;
   if (already.archives + archives > labStudy.maxArchives) throw new HttpsError('invalid-argument', `At most ${labStudy.maxArchives} cleaned files can be sent ${phase === 'post' ? 'after the break' : 'before the break'}. Contact the team if you need to send more.`);
@@ -673,7 +682,7 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
   const rejected: { uploadId: string; reason: string }[] = [];
   // Why each refused file was refused, kept for the team (16 October 2026): on the send's record, or on the participant's if nothing was kept. Never the file.
   const refused: { uploadId: string; kind: string; phase: string; reason: string; reasons: string[]; at: string }[] = [];
-  for (const upload of payload.uploads) {
+  for (const upload of fresh) {
     try {
       stored.push(await acceptLabUpload(uid, code, upload));
     } catch (error) {
@@ -735,8 +744,8 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
   } else if (refused.length) {
     await participantRef.set({ rejected: FieldValue.arrayUnion(...refused), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   }
-  logger.info('Lab files recorded', { participantCode: code, donationId, accepted: stored.length, rejected: rejected.length });
-  return { donationId, receivedAt: receivedAt.toISOString(), accepted: stored.map((f) => f.uploadId), rejected };
+  logger.info('Lab files recorded', { participantCode: code, donationId, accepted: stored.length, again: again.length, rejected: rejected.length });
+  return { donationId, receivedAt: receivedAt.toISOString(), accepted: [...stored.map((f) => f.uploadId), ...again], rejected };
 });
 
 /**

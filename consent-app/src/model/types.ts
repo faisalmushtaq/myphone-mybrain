@@ -154,6 +154,8 @@ export interface DonationImage {
   quality: ImageQuality | null;
   /** The person looked at a warning and chose to send anyway. */
   acknowledged: boolean;
+  /** The server refused it (not a screen-time page, or unsafe): not tried again on its own. */
+  refused?: boolean;
 }
 
 export type DonationStatus = 'not-started' | 'in-progress' | 'completed' | 'skipped' | 'not-consented' | 'deferred';

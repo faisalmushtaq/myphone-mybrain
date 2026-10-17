@@ -205,7 +205,7 @@ export function useUploader() {
         /* keep previous dimensions */
       }
       const quality = await assessImage(blob).catch(() => image.quality);
-      dispatch({ type: 'update-image', id: image.id, patch: { type: blob.type, size: blob.size, width, height, redacted: image.redacted || flags.redacted, cropped: image.cropped || flags.cropped, status: 'pending', progress: 0, uploadId: null, error: null, quality, acknowledged: false } });
+      dispatch({ type: 'update-image', id: image.id, patch: { type: blob.type, size: blob.size, width, height, redacted: image.redacted || flags.redacted, cropped: image.cropped || flags.cropped, status: 'pending', progress: 0, uploadId: null, error: null, refused: false, quality, acknowledged: false } });
       if (image.status === 'uploaded') dispatch({ type: 'donation-status', status: 'in-progress' });
       announce(flags.redacted ? 'Hidden areas applied.' : 'Crop applied.');
     },
