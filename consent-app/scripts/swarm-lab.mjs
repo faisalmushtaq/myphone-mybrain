@@ -355,14 +355,15 @@ async function inner() {
             break;
           }
           // Everyone goes for the first time offered: the races are the point.
-          await firstTimes.first().click();
+          // The time may go between seeing it and tapping it (someone quicker): look again.
+          if (!(await firstTimes.first().click({ timeout: 10000 }).then(() => true, () => false))) continue;
           const secondTimes = page.locator('#lab-slot-2 .mpmb-slots__time');
           await Promise.race([secondTimes.first().waitFor({ timeout: 30000 }), page.getByText(/No times are open .* days after that first visit|No times are open between/).first().waitFor({ timeout: 30000 })]).catch(() => undefined);
           if (!(await secondTimes.count())) {
             p.booking = 'no-times';
             break;
           }
-          await secondTimes.first().click();
+          if (!(await secondTimes.first().click({ timeout: 10000 }).then(() => true, () => false))) continue;
           if (!filledEmail) {
             await page.getByLabel('Email address').fill(`${p.first.toLowerCase()}@example.com`);
             filledEmail = true;
