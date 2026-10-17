@@ -261,6 +261,11 @@ test('rejects unknown statements and bad shapes', () => {
   assert.ok(validateDonationPayload(42).length === 1);
 });
 
+test('the form’s draft id, when sent, is short and plain', () => {
+  assert.deepEqual(validateConsentPayload({ ...valid(), draftId: 'draft-abc123XYZ0' }), []);
+  assert.ok(validateConsentPayload({ ...valid(), draftId: '../x' }).some((m) => m.includes('draft')));
+});
+
 test('accepts a screenshot record', () => {
   assert.deepEqual(validateDonationPayload(validDonation()), []);
 });

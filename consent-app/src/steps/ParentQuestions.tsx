@@ -87,7 +87,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   // Not every young person has a phone (team feedback, 9 October 2026), so the parent is asked first, before any question about it.
   // "No" gives the no-phone questions (in the longer questions' slot) instead of the quick and the longer ones. Under 16 only: at 16 or
   // over the young person answers for themselves. Not asked again once the quick questions are under way or the screen time is decided.
-  const [saidYes, setSaidYes] = useState(false);
+  const saidYes = Boolean(state.ownPhoneYes);
   const gate = which === 'quick' && !saidYes && (state.phoneSource === 'no-phone' || (phoneSourceApplies(state) && state.phoneSource === null && survey.status === 'not-started'));
 
   useEffect(
@@ -165,7 +165,7 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
     const answer = (has: boolean) => {
       if (has) {
         if (state.phoneSource === 'no-phone') dispatch({ type: 'set-phone-source', source: null });
-        setSaidYes(true);
+        dispatch({ type: 'own-phone-yes' });
         window.requestAnimationFrame(() => questionRef.current?.focus());
         return;
       }

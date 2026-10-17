@@ -60,6 +60,8 @@ export interface ConsentPayload {
   kind: 'consent';
   /** Set when amending a record this session already sent. */
   referenceCode: string | null;
+  /** The form's draft: a first save this session already made is updated, not made again (a refresh mid-save). */
+  draftId?: string;
   studyId: string;
   siteId: string;
   route: 'parent' | 'young';
@@ -244,6 +246,7 @@ export function validateConsentPayload(input: unknown): string[] {
   // Since the workshop became opt-out (7 October 2026) there is no "declined" record: a young person who says no to sharing is part of the parent's record, or nothing is sent.
   if (p.kind !== 'consent') problems.push('Unknown submission kind.');
   if (p.referenceCode !== null && p.referenceCode !== undefined && (typeof p.referenceCode !== 'string' || !REFERENCE_CODE.test(p.referenceCode))) problems.push('The reference code is malformed.');
+  if (p.draftId !== undefined && (typeof p.draftId !== 'string' || !/^[A-Za-z0-9_-]{6,64}$/.test(p.draftId))) problems.push('The draft is malformed.');
   if (p.studyId !== study.studyId) problems.push('Unknown study.');
   if (typeof p.siteId !== 'string' || !study.siteIds.includes(p.siteId)) problems.push('Unknown site.');
   if (p.route !== 'parent' && p.route !== 'young') problems.push('Unknown route.');

@@ -211,6 +211,8 @@ export type SendStage = 'idle' | 'sending' | 'sent' | 'failed';
  */
 export interface SubmissionState {
   referenceCode: string | null;
+  /** Made when the form starts: lets the server recognise a first save it already has (a refresh mid-save), so it never makes a second record. */
+  draftId?: string;
   /** The key in the young person's own link, made once for this record and kept so the same link is shown again. */
   youngLinkKey?: string | null;
   participantId: string | null;
@@ -264,6 +266,8 @@ export interface PrototypeFlags {
 }
 
 export interface AppState {
+  /** The parent said the young person has a phone of their own (kept through a refresh, 17 October 2026). */
+  ownPhoneYes?: boolean;
   route: Route | null;
   stepId: StepId;
   /** A pending device handover to show before `handover.nextStep`. */

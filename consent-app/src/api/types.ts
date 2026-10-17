@@ -44,6 +44,8 @@ export interface ConsentPayload {
   kind: 'consent';
   /** Present when amending a record that was already sent. */
   referenceCode: string | null;
+  /** This form's draft: a first save the server already has is updated, not made again. */
+  draftId?: string;
   studyId: string;
   siteId: string;
   route: 'parent' | 'young';

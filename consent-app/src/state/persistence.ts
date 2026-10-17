@@ -21,6 +21,14 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 type Persisted = Omit<AppState, 'handover' | 'restored' | 'prototype' | 'clearedReason'> & { savedAt: string };
 
+function restoredSubmission(sub: AppState['submission']): AppState['submission'] {
+  return {
+    ...sub,
+    consentStage: sub.consentStage === 'sending' ? (sub.referenceCode ? 'failed' : 'idle') : sub.consentStage,
+    donationStage: sub.donationStage === 'sending' ? 'idle' : sub.donationStage,
+  };
+}
+
 function storage(): Storage | null {
   try {
     return window.sessionStorage;
@@ -68,7 +76,8 @@ export function loadState(): { state: AppState; expired: boolean } | null {
         phoneSource: parsed.phoneSource === 'parent' || parsed.phoneSource === 'child' || parsed.phoneSource === 'none' || parsed.phoneSource === 'no-phone' ? parsed.phoneSource : null,
         more: { ...base.more, ...(parsed.more ?? {}) },
         resume: parsed.resume && typeof parsed.resume.referenceCode === 'string' ? parsed.resume : null,
-        submission: { ...base.submission, ...(parsed.submission ?? {}) },
+        // A save on its way when the page went (a refresh mid-save) is tried again: the server knows the draft, so it never makes a second record.
+        submission: restoredSubmission({ ...base.submission, ...(parsed.submission ?? {}) }),
         prototype: base.prototype,
         handover: null,
         clearedReason: null,

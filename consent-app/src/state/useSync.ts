@@ -26,6 +26,9 @@ export function friendlyError(error: unknown, what: 'permission' | 'screenshots'
   return `Something went wrong and ${thing} could not be saved. Please try again.`;
 }
 
+/** The save of the record on its way, if any: shared by every part of the page (see sendConsent). */
+let pageSave: Promise<ConsentResult | null> | null = null;
+
 export function clientInfo(): ClientInfo {
   return { userAgent: navigator.userAgent.slice(0, 200), submittedAt: new Date().toISOString(), timezoneOffset: new Date().getTimezoneOffset() };
 }
@@ -58,7 +61,7 @@ const blankGuardian: GuardianIdentity = { fullName: '', relationship: '', relati
  * The longer questions go only when they are asked.
  */
 export function buildConsentPayload(state: AppState): ConsentPayload {
-  const base = { referenceCode: state.submission.referenceCode, studyId: study.studyId, siteId: study.siteId, route: state.route ?? ('parent' as const), client: clientInfo() };
+  const base = { referenceCode: state.submission.referenceCode, ...(state.submission.draftId ? { draftId: state.submission.draftId } : {}), studyId: study.studyId, siteId: study.siteId, route: state.route ?? ('parent' as const), client: clientInfo() };
   const alone = youngAlone(state);
   // Not answered yet: the bare record (no ticks, no unconfirmed signature, no times), the same at every save until the young person answers.
   const assent = state.assent.status === 'not-started' ? { ...state.assent, responses: {}, signature: null, handoverConfirmedAt: null, startedAt: null } : state.assent;
@@ -146,6 +149,18 @@ export function useSync() {
 
   /** Returns the result when the record is on the server (already or just now), or null on failure. */
   const sendConsent = useCallback(async (): Promise<ConsentResult | null> => {
+    // One save at a time for the whole page (found by the swarm test, 17 October 2026): the page's own saver and the step on
+    // screen each held a hook of their own, so on a slow connection both could make a new record. A caller that comes while
+    // a save is on its way waits for it, and gets its result.
+    if (pageSave) return pageSave;
+    pageSave = sendNow.current().finally(() => {
+      pageSave = null;
+    });
+    return pageSave;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const sendConsentNow = async (): Promise<ConsentResult | null> => {
     const s = stateRef.current;
     if (consentInFlight.current) return null;
     if (s.resume) return sendLateAnswer(s);
@@ -185,7 +200,9 @@ export function useSync() {
     } finally {
       consentInFlight.current = false;
     }
-  }, [dispatch, sendLateAnswer, withSession]);
+  };
+  const sendNow = useRef(sendConsentNow);
+  sendNow.current = sendConsentNow;
 
   /**
    * Sends every uploaded-but-unsent image. The permission is sent first if it

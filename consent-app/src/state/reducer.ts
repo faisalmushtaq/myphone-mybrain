@@ -3,6 +3,7 @@ import { parentMoreForm, parentNoPhoneForm, parentQuestionsForm } from '../confi
 import { childAssentForm, parentConsentForm } from '../config/statements';
 import type { PlatformId } from '../config/walkthroughs';
 import { todayIso } from '../lib/dates';
+import { clientId } from '../lib/ids';
 import { imageStore } from '../lib/imageStore';
 import { actorFor, buildJourney, isStepComplete, needsHandover, nextStepId, previousStepId, stepDefs } from '../model/journey';
 import type { ResumeSummary } from '../api/types';
@@ -65,7 +66,7 @@ export function initialState(): AppState {
     more: { formId: parentMoreForm.id, formVersion: parentMoreForm.version, status: 'not-started', responses: {}, startedAt: null, completedAt: null },
     resume: null,
     sharePrompted: false,
-    submission: { referenceCode: null, participantId: null, consentStage: 'idle', consentError: null, consentSentAt: null, consentVersion: 0, sentSnapshot: null, donationStage: 'idle', donationError: null, donationsSent: 0, declinedSentAt: null },
+    submission: { referenceCode: null, draftId: clientId('draft'), participantId: null, consentStage: 'idle', consentError: null, consentSentAt: null, consentVersion: 0, sentSnapshot: null, donationStage: 'idle', donationError: null, donationsSent: 0, declinedSentAt: null },
     session: null,
     // Draft-wording markers are part of the preview only, never of a production build.
     prototype: { failUploads: false, failSubmit: false, showDraftMarkers: __PROTOTYPE__ },
@@ -121,6 +122,7 @@ export type Action =
   | { type: 'donation-status'; status: DonationStatus }
   | { type: 'donation-unconfirmed'; ids: string[] }
   | { type: 'screen-time-off' }
+  | { type: 'own-phone-yes' }
   | { type: 'submission'; patch: Partial<SubmissionState> }
   | { type: 'session'; session: SessionInfo | null }
   | { type: 'prototype'; patch: Partial<PrototypeFlags> };
@@ -334,6 +336,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, donation: { ...state.donation, images: state.donation.images.map((img) => (action.ids.includes(img.id) ? { ...img, status: 'sent', progress: 1, error: null } : img)) } };
     case 'donation-status':
       return { ...state, donation: { ...state.donation, status: action.status } };
+    case 'own-phone-yes':
+      return { ...state, ownPhoneYes: true };
     case 'screen-time-off':
       return { ...state, donation: { ...state.donation, screenTimeOff: true, status: state.donation.images.some((i) => i.status === 'sent') ? 'completed' : 'skipped' } };
     case 'donation-unconfirmed':

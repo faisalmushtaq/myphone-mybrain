@@ -102,8 +102,16 @@ export const submitConsent = onCall(callOptions, async (request) => {
     code = payload.referenceCode;
     participantRef = db.collection('participants').doc(previous.participantId as string);
   } else {
-    code = await unusedReferenceCode(db);
-    participantRef = db.collection('participants').doc();
+    // The same form's first save, already made (the page was refreshed while it was on its way): update that record, never a second one.
+    const same = payload.draftId ? await db.collection('submissions').where('sessionUid', '==', uid).where('draftId', '==', payload.draftId).limit(1).get() : null;
+    if (same && !same.empty) {
+      previous = same.docs[0].data();
+      code = same.docs[0].id;
+      participantRef = db.collection('participants').doc(previous.participantId as string);
+    } else {
+      code = await unusedReferenceCode(db);
+      participantRef = db.collection('participants').doc();
+    }
   }
   const participantId = participantRef.id;
 
@@ -264,6 +272,7 @@ export const submitConsent = onCall(callOptions, async (request) => {
     selfConsent,
     phoneSource,
     hashes,
+    ...(payload.draftId ? { draftId: payload.draftId } : {}),
     userAgent: payload.client.userAgent.slice(0, 200),
     answersSavedAt: receivedAt,
     ...(changed ? { versions: FieldValue.arrayUnion({ version, kind: payload.kind, consentId: consentRef?.id ?? null, assentId: assentRef.id, receivedAt }) } : {}),

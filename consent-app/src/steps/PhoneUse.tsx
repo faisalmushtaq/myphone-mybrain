@@ -73,7 +73,8 @@ export function PhoneUse() {
   const autoSave = useRef<() => void>(() => undefined);
   autoSave.current = () => {
     const now = latest.current;
-    if (autoInFlight.current || skipped.current || now.editing || now.sending || !now.images.some((i) => i.status === 'pending')) return;
+    // Waiting to go: added, or uploaded but not yet saved (a save that failed on a patchy connection is tried again).
+    if (autoInFlight.current || skipped.current || now.editing || now.sending || !now.images.some((i) => i.status === 'pending' || i.status === 'uploaded')) return;
     autoInFlight.current = true;
     setAutoSaving(true);
     void (async () => {
@@ -88,7 +89,7 @@ export function PhoneUse() {
     })();
   };
   const pendingKey = images
-    .filter((i) => i.status === 'pending')
+    .filter((i) => i.status === 'pending' || i.status === 'uploaded')
     .map((i) => `${i.id}:${i.size}`)
     .join();
   useEffect(() => {
@@ -121,7 +122,19 @@ export function PhoneUse() {
   }, [hasImages]);
 
   /** `acknowledged` names images the person has just confirmed as right, ahead of the store catching up. */
+  // One send at a time (found by the swarm test, 17 October 2026): a quick second tap on Send, before the button greyed out,
+  // started a second send that uploaded the same screenshots again and left the page stuck.
+  const sendBusy = useRef(false);
   const send = async (acknowledged: string[] = []) => {
+    if (sendBusy.current) return;
+    sendBusy.current = true;
+    try {
+      await sendOnce(acknowledged);
+    } finally {
+      sendBusy.current = false;
+    }
+  };
+  const sendOnce = async (acknowledged: string[]) => {
     setRejectedNote(null);
     if (!unsent.length) {
       if (sentCount) {

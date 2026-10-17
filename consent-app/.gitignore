@@ -13,3 +13,4 @@ dist-emulator/
 dist-emulator-finder/
 firebase/.site-variables.txt
 *.tsbuildinfo
+swarm-report.json

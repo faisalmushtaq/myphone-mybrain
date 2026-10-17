@@ -30,7 +30,8 @@ export function Check() {
   // The prompt being shown, kept from the moment Finish was pressed (it is marked as shown then, so lastCall no longer offers it).
   const [asking, setAsking] = useState<NonNullable<ReturnType<typeof lastCall>> | null>(null);
   const [finishing, setFinishing] = useState(false);
-  const saving = submission.consentStage === 'sending' || finishing;
+  // Busy only once Finish is pressed (17 October 2026): a save the page makes on its own no longer holds the buttons, since Finish waits for it.
+  const saving = finishing;
   const promptRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -39,7 +40,9 @@ export function Check() {
 
   // Anything not yet saved goes first, so "Finish and clear this device" on the next page can never lose it.
   const done = async () => {
-    if (saving) return;
+    // A tap while a save is on its way waits for it (found by the swarm test, 17 October 2026: on a slow connection the tap
+    // was ignored, and the button seemed not to work). Only a second tap on Finish itself is ignored.
+    if (finishing) return;
     // Something the record needs was undone (for example the permission changed and not signed again): go back to it.
     const missing = firstIncomplete(state);
     if (missing) {
@@ -48,7 +51,8 @@ export function Check() {
     }
     if (submission.consentStage !== 'sent' || dirty) {
       setFinishing(true);
-      const saved = await sendConsent();
+      // The first waits for any save already on its way; the second sends what changed after it began (or nothing, if nothing did).
+      const saved = (await sendConsent()) && (await sendConsent());
       setFinishing(false);
       if (!saved) return;
     }

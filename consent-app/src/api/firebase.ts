@@ -96,14 +96,30 @@ export class FirebaseConsentApi implements ConsentApi {
     }
   }
 
+  /** The one anonymous sign-in in flight, so that callers asking at the same moment share it. */
+  private signingIn: Promise<User> | null = null;
+
+  /**
+   * This browser's anonymous user. Found by a swarm test (17 October 2026): on a
+   * slow connection two parts of the page asked at once and each signed in, the
+   * second replacing the first, so the record belonged to a user the page no
+   * longer was ("That reference does not belong to this session", or a second
+   * record); and after a refresh the page signed in again before the browser
+   * had restored the user it already had. So: wait for the restored user, and
+   * sign in at most once at a time.
+   */
   private async user(): Promise<User> {
+    await this.auth.authStateReady();
     if (this.auth.currentUser) return this.auth.currentUser;
-    try {
-      const credential = await signInAnonymously(this.auth);
-      return credential.user;
-    } catch (error) {
-      throw mapError(error);
-    }
+    this.signingIn ??= signInAnonymously(this.auth)
+      .then((credential) => credential.user)
+      .catch((error) => {
+        throw mapError(error);
+      })
+      .finally(() => {
+        this.signingIn = null;
+      });
+    return this.signingIn;
   }
 
   async startSession(): Promise<SessionInfo> {
