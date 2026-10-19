@@ -72,6 +72,8 @@ export const study = {
   optOut: {
     email: 'brainpop@leeds.ac.uk',
     subject: 'Opt out: MyPhone/MyBrain workshop',
+    /** Two kinds (19 October 2026): out of the workshop and the study, or in the workshop with the data not used. */
+    subjects: { 'workshop-and-data': 'Opt out: MyPhone/MyBrain workshop and study', 'data-only': 'Opt out of data use: MyPhone/MyBrain (workshop is fine)' },
   },
 
   /** Upload limits enforced in the browser (and again on the server). */

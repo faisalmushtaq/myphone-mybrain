@@ -273,6 +273,8 @@ export function participantsTable(snap: Snapshot): Row[] {
         screen_time_off_on: dayOf(submission?.data.screenTimeOffAt),
         reminders_sent: ((submission?.data.reminders ?? []) as { outcome?: string }[]).filter((r) => r.outcome === 'sent').length,
         opted_out: Boolean(optOutFor(p.data, optOuts)),
+        // workshop-and-data: out of the workshop and the study; data-only: took part in the workshop, data not to be used.
+        opt_out_kind: optOutFor(p.data, optOuts)?.kind ?? null,
       };
     })
     .sort(byLabel);
@@ -286,7 +288,7 @@ function dayOf(value: unknown): string | null {
 }
 
 /** The columns of participants.tsv, in order. */
-export const PARTICIPANT_COLUMNS = ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'no_phone_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'added_later_on', 'young_link_opened_on', 'screen_time_off_on', 'reminders_sent', 'opted_out'];
+export const PARTICIPANT_COLUMNS = ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'no_phone_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'added_later_on', 'young_link_opened_on', 'screen_time_off_on', 'reminders_sent', 'opted_out', 'opt_out_kind'];
 
 export function phenotypeTable(snap: Snapshot, form: ServedQuestionForm = parentQuestionsForm): Row[] {
   const ids = form.questions.map((q) => q.id);
@@ -394,6 +396,7 @@ export function participantsKey(snap: Snapshot): Row[] {
       self_consent: Boolean(d.selfConsent),
       phone_source: d.phoneSource ?? null,
       opted_out: Boolean(optOutFor(d, optOuts)),
+      opt_out_kind: optOutFor(d, optOuts)?.kind ?? null,
       opt_out_id: optOutFor(d, optOuts)?.id ?? null,
       first_name: d.firstName,
       last_name: d.lastName,
@@ -540,7 +543,8 @@ export function participantsDictionary(): Record<string, unknown> {
     young_link_opened_on: { Description: 'Date the young person’s own link was first opened (from 16 October 2026); n/a when it was not made, or not opened' },
     screen_time_off_on: { Description: 'Date the family said the phone was not keeping track of screen time and would turn it on (from 16 October 2026)' },
     reminders_sent: { Description: 'Reminders sent to the parent or carer to finish the screen time, by text or email (from 16 October 2026; at most one after 48 hours, and one a week after screen_time_off_on)' },
-    opted_out: { Description: 'Whether a parent or carer has opted the young person out of the workshop and the study by email (identifying/opt_outs.tsv): if true, their data is not to be used, and is withdrawn as far as possible' },
+    opted_out: { Description: 'Whether a parent or carer has opted the young person out by email (identifying/opt_outs.tsv): if true, their data is not to be used, and is withdrawn as far as possible, whichever kind (opt_out_kind)' },
+    opt_out_kind: { Description: 'The kind of opt-out: workshop-and-data (not in the workshop, nothing used) or data-only (took part in the workshop with their class, but nothing they did is to be kept or used, and no record linkage); empty if not opted out', Levels: { 'workshop-and-data': 'Out of the workshop and the study', 'data-only': 'In the workshop, data not used' } },
   };
 }
 
@@ -882,7 +886,7 @@ export function buildExport(c: Collections, labels: Map<string, string>, exporte
     tsv(`${I}/enquiries.tsv`, enquiriesTable(c.enquiries)),
     tsv(`${I}/rejected_uploads.tsv`, rejectedUploadsTable(snap, sessions), REJECTED_COLUMNS),
     tsv(`${I}/school_upload_access.tsv`, schoolUploadAccessTable(c.schoolUploadAccess), ['slug', 'school_id', 'active', 'set_at', 'revoked_at']),
-    tsv(`${I}/opt_outs.tsv`, upn.optOutTable, ['opt_out_id', 'status', 'received_on', 'after_workshop', 'school_id', 'first_name', 'last_name', 'date_of_birth', 'year_group', 'class', 'parent_name', 'notes', 'recorded_at', 'website_participant_id', 'website_firestore_id', 'upn', 'upn_match']),
+    tsv(`${I}/opt_outs.tsv`, upn.optOutTable, ['opt_out_id', 'status', 'kind', 'received_on', 'after_workshop', 'school_id', 'first_name', 'last_name', 'date_of_birth', 'year_group', 'class', 'parent_name', 'notes', 'recorded_at', 'website_participant_id', 'website_firestore_id', 'upn', 'upn_match']),
     jsonl(`${I}/raw/opt_outs.jsonl`, c.optOuts),
     jsonl(`${I}/raw/participants.jsonl`, c.participants),
     jsonl(`${I}/raw/consents.jsonl`, c.consents),

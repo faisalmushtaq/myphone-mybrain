@@ -812,13 +812,19 @@ async function inner() {
     // Opting out: two warnings, then how to email the team, with the school already in the email; the form records nothing.
     await page.goto(`http://127.0.0.1:${PORT}/index.html?optout=1&school=dua`);
     await page.getByRole('heading', { name: 'Before you opt out.' }).waitFor();
-    ok('the first warning says what the young person would miss, and that the phone part needs no opt-out', (await page.getByText(/will not take part in the MyPhone\/MyBrain workshop/).count()) === 1 && (await page.getByText(/Only worried about the phone part/).count()) === 1);
+    ok('the first warning says what the young person would miss, the two ways to opt out, and that the phone part needs no opt-out', (await page.getByText(/opt your child out of the whole study, or let them take part in the workshop/).count()) === 1 && (await page.getByText(/Only worried about the phone part/).count()) === 1);
     await page.getByRole('button', { name: 'I still want to opt out' }).click();
+    // Two kinds (19 October 2026): out of both, or in the workshop with the data not used.
+    await page.getByRole('heading', { name: 'What would you like?' }).waitFor();
+    ok('the parent chooses: in the workshop with no information used, or out of both; nothing is chosen for them', (await page.getByRole('radio').count()) === 2 && (await page.getByRole('button', { name: 'Continue' }).isDisabled()));
+    await page.getByRole('radio', { name: /takes part in the workshop, but their information is not used/ }).check();
+    await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: 'Are you sure?' }).waitFor();
-    await page.getByRole('button', { name: 'Yes, opt my child out' }).click();
+    ok('the warning fits the choice: in the workshop, nothing kept or used', (await page.getByText(/will take part in the workshop with their class, but none of their information will be kept or used/).count()) === 1);
+    await page.getByRole('button', { name: 'Yes, don’t use their information' }).click();
     await page.getByRole('heading', { name: 'How to opt out.' }).waitFor();
     const mailto = (await page.getByRole('link', { name: 'Write the email' }).getAttribute('href')) ?? '';
-    ok('then how to email the team, with the school already in the email', mailto.startsWith('mailto:brainpop@leeds.ac.uk?subject=Opt%20out') && decodeURIComponent(mailto).includes('Their school: Dixons Unity Academy'), mailto.slice(0, 80));
+    ok('then how to email the team, saying which, with the school already in the email', mailto.startsWith('mailto:brainpop@leeds.ac.uk?subject=Opt%20out%20of%20data%20use') && decodeURIComponent(mailto).includes('can take part in the MyPhone/MyBrain workshop at school, but please do not keep or use any of their information') && decodeURIComponent(mailto).includes('Their school: Dixons Unity Academy'), mailto.slice(0, 80));
     ok('the opt-out pages record nothing', (await db.collection('optOuts').get()).size === 0);
     await page.getByRole('button', { name: 'Back to the start' }).click();
     await page.getByRole('heading', { name: /Share screen time with MyPhone/ }).waitFor();
@@ -1513,11 +1519,13 @@ async function inner() {
     await page.getByLabel('Last name', { exact: true }).fill('Nowak');
     await page.getByLabel('School', { exact: true }).selectOption('DUA');
     await page.getByLabel('Parent or carer’s name').fill('Ewa Nowak');
+    ok('logging needs the kind of opt-out chosen', await page.getByRole('button', { name: 'Log the opt-out' }).isDisabled());
+    await page.getByLabel('Takes part in the workshop, but their data is not used').check();
     await page.getByRole('button', { name: 'Log the opt-out' }).click();
-    await page.getByText(/Logged: Ola Nowak is opted out/).waitFor({ timeout: 30000 });
+    await page.getByText(/Logged: Ola Nowak takes part in the workshop, but their data is not to be used/).waitFor({ timeout: 30000 });
     await page.locator('.mpmb-tools__row', { hasText: 'Ola Nowak' }).waitFor({ timeout: 30000 });
     const loggedOptOuts = (await db.collection('optOuts').get()).docs.map((d) => d.data());
-    ok('the opt-out is logged with the school, the date and who sent it', loggedOptOuts.length === 1 && loggedOptOuts[0].schoolId === 'DUA' && loggedOptOuts[0].parentName === 'Ewa Nowak' && loggedOptOuts[0].status === 'active' && /^\d{4}-\d{2}-\d{2}$/.test(loggedOptOuts[0].receivedOn));
+    ok('the opt-out is logged with the school, the date and who sent it', loggedOptOuts.length === 1 && loggedOptOuts[0].schoolId === 'DUA' && loggedOptOuts[0].parentName === 'Ewa Nowak' && loggedOptOuts[0].status === 'active' && loggedOptOuts[0].kind === 'data-only' && /^\d{4}-\d{2}-\d{2}$/.test(loggedOptOuts[0].receivedOn));
     ok('the staff page lists it', (await page.locator('.mpmb-tools__row', { hasText: 'Ola Nowak' }).count()) === 1 && (await page.getByText(/Opted out \(1\)/).count()) === 1);
     await toolsSnap('opt-outs');
     await page.getByRole('button', { name: 'Website', exact: true }).click();
@@ -1636,8 +1644,8 @@ async function inner() {
     ok('the chat table has every conversation’s own words, its number in the phase, the model and the questions covered', ['chat_n', 'model', 'questions_covered', 'own_words'].every((c) => postChatTsv.split('\n')[0].split('\t').includes(c)) && postChatTsv.includes(`\t${chatAnswers.join(' / ')}\t`) && postChatTsv.split('\n')[1].split('\t')[3] === '1' && postChatTsv.includes('\t1; 2; 3; 4; 5\t'), postChatTsv.split('\n').slice(0, 2).join(' || ').slice(0, 1500));
     ok('the spoken answer is exported to identifying/mystory_voice/, named by participant, session, chat and clip, and listed in clips.tsv; nothing of it in donations/', voiceCopied === true && voiceTsv.includes(`sub-MP2670FF90A5F2\tses-post\t${postStory?.chatId}\t`) && voiceTsv.includes('\tinterview\ttrue\t') && !finalManifest.files?.some((n) => n.startsWith('social-media-break/donations/') && /voice|\.(webm|m4a|mp4|ogg|wav|mp3|flac)$/.test(n)), JSON.stringify(finalManifest.files?.filter((n) => n.includes('voice'))));
     ok('the visits and contact details are exported to identifying/, the visit date to the research table', visitsTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\t1\t') && visitsTsv.includes('\tmoved\t') && visitsTsv.includes('day-before-email:not-configured') && contactsTsv.includes('jane.smith@example.org\t+447700900123\ttrue') && labPeople.includes(`\t${v1a.toISOString().slice(0, 10)}\tbooked\t`) && !labPeople.includes('jane@'));
-    ok('the opt-out is flagged on the school’s list and listed in identifying/ with the UPN it names', unmatchedTsv.split('\n').some((l) => l.startsWith('DUA\tA123456789013\tOla\tNowak') && l.includes('\ttrue\t')) && optOutsTsv.includes('\tactive\t') && optOutsTsv.includes('\tOla\tNowak\t') && optOutsTsv.includes('\tEwa Nowak\t') && optOutsTsv.includes('\tA123456789013\tname-only'), optOutsTsv.split('\n')[1]);
-    ok('the research table says who decided, where the screen time came from, and the longer answers have their own table', familiesTsv.split('\n')[0].includes('\tself_consent\tphone_source\t') && familiesTsv.split('\n')[0].endsWith('\tadded_later_on\tyoung_link_opened_on\tscreen_time_off_on\treminders_sent\topted_out') && new RegExp(`\t${new Date().toISOString().slice(0, 10)}\t${new Date().toISOString().slice(0, 10)}\t[^\t]*\t0\tfalse`).test(familiesTsv) && familiesTsv.includes('\ttrue\tchild\tcompleted\t') && familiesTsv.includes('\tfalse\tnone\tnot-started\t') && phoneUseTsv.split('\n')[0].startsWith('participant_id\town_phone_age\tsocial_media_age\tschool_day_time') && phoneUseTsv.includes('\t12\t11\t3-4\t'), familiesTsv);
+    ok('the opt-out is flagged on the school’s list and listed in identifying/ with the UPN it names', unmatchedTsv.split('\n').some((l) => l.startsWith('DUA\tA123456789013\tOla\tNowak') && l.includes('\ttrue\tdata-only\t')) && optOutsTsv.includes('\tactive\tdata-only\t') && optOutsTsv.includes('\tOla\tNowak\t') && optOutsTsv.includes('\tEwa Nowak\t') && optOutsTsv.includes('\tA123456789013\tname-only'), optOutsTsv.split('\n')[1]);
+    ok('the research table says who decided, where the screen time came from, and the longer answers have their own table', familiesTsv.split('\n')[0].includes('\tself_consent\tphone_source\t') && familiesTsv.split('\n')[0].endsWith('\tadded_later_on\tyoung_link_opened_on\tscreen_time_off_on\treminders_sent\topted_out\topt_out_kind') && new RegExp(`\t${new Date().toISOString().slice(0, 10)}\t${new Date().toISOString().slice(0, 10)}\t[^\t]*\t0\tfalse\t`).test(familiesTsv) && familiesTsv.includes('\ttrue\tchild\tcompleted\t') && familiesTsv.includes('\tfalse\tnone\tnot-started\t') && phoneUseTsv.split('\n')[0].startsWith('participant_id\town_phone_age\tsocial_media_age\tschool_day_time') && phoneUseTsv.includes('\t12\t11\t3-4\t'), familiesTsv);
     ok('the school’s file and what was read sit in schools/upn-uploads/, and the UPN is matched to the family’s record', finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/\d{4}-\d{2}-\d{2}_[0-9a-f]{8}_Year 8\.csv$/.test(n)) && finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/.*_pupils\.tsv$/.test(n)) && matchesTsv.includes('\tKai\tPatel\t2013-03-14\t') && matchesTsv.includes('\tA123456789012\tname-and-dob\t') && unmatchedTsv.includes('DUA\tA123456789013\tOla\tNowak') && finalManifest.counts?.upnUploads === 3 && finalManifest.counts?.upnMatched === 1, JSON.stringify(finalManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {

@@ -17,6 +17,7 @@ export interface OptOutRow {
   parentName: string;
   receivedOn: string;
   afterWorkshop: boolean;
+  kind: OptOutKind;
   notes: string;
   status: 'active' | 'cancelled';
   cancelReason: string | null;
@@ -24,8 +25,15 @@ export interface OptOutRow {
   onWebsite: boolean;
 }
 
+/** What the parent asked for (19 October 2026): out of both, or in the workshop with the data not used. */
+export type OptOutKind = 'workshop-and-data' | 'data-only';
+export const OPT_OUT_KINDS: { value: OptOutKind; label: string; short: string }[] = [
+  { value: 'workshop-and-data', label: 'Out of the workshop and the study', short: 'out of the workshop and the study' },
+  { value: 'data-only', label: 'Takes part in the workshop, but their data is not used', short: 'in the workshop, data not used' },
+];
+
 const today = () => new Date().toISOString().slice(0, 10);
-const blank = { firstName: '', lastName: '', dateOfBirth: '', schoolId: '', yearGroup: '', className: '', parentName: '', receivedOn: today(), afterWorkshop: false, notes: '' };
+const blank = { firstName: '', lastName: '', dateOfBirth: '', schoolId: '', yearGroup: '', className: '', parentName: '', receivedOn: today(), afterWorkshop: false, kind: '' as OptOutKind | '', notes: '' };
 
 /**
  * The opt-outs from the workshop that parents and carers email to
@@ -64,11 +72,16 @@ export function OptOuts({ staff }: { staff: Staff }) {
     setBusy('add');
     setError(null);
     setNotice(null);
+    if (!form.kind) {
+      setError('Choose what the parent asked for: out of the workshop and the study, or the workshop with the data not used.');
+      setBusy(null);
+      return;
+    }
     try {
       await staff.ask('add-opt-out', { optOut: { ...form, dateOfBirth: form.dateOfBirth || null } });
       // The list first, so the message and the new row appear together.
       await load();
-      setNotice(`Logged: ${form.firstName.trim()} ${form.lastName.trim()} is opted out. The export flags them from the next hour.`);
+      setNotice(form.kind === 'data-only' ? `Logged: ${form.firstName.trim()} ${form.lastName.trim()} takes part in the workshop, but their data is not to be used. The export flags them from the next hour.` : `Logged: ${form.firstName.trim()} ${form.lastName.trim()} is opted out of the workshop and the study. The export flags them from the next hour.`);
       setForm({ ...blank, receivedOn: today() });
     } catch (e) {
       setError(messageOf(e));
@@ -112,7 +125,19 @@ export function OptOuts({ staff }: { staff: Staff }) {
         <h2 className="mpmb-h3" id="optout-add">
           Log an opt-out email
         </h2>
-        <p className="mpmb-hint">Parents and carers opt their child out of the workshop by emailing brainpop@leeds.ac.uk, after two warnings on the website. Only a parent or carer can opt a child out. Opting out also means no linking with records, and no data at all.</p>
+        <p className="mpmb-hint">Parents and carers opt out by emailing brainpop@leeds.ac.uk, after two warnings on the website. Only a parent or carer can opt a child out. There are two kinds (19 October 2026): out of the workshop and the study; or taking part in the workshop with their class, but nothing they do is kept or used, and no linking with records. The website’s email says which; if it doesn’t, ask before logging it.</p>
+        <fieldset className="mpmb-choice">
+          <legend className="mpmb-choice__legend">What did the parent ask for?</legend>
+          <div className="mpmb-choice__options">
+            {OPT_OUT_KINDS.map((k) => (
+              <label key={k.value} className={`mpmb-choice__option${form.kind === k.value ? ' is-selected' : ''}`} htmlFor={`oo-kind-${k.value}`}>
+                <input id={`oo-kind-${k.value}`} type="radio" name="oo-kind" className="mpmb-choice__input" checked={form.kind === k.value} onChange={() => setForm({ ...form, kind: k.value })} />
+                <span className="mpmb-choice__dot" aria-hidden="true" />
+                <span>{k.label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <div className="mpmb-tools__grid">
           <TextField id="oo-first" label="Young person’s first name" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
           <TextField id="oo-last" label="Last name" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
@@ -128,7 +153,7 @@ export function OptOuts({ staff }: { staff: Staff }) {
           <input type="checkbox" checked={form.afterWorkshop} onChange={(e) => setForm({ ...form, afterWorkshop: e.target.checked })} /> It came after the workshop: withdraw the data already collected, as far as possible
         </label>
         <div className="mpmb-actions">
-          <Button variant="primary" loading={busy === 'add'} disabled={!form.firstName.trim() || !form.lastName.trim() || !form.schoolId} onClick={() => void add()}>
+          <Button variant="primary" loading={busy === 'add'} disabled={!form.firstName.trim() || !form.lastName.trim() || !form.schoolId || !form.kind} onClick={() => void add()}>
             Log the opt-out
           </Button>
         </div>
@@ -151,6 +176,7 @@ export function OptOuts({ staff }: { staff: Staff }) {
                 {r.yearGroup || r.className ? `, ${[r.yearGroup, r.className].filter(Boolean).join(' ')}` : ''}
                 {r.dateOfBirth ? ` · born ${r.dateOfBirth}` : ''}
                 {` · email of ${r.receivedOn}${r.parentName ? ` from ${r.parentName}` : ''}`}
+                {` · ${OPT_OUT_KINDS.find((k) => k.value === r.kind)?.short ?? 'out of the workshop and the study'}`}
                 {r.afterWorkshop ? ' · after the workshop: withdraw the data' : ''}
                 {r.onWebsite ? ' · has a record on the website' : ''}
                 {r.status === 'cancelled' ? ` · cancelled${r.cancelReason ? ` (${r.cancelReason})` : ''}` : ''}

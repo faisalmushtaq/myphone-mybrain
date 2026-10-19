@@ -242,8 +242,12 @@ export interface NewOptOut {
   parentName: string;
   receivedOn: string;
   afterWorkshop: boolean;
+  /** What the parent asked for (19 October 2026): out of the workshop and the study, or the workshop with their child's data not used. */
+  kind: OptOutKind;
   notes: string;
 }
+
+export type OptOutKind = 'workshop-and-data' | 'data-only';
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -262,8 +266,10 @@ export function validateOptOut(input: unknown, now = new Date()): { optOut: NewO
     parentName: text(input.parentName, 100),
     receivedOn: text(input.receivedOn, 10) || now.toISOString().slice(0, 10),
     afterWorkshop: input.afterWorkshop === true,
+    kind: input.kind === 'data-only' ? 'data-only' : 'workshop-and-data',
     notes: text(input.notes, 500),
   };
+  if (input.kind !== undefined && input.kind !== 'data-only' && input.kind !== 'workshop-and-data') problems.push('Choose what the parent asked for.');
   if (!optOut.firstName || !optOut.lastName) problems.push('Enter the young person’s first and last name, as in the email.');
   if (!schools.some((x) => x.id === optOut.schoolId)) problems.push('Choose the school.');
   if (optOut.dateOfBirth && (!ISO_DAY.test(optOut.dateOfBirth) || Number.isNaN(Date.parse(optOut.dateOfBirth)))) problems.push('The date of birth is not a date.');
@@ -291,6 +297,7 @@ async function optOutsList(db: Firestore) {
         parentName: String(o.parentName ?? ''),
         receivedOn: String(o.receivedOn ?? ''),
         afterWorkshop: Boolean(o.afterWorkshop),
+        kind: o.kind === 'data-only' ? 'data-only' : 'workshop-and-data',
         notes: String(o.notes ?? ''),
         status: o.status === 'cancelled' ? 'cancelled' : 'active',
         cancelReason: o.cancelReason ?? null,

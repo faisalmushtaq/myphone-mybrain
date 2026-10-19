@@ -45,7 +45,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <h3>The workshop at school</h3>
         <p>Every young person in the classes taking part is invited. <strong>You don’t need to do anything for your child to take part.</strong> If you don’t want them to, a parent or carer emails us before the workshop. There is no form and no paper slip.</p>
         <p>On the day, the researchers explain the workshop again and ask each young person whether they want to take part. <strong>Your child can say no</strong>, choose which parts to do, or stop at any time, without giving a reason. Nobody will mind, and it will not affect anything at school.</p>
-        <p>Opting out of the workshop also opts your child out of linking with their education and health records: one email covers both.</p>
+        <p>You can opt out in one of two ways, each with one email: <strong>out of the workshop and the study</strong>; or <strong>in the workshop, with none of their information used</strong>, so your child joins in with their class but nothing recorded about them is kept or used. Either way, nothing about your child is linked with their education and health records.</p>
         <a class="text-link" href="#opting-out">How to opt out &nbsp;→</a>
       </li>
       <li class="consent-route consent-route--mist">
@@ -141,7 +141,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <p class="section-subheading">For young people who take part in the workshop, the study links their information with records that already exist about them, to look at longer-term patterns in learning, health and wellbeing.</p>
     <div class="prose">
       <p>The records are education records, such as attendance and results, held by the Department for Education, and NHS health records. The linking is done through Connected West Yorkshire, using your child’s Unique Pupil Number, which the school gives us, and only with the approvals in place.</p>
-      <p>It happens inside a secure research environment: names and other details that identify someone directly are removed before researchers see anything, the analysis stays inside that environment, and only results about groups of people come out. Linking is part of the workshop, so opting out of the workshop also opts your child out of linking.</p>
+      <p>It happens inside a secure research environment: names and other details that identify someone directly are removed before researchers see anything, the analysis stays inside that environment, and only results about groups of people come out. Linking is part of the workshop, so opting out, either way, also opts your child out of linking.</p>
     </div>
       </div>
     </details>
@@ -193,10 +193,15 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <details class="info-fold" id="opting-out">
       <summary><h2>Opting out</h2></summary>
       <div class="info-fold__body">
-    <p class="section-subheading">If you don’t want your child to take part in the workshop, one email from a parent or carer is all it takes.</p>
+    <p class="section-subheading">One email from a parent or carer is all it takes, for either choice: out of the workshop and the study, or in the workshop with none of your child’s information used.</p>
     <div class="info-panel">
       <h3>How to opt out</h3>
-      <p>A parent or carer emails <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a> with your child’s full name, their school and their class or year group, and your name. The <a href="{{ '/take-part/consent/?optout=1' | relative_url }}">opt-out page</a> first explains what your child would miss, then writes the email with you. Please email before the workshop. If your email arrives after it, we withdraw your child’s information too, as far as is still possible. Opting out will not affect your child’s education or their relationship with school.</p>
+      <p>A parent or carer emails <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a> saying which you would like, with your child’s full name, their school and their class or year group, and your name:</p>
+      <ul>
+        <li><strong>Out of the workshop and the study:</strong> your child does something else at school while their class does the workshop, and none of their information is used.</li>
+        <li><strong>In the workshop, information not used:</strong> your child joins in with their class as normal, but nothing recorded about them in the workshop is kept or used for the study.</li>
+      </ul>
+      <p>Either way, nothing about your child is linked with their education or health records. The <a href="{{ '/take-part/consent/?optout=1' | relative_url }}">opt-out page</a> first explains what your child would miss, asks which you would like, then writes the email with you. Please email before the workshop. If your email arrives after it, we withdraw your child’s information too, as far as is still possible. Opting out will not affect your child’s education or their relationship with school.</p>
     </div>
     <div class="prose">
       <h3>Why the workshop is opt-out</h3>
