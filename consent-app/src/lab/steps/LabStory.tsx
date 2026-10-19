@@ -12,6 +12,8 @@ import { LabShell } from '../LabShell';
 import { labMyStory, storyLimits, storyStructures, storySurveyUrl, type StoryPhase } from '../mystory';
 import { Dyad, Triad, type Shares } from '../story/Signifiers';
 import { ChatSupport, StoryChat, type ChatFinished } from '../story/StoryChat';
+import { StoryCopy, type StoryToKeep } from '../story/StoryCopy';
+import { formatTimestamp } from '../../lib/dates';
 import { useLab } from '../store';
 import type { FieldError } from '../validation';
 
@@ -37,6 +39,12 @@ export function LabStory() {
   // The AI chat, unless it is not set up or the participant would rather write it themselves: then MyStory's own form.
   const [ownForm, setOwnForm] = useState(false);
   const [chatDone, setChatDone] = useState<ChatFinished | null>(null);
+  // The story just sent, so the participant can keep a copy (download, print, email).
+  const [kept, setKept] = useState<StoryToKeep | null>(null);
+  // One story for each phase (19 October 2026); the team's test accounts may tell more, to try things out.
+  const canRetell = state.progress?.storyRepeatAllowed === true;
+  const toldAt = state.progress?.storiesAt?.[phase] ?? null;
+  const alreadyTold = !justSent && !canRetell && (state.progress?.stories?.[phase] ?? 0) > 0;
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
   const ready = state.codeConfirmed && state.submission.consentStage === 'sent';
   const ownPage = state.flow === 'story';
@@ -55,6 +63,35 @@ export function LabStory() {
     );
   }
 
+  if (alreadyTold && mode.mode !== 'link' && mode.mode !== 'embed') {
+    return (
+      <LabShell kicker={labMyStory.name} title="Your story is already in." hideContinue hideBack>
+        <Callout tone="success" role="status">
+          <p>
+            You have already sent your story for this part of the study{toldAt ? `, on ${formatTimestamp(toldAt)}` : ''}. Each person tells one story for each part, so there is nothing more to do here.
+          </p>
+        </Callout>
+        <p>
+          If you need to change it, contact {labStudy.contact.name} at <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a> and quote your participant ID <strong className="mpmb-mono">{state.code}</strong>.
+        </p>
+        <div className="mpmb-actions">
+          {atLab ? (
+            <Button variant="primary" onClick={finishAtLab}>
+              Finish
+            </Button>
+          ) : (
+            !ownPage && (
+              <Button variant="primary" arrow onClick={leave}>
+                {leaveLabel}
+              </Button>
+            )
+          )}
+        </div>
+        {ownPage && !atLab && <p className="mpmb-hint">You can close this page.</p>}
+      </LabShell>
+    );
+  }
+
   if (mode.mode === 'chat' && !ownForm && !justSent) {
     return (
       <StoryChat
@@ -63,6 +100,7 @@ export function LabStory() {
         onFinished={(done) => {
           dispatch({ type: 'story-sent', storyId: done.storyId, title: done.story.length > 60 ? `${done.story.slice(0, 57).trimEnd()}…` : done.story, receivedAt: done.receivedAt });
           setChatDone(done);
+          if (done.storyId) setKept({ storyId: done.storyId, title: null, text: done.story, receivedAt: done.receivedAt });
           setJustSent(true);
           announce('Your story has been sent. Thank you.');
           window.scrollTo({ top: 0 });
@@ -140,6 +178,7 @@ export function LabStory() {
         checkInId: state.flow === 'checkin' ? state.checkIn.checkInId : null,
         client: labClientInfo(),
       });
+      setKept({ storyId: result.storyId, title: story.title.trim(), text: story.story.trim(), receivedAt: result.receivedAt });
       dispatch({ type: 'story-sent', storyId: result.storyId, title: story.title.trim(), receivedAt: result.receivedAt });
       setJustSent(true);
       announce('Your story has been sent. Thank you.');
@@ -152,11 +191,11 @@ export function LabStory() {
   };
 
   // At the lab: the page forgets this participant (nothing was kept on the computer) and opens clean for the next.
-  const finishAtLab = () => {
+  function finishAtLab() {
     clearLabState();
     // The participant ID left the address when the page opened; the phase and the lab mode stay.
     window.location.replace(`${window.location.pathname}${window.location.search}`);
-  };
+  }
 
   // After the chat: the story they made, or, if they stopped partway or Remi could not carry on, a word about that.
   const stoppedEarly = chatDone?.ending === 'stopped-early';
@@ -185,13 +224,16 @@ export function LabStory() {
           </p>
         </Callout>
         {chatDone && <ChatSupport />}
+        {kept && <StoryCopy story={kept} />}
         <div className="mpmb-actions">
           <Button variant="primary" onClick={finishAtLab}>
             Finish
           </Button>
-          <Button variant="secondary" onClick={() => { setJustSent(false); setChatDone(null); }}>
-            Tell another story
-          </Button>
+          {canRetell && (
+            <Button variant="secondary" onClick={() => { setJustSent(false); setChatDone(null); setKept(null); }}>
+              Tell another story
+            </Button>
+          )}
         </div>
         <p className="mpmb-hint">Finish clears this page for the next person. Nothing about you is kept on this computer.</p>
       </LabShell>
@@ -209,19 +251,22 @@ export function LabStory() {
           </p>
         </Callout>
         {chatDone && <ChatSupport />}
+        {kept && <StoryCopy story={kept} />}
         <div className="mpmb-actions">
           {!ownPage && (
             <Button variant="primary" arrow onClick={leave}>
               {leaveLabel}
             </Button>
           )}
-          <Button variant="secondary" onClick={() => { setJustSent(false); setChatDone(null); }}>
-            Tell another story
-          </Button>
+          {canRetell && (
+            <Button variant="secondary" onClick={() => { setJustSent(false); setChatDone(null); setKept(null); }}>
+              Tell another story
+            </Button>
+          )}
         </div>
         {ownPage && (
           <p className="mpmb-hint">
-            You can close this page. {phase === 'mid' ? <>Your next weekly <a href={labPages.checkin.path}>check-in</a> has a MyStory at the end too.</> : null}
+            You can close this page. {phase === 'mid' && canRetell ? <>Your next weekly <a href={labPages.checkin.path}>check-in</a> has a MyStory at the end too.</> : null}
           </p>
         )}
       </LabShell>

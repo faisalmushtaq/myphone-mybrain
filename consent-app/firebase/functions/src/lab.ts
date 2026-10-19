@@ -11,6 +11,7 @@ import type { Quality } from './quality.js';
 import { sendMail } from './mail.js';
 import { signatureRecord, storeSignature } from './signatures.js';
 import { ukMobile } from './sms.js';
+import { mayRetellStory } from './testAccounts.js';
 import { ukDate } from './ukTime.js';
 import { blank, isObj, ISO_DATE, limits, str, UUID, validateClient, validateResponses, validateSignature, validTime, type ClientInfo, type SignatureRecord, type StatementRecord } from './validate.js';
 
@@ -525,7 +526,14 @@ export const lookupLabParticipant = onCall(callOptions, async (request) => {
   if (!participant?.consentId) return { exists: false, consentedAt: null, archives: 0, screenshots: 0, phases: emptyPhases(), checkIns: 0, lastCheckInAt: null, platformsNotUsed: [], visits: [], stories: { pre: 0, mid: 0, post: 0 } };
   // Which apps' data has arrived in each phase, so the pages can tick them off on any device.
   const phases = phaseCountsOf(participant);
-  const [donations, bookings] = await Promise.all([db.collection('labDonations').where('participantCode', '==', code).get(), db.collection('labBookings').where('participantCode', '==', code).get()]);
+  const [donations, bookings, stories] = await Promise.all([db.collection('labDonations').where('participantCode', '==', code).get(), db.collection('labBookings').where('participantCode', '==', code).get(), db.collection('labStories').where('participantCode', '==', code).get()]);
+  // When each phase's story was first told, so the page can say it is already in (one each, apart from the team's test accounts).
+  const storiesAt: Record<Phase, string | null> = { pre: null, mid: null, post: null };
+  for (const d of stories.docs) {
+    const ph = d.data().phase as Phase;
+    const at = toIso(d.data().receivedAt);
+    if (ph in storiesAt && at && (!storiesAt[ph] || at < storiesAt[ph]!)) storiesAt[ph] = at;
+  }
   const seen: Record<Phase, Set<string>> = { pre: new Set(), mid: new Set(), post: new Set() };
   for (const d of donations.docs) {
     const phase = (d.data().phase ?? 'pre') as Phase;
@@ -547,6 +555,8 @@ export const lookupLabParticipant = onCall(callOptions, async (request) => {
       .map((b) => ({ visit: b.visit === 2 ? 2 : 1, start: toIso(b.start), status: String(b.status) }))
       .sort((a, b) => String(a.start).localeCompare(String(b.start))),
     stories: { pre: Number(participant.storyCounts?.pre ?? 0), mid: Number(participant.storyCounts?.mid ?? 0), post: Number(participant.storyCounts?.post ?? 0) },
+    storiesAt,
+    storyRepeatAllowed: mayRetellStory(code),
   };
 });
 

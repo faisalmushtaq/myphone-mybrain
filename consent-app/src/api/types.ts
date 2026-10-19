@@ -179,6 +179,10 @@ export interface LabLookupResult {
   visits?: { visit: LabVisit; start: string; status: string }[];
   /** MyStory stories sent, by phase. */
   stories?: Record<LabPhase, number>;
+  /** When each phase's story was first sent (null if not yet). */
+  storiesAt?: Record<LabPhase, string | null>;
+  /** One story a phase, except the team's test accounts, which may tell more (19 October 2026). */
+  storyRepeatAllowed?: boolean;
 }
 
 /* ── Lab visits (src/lab/booking.ts) ───────────────────────────────────── */
@@ -521,6 +525,8 @@ export interface ConsentApi {
   /** Cancels the visits named, or, with none named, every visit still to come. */
   cancelLabBooking(session: SessionInfo, payload: { participantCode: string; bookingIds?: string[] | null }): Promise<LabCancelResult>;
   submitLabStory(session: SessionInfo, payload: LabStoryPayload): Promise<LabStoryResult>;
+  /** A copy of a story this browser sent, emailed to the participant (the address is not kept). */
+  emailLabStory(session: SessionInfo, request: { participantCode: string; storyId: string; email: string }): Promise<{ email: DeliveryOutcome }>;
   labStoryChat(session: SessionInfo, request: LabStoryChatRequest): Promise<LabStoryChatResponse>;
   labStoryVoice(session: SessionInfo, request: LabStoryVoiceRequest): Promise<LabStoryVoiceResponse>;
   /** The staff page and the schools' upload page: one callable each, with an action (firebase/functions/src/staff.ts, schoolUpload.ts). */

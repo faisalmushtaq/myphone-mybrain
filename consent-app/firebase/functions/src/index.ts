@@ -19,7 +19,7 @@ export { resumeRecord } from './resume.js';
 export { exportData, exportNow } from './export.js';
 export { labFollowUps, lookupLabParticipant, requestLabReminder, submitLabCheckIn, submitLabConsent, submitLabDonation, updateLabPlatforms } from './lab.js';
 export { bookLabSlot, cancelLabBooking, labBookingOptions, labMessages, labMessagesNow } from './booking.js';
-export { submitLabStory } from './story.js';
+export { emailLabStory, submitLabStory } from './story.js';
 export { labStoryChat, labStoryVoice } from './storyChat.js';
 export { schoolUpload } from './schoolUpload.js';
 export { staffApi } from './staff.js';

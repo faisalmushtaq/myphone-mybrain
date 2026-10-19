@@ -4,6 +4,8 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { labStudy, storyLimits, storyStructures, type StoryPhase, type StorySignifier, type StoryStructure } from './forms.js';
 import { normaliseCode, rateLimitLookups } from './lab.js';
+import { mayRetellStory } from './testAccounts.js';
+import { sendMail } from './mail.js';
 import { isObj, str, validateClient, type ClientInfo } from './validate.js';
 
 /**
@@ -23,6 +25,8 @@ import { isObj, str, validateClient, type ClientInfo } from './validate.js';
 const REGION = 'europe-west2';
 const callOptions = { region: REGION, memory: '256MiB' as const, timeoutSeconds: 60, enforceAppCheck: process.env.MPMB_ENFORCE_APP_CHECK === 'true' };
 const STORIES_PER_HOUR = 12;
+/** Said when a participant who has told their story for a phase tries again (19 October 2026). */
+export const alreadyToldMessage = `You have already sent your story for this part of the study. Each person tells one story for each part. If you need to change it, contact ${labStudy.contactName} at ${labStudy.contactEmail}.`;
 const PHASES: StoryPhase[] = ['pre', 'mid', 'post'];
 /** Where the story was told: the page it came from. */
 const SOURCES = ['baseline', 'checkin', 'after', 'story', 'book'];
@@ -135,8 +139,11 @@ export const submitLabStory = onCall(callOptions, async (request) => {
   const same = createHash('sha256').update([code, p.phase, p.checkInId ?? '', p.promptId, p.title.trim(), p.story.trim()].join('\u0000')).digest('hex').slice(0, 28);
   const ref = db.collection('labStories').doc(`s${same}`);
   const filed = await db.runTransaction(async (tx) => {
-    const held = (await tx.get(ref)).data();
+    const [heldSnap, participantSnap] = await Promise.all([tx.get(ref), tx.get(participantRef)]);
+    const held = heldSnap.data();
     if (held) return { storyId: ref.id, receivedAt: held.receivedAt?.toDate?.().toISOString?.() ?? receivedAt.toISOString(), first: false };
+    // One story for each phase (19 October 2026), apart from the team's test accounts.
+    if (Number(participantSnap.data()?.storyCounts?.[p.phase] ?? 0) >= 1 && !mayRetellStory(code)) throw new HttpsError('failed-precondition', alreadyToldMessage);
     tx.create(ref, {
       studyId: labStudy.studyId,
       participantCode: code,
@@ -160,4 +167,49 @@ export const submitLabStory = onCall(callOptions, async (request) => {
   });
   if (filed.first) logger.info('Story recorded', { participantCode: code, storyId: ref.id, phase: p.phase });
   return { storyId: filed.storyId, receivedAt: filed.receivedAt };
+});
+
+
+const EMAILS_PER_HOUR = 5;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * A copy of their story, emailed to the participant at their request (19 October 2026). Only for a story this browser
+ * sent, so nobody can have someone else's story sent anywhere; the address is used once and not stored.
+ */
+export const emailLabStory = onCall(callOptions, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Please try again.');
+  const data = (request.data ?? {}) as { participantCode?: unknown; storyId?: unknown; email?: unknown };
+  const code = normaliseCode(data.participantCode);
+  const storyId = typeof data.storyId === 'string' && DOC_ID.test(data.storyId) ? data.storyId : null;
+  const email = typeof data.email === 'string' ? data.email.trim() : '';
+  if (!code || !storyId) throw new HttpsError('invalid-argument', 'The story reference is malformed.');
+  if (email.length > 254 || !EMAIL.test(email)) throw new HttpsError('invalid-argument', 'Enter a full email address, such as name@example.com.');
+  const db = getFirestore();
+  await rateLimitLookups(db, uid, 'lab-story-email', EMAILS_PER_HOUR);
+  const ref = db.collection('labStories').doc(storyId);
+  const story = (await ref.get()).data();
+  if (!story || story.participantCode !== code || story.sessionUid !== uid) throw new HttpsError('not-found', 'That story could not be found from this page. Please download it or print it instead.');
+  const phaseWords = { pre: 'before your break', mid: 'during your break', post: 'after your break' }[story.phase as StoryPhase] ?? '';
+  const when = (story.receivedAt?.toDate?.() as Date | undefined)?.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/London' }) ?? '';
+  const text = [
+    'Hello,',
+    '',
+    `Here is the story you told for MyStory, ${phaseWords}, in the ${labStudy.name}${when ? `, on ${when}` : ''}.`,
+    '',
+    ...(story.title ? [String(story.title), ''] : []),
+    String(story.story ?? ''),
+    '',
+    `It is saved for the research under your participant ID, ${code}, never your name. If you ever want it removed, email ${labStudy.contactName} at ${labStudy.contactEmail} and quote that ID.`,
+    '',
+    'If you need to talk to someone about how you are feeling: in an emergency, call 999 or go to A&E. To talk to someone now: Samaritans 116 123 or text SHOUT to 85258 (all 24 hours). For support that isn\'t urgent: the University Student Counselling and Wellbeing Service, 0113 343 4107 or scw@leeds.ac.uk.',
+    '',
+    'MyPhone/MyBrain, School of Psychology, University of Leeds',
+  ].join('\n');
+  const outcome = await sendMail({ to: email, replyTo: labStudy.contactEmail, subject: 'MyPhone/MyBrain: your MyStory story', text });
+  // That a copy was asked for, and how it went: never the address.
+  await ref.set({ copiesEmailed: FieldValue.arrayUnion({ at: new Date().toISOString(), outcome }) }, { merge: true });
+  logger.info('Story emailed to the participant', { participantCode: code, storyId, outcome });
+  return { email: outcome };
 });

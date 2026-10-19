@@ -172,7 +172,7 @@ test('break-time messages: weekly check-ins and the end of the break, on their d
   for (const m of labJourneyMessages) assert.ok(journeyMessage(m.id, 'MP2670FF90A5F2', late2), `${m.id} has wording`);
   for (const m of labJourneyMessages) assert.ok(journeyMessage(m.id, 'MP2670FF90A5F2', late2)!.sms.length <= 160, `${m.id} fits one text`);
   assert.match(journeyMessage('check-in-2', 'MP2670FF90A5F2', late2)!.text, /Your second lab visit is on Wednesday 18 November 2026, 10:00 to 12:00/);
-  assert.match(journeyMessage('check-in-2', 'MP2670FF90A5F2', late2)!.text, /optional MyStory at the end/);
+  assert.match(journeyMessage('check-in-2', 'MP2670FF90A5F2', late2)!.text, /if you haven't told your MyStory for the break yet, there is an optional one at the end/);
 });
 
 test('the confirmation email: both visits, what to bring, the links, copied to the team', () => {

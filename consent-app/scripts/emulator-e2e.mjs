@@ -1317,6 +1317,25 @@ async function inner() {
     ok('the spoken answer is kept: the recording in storage under the conversation, with what it was written down as', postChat?.voiceClips?.length === 1 && clip?.ok === true && clip?.transcript === chatAnswers[2] && clip?.stage === 'interview' && clipStored === true, JSON.stringify(clip ?? null));
     ok('the whole conversation is kept: every turn, the answers in their own words, each model call, the change asked for and the edit', postChat?.status === 'done' && postChat?.transcript?.filter((m) => m.role === 'user').length === 5 && postChat?.extraction?.expectations_vs_experience === 'I slept better and talked to my flatmates more.' && postChat?.extraction?.taking_forward === null && postChat?.candidates?.length === 3 && postChat?.requests?.length === 1 && postChat?.edits?.length === 1 && postChat?.calls?.every((c) => c.ok && c.model === 'mock') && postChat?.calls?.length === 6 + 1 + 3 + 3 + 1 + 1 + 1 + 1, JSON.stringify({ status: postChat?.status, calls: postChat?.calls?.length }));
     ok('each retelling is checked against what was said before it is shown, and how close it is to their words is measured', postChat?.calls?.filter((c) => c.stage === 'check').length === 4 && Array.isArray(postChat?.requests?.[0]?.added) && postChat?.candidates?.every((c) => Array.isArray(c.added) && c.added.length === 0 && typeof c.similarity === 'number' && c.similarity > 0) && typeof postChat?.finalSimilarity === 'number', JSON.stringify(postChat?.candidates?.map((c) => [c.added, c.similarity])));
+    // Keeping a copy (19 October 2026, from the team's testing): download, print or email; and one story for each phase.
+    ok('the thank-you offers a copy of the story: download as PDF, print, email', (await page.getByRole('button', { name: 'Download as PDF' }).count()) === 1 && (await page.getByRole('button', { name: 'Print' }).count()) === 1 && (await page.getByRole('button', { name: 'Email it to me' }).count()) === 1);
+    const [storyPdf] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByRole('button', { name: 'Download as PDF' }).click()]);
+    const storyPdfBytes = fs.readFileSync(await storyPdf.path());
+    ok('the story downloads as a PDF, named for the phase and the participant ID', storyPdf.suggestedFilename() === 'MyPhone-MyBrain-MyStory-post-MP2670FF90A5F2.pdf' && storyPdfBytes.subarray(0, 5).toString() === '%PDF-');
+    await page.getByRole('button', { name: 'Email it to me' }).click();
+    await page.getByLabel('Your email address').fill('jane@example.com');
+    await page.getByRole('button', { name: 'Send me my story' }).click();
+    await page.getByText(/The email could not be sent just now/).waitFor({ timeout: 30000 });
+    const emailedStory = (await db.collection('labStories').doc(postStory.chatId).get()).data();
+    ok('asking for an email copy is recorded with how it went (no email is set up here), never with the address', emailedStory?.copiesEmailed?.[0]?.outcome === 'not-configured' && !JSON.stringify(emailedStory).includes('jane@example.com'));
+    ok('a participant is not offered another story for the same phase', (await page.getByRole('button', { name: 'Tell another story' }).count()) === 0);
+    await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=post&code=MP2670FF90A5F2`);
+    // This browser already knows the participant, so the page may go straight there; another asks them to continue first.
+    const toldHeading = page.getByRole('heading', { name: 'Your story is already in.', level: 1 });
+    await Promise.race([toldHeading.waitFor({ timeout: 30000 }), page.getByRole('button', { name: 'Continue' }).waitFor({ timeout: 30000 })]);
+    if (!(await toldHeading.count())) await page.getByRole('button', { name: 'Continue' }).click();
+    await toldHeading.waitFor({ timeout: 30000 });
+    ok('coming back to a phase whose story is in says so, with the date, and offers no chat or form', (await page.getByText(/You have already sent your story for this part of the study, on/).count()) === 1 && (await page.getByRole('button', { name: 'Start the chat' }).count()) === 0 && (await page.locator('#story-text').count()) === 0);
     // MyStory at the first visit, on the lab computer: the page forgets the participant once it is sent.
     await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=pre&at=lab&code=MP2670FF90A5F2`);
     await page.getByRole('button', { name: 'Continue' }).click();
@@ -1334,6 +1353,31 @@ async function inner() {
     ok('Finish clears the lab computer for the next person: no ID, nothing stored', leftOver.length === 0 && page.url().endsWith('phase=pre&at=lab') && !page.url().includes('code=') && (await page.getByLabel('First name').count()) === 1, JSON.stringify(leftOver));
     const preStory = (await db.collection('labStories').where('phase', '==', 'pre').get()).docs.map((d) => d.data())[0];
     ok('the story told at the lab is filed under the before-break phase', preStory?.participantCode === 'MP2670FF90A5F2' && preStory?.structureId === 'mystory-pre' && preStory?.title === 'Late nights');
+    // Again at the lab: already in, and the server refuses a second story for the phase whatever the page does.
+    await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=pre&at=lab&code=MP2670FF90A5F2`);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('heading', { name: 'Your story is already in.', level: 1 }).waitFor({ timeout: 30000 });
+    ok('at the lab too, a second before-break story is not offered, and Finish still clears the computer', (await page.getByRole('button', { name: 'Finish' }).count()) === 1 && (await page.getByRole('button', { name: 'Download as PDF' }).count()) === 0);
+    await page.getByRole('button', { name: 'Finish' }).click();
+    await page.getByRole('heading', { name: 'MyStory.', level: 1 }).waitFor({ timeout: 30000 });
+    const secondPre = { participantCode: 'MP2670FF90A5F2', phase: 'pre', structureId: preStory.structureId, structureVersion: preStory.structureVersion, promptId: preStory.promptId, title: 'Another one', story: 'A second story for the same part of the study, which should be refused.', answers: {}, source: 'story', checkInId: null, client };
+    ok('the server refuses a second story for a phase, whatever the page does', await refused(() => httpsCallable(fns, 'submitLabStory')(secondPre), 'failed-precondition'));
+    // The team's demo account may tell more than one story a phase (for testing); nobody else can.
+    await db.collection('labParticipants').doc('MP9C78C162BB9F').set({ participantCode: 'MP9C78C162BB9F', consentId: 'e2e-demo-consent', archiveCount: 0, screenshotCount: 0, storyCounts: {}, storyIds: [] });
+    for (const title of ['Demo one', 'Demo two']) {
+      await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=mid&code=MP9C78C162BB9F`);
+      const ownStory = page.getByRole('button', { name: 'I’d rather write my story myself' });
+      await Promise.race([ownStory.waitFor({ timeout: 30000 }), page.getByRole('button', { name: 'Continue' }).waitFor({ timeout: 30000 })]);
+      if (!(await ownStory.count())) await page.getByRole('button', { name: 'Continue' }).click();
+      await ownStory.click();
+      await page.locator('#story-prompt-pull').check();
+      await page.locator('#story-text').fill(`A demo story to check the team can tell more than one (${title}).`);
+      await page.locator('#story-title').fill(title);
+      await page.getByRole('button', { name: 'Send my story' }).click();
+      await page.getByRole('heading', { name: 'Thank you. Your story is saved.' }).waitFor({ timeout: 30000 });
+    }
+    const demoStories = (await db.collection('labStories').where('participantCode', '==', 'MP9C78C162BB9F').get()).docs.length;
+    ok('the demo account can tell a second story in the same phase, and is offered another', demoStories === 2 && (await page.getByRole('button', { name: 'Tell another story' }).count()) === 1, String(demoStories));
     ok('no browser errors on the booking and MyStory pages', errors.length === 0, errors.join(' | '));
 
     // The staff page: the key, the times, a participant's links, a school's password.

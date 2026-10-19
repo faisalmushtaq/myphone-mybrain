@@ -278,8 +278,14 @@ export function labReducer(state: LabState, action: LabAction): LabState {
       else answers[action.id] = action.value;
       return { ...state, story: { ...state.story, answers } };
     }
-    case 'story-sent':
-      return { ...state, story: { ...emptyStory(), sent: [...state.story.sent, { storyId: action.storyId, title: action.title, receivedAt: action.receivedAt }] } };
+    case 'story-sent': {
+      // Counted for this phase at once, so the page knows the story is in without asking the server again.
+      const ph = state.phase as 'pre' | 'mid' | 'post';
+      const progress = state.progress
+        ? { ...state.progress, stories: { pre: 0, mid: 0, post: 0, ...state.progress.stories, [ph]: (state.progress.stories?.[ph] ?? 0) + 1 }, storiesAt: { pre: null, mid: null, post: null, ...state.progress.storiesAt, [ph]: state.progress.storiesAt?.[ph] ?? action.receivedAt } }
+        : state.progress;
+      return { ...state, progress, story: { ...emptyStory(), sent: [...state.story.sent, { storyId: action.storyId, title: action.title, receivedAt: action.receivedAt }] } };
+    }
     case 'session':
       return { ...state, session: action.session };
     case 'restored':

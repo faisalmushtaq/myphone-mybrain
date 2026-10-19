@@ -142,7 +142,7 @@ function Detail({ staff, code, onClose }: { staff: Staff; code: string; onClose:
         <CopyLine label="Book or change lab visits" value={detail.links.book} />
         <CopyLine label="Weekly check-in" value={detail.links.checkIn} />
         <CopyLine label="After the break: data again" value={detail.links.after} />
-        <CopyLine label="MyStory during the break (also after each check-in)" value={detail.links.story.mid} />
+        <CopyLine label="MyStory during the break (also after the first check-in)" value={detail.links.story.mid} />
       </ul>
       <h3 className="mpmb-h3">At the lab</h3>
       <p className="mpmb-hint">MyStory before and after the break is told at the visits. Open the link on the lab computer and hand it over; once the story is sent, the page forgets the participant, ready for the next person.</p>

@@ -65,8 +65,10 @@ export function LabCheckIn() {
           return;
         }
       }
-      // MyStory follows each check-in (optional, with a skip), then the summary.
-      dispatch({ type: 'go-to', stepId: 'mystory' });
+      // MyStory follows the check-in (optional, with a skip), then the summary; once the break's story is in, straight to the summary
+      // (one story a phase, 19 October 2026, apart from the team's test accounts).
+      const told = (state.progress?.stories?.mid ?? 0) > 0 && state.progress?.storyRepeatAllowed !== true;
+      dispatch({ type: 'go-to', stepId: told ? 'done' : 'mystory' });
     } catch (error) {
       setErrors([{ field: 'lab-files', message: describeError(error, 'your check-in') }]);
     } finally {

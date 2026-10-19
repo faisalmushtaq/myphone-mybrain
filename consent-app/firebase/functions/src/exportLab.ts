@@ -50,16 +50,9 @@ const two = (n: number) => String(n).padStart(2, '0');
 export type LabPhase = 'pre' | 'mid' | 'post';
 export const LAB_PHASES: LabPhase[] = ['pre', 'mid', 'post'];
 
-/**
- * The team's permanent test accounts on the live site, for trying the break
- * study's pages (MyStory's chat above all) as a participant would. Kept, and
- * left out of every file of the export, so the research data holds only real
- * participants. Added 14 October 2026 at the team's request.
- */
-export const TEST_PARTICIPANTS: ReadonlySet<string> = new Set([
-  'MP9C78C162BB9F', // the team's own, for checking MyStory by hand
-  'MPEFE6E0593853', // used to test the AI chat live
-]);
+// The team's test accounts live in testAccounts.ts (used by the pages' functions too), re-exported here as before.
+export { TEST_PARTICIPANTS } from './testAccounts.js';
+import { TEST_PARTICIPANTS } from './testAccounts.js';
 
 /** Everything in the snapshot except the test accounts' records, with how many records were set aside. */
 export function withoutTestAccounts(snap: LabSnapshot): { snap: LabSnapshot; excluded: number } {

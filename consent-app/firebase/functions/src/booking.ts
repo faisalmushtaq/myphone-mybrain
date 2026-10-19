@@ -369,7 +369,7 @@ export function journeyMessage(id: string, code: string, visit2: BookingRecord |
     const week = id.slice('check-in-'.length);
     return {
       subject: `MyPhone/MyBrain: your week ${week} check-in`,
-      text: [...hello, `It's time for your weekly check-in for the ${labStudy.name}: a few quick questions about your break, and a screenshot of your screen time if you can. It takes about two minutes, and there is an optional MyStory at the end.`, '', links.checkIn, ...(visit2Line ? ['', visit2Line] : []), ...end].join('\n'),
+      text: [...hello, `It's time for your weekly check-in for the ${labStudy.name}: a few quick questions about your break, and a screenshot of your screen time if you can. It takes about two minutes, and if you haven't told your MyStory for the break yet, there is an optional one at the end.`, '', links.checkIn, ...(visit2Line ? ['', visit2Line] : []), ...end].join('\n'),
       sms: `MyPhone/MyBrain: time for your week ${week} check-in, about 2 minutes: ${links.checkIn}`,
     };
   }

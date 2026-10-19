@@ -31,6 +31,8 @@ import {
   type Prompt,
 } from './storyPrompts.js';
 import { isObj, validateClient, type ClientInfo } from './validate.js';
+import { alreadyToldMessage } from './story.js';
+import { mayRetellStory } from './testAccounts.js';
 
 /**
  * MyStory's AI chat (decided 13 October 2026): the MySelf micro-narrative
@@ -308,6 +310,8 @@ export const labStoryChat = onCall(callOptions, async (request) => {
     if (!model) return { available: false };
     const participant = (await db.collection('labParticipants').doc(code!).get()).data();
     if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please check your details.');
+    // One story for each phase (19 October 2026), apart from the team's test accounts.
+    if (Number(participant.storyCounts?.[phase!] ?? 0) >= 1 && !mayRetellStory(code!)) throw new HttpsError('failed-precondition', alreadyToldMessage);
     // "Start the chat" sent again (after its answer was lost on a poor connection): the chat this device has just begun,
     // with nothing said yet, is given back, not a second one (the swarm test, 17 October 2026).
     const recent = (await db.collection('labStoryChats').where('sessionUid', '==', uid).get()).docs.find((d) => {

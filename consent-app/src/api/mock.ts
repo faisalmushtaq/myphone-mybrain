@@ -536,9 +536,16 @@ export class MockConsentApi implements ConsentApi {
     this.checkSession(session);
     const p = this.lab.get(payload.participantCode);
     if (!p?.consents.length) throw new ApiError('validation', 'We have no consent on file for this participant ID.');
+    if (p.stories.some((x) => x.phase === payload.phase)) throw new ApiError('validation', 'You have already sent your story for this part of the study.');
     p.stories.push({ phase: payload.phase, promptId: payload.promptId, title: payload.title });
     this.persistLab();
     return { storyId: `labs_${p.stories.length}`, receivedAt: new Date().toISOString() };
+  }
+
+  /** The preview sends no email: it says so, and the page offers the download and print instead. */
+  async emailLabStory(): Promise<{ email: DeliveryOutcome }> {
+    await sleep(jitter(300, 600));
+    return { email: 'not-configured' };
   }
 
   /** The preview has no model: the AI chat says it is not set up, and the page offers MyStory's own form. */

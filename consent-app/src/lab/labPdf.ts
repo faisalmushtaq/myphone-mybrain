@@ -36,3 +36,21 @@ export async function downloadLabConsentCopy(state: LabState): Promise<string> {
   downloadBlob(blob, fileName);
   return fileName;
 }
+
+const PHASE_WORDS: Record<string, string> = { pre: 'Before your break', mid: 'During your break', post: 'After your break' };
+
+/** A participant's copy of a MyStory story (19 October 2026), built on the device: the story, when, and how to have it removed. */
+export async function buildStoryCopy(story: { code: string; phase: string; title: string | null; text: string; receivedAt: string | null }): Promise<{ blob: Blob; fileName: string }> {
+  const doc = await createDocument();
+  doc.setProperties({ title: `MyPhone/MyBrain – your MyStory story (${story.code})`, subject: 'Copy of a MyStory story', author: labStudy.contact.team, creator: 'MyPhone/MyBrain MyStory' });
+  const w = new Writer(doc);
+  w.paragraph('MyPhone/MyBrain · MyStory', { size: 10, style: 'bold', color: PDF_MUTED, after: 1 });
+  w.paragraph(story.title || 'Your story', { size: 21, style: 'bold', after: 1.5 });
+  w.paragraph(`${PHASE_WORDS[story.phase] ?? ''} · Participant ID ${story.code}${story.receivedAt ? ` · Sent ${formatTimestamp(story.receivedAt)}` : ''}`, { size: 10.5, color: PDF_MUTED, after: 4 });
+  for (const para of story.text.split(/\n\s*\n/)) w.paragraph(para.trim(), { size: 12, after: 3 });
+  w.heading('About your story');
+  w.paragraph(`It is saved for the research under your participant ID, never your name. If you ever want it removed, email ${labStudy.contact.name} at ${labStudy.contact.email} and quote your participant ID.`);
+  w.paragraph('If you need to talk to someone about how you are feeling: in an emergency, call 999 or go to A&E. To talk to someone now: Leeds Crisis Assessment Centre 0800 183 1485, Samaritans 116 123, or text SHOUT to 85258 (all 24 hours). For support that isn’t urgent: the University Student Counselling and Wellbeing Service, 0113 343 4107 or scw@leeds.ac.uk.');
+  w.footer(story.code);
+  return { blob: doc.output('blob'), fileName: `MyPhone-MyBrain-MyStory-${story.phase}-${story.code}.pdf` };
+}
