@@ -16,8 +16,8 @@ password the team gives it.
    hash is kept. Send the link and the password separately: the link by
    email, the password by phone or text.
 2. The school's member of staff opens the link, types the password, chooses
-   the file exported from their management information system (CSV or
-   Excel `.xlsx`, up to 5 MB), checks what was read (number of pupils, UPNs
+   their class list (Excel, CSV, Word, PDF or plain text, up to 7 MB; a
+   file the page cannot read is still sent, marked to be read by hand), checks what was read (number of pupils, UPNs
    that can be used, classes, the first rows, rows to check, columns that
    are not read), gives their name, role and school email, and sends it.
    They get an emailed receipt; the team gets an email too.
