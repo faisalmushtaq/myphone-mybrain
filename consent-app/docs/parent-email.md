@@ -7,6 +7,10 @@ brackets]. Each school has its own link: Dixons Unity Academy
 `myphonemybrain.com/gsal`. The link takes parents straight to the form with
 the school already filled in.
 
+Updated 19 October 2026 with the two kinds of opt-out (`opt-outs.md`):
+the data-only option is not yet in the approved information sheet, so it
+needs the ethics amendment before this version goes out.
+
 Written 17 October 2026 in plain words to match the information sheet
 (`/information/`) and the form. Check with the ethics approval (SoPREC 4202)
 before sending: recruitment emails may need to be the approved version.
@@ -52,9 +56,19 @@ questionnaires. On the day, the researchers explain everything again and
 ask each young person if they want to take part. Your child can say no,
 or stop at any time, without giving a reason.
 
-If you don’t want your child to take part, email **brainpop@leeds.ac.uk**
-before [date], with your child’s name and school. There is no form or
-slip to return. Please also email us, or tell the school, if your child
+If you would rather your child didn’t take part, you have two choices:
+
+* **They join the workshop, but their information isn’t used.** Your
+  child takes part with their class as normal, but nothing recorded about
+  them is kept or used for the study, and nothing is linked with their
+  school or health records.
+* **They don’t take part, and their information isn’t used.** Your child
+  does something else at school while their class does the workshop.
+
+For either one, email **brainpop@leeds.ac.uk** before [date], saying which
+you would like, with your child’s name, school and class or year group.
+There is no form or slip to return, and we reply
+to confirm. Please also email us, or tell the school, if your child
 has ever had epilepsy or seizures. They can still join the workshop, but
 won’t do the brain recording.
 
@@ -79,5 +93,6 @@ Leeds
 > [School name]: University of Leeds researchers run a brain science
 > workshop with [year group] on [date]. Please fill in a 10-minute form
 > about your child’s phone, and share their screen time if you’re happy
-> to: [myphonemybrain.com/dua or /gsal]. Details, and how to opt out:
-> myphonemybrain.com/information
+> to: [myphonemybrain.com/dua or /gsal]. You can opt your child out of
+> the workshop, or let them join in without their information being used:
+> details at myphonemybrain.com/information
