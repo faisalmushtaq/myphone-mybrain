@@ -56,7 +56,8 @@ questionnaires. On the day, the researchers explain everything again and
 ask each young person if they want to take part. Your child can say no,
 or stop at any time, without giving a reason.
 
-If you would rather your child didn’t take part, you have two choices:
+If you would rather we didn’t use your child’s information, you have two
+choices:
 
 * **They join the workshop, but their information isn’t used.** Your
   child takes part with their class as normal, but nothing recorded about
