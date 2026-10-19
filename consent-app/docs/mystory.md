@@ -55,9 +55,34 @@ and here:
 
 | Phase | File | Questions | Extracted |
 | --- | --- | --- | --- |
-| Before (`pre`, first lab visit) | `src/lab/mystory/pre.toml` (`np.sm_abstinence_pre`) | 6: when they use it most, how it fits with uni, work and friends, mental health, how they feel after, putting it down, the 30 days ahead | 10 keys |
-| During (`mid`, after each check-in) | `src/lab/mystory/mid.toml` (`np.sm_abstinence_mid`) | 4: how it has affected them so far, a moment that stood out, what they do instead, wanting to go on | 12 keys |
-| After (`post`, second lab visit) | `src/lab/mystory/post.toml` (`np.sm_abstinence_post`) | 5: how the 30 days affected them, mental health, what they missed, are they back on, what they will take forward | 18 keys |
+| Before (`pre`, first lab visit) | `src/lab/mystory/pre.toml` (`np.sm_abstinence_pre`) | 6: when they use it most (and whether feelings lead them to it), whether it impacts other areas of life, mental health, how they feel after, putting it down, how they feel about the 30 days off | 10 keys |
+| During (`mid`, after each check-in) | `src/lab/mystory/mid.toml` (`np.sm_abstinence_mid`) | 5: how it has affected them so far, a moment that stood out (including anything physical), what they do instead, wanting to go on, turning to anyone for support | 14 keys |
+| After (`post`, second lab visit) | `src/lab/mystory/post.toml` (`np.sm_abstinence_post`) | 5: how the 30 days have been, anything different in how social media affects their mental health, what they missed, are they back on (and has the way they use it changed), what they will take forward | 18 keys |
+
+**0.2.0 (19 October 2026): the team's update after testing (Michelle Wain).**
+In all three: before each question the interviewer checks whether it has
+already been answered, even in other words, and if so sums up what was said
+and asks if there is anything else; asked "what do you mean?", it says the
+question again more simply with an everyday example; the stories must make
+sense on their own (never "it'll help" without saying what) and include what
+they expect, or how it went. Before: a follow-up on whether feelings lead
+them to social media; "Does social media impact other areas of your life?",
+naming uni, socialising and friends only if not covered; "How are you feeling
+about having 30 days off social media?" last. During: no "Hi again" (the chat
+already greets them); differences in uni, work or relationships; whether they
+noticed anything physically; when they already said they went on, other times
+they wanted to but didn't and how they managed; a new last question, "Have
+you turned to anyone for support during the break?" (two new extraction keys,
+`physical_feelings` and `support_seeking`). After: "How has the 30 days off
+social media been for you?", "Since the break, have you noticed anything
+different about how social media affects your mental health?", and after "are
+you back on social media?", "Has the way you use social media changed at all
+since the break?". The support message now points to "the numbers under the
+help icon at the top of the page, or on the participant information sheet"
+(the online sheet gained a "Where can I get support?" section with the same
+numbers), and the safeguarding reply offers to "pause for a while, stop here,
+or carry on". The team's files were made from an earlier copy, so the fixes
+below are kept on top of them.
 
 Three fixes were needed for the files to load, each noted at the top of the
 file: the example conversation's closing quote escaped, the closing quote on

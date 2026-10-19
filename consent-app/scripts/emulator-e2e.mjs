@@ -1261,7 +1261,7 @@ async function inner() {
     ok('Help shows the support numbers without leaving the chat', (await page.getByRole('note', { name: 'Where to get help' }).innerText()).includes('Samaritans 116 123'));
     await page.getByRole('button', { name: 'Back to the chat' }).click();
     const chatLog = page.getByRole('log', { name: 'Your chat with Remi' });
-    ok('Remi introduces itself as an AI, from the team’s protocol file, with no {first_name} left over when the name is not known, then asks the first after-break question', (await chatLog.innerText()).includes('Hi, I\'m Remi. I\'m an AI bot') && !(await chatLog.innerText()).includes('{first_name}') && (await chatLog.innerText()).includes('Looking back, how has being off social media for 30 days affected you?'), (await chatLog.innerText()).slice(0, 300));
+    ok('Remi introduces itself as an AI, from the team’s protocol file, with no {first_name} left over when the name is not known, then asks the first after-break question', (await chatLog.innerText()).includes('Hi, I\'m Remi. I\'m an AI bot') && !(await chatLog.innerText()).includes('{first_name}') && (await chatLog.innerText()).includes('How has the 30 days off social media been for you?'), (await chatLog.innerText()).slice(0, 300));
     await page.locator('#chat-input').fill('Mostly the quiet evenings, I think.');
     await snap('mystory-chat-interview');
     await page.locator('#chat-input').fill('');

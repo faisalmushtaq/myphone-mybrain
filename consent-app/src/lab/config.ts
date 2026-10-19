@@ -146,6 +146,19 @@ export const labInformation: LabInfoSection[] = [
     detail: ['There are no known serious risks associated with these measurements. Possible risks include temporary inconvenience due to restricted access to selected smartphone applications and mild discomfort from wearing the EEG headset or ECG sensors.'],
   },
   {
+    // Added on the website (19 October 2026): MyStory's chat sends people "to the numbers on the participant information
+    // sheet", so the sheet lists them, the same as the chat's Help (src/lab/story/chatProtocol.ts, chatSupport).
+    id: 'support',
+    title: 'Where can I get support?',
+    summary: 'If you need to talk to someone about how you are feeling: 999 in an emergency, Samaritans 116 123 any time, or the University’s Student Counselling and Wellbeing Service.',
+    detail: [
+      'The research team does not read what you send straight away, so we cannot give support in the moment. If you need to talk to someone about how you are feeling, please reach out to one of these, or to someone you trust, like a friend or a family member.',
+      'In an emergency, or if you don’t feel safe: call 999 or go to A&E.',
+      'To talk to someone now: Leeds Crisis Assessment Centre 0800 183 1485, Samaritans 116 123, or text SHOUT to 85258 (all 24 hours).',
+      'For support that isn’t urgent: the University Student Counselling and Wellbeing Service, 0113 343 4107 or scw@leeds.ac.uk.',
+    ],
+  },
+  {
     id: 'voluntary',
     title: 'Do I have to take part?',
     summary: 'No. You can withdraw at any time without giving a reason. What you have already sent is kept unless you contact us to withdraw it.',
