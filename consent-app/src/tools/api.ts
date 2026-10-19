@@ -115,7 +115,7 @@ export interface SchoolRow {
   link: string;
   password: 'set' | 'revoked' | 'none';
   setAt: string | null;
-  uploads: { uploadId: string; receivedAt: string | null; fileName: string; pupils: number; valid: number; problems: number; uploader: { name?: string; role?: string; email?: string } | null }[];
+  uploads: { uploadId: string; receivedAt: string | null; fileName: string; pupils: number; valid: number; problems: number; manual?: boolean; uploader: { name?: string; role?: string; email?: string } | null }[];
 }
 
 /** How the website is used (firebase/functions/src/usage.ts → summariseUsage). */

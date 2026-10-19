@@ -7,7 +7,7 @@ import { schools, type SchoolEntry } from './forms.js';
 import { sha256 } from './images.js';
 import { schoolUploadLink } from './links.js';
 import { sendMail, sendTeamMail } from './mail.js';
-import { pupilsFrom, readTable, TableError, type Pupil, type PupilList } from './tables.js';
+import { fileKind, pupilsFrom, readTable, TableError, type Pupil, type PupilList } from './tables.js';
 import { isObj, str, validateClient, type ClientInfo } from './validate.js';
 
 /**
@@ -28,7 +28,8 @@ import { isObj, str, validateClient, type ClientInfo } from './validate.js';
 
 const REGION = 'europe-west2';
 const callOptions = { region: REGION, memory: '512MiB' as const, timeoutSeconds: 120, enforceAppCheck: process.env.MPMB_ENFORCE_APP_CHECK === 'true' };
-const MAX_BYTES = 5 * 1024 * 1024;
+/** Up to 7 MB: the file goes in the request itself, which Google caps at 10 MB once encoded. */
+const MAX_BYTES = 7 * 1024 * 1024;
 const MAX_PUPILS = 3000;
 /** Wrong passwords allowed in an hour, from one browser and for one school. */
 const FAILURES_PER_SESSION = 10;
@@ -119,7 +120,7 @@ export function validateSchoolUploadPayload(input: unknown): string[] {
   if (p.action === 'preview' || p.action === 'send') {
     const f = p.file;
     if (!isObj(f) || !str(f.name, 200) || !str(f.contentType, 120) || typeof f.data !== 'string') problems.push('Choose a file to upload.');
-    else if (f.data.length > Math.ceil((MAX_BYTES * 4) / 3) + 8) problems.push('The file is larger than 5 MB. A class list should be much smaller: send only the columns asked for.');
+    else if (f.data.length > Math.ceil((MAX_BYTES * 4) / 3) + 8) problems.push('The file is larger than 7 MB. A class list should be much smaller: if it is a Word or PDF file with pictures, save it as Excel or CSV instead.');
   }
   if (p.action === 'send') {
     const u = p.uploader;
@@ -147,8 +148,9 @@ export function previewOf(list: PupilList) {
     ignored: list.ignored,
     pupils: list.pupils.length,
     valid: list.valid,
-    sample: list.pupils.slice(0, 8).map((x) => ({ row: x.row, upn: x.upn, firstName: x.firstName, lastName: x.lastName, dateOfBirth: x.dateOfBirth, yearGroup: x.yearGroup, className: x.className })),
-    classes: Array.from(new Set(list.pupils.map(classOf).filter(Boolean))).sort(),
+    sample: list.pupils.slice(0, 8).map((x) => ({ row: x.row, upn: x.upn, firstName: x.firstName, lastName: x.lastName, dateOfBirth: x.dateOfBirth, yearGroup: x.yearGroup, className: x.className || x.formTutor || '' })),
+    classes: Array.from(new Set(list.pupils.map((x) => classOf({ yearGroup: x.yearGroup, className: x.className || x.formTutor || '' })).filter(Boolean))).sort(),
+    noHeadings: Boolean(list.noHeadings),
     problems: list.problems.slice(0, 50),
     problemCount: list.problems.length,
   };
@@ -170,18 +172,21 @@ export const schoolUpload = onCall({ ...callOptions }, async (request) => {
 
   const buffer = Buffer.from(p.file!.data, 'base64');
   if (!buffer.length) throw new HttpsError('invalid-argument', 'The file is empty.');
-  if (buffer.length > MAX_BYTES) throw new HttpsError('invalid-argument', 'The file is larger than 5 MB. A class list should be much smaller: send only the columns asked for.');
-  let list: PupilList;
+  if (buffer.length > MAX_BYTES) throw new HttpsError('invalid-argument', 'The file is larger than 7 MB. A class list should be much smaller: if it is a Word or PDF file with pictures, save it as Excel or CSV instead.');
+  // Read what can be read. A file that cannot be read automatically (an older .xls or .doc, a scan, a list in a form we
+  // do not recognise) is never turned away: it is kept as sent and the team reads it by hand (19 October 2026).
+  let list: PupilList | null = null;
+  let unreadable: string | null = null;
   try {
     list = pupilsFrom(await readTable(buffer, p.file!.name));
   } catch (error) {
-    if (error instanceof TableError) throw new HttpsError('invalid-argument', error.message);
-    logger.warn('School upload could not be read', { school: school.slug, error: String((error as Error).message ?? error).slice(0, 200) });
-    throw new HttpsError('invalid-argument', 'This file could not be read. Save the class list as .csv or .xlsx and try again.');
+    unreadable = error instanceof TableError ? error.message : 'This file could not be read automatically.';
+    if (!(error instanceof TableError)) logger.warn('School upload could not be read', { school: school.slug, error: String((error as Error).message ?? error).slice(0, 200) });
   }
-  if (list.pupils.length > MAX_PUPILS) throw new HttpsError('invalid-argument', `The file lists ${list.pupils.length} pupils; only the classes taking part are needed (at most ${MAX_PUPILS}).`);
-  const preview = previewOf(list);
-  if (p.action === 'preview') return { preview };
+  if (list && list.pupils.length > MAX_PUPILS) throw new HttpsError('invalid-argument', `The file lists ${list.pupils.length} pupils; only the classes taking part are needed (at most ${MAX_PUPILS}).`);
+  const preview = list ? previewOf(list) : null;
+  const kind = await fileKind(buffer, p.file!.name);
+  if (p.action === 'preview') return { preview, unreadable, kind };
 
   const uploadId = randomUUID();
   const receivedAt = new Date();
@@ -204,12 +209,35 @@ export const schoolUpload = onCall({ ...callOptions }, async (request) => {
       bytes: buffer.length,
       sha256: sha256(buffer),
       path,
-      columns: list.columns,
-      ignored: list.ignored,
-      pupils: list.pupils.map((x: Pupil) => ({ row: x.row, upn: x.upn, firstName: x.firstName, lastName: x.lastName, dateOfBirth: x.dateOfBirth, yearGroup: x.yearGroup, className: x.className })),
-      pupilCount: list.pupils.length,
-      validUpns: list.valid,
-      problems: list.problems.slice(0, 500),
+      fileKind: kind,
+      // Not read automatically: the team reads the file by hand, and the staff page and the export say so.
+      needsManualReading: !list,
+      unreadableReason: unreadable,
+      noHeadings: Boolean(list?.noHeadings),
+      columns: list?.columns ?? null,
+      ignored: list?.ignored ?? [],
+      pupils: (list?.pupils ?? []).map((x: Pupil) => ({
+        row: x.row,
+        upn: x.upn,
+        firstName: x.firstName,
+        middleName: x.middleName ?? '',
+        lastName: x.lastName,
+        dateOfBirth: x.dateOfBirth,
+        gender: x.gender ?? '',
+        ethnicity: x.ethnicity ?? '',
+        schoolName: x.schoolName ?? '',
+        yearGroup: x.yearGroup,
+        formTutor: x.formTutor ?? '',
+        className: x.className,
+        address: x.address ?? '',
+        postcode: x.postcode ?? '',
+        email: x.email ?? '',
+        fsm: x.fsm ?? '',
+        sen: x.sen ?? '',
+      })),
+      pupilCount: list?.pupils.length ?? 0,
+      validUpns: list?.valid ?? 0,
+      problems: (list?.problems ?? []).slice(0, 500),
       uploader,
       note: (p.note ?? '').trim() || null,
       sessionUid: uid,
@@ -217,10 +245,12 @@ export const schoolUpload = onCall({ ...callOptions }, async (request) => {
       receivedAt,
       createdAt: FieldValue.serverTimestamp(),
     });
-  const summary = `${list.pupils.length} pupils (${list.valid} with a usable UPN${list.problems.length ? `; ${list.problems.length} row${list.problems.length === 1 ? '' : 's'} to check` : ''})${preview.classes.length ? ` in ${preview.classes.join(', ')}` : ''}`;
+  const summary = list && preview
+    ? `${list.pupils.length} pupils (${list.valid} with a usable UPN${list.problems.length ? `; ${list.problems.length} row${list.problems.length === 1 ? '' : 's'} to check` : ''})${preview.classes.length ? ` in ${preview.classes.join(', ')}` : ''}`
+    : 'a file the website could not read automatically, so the research team will read it by hand';
   const team = await sendTeamMail({
     subject: `MyPhone/MyBrain: ${school.name} sent its UPN list`,
-    text: [`${uploader.name}${uploader.role ? ` (${uploader.role})` : ''} at ${school.name} sent a UPN list: ${summary}.`, '', `File: ${fileName}`, `Upload: ${uploadId}`, ...(p.note?.trim() ? ['', `Their note: ${p.note.trim()}`] : []), '', 'It is in the export within the hour, under schools/upn-uploads/.'].join('\n'),
+    text: [`${uploader.name}${uploader.role ? ` (${uploader.role})` : ''} at ${school.name} sent a UPN list: ${summary}.`, ...(unreadable ? ['', `TO READ BY HAND: ${unreadable} The file is in the export under schools/upn-uploads/, and on the staff page.`] : []), '', `File: ${fileName}`, `Upload: ${uploadId}`, ...(p.note?.trim() ? ['', `Their note: ${p.note.trim()}`] : []), '', 'It is in the export within the hour, under schools/upn-uploads/.'].join('\n'),
     replyTo: uploader.email,
   });
   const receipt = await sendMail({
@@ -229,6 +259,6 @@ export const schoolUpload = onCall({ ...callOptions }, async (request) => {
     text: ['Hello,', '', `Thank you. We received your file ${fileName}: ${summary}.`, '', 'If you need to correct anything, upload the file again on the same page; the research team uses the latest one. Questions? Reply to this email.', '', 'The MyPhone/MyBrain team, University of Leeds'].join('\n'),
   });
   await db.collection('schoolUploads').doc(uploadId).set({ notified: { team, receipt } }, { merge: true });
-  logger.info('School UPN list received', { school: school.slug, uploadId, pupils: list.pupils.length, valid: list.valid, problems: list.problems.length, team, receipt });
+  logger.info('School UPN list received', { school: school.slug, uploadId, kind, manual: !list, pupils: list?.pupils.length ?? 0, valid: list?.valid ?? 0, problems: list?.problems.length ?? 0, team, receipt });
   return { uploadId, receivedAt: receivedAt.toISOString(), preview, receipt };
 });

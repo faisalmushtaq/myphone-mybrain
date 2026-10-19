@@ -107,7 +107,7 @@ export function Schools({ staff }: { staff: Staff }) {
               {s.uploads.map((u) => (
                 <li key={u.uploadId} className="mpmb-tools__row">
                   <span className="mpmb-tools__main">
-                    {when(u.receivedAt)} · {u.fileName} · {u.pupils} pupils, {u.valid} with a usable UPN{u.problems ? `, ${u.problems} rows to check` : ''} · from {u.uploader?.name ?? 'n/a'}
+                    {when(u.receivedAt)} · {u.fileName} · {u.manual ? <strong>To read by hand: the website could not read this file (it is in the export)</strong> : <>{u.pupils} pupils, {u.valid} with a usable UPN{u.problems ? `, ${u.problems} rows to check` : ''}</>} · from {u.uploader?.name ?? 'n/a'}
                     {u.uploader?.role ? ` (${u.uploader.role})` : ''}
                   </span>
                 </li>

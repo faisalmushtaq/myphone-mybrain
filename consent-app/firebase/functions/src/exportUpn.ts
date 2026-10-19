@@ -148,15 +148,15 @@ export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<strin
     files.push(
       tsvFile(
         `${base}_pupils.tsv`,
-        ((d.pupils ?? []) as Record<string, unknown>[]).map((p) => ({ row: p.row, upn: p.upn, first_name: p.firstName, last_name: p.lastName, date_of_birth: p.dateOfBirth, year_group: p.yearGroup, class: p.className })),
-        ['row', 'upn', 'first_name', 'last_name', 'date_of_birth', 'year_group', 'class'],
+        ((d.pupils ?? []) as Record<string, unknown>[]).map((p) => ({ row: p.row, upn: p.upn, first_name: p.firstName, middle_name: p.middleName ?? null, last_name: p.lastName, date_of_birth: p.dateOfBirth, gender: p.gender ?? null, ethnicity: p.ethnicity ?? null, school_name: p.schoolName ?? null, year_group: p.yearGroup, form_tutor: p.formTutor ?? null, class: p.className, address: p.address ?? null, postcode: p.postcode ?? null, school_email: p.email ?? null, fsm: p.fsm ?? null, sen: p.sen ?? null })),
+        ['row', 'upn', 'first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender', 'ethnicity', 'school_name', 'year_group', 'form_tutor', 'class', 'address', 'postcode', 'school_email', 'fsm', 'sen'],
       ),
     );
-    uploadRows.push({ upload_id: u.id, school_id: d.schoolId, school_name: d.schoolName, received_at: d.receivedAt, file_name: d.fileName, stored_as: original.slice(UPN_ROOT.length + 1), pupils_n: d.pupilCount, valid_upns_n: d.validUpns, problems_n: Array.isArray(d.problems) ? d.problems.length : 0, uploader_name: d.uploader?.name, uploader_role: d.uploader?.role, uploader_email: d.uploader?.email, note: d.note, sha256: d.sha256 });
+    uploadRows.push({ upload_id: u.id, school_id: d.schoolId, school_name: d.schoolName, received_at: d.receivedAt, file_name: d.fileName, stored_as: original.slice(UPN_ROOT.length + 1), pupils_n: d.pupilCount, valid_upns_n: d.validUpns, problems_n: Array.isArray(d.problems) ? d.problems.length : 0, uploader_name: d.uploader?.name, uploader_role: d.uploader?.role, uploader_email: d.uploader?.email, note: d.note, sha256: d.sha256, read_by_hand: d.needsManualReading === true, why_not_read: d.unreadableReason ?? null, file_kind: d.fileKind ?? null });
   }
   // Every row the reader flagged, in full (16 October 2026; the staff page and uploads.tsv give only the number): the message may quote the cell, so coordinators only, like the rest of this folder.
   files.push(tsvFile(`${UPN_ROOT}/problems.tsv`, problemRows, ['upload_id', 'school_id', 'received_at', 'file_name', 'row', 'problem']));
-  files.push(tsvFile(`${UPN_ROOT}/uploads.tsv`, uploadRows, ['upload_id', 'school_id', 'school_name', 'received_at', 'file_name', 'stored_as', 'pupils_n', 'valid_upns_n', 'problems_n', 'uploader_name', 'uploader_role', 'uploader_email', 'note', 'sha256']));
+  files.push(tsvFile(`${UPN_ROOT}/uploads.tsv`, uploadRows, ['upload_id', 'school_id', 'school_name', 'received_at', 'file_name', 'stored_as', 'pupils_n', 'valid_upns_n', 'problems_n', 'uploader_name', 'uploader_role', 'uploader_email', 'note', 'sha256', 'read_by_hand', 'why_not_read', 'file_kind']));
 
   const bySchool = pupilsBySchool(uploads);
   const matched = new Map<string, Set<string>>();
@@ -220,10 +220,16 @@ UPNs, names and dates of birth are identifying. Regenerated every hour as a
 mirror of the database; do not edit files here.
 
 uploads.tsv            one row per file: which school, who sent it and when,
-                       how many pupils, and where the file is kept below
-<school>/              each file exactly as the school sent it, and beside it
-                       <date>_<id>_pupils.tsv: the UPN, names, date of birth,
-                       year group and class read from it (no other column is read)
+                       how many pupils, and where the file is kept below;
+                       read_by_hand is true for a file the website could not
+                       read (an older .xls or .doc, a scan, a list in another
+                       form): the team reads that file itself, and why_not_read says why
+<school>/              each file exactly as the school sent it (CSV, Excel, Word,
+                       PDF or text), and beside it <date>_<id>_pupils.tsv: what
+                       was read from it: UPN, names, date of birth, gender,
+                       ethnicity, school, year group, form tutor, class, address,
+                       postcode, school email, FSM (Y/N) and SEN (N/S/E/K), each
+                       when the file had it (the class-list template's columns)
 upn_matches.tsv        each family's record on the website (participant_id is
                        the label in ../donations/) with the UPN it matches:
                          name-and-dob     first name, last name and date of birth agree

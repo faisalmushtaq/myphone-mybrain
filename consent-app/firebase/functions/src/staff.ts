@@ -360,7 +360,7 @@ async function schoolsList(db: Firestore) {
       setAt: toIso(a?.setAt),
       uploads: uploads.docs
         .filter((u) => u.data().schoolSlug === s.slug)
-        .map((u) => ({ uploadId: u.id, receivedAt: toIso(u.data().receivedAt), fileName: u.data().fileName, pupils: Number(u.data().pupilCount ?? 0), valid: Number(u.data().validUpns ?? 0), problems: Array.isArray(u.data().problems) ? u.data().problems.length : 0, uploader: plainOf(u.data().uploader) }))
+        .map((u) => ({ uploadId: u.id, receivedAt: toIso(u.data().receivedAt), fileName: u.data().fileName, pupils: Number(u.data().pupilCount ?? 0), valid: Number(u.data().validUpns ?? 0), problems: Array.isArray(u.data().problems) ? u.data().problems.length : 0, manual: u.data().needsManualReading === true, uploader: plainOf(u.data().uploader) }))
         .sort((x, y) => String(y.receivedAt).localeCompare(String(x.receivedAt))),
     };
   });

@@ -1455,7 +1455,7 @@ async function inner() {
     await page.locator('#school-file').setInputFiles({ name: 'Year 8.csv', mimeType: 'text/csv', buffer: Buffer.from(classCsv) });
     await page.getByRole('heading', { name: 'Check what we read' }).waitFor({ timeout: 30000 });
     const checkText = await page.locator('.mpmb-card').innerText();
-    ok('the school sees what was read before sending: pupils, usable UPNs, columns not read, a row to check', checkText.includes('3 pupils') && checkText.includes('2 with a UPN we can use') && checkText.includes('Not read: SEN') && checkText.includes('1 row to check'), checkText.slice(0, 300));
+    ok('the school sees what was read before sending: pupils, usable UPNs, the template’s columns found, a row to check', checkText.includes('3 pupils') && checkText.includes('2 with a UPN we can use') && checkText.includes('SEN (“SEN”)') && !checkText.includes('Not read') && checkText.includes('1 row to check'), checkText.slice(0, 300));
     await toolsSnap('school-check');
     await page.getByLabel('Your name').fill('Ms Teacher');
     await page.getByLabel(/Your role/).fill('Head of Year 8');
@@ -1468,6 +1468,28 @@ async function inner() {
     ok('the file is kept exactly as sent, in its own place', schoolFiles.length === 1 && (await schoolFiles[0].download())[0].toString('utf8') === classCsv);
     ok('a client cannot read the school files or the password hashes', (await denied(() => getBytes(ref(webStorage, schoolFiles[0].name)))) && (await denied(() => getDoc(doc(webDb, 'schoolUploadAccess', 'dua')))));
     // The wrong staff key and the wrong school password, tried on purpose above, are refused by the server (403, 400): the only errors allowed.
+    // 19 October 2026: the same list as a Word document with the class-list template's columns, then a file the page cannot read (an old .xls), sent anyway for the team.
+    const JSZipForWord = admin('jszip');
+    const wordZip = new JSZipForWord();
+    const wcell = (t) => `<w:tc><w:p><w:r><w:t>${t}</w:t></w:r></w:p></w:tc>`;
+    const wrow = (...c) => `<w:tr>${c.map(wcell).join('')}</w:tr>`;
+    wordZip.file('word/document.xml', `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:tbl>${wrow('UPN', 'First_Name', 'Last_Name', 'Date_Of_Birth', 'Gender', 'Ethnicity', 'Year_Group', 'Form_Tutor', 'Postcode', 'FSM (Y or N)', 'SEN (N = no SEN; S = statement; E = EHC plan; K = SEN support)')}${wrow('A123456789012', 'Kai', 'Patel', '14/03/2013', 'M', 'AIND', '8', 'Ms Lee', 'LS6 1AB', 'N', 'N')}${wrow('A123456789013', 'Ola', 'Nowak', '01/02/2013', 'F', 'WOTH', '8', 'Ms Lee', 'LS2 9JT', 'Y', 'K')}</w:tbl></w:body></w:document>`);
+    await page.locator('#school-file').setInputFiles({ name: 'Year 8 class list.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: await wordZip.generateAsync({ type: 'nodebuffer' }) });
+    await page.getByRole('heading', { name: 'Check what we read' }).waitFor({ timeout: 30000 });
+    const wordCheck = await page.locator('.mpmb-card').innerText();
+    ok('a Word document’s table is read like a spreadsheet, with the template’s columns', wordCheck.includes('2 pupils') && wordCheck.includes('2 with a UPN we can use') && wordCheck.includes('FSM') && wordCheck.includes('Ethnicity'), wordCheck.slice(0, 300));
+    await page.getByRole('button', { name: 'Send to the research team' }).click();
+    await page.getByText(/2 pupils received/).waitFor({ timeout: 30000 });
+    const wordUpload = (await db.collection('schoolUploads').where('fileKind', '==', 'docx').get()).docs[0]?.data();
+    ok('the Word upload keeps every template column read, FSM and SEN as coded', wordUpload?.pupils?.[1]?.fsm === 'Y' && wordUpload?.pupils?.[1]?.sen === 'K' && wordUpload?.pupils?.[0]?.ethnicity === 'AIND' && wordUpload?.pupils?.[0]?.postcode === 'LS6 1AB' && wordUpload?.needsManualReading === false, JSON.stringify(wordUpload?.pupils?.[1] ?? null));
+    await page.locator('#school-file').setInputFiles({ name: 'class list.xls', mimeType: 'application/vnd.ms-excel', buffer: Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0, 0, 0, 0]) });
+    await page.getByRole('heading', { name: /couldn’t read the pupils from this file automatically/ }).waitFor({ timeout: 30000 });
+    ok('a file the page cannot read is not turned away: it says why, and offers to send it for the team to read', (await page.getByText(/older Excel file/).count()) >= 1 && (await page.getByRole('button', { name: 'Send it anyway' }).count()) === 1);
+    await page.getByRole('button', { name: 'Send it anyway' }).click();
+    await page.getByText(/The research team will read it themselves/).waitFor({ timeout: 30000 });
+    const manualUpload = (await db.collection('schoolUploads').where('fileKind', '==', 'old-office').get()).docs[0]?.data();
+    const [manualStored] = manualUpload?.path ? await bucket.file(manualUpload.path).exists() : [false];
+    ok('it is kept as sent and marked to read by hand', manualUpload?.needsManualReading === true && manualUpload?.pupilCount === 0 && /older Excel file/.test(manualUpload?.unreadableReason ?? '') && manualStored === true);
     ok('no browser errors on the staff and school pages beyond the two refusals tried on purpose', errors.length === 2 && errors.some((e) => /status of 403/.test(e)) && errors.some((e) => /status of 400/.test(e)), errors.join(' | '));
 
     // Everything new reaches the export: MyStory by phase, the visits and contacts, the school's file and the UPN match.
@@ -1616,7 +1638,7 @@ async function inner() {
     ok('the visits and contact details are exported to identifying/, the visit date to the research table', visitsTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\t1\t') && visitsTsv.includes('\tmoved\t') && visitsTsv.includes('day-before-email:not-configured') && contactsTsv.includes('jane.smith@example.org\t+447700900123\ttrue') && labPeople.includes(`\t${v1a.toISOString().slice(0, 10)}\tbooked\t`) && !labPeople.includes('jane@'));
     ok('the opt-out is flagged on the school’s list and listed in identifying/ with the UPN it names', unmatchedTsv.split('\n').some((l) => l.startsWith('DUA\tA123456789013\tOla\tNowak') && l.includes('\ttrue\t')) && optOutsTsv.includes('\tactive\t') && optOutsTsv.includes('\tOla\tNowak\t') && optOutsTsv.includes('\tEwa Nowak\t') && optOutsTsv.includes('\tA123456789013\tname-only'), optOutsTsv.split('\n')[1]);
     ok('the research table says who decided, where the screen time came from, and the longer answers have their own table', familiesTsv.split('\n')[0].includes('\tself_consent\tphone_source\t') && familiesTsv.split('\n')[0].endsWith('\tadded_later_on\tyoung_link_opened_on\tscreen_time_off_on\treminders_sent\topted_out') && new RegExp(`\t${new Date().toISOString().slice(0, 10)}\t${new Date().toISOString().slice(0, 10)}\t[^\t]*\t0\tfalse`).test(familiesTsv) && familiesTsv.includes('\ttrue\tchild\tcompleted\t') && familiesTsv.includes('\tfalse\tnone\tnot-started\t') && phoneUseTsv.split('\n')[0].startsWith('participant_id\town_phone_age\tsocial_media_age\tschool_day_time') && phoneUseTsv.includes('\t12\t11\t3-4\t'), familiesTsv);
-    ok('the school’s file and what was read sit in schools/upn-uploads/, and the UPN is matched to the family’s record', finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/\d{4}-\d{2}-\d{2}_[0-9a-f]{8}_Year 8\.csv$/.test(n)) && finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/.*_pupils\.tsv$/.test(n)) && matchesTsv.includes('\tKai\tPatel\t2013-03-14\t') && matchesTsv.includes('\tA123456789012\tname-and-dob\t') && unmatchedTsv.includes('DUA\tA123456789013\tOla\tNowak') && finalManifest.counts?.upnUploads === 1 && finalManifest.counts?.upnMatched === 1, JSON.stringify(finalManifest.counts));
+    ok('the school’s file and what was read sit in schools/upn-uploads/, and the UPN is matched to the family’s record', finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/\d{4}-\d{2}-\d{2}_[0-9a-f]{8}_Year 8\.csv$/.test(n)) && finalManifest.files?.some((n) => /^schools\/upn-uploads\/dua\/.*_pupils\.tsv$/.test(n)) && matchesTsv.includes('\tKai\tPatel\t2013-03-14\t') && matchesTsv.includes('\tA123456789012\tname-and-dob\t') && unmatchedTsv.includes('DUA\tA123456789013\tOla\tNowak') && finalManifest.counts?.upnUploads === 3 && finalManifest.counts?.upnMatched === 1, JSON.stringify(finalManifest.counts));
 
     ok('client cannot read its own quarantine upload', await denied(async () => {
       await uploadBytes(ref(webStorage, `quarantine/${user.uid}/223e4567-e89b-12d3-a456-426614174000`), buffer, { contentType: 'image/png' });
