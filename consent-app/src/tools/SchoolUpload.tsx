@@ -3,7 +3,7 @@ import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { FieldWrapper, TextField } from '../components/ui/Field';
 import { schoolBySlug } from '../config/schools';
-import { callTool, messageOf } from './api';
+import { callTool, messageOf, uploadSchoolFile } from './api';
 
 interface Preview {
   columns: Record<string, string | null>;
@@ -24,7 +24,9 @@ interface PreviewResult {
   unreadable: string | null;
 }
 
-const MAX_BYTES = 7 * 1024 * 1024;
+/** Up to 50 MB (19 October 2026). Up to 6 MB the file goes in the call itself; a larger one goes to Storage first. */
+const MAX_BYTES = 50 * 1024 * 1024;
+const INLINE_MAX_BYTES = 6 * 1024 * 1024;
 /** The study's class-list template (the team's own, 19 October 2026), as an empty CSV that opens in Excel. */
 const TEMPLATE = 'UPN,First_Name,Middle_Name,Last_Name,Date_Of_Birth,Gender,Ethnicity,School_Name,Year_Group,Form_Tutor,Address_Line_1,Address_Line_2,Address_Line_3,Address_Line_4,Postcode,School_Email,FSM (Y or N),SEN (N = no SEN; S = statement; E = EHC plan; K = SEN support)\n';
 /** What the file chooser offers: spreadsheets, Word, PDF and text. Anything else can still be chosen and sent. */
@@ -38,6 +40,19 @@ function base64Of(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error ?? new Error('The file could not be read.'));
     reader.readAsDataURL(file);
   });
+}
+
+/** The file as the call takes it: inline when small, otherwise put in Storage once and named by its id. */
+const staged = new WeakMap<File, string>();
+async function fileFor(f: File, onProgress: (fraction: number) => void) {
+  const base = { name: f.name, contentType: f.type || 'application/octet-stream' };
+  if (f.size <= INLINE_MAX_BYTES) return { ...base, data: await base64Of(f) };
+  let uploadId = staged.get(f);
+  if (!uploadId) {
+    uploadId = await uploadSchoolFile(f, onProgress);
+    staged.set(f, uploadId);
+  }
+  return { ...base, uploadId };
 }
 
 function saveTemplate() {
@@ -92,6 +107,8 @@ export function SchoolUpload() {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<'check' | 'preview' | 'send' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** How far a large file has got into Storage (0 to 1); null when nothing is uploading. */
+  const [progress, setProgress] = useState<number | null>(null);
   const [sent, setSent] = useState<{ pupils: number | null; receipt: string; fileName: string } | null>(null);
   const [sentCount, setSentCount] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -130,6 +147,7 @@ export function SchoolUpload() {
       setError(messageOf(err));
     } finally {
       setBusy(null);
+      setProgress(null);
     }
   };
 
@@ -140,18 +158,19 @@ export function SchoolUpload() {
     setFile(f);
     if (!f) return;
     if (f.size > MAX_BYTES) {
-      setError('This file is larger than 7 MB. A class list should be much smaller: if it is a Word or PDF file with pictures, save it as Excel or CSV instead.');
+      setError('This file is larger than 50 MB. A class list should be much smaller: if it is a Word or PDF file with pictures, save it as Excel or CSV instead.');
       return;
     }
     setBusy('preview');
     try {
-      const r = await callTool<PreviewResult>('schoolUpload', { school: school.slug, password, action: 'preview', file: { name: f.name, contentType: f.type || 'application/octet-stream', data: await base64Of(f) }, client: client() });
+      const r = await callTool<PreviewResult>('schoolUpload', { school: school.slug, password, action: 'preview', file: await fileFor(f, setProgress), client: client() });
       setPreview(r.preview);
       setUnreadable(r.preview ? null : (r.unreadable ?? 'This file could not be read automatically.'));
     } catch (err) {
       setError(messageOf(err));
     } finally {
       setBusy(null);
+      setProgress(null);
     }
   };
 
@@ -164,7 +183,7 @@ export function SchoolUpload() {
     setBusy('send');
     setError(null);
     try {
-      const r = await callTool<{ receipt: string; preview: Preview | null }>('schoolUpload', { school: school.slug, password, action: 'send', file: { name: file.name, contentType: file.type || 'application/octet-stream', data: await base64Of(file) }, uploader, note, client: client() });
+      const r = await callTool<{ receipt: string; preview: Preview | null }>('schoolUpload', { school: school.slug, password, action: 'send', file: await fileFor(file, setProgress), uploader, note, client: client() });
       setSent({ pupils: r.preview?.pupils ?? null, receipt: r.receipt, fileName: file.name });
       setSentCount((n) => n + 1);
       setFile(null);
@@ -176,6 +195,7 @@ export function SchoolUpload() {
       setError(messageOf(err));
     } finally {
       setBusy(null);
+      setProgress(null);
     }
   };
 
@@ -277,12 +297,12 @@ export function SchoolUpload() {
           <li>It is used only for the MyPhone/MyBrain study: to match the study’s records with the school’s.</li>
         </ul>
       </section>
-      <FieldWrapper id="school-file" label="Your file" hint="Excel, CSV, Word, PDF or text, up to 7 MB. We read it and show you what we found before you send it.">
+      <FieldWrapper id="school-file" label="Your file" hint="Excel, CSV, Word, PDF or text, up to 50 MB. We read it and show you what we found before you send it.">
         <input ref={fileInput} id="school-file" type="file" accept={ACCEPT} className="mpmb-input" onChange={(e) => void choose(e.target.files?.[0] ?? null)} aria-describedby="school-file-hint" />
       </FieldWrapper>
       {busy === 'preview' && (
         <p className="mpmb-hint" role="status">
-          <span className="mpmb-spinner" aria-hidden="true" /> Reading the file…
+          <span className="mpmb-spinner" aria-hidden="true" /> {progress !== null && progress < 1 ? `Uploading the file… ${Math.round(progress * 100)}%` : 'Reading the file…'}
         </p>
       )}
       {preview && (

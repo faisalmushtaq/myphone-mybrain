@@ -17,6 +17,8 @@ export type Table = string[][];
 export class TableError extends Error {}
 
 const MAX_CELLS = 200_000;
+/** Characters read from a text file: enough for the largest file accepted (50 MB, schoolUpload.ts). */
+const MAX_TEXT_CHARS = 60_000_000;
 const MAX_XML_BYTES = 40 * 1024 * 1024;
 
 /* ── CSV ───────────────────────────────────────────────────────────────── */
@@ -62,7 +64,7 @@ export function parseCsv(text: string): Table {
       row = [];
       cell = '';
     } else cell += ch;
-    if ((cells += 1) > MAX_CELLS * 40) throw new TableError('The file is too large to be a class list.');
+    if ((cells += 1) > MAX_TEXT_CHARS) throw new TableError('The file is too large to be a class list.');
   }
   if (cell !== '' || row.length) {
     row.push(cell);

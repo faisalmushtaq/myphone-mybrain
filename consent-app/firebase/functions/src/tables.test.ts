@@ -144,7 +144,10 @@ test('school upload requests: a known school, a password, a small file, who sent
   assert.match(validateSchoolUploadPayload({ ...ok, school: 'nowhere' }).join(' '), /does not name a school/);
   assert.match(validateSchoolUploadPayload({ ...ok, uploader: { ...ok.uploader, email: 'nope' } }).join(' '), /school email address/);
   assert.match(validateSchoolUploadPayload({ ...ok, file: undefined }).join(' '), /Choose a file/);
-  assert.match(validateSchoolUploadPayload({ ...ok, file: { ...ok.file, data: 'A'.repeat(11 * 1024 * 1024) } }).join(' '), /larger than 7 MB/);
+  assert.match(validateSchoolUploadPayload({ ...ok, file: { ...ok.file, data: 'A'.repeat(11 * 1024 * 1024) } }).join(' '), /larger than 50 MB/);
+  // A file over 7 MB is put in Storage first and named by its id.
+  assert.deepEqual(validateSchoolUploadPayload({ ...ok, file: { name: 'big.csv', contentType: 'text/csv', uploadId: '0b0c1d2e-3f40-4a5b-8c6d-7e8f9a0b1c2d' } }), []);
+  assert.match(validateSchoolUploadPayload({ ...ok, file: { name: 'big.csv', contentType: 'text/csv', uploadId: '../other/file' } }).join(' '), /Choose a file/);
 });
 
 test('new lab times from the staff page: in the future, sensible lengths and places', () => {

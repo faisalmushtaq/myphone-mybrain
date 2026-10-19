@@ -39,6 +39,8 @@ export interface FirebaseSettings {
 const UPLOAD_ROOT = 'quarantine';
 /** The lab study's uploads: cleaned archives as well as screenshots, under their own rules. */
 const LAB_UPLOAD_ROOT = 'labquarantine';
+/** A school's class list over 7 MB (firebase/functions/src/schoolUpload.ts). */
+const SCHOOL_UPLOAD_ROOT = 'schoolquarantine';
 
 /** How long to wait before each quiet retry of a call that is safe to repeat. */
 const RETRY_WAITS_MS = [1000, 3000, 6000];
@@ -305,6 +307,22 @@ export class FirebaseConsentApi implements ConsentApi {
 
   callTool<Res>(session: SessionInfo, name: 'staffApi' | 'schoolUpload', payload: Record<string, unknown>): Promise<Res> {
     return this.call<Record<string, unknown>, Res>(session, name, payload);
+  }
+
+  async uploadSchoolFile(session: SessionInfo, file: Blob, onProgress?: (fraction: number) => void): Promise<string> {
+    const user = await this.user();
+    if (user.uid !== session.sessionId) throw new ApiError('expired', 'Your session has changed. Please try again.');
+    const uploadId = crypto.randomUUID();
+    const task = uploadBytesResumable(ref(this.storage, `${SCHOOL_UPLOAD_ROOT}/${user.uid}/${uploadId}`), file, { contentType: file.type || 'application/octet-stream' });
+    await new Promise<void>((resolve, reject) => {
+      task.on(
+        'state_changed',
+        (snapshot) => onProgress?.(snapshot.totalBytes ? snapshot.bytesTransferred / snapshot.totalBytes : 0),
+        (error) => reject(mapError(error)),
+        () => resolve(),
+      );
+    });
+    return uploadId;
   }
 }
 

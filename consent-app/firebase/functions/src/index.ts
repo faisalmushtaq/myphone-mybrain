@@ -22,6 +22,7 @@ export { bookLabSlot, cancelLabBooking, labBookingOptions, labMessages, labMessa
 export { emailLabStory, submitLabStory } from './story.js';
 export { labStoryChat, labStoryVoice } from './storyChat.js';
 export { schoolUpload } from './schoolUpload.js';
+import { SCHOOL_QUARANTINE } from './schoolUpload.js';
 export { staffApi } from './staff.js';
 export { purgeUsage, usage } from './usage.js';
 export { findAddresses } from './address.js';
@@ -485,12 +486,12 @@ export const submitDonation = onCall(callOptions, async (request) => {
   return { donationId: donationId ?? (again.length ? storedBefore.get(again[0].uploadId)!.donationId : null), receivedAt: receivedAt.toISOString(), accepted: [...images.map((i) => i.uploadId), ...again.map((u) => u.uploadId)], rejected };
 });
 
-/** Deletes quarantine objects that were never submitted, from both the family app's and the lab study's folders. A bucket lifecycle rule can do the same. */
+/** Deletes quarantine objects that were never submitted, from the family app's, the lab study's and the schools' upload folders. A bucket lifecycle rule can do the same. */
 export const purgeQuarantine = onSchedule({ region: REGION, schedule: 'every 6 hours' }, async () => {
   const bucket = getStorage().bucket();
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   let removed = 0;
-  for (const prefix of [QUARANTINE, LAB_QUARANTINE]) {
+  for (const prefix of [QUARANTINE, LAB_QUARANTINE, SCHOOL_QUARANTINE]) {
     const [files] = await bucket.getFiles({ prefix: `${prefix}/` });
     for (const file of files) {
       const created = Date.parse(String(file.metadata.timeCreated ?? ''));

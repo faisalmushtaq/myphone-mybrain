@@ -2,6 +2,7 @@ rules_version = '2';
 
 // quarantine/{uid}/{uploadId}       the family app's screenshots
 // labquarantine/{uid}/{uploadId}    the lab study's screenshots and cleaned ZIP archives
+// schoolquarantine/{uid}/{uploadId} a school's class list over 7 MB (up to 50 MB), before the function reads it
 //   Written by the browser during a session. A session may create and delete
 //   its own objects only, within size and type limits, and can never read
 //   them back. The submit functions move accepted files out of here; a
@@ -41,6 +42,12 @@ service firebase.storage {
 
     match /labquarantine/{uid}/{uploadId} {
       allow create: if ownsPath(uid) && ((isImage() && underLimit()) || (isZip() && request.resource.size < 64 * 1024 * 1024)) && uploadId.matches('^[0-9a-f-]{36}$');
+      allow delete: if ownsPath(uid);
+      allow read, update: if false;
+    }
+
+    match /schoolquarantine/{uid}/{uploadId} {
+      allow create: if ownsPath(uid) && request.resource.size < 50 * 1024 * 1024 && uploadId.matches('^[0-9a-f-]{36}$');
       allow delete: if ownsPath(uid);
       allow read, update: if false;
     }

@@ -24,6 +24,20 @@ export async function callTool<T>(name: 'staffApi' | 'schoolUpload', payload: Re
   }
 }
 
+/** Puts a large class list in Storage for the schools' upload page; returns the id to send with the call. */
+export async function uploadSchoolFile(file: Blob, onProgress?: (fraction: number) => void): Promise<string> {
+  session ??= await getApi().startSession();
+  try {
+    return await getApi().uploadSchoolFile(session, file, onProgress);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'expired') {
+      session = await getApi().startSession();
+      return getApi().uploadSchoolFile(session, file, onProgress);
+    }
+    throw error;
+  }
+}
+
 export function messageOf(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === 'network') return 'Could not reach the server. Check the connection and try again.';

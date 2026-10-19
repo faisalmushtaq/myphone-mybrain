@@ -16,7 +16,7 @@ password the team gives it.
    hash is kept. Send the link and the password separately: the link by
    email, the password by phone or text.
 2. The school's member of staff opens the link, types the password, chooses
-   their class list (Excel, CSV, Word, PDF or plain text, up to 7 MB; a
+   their class list (Excel, CSV, Word, PDF or plain text, up to 50 MB; a
    file the page cannot read is still sent, marked to be read by hand), checks what was read (number of pupils, UPNs
    that can be used, classes, the first rows, rows to check, columns that
    are not read), gives their name, role and school email, and sends it.
@@ -50,6 +50,7 @@ not read, but stay in the file as it was sent.
 | --- | --- |
 | Storage `schoolupns/<slug>/<id>/<file>` | the file exactly as sent (coordinators only) |
 | Firestore `schoolUploads/` | who sent it and when, what was read (UPN, names, date of birth, year group, class) and the rows to check |
+| Storage `schoolquarantine/<session>/<id>` | a file over 7 MB, put there by the browser before the function reads it (the call itself cannot carry more than about 7 MB); deleted once sent, or after a day if never sent. The browser can create and delete its own only, never read it |
 | Firestore `schoolUploadAccess/<slug>` | the password's hash (scrypt), when it was made, whether uploads are open |
 
 Within the hour the export writes a separate folder, beside `donations/`

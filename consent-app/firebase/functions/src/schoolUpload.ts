@@ -27,9 +27,15 @@ import { isObj, str, validateClient, type ClientInfo } from './validate.js';
  */
 
 const REGION = 'europe-west2';
-const callOptions = { region: REGION, memory: '512MiB' as const, timeoutSeconds: 120, enforceAppCheck: process.env.MPMB_ENFORCE_APP_CHECK === 'true' };
-/** Up to 7 MB: the file goes in the request itself, which Google caps at 10 MB once encoded. */
-const MAX_BYTES = 7 * 1024 * 1024;
+const callOptions = { region: REGION, memory: '1GiB' as const, timeoutSeconds: 300, enforceAppCheck: process.env.MPMB_ENFORCE_APP_CHECK === 'true' };
+/** Up to 50 MB (19 October 2026; it was 7 MB). */
+export const MAX_BYTES = 50 * 1024 * 1024;
+/** Up to 7 MB a file can come in the request itself, which Google caps at 10 MB once encoded; a larger one goes to Storage first (SCHOOL_QUARANTINE). */
+const INLINE_MAX_BYTES = 7 * 1024 * 1024;
+/** Where the browser puts a large file before the function reads it: schoolquarantine/{uid}/{uploadId}, its own session's only, deleted once sent or after a day (purgeQuarantine). */
+export const SCHOOL_QUARANTINE = 'schoolquarantine';
+const TOO_BIG = 'The file is larger than 50 MB. A class list should be much smaller: if it is a Word or PDF file with pictures, save it as Excel or CSV instead.';
+const UPLOAD_ID = /^[0-9a-f-]{36}$/;
 const MAX_PUPILS = 3000;
 /** Wrong passwords allowed in an hour, from one browser and for one school. */
 const FAILURES_PER_SESSION = 10;
@@ -104,7 +110,8 @@ export interface SchoolUploadPayload {
   school: string;
   password: string;
   action: 'check' | 'preview' | 'send';
-  file?: { name: string; contentType: string; data: string };
+  /** The file itself (`data`, base64, up to 7 MB), or the id of the copy the browser put in Storage (`uploadId`). */
+  file?: { name: string; contentType: string; data?: string; uploadId?: string };
   uploader?: { name: string; role: string; email: string };
   note?: string;
   client: ClientInfo;
@@ -119,8 +126,8 @@ export function validateSchoolUploadPayload(input: unknown): string[] {
   if (!['check', 'preview', 'send'].includes(String(p.action))) problems.push('Unknown action.');
   if (p.action === 'preview' || p.action === 'send') {
     const f = p.file;
-    if (!isObj(f) || !str(f.name, 200) || !str(f.contentType, 120) || typeof f.data !== 'string') problems.push('Choose a file to upload.');
-    else if (f.data.length > Math.ceil((MAX_BYTES * 4) / 3) + 8) problems.push('The file is larger than 7 MB. A class list should be much smaller: if it is a Word or PDF file with pictures, save it as Excel or CSV instead.');
+    if (!isObj(f) || !str(f.name, 200) || !str(f.contentType, 120) || (typeof f.data !== 'string' && !(typeof f.uploadId === 'string' && UPLOAD_ID.test(f.uploadId)))) problems.push('Choose a file to upload.');
+    else if (typeof f.data === 'string' && f.data.length > Math.ceil((INLINE_MAX_BYTES * 4) / 3) + 8) problems.push(TOO_BIG);
   }
   if (p.action === 'send') {
     const u = p.uploader;
@@ -170,9 +177,17 @@ export const schoolUpload = onCall({ ...callOptions }, async (request) => {
   const earlier = await db.collection('schoolUploads').where('schoolSlug', '==', school.slug).get();
   if (p.action === 'check') return { school: { slug: school.slug, name: school.name }, uploads: earlier.size, lastUploadAt: earlier.docs.map((d) => d.data().receivedAt?.toDate?.()?.toISOString?.() ?? null).filter(Boolean).sort().pop() ?? null };
 
-  const buffer = Buffer.from(p.file!.data, 'base64');
+  const staged = p.file!.uploadId ? getStorage().bucket().file(`${SCHOOL_QUARANTINE}/${uid}/${p.file!.uploadId}`) : null;
+  let buffer: Buffer;
+  if (staged) {
+    const [exists] = await staged.exists();
+    if (!exists) throw new HttpsError('failed-precondition', 'The file did not arrive. Please choose it again.');
+    const [meta] = await staged.getMetadata();
+    if (Number(meta.size ?? 0) > MAX_BYTES) throw new HttpsError('invalid-argument', TOO_BIG);
+    [buffer] = await staged.download();
+  } else buffer = Buffer.from(p.file!.data ?? '', 'base64');
   if (!buffer.length) throw new HttpsError('invalid-argument', 'The file is empty.');
-  if (buffer.length > MAX_BYTES) throw new HttpsError('invalid-argument', 'The file is larger than 7 MB. A class list should be much smaller: if it is a Word or PDF file with pictures, save it as Excel or CSV instead.');
+  if (buffer.length > MAX_BYTES) throw new HttpsError('invalid-argument', TOO_BIG);
   // Read what can be read. A file that cannot be read automatically (an older .xls or .doc, a scan, a list in a form we
   // do not recognise) is never turned away: it is kept as sent and the team reads it by hand (19 October 2026).
   let list: PupilList | null = null;
@@ -196,6 +211,7 @@ export const schoolUpload = onCall({ ...callOptions }, async (request) => {
     .bucket()
     .file(path)
     .save(buffer, { contentType: p.file!.contentType || 'application/octet-stream', resumable: false, metadata: { cacheControl: 'private, max-age=0' } });
+  await staged?.delete({ ignoreNotFound: true });
   const uploader = { name: p.uploader!.name.trim(), role: (p.uploader!.role ?? '').trim(), email: p.uploader!.email.trim() };
   await db
     .collection('schoolUploads')

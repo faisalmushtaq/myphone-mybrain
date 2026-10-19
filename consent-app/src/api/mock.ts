@@ -566,6 +566,11 @@ export class MockConsentApi implements ConsentApi {
     throw new ApiError('server', 'This page needs the live study database; it does not work in the preview.');
   }
 
+  async uploadSchoolFile(): Promise<string> {
+    await sleep(200);
+    throw new ApiError('server', 'This page needs the live study database; it does not work in the preview.');
+  }
+
   inspectLab() {
     return Array.from(this.lab.entries()).map(([code, p]) => ({ code, consents: p.consents, donations: p.donations, checkIns: p.checkIns }));
   }
