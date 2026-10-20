@@ -4,7 +4,8 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { bookingFrom, bookingsOf, bookingState, bookingView, cancelVisits, contactOf, notifyVisits, placeVisits, toDate, visitWindow, type BookingState, type Contact, type Visit } from './booking.js';
-import { labBooking, labJourneyMessages, schools } from './forms.js';
+import { dailyPlan } from './dailyMessages.js';
+import { labBooking, schools } from './forms.js';
 import { normaliseCode, notUsedOf, phaseCountsOf, toIso } from './lab.js';
 import { participantLinks, schoolUploadLink } from './links.js';
 import { sendMail, settingsFromEnv } from './mail.js';
@@ -157,7 +158,7 @@ async function overview(db: Firestore) {
     bookings: bookingSnap.docs.map((d) => bookingRow(d.id, d.data(), contacts.get(String(d.data().participantCode)) ?? null)),
     ready: { email: Boolean(settingsFromEnv()), sms: await smsReady() },
     lastExportAt: exportedAt,
-    rules: { minutes: labBooking.minutes, minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours, visit2AfterDays: labBooking.visit2AfterDays, location: labBooking.location.name, messages: labJourneyMessages.map((m) => ({ id: m.id, day: m.day })), reminders: labBooking.reminders },
+    rules: { minutes: labBooking.minutes, minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours, visit2AfterDays: labBooking.visit2AfterDays, location: labBooking.location.name, messages: dailyPlan(new Date(), null).map((m) => ({ id: m.id, day: m.day })), reminders: labBooking.reminders },
   };
 }
 

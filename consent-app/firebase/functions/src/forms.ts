@@ -186,14 +186,8 @@ export const labBooking = {
   copyTo: generated.labBooking.copyTo as readonly string[],
 };
 
-export interface JourneyMessage {
-  id: string;
-  day: number;
-  kind: 'daily' | 'check-in' | 'end-of-break';
-}
-
-/** The messages during the break, by day after the first visit. */
-export const labJourneyMessages: JourneyMessage[] = generated.labJourneyMessages.map((m) => ({ id: m.id, day: m.day, kind: m.kind as JourneyMessage['kind'] }));
+/** The day of the break that brings the check-in link (dailyMessages.ts has the rest). */
+export const labCheckInDay: number = generated.labCheckInDay;
 export const labJourneyHour: number = generated.labJourneyHour;
 
 export type StoryPhase = 'pre' | 'mid' | 'post';

@@ -1276,7 +1276,13 @@ async function inner() {
     ok('a week into the break the day-7 message goes: a text first, and as the text could not go (the emulator sends none), an email instead; the days missed before are skipped, never sent late', sentMessages['day-7']?.sms === 'not-configured' && sentMessages['day-7']?.email === 'not-configured' && sentMessages['day-6']?.skipped === 'skip-stale' && !sentMessages['check-in'] && Object.keys(sentMessages).length === 7, JSON.stringify(sentMessages));
     await runMessages(new Date(v1a.getTime() + 15 * DAY + 30 * 60000));
     const day15 = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data()?.messages ?? {};
-    ok('on day 15 the check-in message goes', day15['check-in']?.email === 'not-configured' && Boolean(day15['check-in']?.dueAt), JSON.stringify(day15['check-in']));
+    ok('on day 15, with the check-in already complete (answers, screenshot, MyStory), the day’s ordinary message goes, not the check-in link', day15['day-15']?.kind === 'daily' && day15['day-15']?.email === 'not-configured' && Boolean(day15['day-15']?.dueAt), JSON.stringify(day15['day-15']));
+    // The last morning before the second visit says when and where it is.
+    const v2Start = (await bookingsOf()).find((b) => b.visit === 2 && b.status === 'booked')?.start?.toDate();
+    const lastDays = Math.round((Date.UTC(v2Start.getUTCFullYear(), v2Start.getUTCMonth(), v2Start.getUTCDate()) - Date.UTC(v1a.getUTCFullYear(), v1a.getUTCMonth(), v1a.getUTCDate())) / DAY);
+    await runMessages(new Date(v2Start.getTime() - DAY + 60000));
+    const lastMorning = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data()?.messages ?? {};
+    ok('the day before the second visit, the last daily message is about the visit tomorrow, and none comes after it', lastMorning[`day-${lastDays - 1}`]?.kind === 'visit-tomorrow' && !lastMorning[`day-${lastDays}`], JSON.stringify(lastMorning[`day-${lastDays - 1}`]));
 
     // MyStory on its own page, from a personal link, for after the break: the whole chat with Remi, the team's protocol (the emulator's stand-in model).
     await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=post&code=MP2670FF90A5F2`);

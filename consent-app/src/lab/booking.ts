@@ -78,32 +78,21 @@ export const labBooking = {
 };
 
 /**
- * Messages during the break, timed from the first visit (day 0, UK date), at
- * 09:00 UK time (20 October 2026): a short message every day from day 1 to
- * day 29 that asks for nothing, except day 15, which brings the link to the
- * mid-break check-in (with MyStory); and day 30, the last day of the break.
+ * Messages during the break (the team's wording, 20 October 2026): one at
+ * 09:00 UK time every day from the day after the first visit to the day
+ * before the second, so they stretch to each person's break; day 15 brings the
+ * link to the mid-break check-in, and from day 16 a reminder replaces the
+ * day's message until it is complete; the last day says when and where the
+ * second visit is; a thank-you follows it. The schedule and the wording are in
+ * firebase/functions/src/dailyMessages.ts.
  *
- * A daily message goes by text when there is a mobile number and texts are
- * set up, otherwise by email. Day 15 and day 30 ask the person to do
- * something, so they go by email as well. Each goes once. A message more
- * than a day overdue (for example because the system was paused) is skipped,
- * never sent late. Nothing goes after a visit is marked as missed, from a day
- * before the second visit, or once the team pauses messages for someone. On
- * day 15, someone who has already checked in gets the day's ordinary message.
+ * A message goes by text when there is a mobile number and texts are set up,
+ * otherwise by email; the check-in ones go by email as well. Each goes once;
+ * one more than a day overdue is skipped, never sent late. Nothing goes once
+ * the team pauses messages for someone, or for a first visit marked missed.
  */
-export interface LabJourneyMessage {
-  id: string;
-  day: number;
-  kind: 'daily' | 'check-in' | 'end-of-break';
-}
-
 /** The day of the break that brings the check-in link. */
 export const labCheckInDay = 15;
-
-export const labJourneyMessages: LabJourneyMessage[] = [
-  ...Array.from({ length: 29 }, (_, i) => i + 1).map((day): LabJourneyMessage => (day === labCheckInDay ? { id: 'check-in', day, kind: 'check-in' } : { id: `day-${day}`, day, kind: 'daily' })),
-  { id: 'end-of-break', day: 30, kind: 'end-of-break' },
-];
 
 /** The hour (UK time) the break-time messages go out. */
 export const labJourneyHour = 9;

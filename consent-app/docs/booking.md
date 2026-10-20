@@ -9,9 +9,11 @@ first starts the 30-day break and the second, **30 to 35 days later**, comes onc
 it (decided 7 October 2026, `decisions.md`).
 
 Everything after that runs by itself: confirmations with a calendar file per
-visit, reminders before and on the day of each visit, a short message every
-day of the break (day 15's with the link to the one mid-break check-in), and
-the end-of-break message. Booking waits until MyStory Pre is told, straight
+visit, reminders before and on the day of each visit, and a short message at
+09:00 every day of the break, from the day after the first visit to the day
+before the second (day 15's with the link to the one mid-break check-in, and
+then a reminder each day until it is complete), and a thank-you after the
+second visit. Booking waits until MyStory Pre is told, straight
 after the data (20 October 2026).
 
 ## What the participant sees
@@ -52,13 +54,13 @@ once texts are set up; anything that cannot go by text goes by email.
 | Booked, moved or cancelled | Confirmation to the participant listing both visits and what to bring, **copied to Miftah and brainpop@leeds.ac.uk** (`labBooking.copyTo`), replies to Miftah, with a calendar file per visit attached (a cancellation removes them from calendars) | A one-line confirmation (so a mistyped number shows up at once) |
 | The day before a visit | Reminder: when, where, what to bring (for the second visit, also the after-break screenshots) | Reminder |
 | On the day, two hours before | Only if a text cannot go | Reminder (texts go only 08:00 to 21:00 UK time; an earlier one goes at 08:00 if the visit is still at least 30 minutes away) |
-| Days 1 to 29, except 15, at 09:00 | Only if a text cannot go | A line of encouragement that asks for nothing (`dailyLines` in `firebase/functions/src/booking.ts`) |
-| Day 15 | "Your mid-break check-in", with the personal link: questions, a screenshot, MyStory (someone already checked in gets the day's ordinary message) | Same |
-| Day 30 | "Last day of your break": screenshots before unlocking, then the downloads, then MyStory Post | Same |
+| Every day of the break at 09:00, from the day after the first visit to the day before the second | Only if a text cannot go | The team's messages of encouragement, which ask for nothing; they stretch to the break (28 to 35 days or whatever was booked): the opening ones on days 1 to 14, the middle ones after the check-in, and the last four days about the second visit, the very last with its date, time and place (`firebase/functions/src/dailyMessages.ts`) |
+| Day 15 | The link to the mid-break check-in (questions, a screenshot, MyStory) | Same |
+| From day 16, until the check-in is complete | A reminder with the link, instead of that day's message | Same |
+| The morning after the second visit | Only if a text cannot go | A thank-you |
 
-From a day before the second visit, the break-time messages stop: the
-visit's own reminders say what to do (with a second visit 28 or 29 days on,
-the messages from the day before it are skipped).
+If the second visit moves, the messages follow it. The visit's own
+reminders (the day before, and on the day) still go as well.
 
 What to bring, in every confirmation and reminder (`labBooking.bring`): the
 phone, charged; clean, dry hair with no oils, gel, spray or conditioner (for

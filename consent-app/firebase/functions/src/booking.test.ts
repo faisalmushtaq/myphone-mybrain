@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { addressChangedEmail, bookingIcs, bookingState, offerWindows, bookingText, journeyAction, journeyMessage, maskedContact, maskEmail, nextTextTime, reminderAction, reminderEmail, slotProblem, validateBookingPayload, visitsEmail, visitsText, visitWindow, type BookingRecord } from './booking.js';
-import { labBooking, labJourneyMessages } from './forms.js';
+import { dailyPlan } from './dailyMessages.js';
+import { labBooking } from './forms.js';
 import { foldLine, icsFor } from './ics.js';
 import { participantLinks, storyLink } from './links.js';
 import { ukMobile } from './sms.js';
@@ -146,39 +147,23 @@ test('visit reminders: due times, texts only in the daytime, nothing after a lat
   assert.equal(reminderAction(24, 'email', { start, bookedAt: new Date(start.getTime() - 20 * H) }, new Date(start.getTime() - 19 * H)), 'skip-booked-late');
 });
 
-test('break-time messages: one a day from day 1 to 29, the check-in link on day 15, the last day on 30, at nine; skipped when stale', () => {
-  assert.equal(labJourneyMessages.length, 30);
-  assert.deepEqual(
-    labJourneyMessages.filter((m) => m.kind !== 'daily').map((m) => `${m.id}@${m.day}`),
-    ['check-in@15', 'end-of-break@30'],
-  );
-  assert.deepEqual(labJourneyMessages.map((m) => m.day), Array.from({ length: 30 }, (_, i) => i + 1));
-  const visit1Start = new Date('2026-10-14T09:00:00Z');
-  const checkIn = labJourneyMessages.find((m) => m.id === 'check-in')!;
-  const due = atUkTime(addDays('2026-10-14', checkIn.day), 9);
-  assert.equal(due.toISOString(), '2026-10-29T09:00:00.000Z');
-  const ctx = { visit1Start, visit2: null };
-  assert.equal(journeyAction(checkIn, ctx, new Date(due.getTime() - 60_000)), 'wait');
-  assert.equal(journeyAction(checkIn, ctx, due), 'send');
-  assert.equal(journeyAction(checkIn, ctx, new Date(due.getTime() + 2 * D)), 'skip-stale');
-  // A second visit 28 days on (the team can book any day): the messages from day 27 give way to the visit's own reminders.
-  const end = labJourneyMessages.find((m) => m.id === 'end-of-break')!;
-  const day28 = labJourneyMessages.find((m) => m.id === 'day-28')!;
-  const early2 = booking({ id: 'b2', visit: 2, start: new Date('2026-11-11T10:00:00Z'), end: new Date('2026-11-11T12:00:00Z') });
-  assert.equal(journeyAction(day28, { ...ctx, visit2: early2 }, atUkTime('2026-11-11', 9)), 'skip-visit-2');
-  assert.equal(journeyAction(end, { ...ctx, visit2: early2 }, atUkTime('2026-11-13', 9)), 'skip-visit-2');
-  // A second visit 35 days on: everything goes.
+test('daily messages as email and text: the link in the check-in ones, the visit in the last one, nothing to do in the rest', () => {
+  const v1 = new Date('2026-10-14T09:00:00Z');
   const late2 = booking({ id: 'b2', visit: 2, start: new Date('2026-11-18T10:00:00Z'), end: new Date('2026-11-18T12:00:00Z') });
-  assert.equal(journeyAction(end, { ...ctx, visit2: late2 }, atUkTime('2026-11-13', 9)), 'send');
-  for (const m of labJourneyMessages) assert.ok(journeyMessage(m.id, 'MP2670FF90A5F2', late2), `${m.id} has wording`);
-  for (const m of labJourneyMessages) assert.ok(journeyMessage(m.id, 'MP2670FF90A5F2', late2)!.sms.length <= 160, `${m.id} fits one text`);
-  for (const m of labJourneyMessages.filter((x) => x.kind === 'daily')) assert.doesNotMatch(journeyMessage(m.id, 'MP2670FF90A5F2', late2)!.sms, /https?:/, `${m.id} asks for nothing`);
-  const checkInMessage = journeyMessage('check-in', 'MP2670FF90A5F2', late2)!;
-  assert.match(checkInMessage.sms, /day 15: time for your mid-break check-in and MyStory.*check-in/);
-  assert.match(checkInMessage.text, /Your second lab visit is on Wednesday 18 November 2026, 10:00 to 12:00/);
-  // Already checked in: day 15's ordinary message instead.
-  assert.equal(journeyMessage('check-in', 'MP2670FF90A5F2', late2, true)!.sms, 'MyPhone/MyBrain, day 15: Halfway there. Thank you for your check-in.');
-  assert.equal(journeyMessage('day-3', 'MP2670FF90A5F2', null)!.subject, 'MyPhone/MyBrain: day 3 of your break');
+  const plan = dailyPlan(v1, late2.start);
+  const ctx = { days: 35, visit2: late2, checkInDone: false };
+  const at = (id: string) => journeyMessage(plan.find((m) => m.id === id)!, 'MP2670FF90A5F2', ctx);
+  assert.match(at('day-15').sms, /^MyPhone\/MyBrain: You've reached the mid-break check-in!.*check-in\/\?code=MP2670FF90A5F2/);
+  assert.equal(at('day-15').subject, 'MyPhone/MyBrain: your mid-break check-in');
+  assert.equal(at('day-16').kind, 'check-in-reminder');
+  assert.equal(at('day-34').sms, 'MyPhone/MyBrain: Not long now! Your second lab visit is tomorrow, Wed 18 Nov at 10:00, LG25 (EEG Lab), School of Psychology. We look forward to seeing you.');
+  assert.match(at('day-3').text, /There is nothing you need to do/);
+  assert.equal(at('day-3').subject, 'MyPhone/MyBrain: day 3 of your break');
+  // Waiting, due, and more than a day overdue (skipped, never sent late).
+  const m = plan[0];
+  assert.equal(journeyAction(m, new Date(m.dueAt.getTime() - 60_000)), 'wait');
+  assert.equal(journeyAction(m, m.dueAt), 'send');
+  assert.equal(journeyAction(m, new Date(m.dueAt.getTime() + 2 * D)), 'skip-stale');
 });
 
 test('the confirmation email: both visits, what to bring, the links, copied to the team', () => {

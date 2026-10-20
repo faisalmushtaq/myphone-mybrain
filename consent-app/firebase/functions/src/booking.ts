@@ -2,7 +2,8 @@ import { FieldValue, getFirestore, Timestamp, type DocumentData, type DocumentRe
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
-import { labBooking, labJourneyHour, labJourneyMessages, labStudy, type JourneyMessage } from './forms.js';
+import { asksSomething, dailyMessage, dailyPlan, breakLength, type DailyKind, type PlannedMessage } from './dailyMessages.js';
+import { labBooking, labStudy } from './forms.js';
 import { icsFor } from './ics.js';
 import { normaliseCode, phaseCountsOf, rateLimitLookups } from './lab.js';
 import { participantLinks } from './links.js';
@@ -365,42 +366,6 @@ export function reminderEmail(b: BookingRecord): { subject: string; text: string
   };
 }
 
-/**
- * The daily messages of the break (20 October 2026): encouragement only, nothing to do. Day 15 brings the check-in link
- * instead (its line here goes to someone who has already checked in). Wording for the ethics application.
- */
-export const dailyLines: Record<number, string> = {
-  1: 'Your break has started. Thank you for being part of the study.',
-  2: 'Notice the moments you would usually reach for an app. Just noticing is enough.',
-  3: 'The first few days are often the hardest. You are doing well.',
-  4: 'What have you done with the time so far? A walk, a chat, a book?',
-  5: 'If a habit pulls you back towards your phone, that is normal. Keep going.',
-  6: 'Almost a week. Thank you for sticking with it.',
-  7: 'One week done. Well done.',
-  8: 'Try something today that you would usually skip for your phone.',
-  9: 'Many people notice changes in their sleep during a break. How is yours?',
-  10: 'Ten days in. Thank you for taking part.',
-  11: 'Missing anything? Missing nothing? Both are worth noticing.',
-  12: 'Keep going. Your break helps us understand how social media affects young adults.',
-  13: 'Nearly halfway. You are doing well.',
-  14: 'Two weeks done. Tomorrow we will text you a link to your mid-break check-in.',
-  15: 'Halfway there. Thank you for your check-in.',
-  16: 'Over halfway now. Keep going.',
-  17: 'Notice how you feel at the end of the day.',
-  18: 'Who have you spent more time with lately?',
-  19: 'Every day of the break counts. Thank you.',
-  20: 'Twenty days done. Ten to go.',
-  21: 'Three weeks. Well done.',
-  22: 'If it is getting harder, that is normal. Keep going.',
-  23: 'One week to go. Thank you.',
-  24: 'Think about what you would like to keep from your break.',
-  25: 'Five days to go.',
-  26: 'Four days to go. You are nearly there.',
-  27: 'Three days to go.',
-  28: 'Two days to go. Thank you for sticking with it.',
-  29: 'Tomorrow is the last day of your break. We will send you a message about what to do then.',
-};
-
 /** The reminder on the day of a visit, by email, for someone who cannot get texts. */
 export function sameDayEmail(b: BookingRecord): { subject: string; text: string } {
   return {
@@ -409,58 +374,28 @@ export function sameDayEmail(b: BookingRecord): { subject: string; text: string 
   };
 }
 
-/** The break-time messages (labJourneyMessages): an email and a one-line text for each. On day 15, someone who has already checked in gets the day's ordinary message. */
-export function journeyMessage(id: string, code: string, visit2: BookingRecord | null, checkedIn = false): { subject: string; text: string; sms: string } | null {
+const journeySubjects: Record<DailyKind, (day: number) => string> = {
+  daily: (day) => `MyPhone/MyBrain: day ${day} of your break`,
+  'check-in': () => 'MyPhone/MyBrain: your mid-break check-in',
+  'check-in-reminder': () => 'MyPhone/MyBrain: a reminder about your mid-break check-in',
+  'visit-soon': () => 'MyPhone/MyBrain: your second lab visit is coming up',
+  'visit-tomorrow': () => 'MyPhone/MyBrain: your second lab visit is tomorrow',
+  'thank-you': () => 'MyPhone/MyBrain: thank you',
+};
+
+/** One of the daily messages (dailyMessages.ts) as an email and a text. */
+export function journeyMessage(m: PlannedMessage, code: string, ctx: { days: number; visit2: BookingRecord | null; checkInDone: boolean }): { kind: DailyKind; subject: string; text: string; sms: string } {
   const links = participantLinks(code);
-  const visit2Line = visit2 ? `Your second lab visit is on ${ukSpan(visit2.start, visit2.end)}.` : '';
-  const hello = ['Hello,', ''];
-  const end = ['', `Questions, or problems with Brick or the break? ${Contact_(contactLine)}.`, ...signOff];
-  const m = /^day-(\d+)$/.exec(id);
-  const day = m ? Number(m[1]) : id === 'check-in' && checkedIn ? labCheckInDayOf() : null;
-  if (day !== null) {
-    const line = dailyLines[day];
-    if (!line) return null;
-    return {
-      subject: `MyPhone/MyBrain: day ${day} of your break`,
-      text: [...hello, line, '', 'There is nothing you need to do: no need to reply.', ...end].join('\n'),
-      sms: `MyPhone/MyBrain, day ${day}: ${line}`,
-    };
-  }
-  if (id === 'check-in') {
-    return {
-      subject: 'MyPhone/MyBrain: your mid-break check-in',
-      text: [
-        ...hello,
-        `It's day ${labCheckInDayOf()} of your break: time for your mid-break check-in for the ${labStudy.name}. It is a few quick questions, a screenshot of your screen time, then a short chat with Remi about your break so far (MyStory). About 20 minutes in all, and there is only this one.`,
-        '',
-        links.checkIn,
-        ...(visit2Line ? ['', visit2Line] : []),
-        ...end,
-      ].join('\n'),
-      sms: `MyPhone/MyBrain, day ${labCheckInDayOf()}: time for your mid-break check-in and MyStory, about 20 minutes: ${links.checkIn}`,
-    };
-  }
-  if (id === 'end-of-break') {
-    return {
-      subject: 'MyPhone/MyBrain: the last day of your break',
-      text: [
-        ...hello,
-        'Today is the last day of your 30-day social media break. Well done!',
-        '',
-        'Before you unlock your apps, please take your screen-time screenshots and send them on the after-break page:',
-        links.after,
-        '',
-        'Once your apps are unlocked, request your new data downloads from TikTok, YouTube or Instagram; the same page shows you how, and you send the files there when they arrive. When they are in, the page asks you to tell Remi about your break (MyStory).',
-        ...(visit2Line ? ['', visit2Line] : []),
-        ...end,
-      ].join('\n'),
-      sms: `MyPhone/MyBrain: last day of your break. Before you unlock your apps, send your screenshots: ${links.after}`,
-    };
-  }
-  return null;
+  const { kind, line } = dailyMessage(m.day, { days: ctx.days, visit2: ctx.visit2 ? { start: ctx.visit2.start, place: placeShort(ctx.visit2) } : null, checkInDone: ctx.checkInDone, checkInLink: links.checkIn, contactEmail: labStudy.contactEmail });
+  const nothingToDo = kind === 'daily' || kind === 'thank-you';
+  return {
+    kind,
+    subject: journeySubjects[kind](m.day),
+    text: ['Hello,', '', line, ...(nothingToDo ? ['', 'There is nothing you need to do: no need to reply.'] : []), '', `Questions, or problems with Brick or the break? ${Contact_(contactLine)}.`, ...signOff].join('\n'),
+    sms: `MyPhone/MyBrain: ${line}`,
+  };
 }
 
-const labCheckInDayOf = () => labJourneyMessages.find((x) => x.kind === 'check-in')?.day ?? 15;
 
 /* ── Sending ───────────────────────────────────────────────────────────── */
 
@@ -835,17 +770,12 @@ export function reminderAction(hoursBefore: number, channel: 'email' | 'sms', b:
   return 'send';
 }
 
-export type JourneyAction = 'wait' | 'send' | 'skip-stale' | 'skip-visit-2';
+export type JourneyAction = 'wait' | 'send' | 'skip-stale';
 
-/** When a break-time message is due: its day after the first visit, at the set hour, UK time. */
-export const journeyDueAt = (m: JourneyMessage, visit1Start: Date) => atUkTime(addDays(ukDate(visit1Start), m.day), labJourneyHour);
-
-export function journeyAction(m: JourneyMessage, ctx: { visit1Start: Date; visit2: BookingRecord | null }, now: Date): JourneyAction {
-  const dueAt = journeyDueAt(m, ctx.visit1Start);
-  if (now.getTime() < dueAt.getTime()) return 'wait';
-  if (now.getTime() - dueAt.getTime() > STALE_AFTER) return 'skip-stale';
-  // From a day before the second visit, its own reminders say what to do (a visit 28 or 29 days on comes before the day-30 message).
-  if (ctx.visit2 && ctx.visit2.start.getTime() - now.getTime() < DAY) return 'skip-visit-2';
+/** What to do now about one daily message: wait for its time, send it, or skip it if more than a day overdue (never sent late). */
+export function journeyAction(m: { dueAt: Date }, now: Date): JourneyAction {
+  if (now.getTime() < m.dueAt.getTime()) return 'wait';
+  if (now.getTime() - m.dueAt.getTime() > STALE_AFTER) return 'skip-stale';
   return 'send';
 }
 
@@ -909,9 +839,8 @@ export async function runLabMessages(now = new Date()): Promise<{ reminders: num
     }
   }
 
-  // Break-time messages: everyone whose first visit was in the last few weeks.
-  const longest = Math.max(...labJourneyMessages.map((m) => m.day)) + 2;
-  const recent = await db.collection('labBookings').where('start', '>=', new Date(now.getTime() - longest * DAY)).where('start', '<=', now).get();
+  // The daily messages: everyone whose first visit was in the last seven weeks (the longest break, and the thank-you after it).
+  const recent = await db.collection('labBookings').where('start', '>=', new Date(now.getTime() - 49 * DAY)).where('start', '<=', now).get();
   const firstVisits = new Map<string, BookingRecord>();
   for (const doc of recent.docs) {
     const b = bookingFrom(doc.id, doc.data());
@@ -924,28 +853,29 @@ export async function runLabMessages(now = new Date()): Promise<{ reminders: num
     if (!participant?.consentId || participant.messagesPaused || participant.withdrawnAt) continue;
     const ref = db.collection('labParticipants').doc(code);
     const done = (participant.messages ?? {}) as Record<string, unknown>;
-    let visit2: BookingRecord | null = null;
-    for (const m of labJourneyMessages) {
+    // The second visit decides how long the break runs, so the messages stretch to it (and follow it if it moves).
+    const visit2 = (await bookingsOf(db, code)).filter((b) => b.visit === 2 && ACTIVE.includes(b.status)).sort((a, b) => b.start.getTime() - a.start.getTime())[0] ?? null;
+    const days = breakLength(visit1.start, visit2?.start ?? null);
+    // Complete: the answers, a screenshot and the mid-break MyStory are all in.
+    const checkInDone = Number(participant.checkInCount ?? 0) > 0 && phaseCountsOf(participant).mid.screenshots > 0 && Number(participant.storyCounts?.mid ?? 0) > 0;
+    for (const m of dailyPlan(visit1.start, visit2?.start ?? null)) {
       if (done[m.id]) continue;
-      if (journeyAction(m, { visit1Start: visit1.start, visit2: null }, now) === 'wait') continue;
-      visit2 ??= (await bookingsOf(db, code)).filter((b) => b.visit === 2 && ACTIVE.includes(b.status)).sort((a, b) => b.start.getTime() - a.start.getTime())[0] ?? null;
-      const action = journeyAction(m, { visit1Start: visit1.start, visit2 }, now);
+      const action = journeyAction(m, now);
       if (action === 'wait') continue;
       if (!(await claim(db, ref, 'messages', m.id, now))) continue;
-      const message = action === 'send' ? journeyMessage(m.id, code, visit2, Number(participant.checkInCount ?? 0) > 0) : null;
-      if (!message) {
-        await record(ref, 'messages', m.id, { at: now, skipped: action === 'send' ? 'no-wording' : action });
+      if (action !== 'send') {
+        await record(ref, 'messages', m.id, { at: now, skipped: action });
         skipped += 1;
         continue;
       }
+      const message = journeyMessage(m, code, { days, visit2, checkInDone });
       const contact = await contactFor(code);
-      // A text when there is a mobile number and texts are set up, otherwise an email (20 October 2026); the messages that ask
-      // for something (the check-in link, the last day) go by email as well, so the link is not lost.
+      // A text when there is a mobile number and texts are set up, otherwise an email (20 October 2026); the check-in
+      // messages go by email as well, so the link is not lost.
       const texting = wantsTexts(contact) && (smsReadyNow ??= await smsReady());
-      const asks = m.kind !== 'daily' && !(m.kind === 'check-in' && Number(participant.checkInCount ?? 0) > 0);
       const sms = texting ? await sendSms(contact.mobile!, message.sms) : 'not-wanted';
-      const email = !texting || asks || sms !== 'sent' ? (contact.email ? await sendMail({ to: contact.email, replyTo: labStudy.contactEmail, subject: message.subject, text: message.text }) : 'no-contact') : 'not-needed';
-      await record(ref, 'messages', m.id, { at: now, dueAt: journeyDueAt(m, visit1.start), email, sms });
+      const email = !texting || asksSomething(message.kind) || sms !== 'sent' ? (contact.email ? await sendMail({ to: contact.email, replyTo: labStudy.contactEmail, subject: message.subject, text: message.text }) : 'no-contact') : 'not-needed';
+      await record(ref, 'messages', m.id, { at: now, dueAt: m.dueAt, kind: message.kind, email, sms });
       messages += 1;
     }
   }
