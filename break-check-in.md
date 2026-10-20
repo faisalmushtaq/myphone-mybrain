@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Mid-break check-in: social media break study | MyPhone/MyBrain"
-description: "A quick weekly check-in for people taking part in the MyPhone/MyBrain social media break study."
+description: "The mid-break check-in, on day 15, for people taking part in the MyPhone/MyBrain social media break study."
 permalink: /break/check-in/
 noindex: true
 ---

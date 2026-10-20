@@ -982,9 +982,26 @@ async function inner() {
     await snap('done-apps');
     ok('no browser errors in the lab flow', errors.length === 0, errors.join(' | '));
 
-    // With the data in, the summary offers the lab visits: both are booked together, with an email and text reminders.
-    ok('the summary offers both lab visits once the data is in', (await page.getByRole('heading', { name: 'Book your two lab visits.' }).count()) === 1);
-    await page.getByRole('button', { name: 'Choose the times' }).click();
+    // With the data in, MyStory comes next (20 October 2026), then the lab visits: both are booked together.
+    ok('the summary offers MyStory next once the data is in, before the lab visits', (await page.getByRole('heading', { name: 'Tell MyStory your story.' }).count()) === 1 && (await page.getByRole('heading', { name: 'Book your two lab visits.' }).count()) === 0);
+    const bookingOptionsNow = await httpsCallable(fns, 'labBookingOptions')({ participantCode: 'MP2670FF90A5F2' }).then((r) => r.data, () => null);
+    ok('the server holds booking back until MyStory is told', JSON.stringify(bookingOptionsNow?.missing) === JSON.stringify(['your MyStory']), JSON.stringify(bookingOptionsNow?.missing));
+    await page.getByRole('button', { name: 'Tell my story' }).click();
+    await page.getByRole('heading', { name: 'A short chat before your break.', level: 1 }).waitFor({ timeout: 30000 });
+    ok('MyStory is a chat with Remi: no way to skip it, and no written form instead while the chat works', (await page.getByRole('button', { name: 'Start the chat' }).count()) === 1 && (await page.getByRole('button', { name: /Not now|Skip this time/ }).count()) === 0 && (await page.getByRole('button', { name: /Write your story yourself|rather write/ }).count()) === 0);
+    // The written form, for when the chat cannot run: switched off here so the form is tested too.
+    await db.collection('meta').doc('e2e').set({ storyChatOff: true });
+    await page.getByRole('button', { name: 'Start the chat' }).click();
+    await page.getByRole('heading', { name: 'Your phone, before the break', level: 1 }).waitFor({ timeout: 30000 });
+    await page.locator('#story-prompt-evening').check();
+    await page.locator('#story-text').fill('Most evenings I scroll in bed until late, then feel tired the next day.');
+    await page.locator('#story-title').fill('Late nights');
+    await page.getByRole('button', { name: 'Send my story' }).click();
+    await page.getByRole('heading', { name: 'Thank you. Your story is saved.' }).waitFor({ timeout: 30000 });
+    await db.collection('meta').doc('e2e').delete();
+    const preStory = (await db.collection('labStories').where('phase', '==', 'pre').get()).docs.map((d) => d.data())[0];
+    ok('MyStory before the break is filed under the before-break phase', preStory?.participantCode === 'MP2670FF90A5F2' && preStory?.structureId === 'mystory-pre' && preStory?.title === 'Late nights' && preStory?.source === 'baseline');
+    await page.getByRole('button', { name: 'Book my lab visits' }).click();
     await page.getByRole('heading', { name: 'Book your two lab visits.', level: 1 }).waitFor({ timeout: 30000 });
     await page.locator('#lab-slot-1 .mpmb-slots__time').first().waitFor({ timeout: 30000 });
     ok('only the times for a first visit are offered first, by day; the second waits for it', (await page.locator('#lab-slot-1 .mpmb-slots__time').count()) === 2 && (await page.locator('#lab-slot-1 .mpmb-slots__day').count()) === 2 && (await page.getByText('Choose your first visit, and the times for your second appear here.').count()) === 1);
@@ -996,7 +1013,7 @@ async function inner() {
     ok('the second visit offers only the times 30 to 35 days after the first chosen, once the break is over', (await page.locator('#lab-slot-2 .mpmb-slots__time').count()) === 2 && (await page.getByText(/It is once your 30-day break is over: 30 to 35 days after the first: between/).count()) === 1);
     await page.locator('#lab-slot-2 .mpmb-slots__time').first().click();
     await page.getByLabel('Email address').fill('jane@example.com');
-    ok('text reminders are ticked by default', await page.locator('#lab-sms').isChecked());
+    ok('no choice about texts: the page says what messages will come, the daily ones asking nothing except on day 15', (await page.locator('#lab-sms').count()) === 0 && (await page.getByText(/We will also send you a short message every day. No action is needed for these daily messages, except on day 15/).count()) === 1);
     await snap('book');
     await page.getByRole('button', { name: 'Book both visits' }).click();
     await page.getByText(/Booked: your two lab visits/).first().waitFor({ timeout: 30000 });
@@ -1016,7 +1033,7 @@ async function inner() {
     await page.getByText(/The details are in your email/).waitFor();
     const visitsCard = await page.locator('.mpmb-visits-card').innerText();
     ok('the summary shows both booked visits', visitsCard.includes('First lab visit') && visitsCard.includes('Second lab visit'));
-    ok('the summary before the break no longer offers MyStory: it is told at the first visit', (await page.locator('.mpmb-mystory').count()) === 0);
+    ok('once told, the summary no longer offers MyStory', (await page.locator('.mpmb-mystory').count()) === 0);
 
     const labP2 = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data();
     ok('participant row counts one screenshot and one archive over two sends', labP2?.archiveCount === 1 && labP2?.screenshotCount === 1 && labP2?.donationIds?.length === 2);
@@ -1078,18 +1095,20 @@ async function inner() {
     await page.getByRole('heading', { name: 'How is your break going?', level: 1 }).waitFor({ timeout: 30000 });
     await page.getByRole('button', { name: 'Send my check-in' }).click();
     await page.getByText(/Please answer: Which week/).first().waitFor();
+    ok('the check-in needs a screenshot', (await page.getByText(/Add a screenshot of your screen time for the past week/).count()) >= 1);
     for (const [q, v] of [['week', '2'], ['apps-used', 'once-or-twice'], ['mood', '4'], ['difficulty', '3'], ['missed', '2']]) await page.locator(`#lab-q-${q}-${v}`).check();
     await page.locator('#lab-q-notes').fill('Brick held up fine.');
     await page.locator('input[type=file]').first().setInputFiles([{ name: 'week2.png', mimeType: 'image/png', buffer: await png('This week') }]);
     await page.waitForFunction(() => document.querySelectorAll('.mpmb-shots li').length === 1);
     await snap('checkin');
     await page.getByRole('button', { name: 'Send my check-in' }).click();
-    // MyStory is now a chat with Sam (13 October 2026), with the site's own form a click away.
+    // MyStory follows the check-in, required (20 October 2026): the chat with Remi, no skip.
     await page.getByRole('heading', { name: 'A short chat about your break.', level: 1 }).waitFor({ timeout: 90000 });
-    ok('after the check-in, MyStory offers the chat with Sam, the form instead, and a way to skip', (await page.getByRole('button', { name: 'Start the chat' }).count()) === 1 && (await page.getByRole('button', { name: 'I’d rather write my story myself' }).count()) === 1 && (await page.getByRole('button', { name: 'Skip this time' }).count()) === 1);
-    await page.getByRole('button', { name: 'I’d rather write my story myself' }).click();
+    ok('after the check-in, MyStory is the chat with Remi, with no way to skip it or write it instead', (await page.getByRole('button', { name: 'Start the chat' }).count()) === 1 && (await page.getByRole('button', { name: /rather write|Write your story yourself/ }).count()) === 0 && (await page.getByRole('button', { name: 'Skip this time' }).count()) === 0);
+    await db.collection('meta').doc('e2e').set({ storyChatOff: true });
+    await page.getByRole('button', { name: 'Start the chat' }).click();
     await page.getByRole('heading', { name: 'Your story this week', level: 1 }).waitFor({ timeout: 30000 });
-    ok('MyStory follows the check-in, with the mid-break questions and a way to skip it', (await page.getByText(/wanted to open one of your apps/).count()) === 1 && (await page.getByRole('button', { name: 'Skip this time' }).count()) === 1);
+    ok('when the chat cannot run, the written form has the mid-break questions, still with no skip', (await page.getByText(/wanted to open one of your apps/).count()) === 1 && (await page.getByRole('button', { name: 'Skip this time' }).count()) === 0);
     await page.getByRole('button', { name: 'Send my story' }).click();
     await page.getByText('Choose one of the questions to answer.').first().waitFor();
     await page.locator('#story-prompt-pull').check();
@@ -1105,16 +1124,20 @@ async function inner() {
     await snap('mystory');
     await page.getByRole('button', { name: 'Send my story' }).click();
     await page.getByRole('heading', { name: 'Thank you. Your story is saved.' }).waitFor({ timeout: 30000 });
+    await db.collection('meta').doc('e2e').delete();
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: /Your check-in has been sent/ }).waitFor({ timeout: 30000 });
-    ok('after the check-in, support is signposted and the visits still to come are shown', (await page.getByText(/Samaritans/).count()) === 1 && (await page.locator('.mpmb-visits-card').innerText()).includes('Second lab visit'));
+    ok('after the check-in, support is signposted, the visits still to come are shown, and there is no second check-in', (await page.getByText(/Samaritans/).count()) === 1 && (await page.locator('.mpmb-visits-card').innerText()).includes('Second lab visit') && (await page.getByRole('button', { name: 'Start another check-in' }).count()) === 0);
     await snap('checkin-done');
-    const midStory = (await db.collection('labStories').where('participantCode', '==', 'MP2670FF90A5F2').get()).docs.map((d) => d.data())[0];
+    const midStory = (await db.collection('labStories').where('participantCode', '==', 'MP2670FF90A5F2').where('phase', '==', 'mid').get()).docs.map((d) => d.data())[0];
     const pull = midStory?.answers?.pull;
     ok('the story is filed under the code and phase: prompt, title, the triangle leaning to Habit, the slider moved, a "not sure", a choice', midStory?.phase === 'mid' && midStory?.structureId === 'mystory-mid' && midStory?.promptId === 'pull' && midStory?.title === 'The bus' && midStory?.source === 'checkin' && typeof midStory?.checkInId === 'string' && pull && pull.a > 0.5 && Math.abs(pull.a + pull.b + pull.c - 1) < 0.002 && midStory?.answers?.hard === 70 && midStory?.answers?.afterwards === 'na' && midStory?.answers?.where === 'travelling' && !('feeling' in (midStory?.answers ?? {})), JSON.stringify(midStory?.answers));
     const labP3 = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data();
     const checkIn = labP3?.checkInIds?.length ? (await db.collection('labCheckIns').doc(labP3.checkInIds[0]).get()).data() : null;
     ok('the check-in is filed under the code with its answers', checkIn?.participantCode === 'MP2670FF90A5F2' && checkIn?.number === 1 && checkIn?.answers?.week === '2' && checkIn?.answers?.['apps-used'] === 'once-or-twice' && checkIn?.answers?.notes === 'Brick held up fine.' && checkIn?.formVersion === '0.1-draft' && labP3?.checkInCount === 1, JSON.stringify(checkIn?.answers));
+    // One check-in each: answers sent again join the first one.
+    const againCheckIn = await httpsCallable(fns, 'submitLabCheckIn')({ participantCode: 'MP2670FF90A5F2', formId: checkIn?.formId, formVersion: checkIn?.formVersion, answers: { ...checkIn?.answers, week: '3' }, client }).then((r) => r.data, () => null);
+    ok('a second check-in is not filed: it joins the first', againCheckIn?.checkInId === labP3?.checkInIds?.[0] && (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data()?.checkInCount === 1, JSON.stringify(againCheckIn));
     const midDonation = (await db.collection('labDonations').where('participantCode', '==', 'MP2670FF90A5F2').where('phase', '==', 'mid').get()).docs[0]?.data();
     ok('its screenshot goes with it, in the mid-break phase, linked to the check-in', midDonation?.checkInId === labP3?.checkInIds?.[0] && midDonation?.files?.length === 1 && midDonation?.files?.[0]?.kind === 'screenshot' && labP3?.phaseCounts?.mid?.screenshots === 1 && labP3?.phaseCounts?.pre?.screenshots === 1 && labP3?.phaseCounts?.pre?.archives === 1, JSON.stringify(labP3?.phaseCounts));
 
@@ -1151,7 +1174,7 @@ async function inner() {
     await page.getByRole('heading', { name: /Check and send/ }).waitFor();
     await page.getByRole('button', { name: 'Send my data' }).click();
     await page.getByRole('heading', { name: /after-break data is in/ }).waitFor({ timeout: 90000 });
-    ok('after the break, TikTok is ticked off and nothing is left to do', (await page.getByText('Every app you use is ticked off. Thank you.').count()) === 1);
+    ok('after the break, TikTok is ticked off, and MyStory comes next', (await page.getByText('Every app you use is ticked off. Thank you.').count()) === 1 && (await page.getByRole('heading', { name: 'Tell MyStory your story.' }).count()) === 1);
     await snap('after-done');
     const labP4 = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data();
     ok('after the break the files are filed as post, and the participant row counts each phase', labP4?.phaseCounts?.post?.screenshots === 1 && labP4?.phaseCounts?.post?.archives === 1 && labP4?.phaseCounts?.pre?.screenshots === 1 && labP4?.phaseCounts?.pre?.archives === 1 && labP4?.donationIds?.length === 5 && labP4?.phone === 'android', JSON.stringify(labP4?.phaseCounts));
@@ -1241,7 +1264,7 @@ async function inner() {
     v1 = (await bookingsOf()).find((b) => b.visit === 1 && b.status === 'booked');
     ok('booking again gives each visit a newer calendar entry, so calendars update the same event', v1?.start?.toDate().getTime() === v1a.getTime() && v1?.sequence === 2, String(v1?.sequence));
 
-    // The quarter-hourly messages, run at chosen moments: the reminders the day before, then the first weekly check-in.
+    // The quarter-hourly messages, run at chosen moments: the reminders the day before, then the daily messages and the check-in on day 15.
     const runMessages = async (at) => (await fetch(`http://127.0.0.1:5001/${PROJECT}/europe-west2/labMessagesNow?at=${encodeURIComponent(at.toISOString())}`, { method: 'POST' })).json();
     await runMessages(new Date(v1a.getTime() - 23 * 3600000));
     const reminded = (await db.collection('labBookings').doc(v1.id).get()).data()?.reminders ?? {};
@@ -1250,7 +1273,10 @@ async function inner() {
     ok('a second run sends nothing twice', Object.keys((await db.collection('labBookings').doc(v1.id).get()).data()?.reminders ?? {}).length === 2);
     await runMessages(new Date(v1a.getTime() + 7 * DAY + 30 * 60000));
     const sentMessages = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data()?.messages ?? {};
-    ok('a week into the break the check-in reminder goes, and nothing else yet', sentMessages['check-in-1']?.email === 'not-configured' && sentMessages['check-in-1']?.sms === 'not-configured' && Object.keys(sentMessages).length === 1, JSON.stringify(sentMessages));
+    ok('a week into the break the day-7 message goes: a text first, and as the text could not go (the emulator sends none), an email instead; the days missed before are skipped, never sent late', sentMessages['day-7']?.sms === 'not-configured' && sentMessages['day-7']?.email === 'not-configured' && sentMessages['day-6']?.skipped === 'skip-stale' && !sentMessages['check-in'] && Object.keys(sentMessages).length === 7, JSON.stringify(sentMessages));
+    await runMessages(new Date(v1a.getTime() + 15 * DAY + 30 * 60000));
+    const day15 = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data()?.messages ?? {};
+    ok('on day 15 the check-in message goes', day15['check-in']?.email === 'not-configured' && Boolean(day15['check-in']?.dueAt), JSON.stringify(day15['check-in']));
 
     // MyStory on its own page, from a personal link, for after the break: the whole chat with Remi, the team's protocol (the emulator's stand-in model).
     await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=post&code=MP2670FF90A5F2`);
@@ -1342,46 +1368,34 @@ async function inner() {
     if (!(await toldHeading.count())) await page.getByRole('button', { name: 'Continue' }).click();
     await toldHeading.waitFor({ timeout: 30000 });
     ok('coming back to a phase whose story is in says so, with the date, and offers no chat or form', (await page.getByText(/You have already sent your story for this part of the study, on/).count()) === 1 && (await page.getByRole('button', { name: 'Start the chat' }).count()) === 0 && (await page.locator('#story-text').count()) === 0);
-    // MyStory at the first visit, on the lab computer: the page forgets the participant once it is sent.
+    // MyStory on the lab computer, for someone whose before-break story is already in (told at home before booking): it says so,
+    // and the server refuses a second story for the phase whatever the page does.
     await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=pre&at=lab&code=MP2670FF90A5F2`);
     await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('button', { name: 'I’d rather write my story myself' }).click();
-    await page.getByRole('heading', { name: 'Your phone, before the break', level: 1 }).waitFor({ timeout: 30000 });
-    await page.locator('#story-prompt-evening').check();
-    await page.locator('#story-text').fill('Most evenings I scroll in bed until late, then feel tired the next day.');
-    await page.locator('#story-title').fill('Late nights');
-    await page.getByRole('button', { name: 'Send my story' }).click();
-    await page.getByText(/Please hand the computer back to the researcher/).waitFor({ timeout: 30000 });
-    ok('at the lab, nothing about the participant is kept on the computer while they tell it', !(await page.evaluate(() => window.localStorage.getItem('mpmb-lab-story:v1') ?? '')).includes('Late nights'));
+    await page.getByRole('heading', { name: 'Your story is already in.', level: 1 }).waitFor({ timeout: 30000 });
+    ok('at the lab too, a second before-break story is not offered', (await page.getByRole('button', { name: 'Finish' }).count()) === 1 && (await page.getByRole('button', { name: 'Download as PDF' }).count()) === 0);
     await page.getByRole('button', { name: 'Finish' }).click();
     await page.getByRole('heading', { name: 'MyStory.', level: 1 }).waitFor({ timeout: 30000 });
     const leftOver = await page.evaluate(() => Object.keys(window.localStorage).filter((k) => k.startsWith('mpmb-lab')));
     ok('Finish clears the lab computer for the next person: no ID, nothing stored', leftOver.length === 0 && page.url().endsWith('phase=pre&at=lab') && !page.url().includes('code=') && (await page.getByLabel('First name').count()) === 1, JSON.stringify(leftOver));
-    const preStory = (await db.collection('labStories').where('phase', '==', 'pre').get()).docs.map((d) => d.data())[0];
-    ok('the story told at the lab is filed under the before-break phase', preStory?.participantCode === 'MP2670FF90A5F2' && preStory?.structureId === 'mystory-pre' && preStory?.title === 'Late nights');
-    // Again at the lab: already in, and the server refuses a second story for the phase whatever the page does.
-    await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=pre&at=lab&code=MP2670FF90A5F2`);
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('heading', { name: 'Your story is already in.', level: 1 }).waitFor({ timeout: 30000 });
-    ok('at the lab too, a second before-break story is not offered, and Finish still clears the computer', (await page.getByRole('button', { name: 'Finish' }).count()) === 1 && (await page.getByRole('button', { name: 'Download as PDF' }).count()) === 0);
-    await page.getByRole('button', { name: 'Finish' }).click();
-    await page.getByRole('heading', { name: 'MyStory.', level: 1 }).waitFor({ timeout: 30000 });
     const secondPre = { participantCode: 'MP2670FF90A5F2', phase: 'pre', structureId: preStory.structureId, structureVersion: preStory.structureVersion, promptId: preStory.promptId, title: 'Another one', story: 'A second story for the same part of the study, which should be refused.', answers: {}, source: 'story', checkInId: null, client };
     ok('the server refuses a second story for a phase, whatever the page does', await refused(() => httpsCallable(fns, 'submitLabStory')(secondPre), 'failed-precondition'));
     // The team's demo account may tell more than one story a phase (for testing); nobody else can.
     await db.collection('labParticipants').doc('MP9C78C162BB9F').set({ participantCode: 'MP9C78C162BB9F', consentId: 'e2e-demo-consent', archiveCount: 0, screenshotCount: 0, storyCounts: {}, storyIds: [] });
+    await db.collection('meta').doc('e2e').set({ storyChatOff: true });
     for (const title of ['Demo one', 'Demo two']) {
       await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=story&phase=mid&code=MP9C78C162BB9F`);
-      const ownStory = page.getByRole('button', { name: 'I’d rather write my story myself' });
-      await Promise.race([ownStory.waitFor({ timeout: 30000 }), page.getByRole('button', { name: 'Continue' }).waitFor({ timeout: 30000 })]);
-      if (!(await ownStory.count())) await page.getByRole('button', { name: 'Continue' }).click();
-      await ownStory.click();
+      const startChat = page.getByRole('button', { name: 'Start the chat' });
+      await Promise.race([startChat.waitFor({ timeout: 30000 }), page.getByRole('button', { name: 'Continue' }).waitFor({ timeout: 30000 })]);
+      if (!(await startChat.count())) await page.getByRole('button', { name: 'Continue' }).click();
+      await startChat.click();
       await page.locator('#story-prompt-pull').check();
       await page.locator('#story-text').fill(`A demo story to check the team can tell more than one (${title}).`);
       await page.locator('#story-title').fill(title);
       await page.getByRole('button', { name: 'Send my story' }).click();
       await page.getByRole('heading', { name: 'Thank you. Your story is saved.' }).waitFor({ timeout: 30000 });
     }
+    await db.collection('meta').doc('e2e').delete();
     const demoStories = (await db.collection('labStories').where('participantCode', '==', 'MP9C78C162BB9F').get()).docs.length;
     ok('the demo account can tell a second story in the same phase, and is offered another', demoStories === 2 && (await page.getByRole('button', { name: 'Tell another story' }).count()) === 1, String(demoStories));
     ok('no browser errors on the booking and MyStory pages', errors.length === 0, errors.join(' | '));
@@ -1437,7 +1451,7 @@ async function inner() {
     await page.getByRole('button', { name: 'Show', exact: true }).click();
     await page.getByRole('heading', { name: 'Personal links' }).waitFor({ timeout: 30000 });
     const detailText = await page.locator('.mpmb-tools__detail').innerText();
-    ok('a participant’s detail shows the messages sent, every personal link and the links for the lab computer', detailText.includes('https://myphonemybrain.com/break/check-in/?code=MP2670FF90A5F2') && detailText.includes('https://myphonemybrain.com/break/mystory/?phase=mid&code=MP2670FF90A5F2') && detailText.includes('https://myphonemybrain.com/break/mystory/?phase=pre&at=lab&code=MP2670FF90A5F2') && detailText.includes('check-in-1: email not-configured') && detailText.includes('Both visits booked.'));
+    ok('a participant’s detail shows the messages sent, every personal link and the links for the lab computer', detailText.includes('https://myphonemybrain.com/break/check-in/?code=MP2670FF90A5F2') && detailText.includes('https://myphonemybrain.com/break/mystory/?phase=mid&code=MP2670FF90A5F2') && detailText.includes('https://myphonemybrain.com/break/mystory/?phase=pre&at=lab&code=MP2670FF90A5F2') && detailText.includes('day-7: email not-configured') && detailText.includes('Both visits booked.'));
     await toolsSnap('participant');
     await page.getByRole('button', { name: 'Schools study (parents and young people)', exact: true }).click();
     await page.getByRole('button', { name: 'School uploads', exact: true }).click();

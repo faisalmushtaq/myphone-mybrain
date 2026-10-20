@@ -123,6 +123,9 @@ const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1
  * data from before the break are in; then both visits, together. A missed or
  * cancelled visit leaves that visit to book again.
  */
+/** How bookingState names a missing MyStory Pre; the booking page shows a way to it. */
+export const STORY_MISSING = 'your MyStory';
+
 export function bookingState(participant: DocumentData | undefined, bookings: BookingRecord[], _now: Date = new Date()): BookingState {
   const consent = Boolean(participant?.consentId);
   const pre = participant ? phaseCountsOf(participant).pre : { screenshots: 0, archives: 0 };
@@ -130,6 +133,8 @@ export function bookingState(participant: DocumentData | undefined, bookings: Bo
   if (!consent) missing.push('your consent');
   if (pre.screenshots < labBooking.requires.screenshots) missing.push('your screen-time screenshots');
   if (pre.archives < labBooking.requires.archives) missing.push('the cleaned data from at least one of your apps');
+  // MyStory Pre comes straight after the data and before booking (20 October 2026).
+  if (Number(participant?.storyCounts?.pre ?? 0) < 1) missing.push(STORY_MISSING);
   const standing = (visit: Visit) =>
     bookings
       .filter((b) => b.visit === visit && ACTIVE.includes(b.status))
@@ -318,14 +323,15 @@ export function visitsEmail(kind: 'booked' | 'moved' | 'cancelled', visits: Book
   };
 }
 
-const placeShort = (b: BookingRecord) => b.place.name.split(',')[0];
+/** The room and building for a text: "LG25 (EEG Lab), School of Psychology" from the full name. */
+const placeShort = (b: BookingRecord) => b.place.name.split(',').slice(0, 2).join(',').trim();
 
 /** Texts are kept to one message: plain characters, under 160 where possible. */
 export function visitsText(kind: 'booked' | 'moved', visits: BookingRecord[]): string {
   const sorted = byVisit(visits);
   if (sorted.length > 1) {
     const times = sorted.map(shortWhen).join(' and ');
-    return kind === 'moved' ? `MyPhone/MyBrain: your lab visits are now ${times} at the ${placeShort(sorted[0])}. Details are in your email.` : `MyPhone/MyBrain: your lab visits are booked for ${times} at the ${placeShort(sorted[0])}. Details are in your email.`;
+    return kind === 'moved' ? `MyPhone/MyBrain: your lab visits are now ${times} at ${placeShort(sorted[0])}. Details are in your email.` : `MyPhone/MyBrain: your lab visits are booked for ${times} at ${placeShort(sorted[0])}. Details are in your email.`;
   }
   const b = sorted[0];
   return kind === 'moved' ? `MyPhone/MyBrain: your ${visitWords(b.visit)} has moved to ${shortWhen(b)}, ${b.place.name}. Details are in your email.` : `MyPhone/MyBrain: your ${visitWords(b.visit)} is booked for ${shortWhen(b)}, ${b.place.name}. Details are in your email.`;
@@ -335,7 +341,7 @@ export function visitsText(kind: 'booked' | 'moved', visits: BookingRecord[]): s
 export function bookingText(kind: 'day-before' | 'same-day', b: BookingRecord): string {
   return kind === 'day-before'
     ? `MyPhone/MyBrain reminder: your lab visit is tomorrow (${ukShortDate(b.start)}) at ${ukClock(b.start)}, ${placeShort(b)}. Can't come? Email ${labStudy.contactEmail}`
-    : `MyPhone/MyBrain: see you today at ${ukClock(b.start)} at the main entrance, ${placeShort(b)}. Running late? Email ${labStudy.contactEmail}`;
+    : `MyPhone/MyBrain: see you today at ${ukClock(b.start)} at the main entrance of the School of Psychology. Running late? Email ${labStudy.contactEmail}`;
 }
 
 export function reminderEmail(b: BookingRecord): { subject: string; text: string } {
@@ -359,18 +365,79 @@ export function reminderEmail(b: BookingRecord): { subject: string; text: string
   };
 }
 
-/** The break-time messages (labJourneyMessages): an email and a one-line text for each. */
-export function journeyMessage(id: string, code: string, visit2: BookingRecord | null): { subject: string; text: string; sms: string } | null {
+/**
+ * The daily messages of the break (20 October 2026): encouragement only, nothing to do. Day 15 brings the check-in link
+ * instead (its line here goes to someone who has already checked in). Wording for the ethics application.
+ */
+export const dailyLines: Record<number, string> = {
+  1: 'Your break has started. Thank you for being part of the study.',
+  2: 'Notice the moments you would usually reach for an app. Just noticing is enough.',
+  3: 'The first few days are often the hardest. You are doing well.',
+  4: 'What have you done with the time so far? A walk, a chat, a book?',
+  5: 'If a habit pulls you back towards your phone, that is normal. Keep going.',
+  6: 'Almost a week. Thank you for sticking with it.',
+  7: 'One week done. Well done.',
+  8: 'Try something today that you would usually skip for your phone.',
+  9: 'Many people notice changes in their sleep during a break. How is yours?',
+  10: 'Ten days in. Thank you for taking part.',
+  11: 'Missing anything? Missing nothing? Both are worth noticing.',
+  12: 'Keep going. Your break helps us understand how social media affects young adults.',
+  13: 'Nearly halfway. You are doing well.',
+  14: 'Two weeks done. Tomorrow we will text you a link to your mid-break check-in.',
+  15: 'Halfway there. Thank you for your check-in.',
+  16: 'Over halfway now. Keep going.',
+  17: 'Notice how you feel at the end of the day.',
+  18: 'Who have you spent more time with lately?',
+  19: 'Every day of the break counts. Thank you.',
+  20: 'Twenty days done. Ten to go.',
+  21: 'Three weeks. Well done.',
+  22: 'If it is getting harder, that is normal. Keep going.',
+  23: 'One week to go. Thank you.',
+  24: 'Think about what you would like to keep from your break.',
+  25: 'Five days to go.',
+  26: 'Four days to go. You are nearly there.',
+  27: 'Three days to go.',
+  28: 'Two days to go. Thank you for sticking with it.',
+  29: 'Tomorrow is the last day of your break. We will send you a message about what to do then.',
+};
+
+/** The reminder on the day of a visit, by email, for someone who cannot get texts. */
+export function sameDayEmail(b: BookingRecord): { subject: string; text: string } {
+  return {
+    subject: `MyPhone/MyBrain: see you today at ${ukClock(b.start)}`,
+    text: ['Hello,', '', `A reminder: your ${visitWords(b.visit)} for the ${labStudy.name} is today.`, '', ...visitBlock(b), `Participant ID: ${b.participantCode}`, '', `Running late, or can't come? Please ${contactLine} as soon as you can.`, ...signOff].join('\n'),
+  };
+}
+
+/** The break-time messages (labJourneyMessages): an email and a one-line text for each. On day 15, someone who has already checked in gets the day's ordinary message. */
+export function journeyMessage(id: string, code: string, visit2: BookingRecord | null, checkedIn = false): { subject: string; text: string; sms: string } | null {
   const links = participantLinks(code);
   const visit2Line = visit2 ? `Your second lab visit is on ${ukSpan(visit2.start, visit2.end)}.` : '';
   const hello = ['Hello,', ''];
   const end = ['', `Questions, or problems with Brick or the break? ${Contact_(contactLine)}.`, ...signOff];
-  if (id.startsWith('check-in-')) {
-    const week = id.slice('check-in-'.length);
+  const m = /^day-(\d+)$/.exec(id);
+  const day = m ? Number(m[1]) : id === 'check-in' && checkedIn ? labCheckInDayOf() : null;
+  if (day !== null) {
+    const line = dailyLines[day];
+    if (!line) return null;
     return {
-      subject: `MyPhone/MyBrain: your week ${week} check-in`,
-      text: [...hello, `It's time for your weekly check-in for the ${labStudy.name}: a few quick questions about your break, and a screenshot of your screen time if you can. It takes about two minutes, and if you haven't told your MyStory for the break yet, there is an optional one at the end.`, '', links.checkIn, ...(visit2Line ? ['', visit2Line] : []), ...end].join('\n'),
-      sms: `MyPhone/MyBrain: time for your week ${week} check-in, about 2 minutes: ${links.checkIn}`,
+      subject: `MyPhone/MyBrain: day ${day} of your break`,
+      text: [...hello, line, '', 'There is nothing you need to do: no need to reply.', ...end].join('\n'),
+      sms: `MyPhone/MyBrain, day ${day}: ${line}`,
+    };
+  }
+  if (id === 'check-in') {
+    return {
+      subject: 'MyPhone/MyBrain: your mid-break check-in',
+      text: [
+        ...hello,
+        `It's day ${labCheckInDayOf()} of your break: time for your mid-break check-in for the ${labStudy.name}. It is a few quick questions, a screenshot of your screen time, then a short chat with Remi about your break so far (MyStory). About 20 minutes in all, and there is only this one.`,
+        '',
+        links.checkIn,
+        ...(visit2Line ? ['', visit2Line] : []),
+        ...end,
+      ].join('\n'),
+      sms: `MyPhone/MyBrain, day ${labCheckInDayOf()}: time for your mid-break check-in and MyStory, about 20 minutes: ${links.checkIn}`,
     };
   }
   if (id === 'end-of-break') {
@@ -383,7 +450,7 @@ export function journeyMessage(id: string, code: string, visit2: BookingRecord |
         'Before you unlock your apps, please take your screen-time screenshots and send them on the after-break page:',
         links.after,
         '',
-        'Once your apps are unlocked, request your new data downloads from TikTok, YouTube or Instagram; the same page shows you how, and you send the files there when they arrive.',
+        'Once your apps are unlocked, request your new data downloads from TikTok, YouTube or Instagram; the same page shows you how, and you send the files there when they arrive. When they are in, the page asks you to tell Remi about your break (MyStory).',
         ...(visit2Line ? ['', visit2Line] : []),
         ...end,
       ].join('\n'),
@@ -392,6 +459,8 @@ export function journeyMessage(id: string, code: string, visit2: BookingRecord |
   }
   return null;
 }
+
+const labCheckInDayOf = () => labJourneyMessages.find((x) => x.kind === 'check-in')?.day ?? 15;
 
 /* ── Sending ───────────────────────────────────────────────────────────── */
 
@@ -766,18 +835,17 @@ export function reminderAction(hoursBefore: number, channel: 'email' | 'sms', b:
   return 'send';
 }
 
-export type JourneyAction = 'wait' | 'send' | 'skip-stale' | 'skip-unless' | 'skip-visit-2';
+export type JourneyAction = 'wait' | 'send' | 'skip-stale' | 'skip-visit-2';
 
 /** When a break-time message is due: its day after the first visit, at the set hour, UK time. */
 export const journeyDueAt = (m: JourneyMessage, visit1Start: Date) => atUkTime(addDays(ukDate(visit1Start), m.day), labJourneyHour);
 
-export function journeyAction(m: JourneyMessage, ctx: { visit1Start: Date; visit2: BookingRecord | null; lastCheckInAt: Date | null }, now: Date): JourneyAction {
+export function journeyAction(m: JourneyMessage, ctx: { visit1Start: Date; visit2: BookingRecord | null }, now: Date): JourneyAction {
   const dueAt = journeyDueAt(m, ctx.visit1Start);
   if (now.getTime() < dueAt.getTime()) return 'wait';
   if (now.getTime() - dueAt.getTime() > STALE_AFTER) return 'skip-stale';
   // From a day before the second visit, its own reminders say what to do (a visit 28 or 29 days on comes before the day-30 message).
   if (ctx.visit2 && ctx.visit2.start.getTime() - now.getTime() < DAY) return 'skip-visit-2';
-  if (m.unless === 'checked-in' && ctx.lastCheckInAt && now.getTime() - ctx.lastCheckInAt.getTime() < 3 * DAY) return 'skip-unless';
   return 'send';
 }
 
@@ -805,6 +873,7 @@ export async function runLabMessages(now = new Date()): Promise<{ reminders: num
   const participants = new Map<string, DocumentData | undefined>();
   const participantFor = async (code: string) => (participants.has(code) ? participants.get(code) : participants.set(code, (await db.collection('labParticipants').doc(code).get()).data()).get(code));
 
+  let smsReadyNow: boolean | undefined;
   // Visit reminders: standing bookings in the next day or so.
   const horizon = Math.max(...labBooking.reminders.map((r) => r.hoursBefore)) + 1;
   const soon = await db.collection('labBookings').where('start', '>', now).where('start', '<=', new Date(now.getTime() + horizon * HOUR)).get();
@@ -814,7 +883,9 @@ export async function runLabMessages(now = new Date()): Promise<{ reminders: num
     const sent = (doc.data().reminders ?? {}) as Record<string, unknown>;
     for (const r of labBooking.reminders) {
       for (const channel of ['email', 'sms'] as const) {
-        if (!r[channel]) continue;
+        // A text-only reminder (on the day) goes by email to someone who cannot get texts (20 October 2026).
+        const emailIfNoText = channel === 'email' && !r.email && r.sms;
+        if (!r[channel] && !emailIfNoText) continue;
         const key = `${r.id}-${channel}`;
         if (sent[key]) continue;
         const action = reminderAction(r.hoursBefore, channel, b, now);
@@ -829,7 +900,8 @@ export async function runLabMessages(now = new Date()): Promise<{ reminders: num
         const contact = await contactFor(b.participantCode);
         let outcome: string;
         if (participant?.messagesPaused) outcome = 'paused';
-        else if (channel === 'email') outcome = contact.email ? await sendMail({ to: contact.email, replyTo: labStudy.contactEmail, ...reminderEmail(b) }) : 'no-contact';
+        else if (channel === 'email' && emailIfNoText && wantsTexts(contact) && (smsReadyNow ??= await smsReady())) outcome = 'not-needed';
+        else if (channel === 'email') outcome = contact.email ? await sendMail({ to: contact.email, replyTo: labStudy.contactEmail, ...(emailIfNoText ? sameDayEmail(b) : reminderEmail(b)) }) : 'no-contact';
         else outcome = wantsTexts(contact) ? await sendSms(contact.mobile!, bookingText(r.id === 'same-day' ? 'same-day' : 'day-before', b)) : 'not-wanted';
         await record(doc.ref, 'reminders', key, { at: now, outcome });
         reminders += 1;
@@ -855,21 +927,24 @@ export async function runLabMessages(now = new Date()): Promise<{ reminders: num
     let visit2: BookingRecord | null = null;
     for (const m of labJourneyMessages) {
       if (done[m.id]) continue;
-      if (journeyAction(m, { visit1Start: visit1.start, visit2: null, lastCheckInAt: null }, now) === 'wait') continue;
+      if (journeyAction(m, { visit1Start: visit1.start, visit2: null }, now) === 'wait') continue;
       visit2 ??= (await bookingsOf(db, code)).filter((b) => b.visit === 2 && ACTIVE.includes(b.status)).sort((a, b) => b.start.getTime() - a.start.getTime())[0] ?? null;
-      const lastCheckInAt = participant.lastCheckInAt ? toDate(participant.lastCheckInAt) : null;
-      const action = journeyAction(m, { visit1Start: visit1.start, visit2, lastCheckInAt }, now);
+      const action = journeyAction(m, { visit1Start: visit1.start, visit2 }, now);
       if (action === 'wait') continue;
       if (!(await claim(db, ref, 'messages', m.id, now))) continue;
-      const message = action === 'send' ? journeyMessage(m.id, code, visit2) : null;
+      const message = action === 'send' ? journeyMessage(m.id, code, visit2, Number(participant.checkInCount ?? 0) > 0) : null;
       if (!message) {
         await record(ref, 'messages', m.id, { at: now, skipped: action === 'send' ? 'no-wording' : action });
         skipped += 1;
         continue;
       }
       const contact = await contactFor(code);
-      const email = contact.email ? await sendMail({ to: contact.email, replyTo: labStudy.contactEmail, subject: message.subject, text: message.text }) : 'no-contact';
-      const sms = wantsTexts(contact) ? await sendSms(contact.mobile!, message.sms) : 'not-wanted';
+      // A text when there is a mobile number and texts are set up, otherwise an email (20 October 2026); the messages that ask
+      // for something (the check-in link, the last day) go by email as well, so the link is not lost.
+      const texting = wantsTexts(contact) && (smsReadyNow ??= await smsReady());
+      const asks = m.kind !== 'daily' && !(m.kind === 'check-in' && Number(participant.checkInCount ?? 0) > 0);
+      const sms = texting ? await sendSms(contact.mobile!, message.sms) : 'not-wanted';
+      const email = !texting || asks || sms !== 'sent' ? (contact.email ? await sendMail({ to: contact.email, replyTo: labStudy.contactEmail, subject: message.subject, text: message.text }) : 'no-contact') : 'not-needed';
       await record(ref, 'messages', m.id, { at: now, dueAt: journeyDueAt(m, visit1.start), email, sms });
       messages += 1;
     }

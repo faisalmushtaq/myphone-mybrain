@@ -547,6 +547,8 @@ export const lookupLabParticipant = onCall(callOptions, async (request) => {
     phases: Object.fromEntries(PHASES.map((ph) => [ph, { ...phases[ph], platforms: Array.from(seen[ph]).sort() }])),
     checkIns: Number(participant.checkInCount ?? 0),
     lastCheckInAt: toIso(participant.lastCheckInAt),
+    // The check-in already in, so an unfinished one carries on (its screenshot and story) on any device.
+    checkInId: Array.isArray(participant.checkInIds) && participant.checkInIds.length ? String(participant.checkInIds[0]) : null,
     platformsNotUsed: notUsedOf(participant),
     // The lab visits standing (booked or done), so each page can say what comes next.
     visits: bookings.docs
@@ -805,6 +807,13 @@ export const submitLabCheckIn = onCall(callOptions, async (request) => {
     if (before) return { checkInId: ref.id, receivedAt: before.receivedAt?.toDate?.().toISOString?.() ?? receivedAt.toISOString(), count: Number(before.number ?? 1), first: false };
     const participant = participantSnap.data();
     if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please check your details.');
+    // One check-in for each participant (20 October 2026), apart from the team's test accounts: answers sent again join the
+    // first check-in rather than starting another, so an unfinished one (its screenshot or story still to come) carries on.
+    const firstId = Array.isArray(participant.checkInIds) && participant.checkInIds.length ? String(participant.checkInIds[0]) : null;
+    if (firstId && !mayRetellStory(code)) {
+      const first = (await tx.get(db.collection('labCheckIns').doc(firstId))).data();
+      return { checkInId: firstId, receivedAt: first?.receivedAt?.toDate?.().toISOString?.() ?? receivedAt.toISOString(), count: 1, first: false };
+    }
     const count = Number(participant.checkInCount ?? 0) + 1;
     tx.create(ref, {
       studyId: labStudy.studyId,

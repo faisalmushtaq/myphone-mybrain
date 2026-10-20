@@ -3,7 +3,8 @@ import { getApi } from '../../api';
 import { ApiError, type LabBooking, type LabSlot, type LabVisit } from '../../api/types';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
-import { CheckboxField, TextField } from '../../components/ui/Field';
+import { TextField } from '../../components/ui/Field';
+import { labMyStory } from '../mystory';
 import { announce } from '../../lib/announce';
 import { describeError, labClientInfo, labSession } from '../api';
 import { labBooking } from '../booking';
@@ -118,6 +119,9 @@ const both = (xs: { start: string; end: string }[]) => xs.map((b) => `${ukDayYea
  * another, and then the old address is told too. The page is its own
  * (/break/book/) and also opens from the other pages' summaries.
  */
+/** What the booking page says about the messages (wording from the team, 20 October 2026). */
+export const LAB_MESSAGES_NOTE = 'You will receive reminders before and on the day of each lab visit. We will also send you a short message every day. No action is needed for these daily messages, except on day 15, when we will send you a link to complete your mid-break check-in and share your story.';
+
 export function LabBook() {
   const { state, dispatch } = useLab();
   const { options, confirmed } = state.booking;
@@ -156,7 +160,7 @@ export function LabBook() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, state.code]);
 
-  const { email, mobile, smsReminders } = state.booking;
+  const { email, mobile } = state.booking;
   const gap = options?.gap ?? labBooking.visit2AfterDays;
   const standing = (options?.bookings ?? []).filter((b) => b.status === 'booked' || b.status === 'attended');
   const current = (v: LabVisit): LabBooking | null => standing.filter((b) => b.visit === v).at(-1) ?? null;
@@ -165,15 +169,11 @@ export function LabBook() {
   // Each contact detail on file is kept unless the person chooses to change it: the mobile number usually from sign-up (since 7 October 2026), the email
   // address from an earlier booking. So the first booking asks only for the email, and changing visits on another device asks for nothing.
   const onFile = options?.contact ?? null;
+  // MyStory Pre comes before booking (20 October 2026); the server lists it with the data still missing.
+  const dataMissing = (options?.missing ?? []).filter((m) => m !== 'your MyStory');
+  const onlyStory = Boolean(options?.missing.length) && !dataMissing.length;
   const keepEmail = Boolean(onFile?.email) && !newEmail;
   const keepMobile = Boolean(onFile?.mobileEnding) && !newMobile;
-  // The text-reminder tick starts from the choice on file, once, when the visits first load.
-  const textsSynced = useRef(false);
-  useEffect(() => {
-    if (!onFile || textsSynced.current) return;
-    textsSynced.current = true;
-    dispatch({ type: 'booking-contact', patch: { smsReminders: onFile.smsReminders } });
-  }, [onFile, dispatch]);
 
   /** Each visit in the planner: still to book, booked and movable (when changing), or staying as it is. */
   const role = (v: LabVisit): 'open' | 'keep' | 'fixed' => {
@@ -242,8 +242,8 @@ export function LabBook() {
     setBusy(true);
     try {
       const session = await labSession(state.session, (s) => dispatch({ type: 'session', session: s }));
-      // Text reminders are kept as chosen even before texts are set up, so they start once they are.
-      const result = await getApi().bookLabSlot(session, { participantCode: state.code, visits: picks, email: keepEmail ? null : email.trim(), mobile: keepMobile ? null : mobile.trim(), smsReminders, client: labClientInfo() });
+      // Reminders and the daily messages go to everyone (20 October 2026): there is no choice to make, so texts are always on.
+      const result = await getApi().bookLabSlot(session, { participantCode: state.code, visits: picks, email: keepEmail ? null : email.trim(), mobile: keepMobile ? null : mobile.trim(), smsReminders: true, client: labClientInfo() });
       setSentTo(keepEmail ? onFile!.email : email.trim());
       setNewEmail(false);
       setNewMobile(false);
@@ -455,10 +455,30 @@ export function LabBook() {
         </section>
       )}
 
-      {options && !planning && !standing.length && (
+      {options && !planning && !standing.length && onlyStory && (
         <Callout tone="important">
           <p>
-            <strong>You can book your lab visits once {options.missing.join(' and ')} {options.missing.length === 1 ? 'has' : 'have'} arrived.</strong> The team needs them before the first visit, so it can use the time with you.
+            <strong>Before you book your lab visits, tell {labMyStory.name} your story:</strong> a short chat with Remi, about fifteen minutes.
+          </p>
+          {inline ? (
+            <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'mystory' })}>
+              Tell my story
+            </Button>
+          ) : (
+            <a className="mpmb-btn mpmb-btn--primary" href={`${labPages.story.path}?phase=pre&code=${encodeURIComponent(state.code)}`}>
+              <span>Tell my story</span>
+              <span className="mpmb-btn__arrow" aria-hidden="true">
+                →
+              </span>
+            </a>
+          )}
+        </Callout>
+      )}
+
+      {options && !planning && !standing.length && !onlyStory && (
+        <Callout tone="important">
+          <p>
+            <strong>You can book your lab visits once {dataMissing.join(' and ')} {dataMissing.length === 1 ? 'has' : 'have'} arrived{dataMissing.length < options.missing.length ? `, and you have told ${labMyStory.name} your story` : ''}.</strong> The team needs them before the first visit, so it can use the time with you.
           </p>
           {!options.consent ? null : inline && state.flow === 'baseline' ? (
             <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'screenshots' })}>
@@ -572,7 +592,7 @@ export function LabBook() {
                   )}
                 </>
               )}
-              <CheckboxField id="lab-sms" checked={smsReminders} onChange={(checked) => dispatch({ type: 'booking-contact', patch: { smsReminders: checked } })} label="Text me reminders" hint="The day before and on the day of each visit, and a nudge for each weekly check-in during the break." />
+              <p>{LAB_MESSAGES_NOTE}</p>
               <p className="mpmb-hint">Used to send you your bookings and reminders, and for the research team to contact you about the study. Kept with your consent record, not with your data.</p>
             </div>
           )}
@@ -597,7 +617,7 @@ export function LabBook() {
           {backToSummary}
           {!inline && standing.length > 0 && (
             <p className="mpmb-hint">
-              During your break, check in each week on the <a href={labPages.checkin.path}>mid-break check-in</a>; when it ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+              On day 15 of your break, we text you a link to your <a href={labPages.checkin.path}>mid-break check-in</a>; when the break ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
             </p>
           )}
         </div>

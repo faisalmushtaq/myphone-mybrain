@@ -133,6 +133,11 @@ export function resumeStep(state: LabState): LabStepId {
 }
 
 /** Whether the data the first visit needs has arrived (labBooking.requires), as far as this page knows. */
+/** Whether this person has told their MyStory for a phase: the server's count, or a story this page sent. */
+export function storyTold(state: LabState, phase: LabPhase): boolean {
+  return (state.progress?.stories?.[phase] ?? 0) > 0 || (state.phase === phase && state.story.sent.length > 0);
+}
+
 export function readyToBook(state: LabState, requires: { screenshots: number; archives: number }): boolean {
   const pre = state.progress?.phases?.pre ?? (state.phase === 'pre' ? phaseHave(state) : null);
   return Boolean(pre && pre.screenshots >= requires.screenshots && pre.archives >= requires.archives);

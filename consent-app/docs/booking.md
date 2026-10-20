@@ -9,8 +9,10 @@ first starts the 30-day break and the second, **30 to 35 days later**, comes onc
 it (decided 7 October 2026, `decisions.md`).
 
 Everything after that runs by itself: confirmations with a calendar file per
-visit, reminders before each visit, the weekly check-in nudges during the
-break, and the end-of-break message.
+visit, reminders before and on the day of each visit, a short message every
+day of the break (day 15's with the link to the one mid-break check-in), and
+the end-of-break message. Booking waits until MyStory Pre is told, straight
+after the data (20 October 2026).
 
 ## What the participant sees
 
@@ -41,17 +43,22 @@ outcome (`sent`, `failed`, `not-configured`, `no-contact`, `not-wanted`,
 `invalid-number`, or why it was skipped), visible on the staff page and in
 the export.
 
-| When | Email | Text (if wanted) |
+Since 20 October 2026 there is no choice about texts on the booking page:
+the page says what will come. A text goes to everyone with a mobile number
+once texts are set up; anything that cannot go by text goes by email.
+
+| When | Email | Text |
 | --- | --- | --- |
 | Booked, moved or cancelled | Confirmation to the participant listing both visits and what to bring, **copied to Miftah and brainpop@leeds.ac.uk** (`labBooking.copyTo`), replies to Miftah, with a calendar file per visit attached (a cancellation removes them from calendars) | A one-line confirmation (so a mistyped number shows up at once) |
 | The day before a visit | Reminder: when, where, what to bring (for the second visit, also the after-break screenshots) | Reminder |
-| On the day, two hours before | | Reminder (texts go only 08:00 to 21:00 UK time; an earlier one goes at 08:00 if the visit is still at least 30 minutes away) |
-| Days 7, 14, 21 and 28 | "Time for your weekly check-in" with the personal link (skipped if they checked in within three days) | Same |
-| Day 30 | "Last day of your break": screenshots before unlocking, then the downloads | Same |
+| On the day, two hours before | Only if a text cannot go | Reminder (texts go only 08:00 to 21:00 UK time; an earlier one goes at 08:00 if the visit is still at least 30 minutes away) |
+| Days 1 to 29, except 15, at 09:00 | Only if a text cannot go | A line of encouragement that asks for nothing (`dailyLines` in `firebase/functions/src/booking.ts`) |
+| Day 15 | "Your mid-break check-in", with the personal link: questions, a screenshot, MyStory (someone already checked in gets the day's ordinary message) | Same |
+| Day 30 | "Last day of your break": screenshots before unlocking, then the downloads, then MyStory Post | Same |
 
 From a day before the second visit, the break-time messages stop: the
 visit's own reminders say what to do (with a second visit 28 or 29 days on,
-the day-28 check-in and the day-30 message are skipped).
+the messages from the day before it are skipped).
 
 What to bring, in every confirmation and reminder (`labBooking.bring`): the
 phone, charged; clean, dry hair with no oils, gel, spray or conditioner (for
@@ -89,11 +96,11 @@ send the same message twice: each is claimed in a transaction first.
 4. **Texts (optional).** Texts need an SMS provider account. The code uses
    [Twilio](https://www.twilio.com/sms/pricing/gb) (pay as you go, $0.056
    a text to a UK mobile in October 2026, no monthly fee with the
-   **MyPhoneStdy** name as the sender). Each participant gets at most ten
+   **MyPhoneStdy** name as the sender). Each participant gets about 35
    texts, all under 160 characters (one billed text each): the booking, the
-   day before and the morning of each visit, four weekly check-in nudges
-   and the last day of the break, plus one per change of times; for 120
-   participants, about 1,200 to 1,400 texts, roughly $70 to $80:
+   day before and the morning of each visit, one a day during the break
+   (days 1 to 30), plus one per change of times; for 120 participants,
+   about 4,200 texts, roughly $240:
    - create the account and note the account SID and auth token;
    - in Cloud Shell: `bash consent-app/firebase/scripts/set-sms-credentials.sh myphone-mybrain`;
    - the sender is **MyPhoneStdy** (the deploy workflow's default; to
@@ -150,7 +157,7 @@ again:
 | --- | --- |
 | `/break/take-part/?code=MP…` | Before the break: consent, screenshots, app data |
 | `/break/book/?code=MP…` | Their lab visits |
-| `/break/check-in/?code=MP…` | The weekly check-in (with MyStory at the end) |
+| `/break/check-in/?code=MP…` | The mid-break check-in, once, on day 15 (with MyStory at the end) |
 | `/break/after/?code=MP…` | After the break: screenshots and app data again |
 | `/break/mystory/?phase=mid&code=MP…` | MyStory during the break (or the external survey, with the ID and phase passed on; see `mystory.md`) |
 | `/break/mystory/?phase=pre\|post&at=lab&code=MP…` | MyStory at a lab visit, on the lab computer: nothing is kept on the computer, and **Finish** clears it for the next person |

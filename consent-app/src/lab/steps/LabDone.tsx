@@ -10,31 +10,40 @@ import { labFileStore } from '../fileStore';
 import { labMyStory, storySurveyUrl } from '../mystory';
 import { clearLabState } from '../persistence';
 import { namesOf, PlatformChecklist } from '../PlatformChecklist';
-import { phaseHave, platformsToDo, readyToBook } from '../reducer';
+import { phaseHave, platformsToDo, readyToBook, storyTold } from '../reducer';
 import { useLab } from '../store';
 import { filesPhrase } from '../words';
 
 type CopyStatus = { kind: 'idle' } | { kind: 'working' } | { kind: 'done'; fileName: string } | { kind: 'failed' };
 
-/** MyStory after a check-in: this site's own form or another survey, filed under the same participant ID. (Before and after the break, it is told at the lab visits.) */
-function StoryCard({ code, sent, onOpen }: { code: string; sent: number; onOpen: () => void }) {
-  const mode = labMyStory.phases.mid;
-  const url = storySurveyUrl('mid', code);
+/**
+ * MyStory, next (20 October 2026): required at each phase, straight after the data before and after the break (and before
+ * booking the visits), and after the check-in. A chat with Remi, or another survey if that phase is run elsewhere.
+ */
+function StoryCard({ code, phase, onOpen }: { code: string; phase: 'pre' | 'mid' | 'post'; onOpen: () => void }) {
+  const mode = labMyStory.phases[phase];
+  const url = storySurveyUrl(phase, code);
   return (
-    <div className="mpmb-card mpmb-card--mist mpmb-mystory">
-      <p className="mpmb-kicker">{sent ? 'Thank you for your story' : 'If you have a few minutes'}</p>
-      <h2 className="mpmb-h3">{sent ? `Another story for ${labMyStory.name}?` : `Tell ${labMyStory.name} your story.`}</h2>
-      <p>A few minutes, in your own words: a moment from your week without social media. Then a few quick questions about it. It is labelled with your participant ID, never your name. Optional.</p>
+    <div className="mpmb-card mpmb-card--next mpmb-mystory">
+      <p className="mpmb-kicker">Next</p>
+      <h2 className="mpmb-h3">Tell {labMyStory.name} your story.</h2>
+      <p>
+        {phase === 'pre'
+          ? 'Before you book your lab visits: a short chat with Remi about your social media use, about fifteen minutes. It is labelled with your participant ID, never your name.'
+          : phase === 'post'
+            ? 'A short chat with Remi about your break and how it went, about fifteen minutes. It is labelled with your participant ID, never your name.'
+            : 'A short chat with Remi about your break so far, about fifteen minutes. It is labelled with your participant ID, never your name.'}
+      </p>
       {mode.mode === 'link' && url ? (
-        <a className="mpmb-btn mpmb-btn--secondary" href={url} target="_blank" rel="noopener noreferrer">
+        <a className="mpmb-btn mpmb-btn--primary" href={url} target="_blank" rel="noopener noreferrer">
           <span>Open {mode.name}</span>
           <span className="mpmb-btn__arrow" aria-hidden="true">
             →
           </span>
         </a>
       ) : (
-        <Button variant="secondary" arrow onClick={onOpen}>
-          {sent ? 'Tell another story' : 'Tell my story'}
+        <Button variant="primary" arrow onClick={onOpen}>
+          Tell my story
         </Button>
       )}
     </div>
@@ -47,7 +56,7 @@ function VisitsCard({ onBook }: { onBook: () => void }) {
   const gap = state.booking.options?.gap ?? labBooking.visit2AfterDays;
   const standing = state.booking.options ? state.booking.options.bookings.filter((b) => b.status === 'booked' || b.status === 'attended').map((b) => ({ visit: b.visit, start: b.start, end: b.end as string | null })) : (state.progress?.visits ?? []).filter((v) => v.status === 'booked' || v.status === 'attended').map((v) => ({ visit: v.visit, start: v.start, end: null as string | null }));
   const has = (v: 1 | 2) => standing.some((b) => b.visit === v);
-  const bookBoth = !standing.length && state.flow === 'baseline' && readyToBook(state, labBooking.requires);
+  const bookBoth = !standing.length && state.flow === 'baseline' && readyToBook(state, labBooking.requires) && storyTold(state, 'pre');
   // A missed or cancelled visit leaves that one to book again.
   const missing: 1 | 2 | null = has(1) && !has(2) ? 2 : !has(1) && has(2) ? 1 : null;
   const coming = standing.filter((b) => Date.parse(b.start) > Date.now()).sort((a, b) => a.start.localeCompare(b.start));
@@ -96,6 +105,9 @@ export function LabDone() {
   const canCopy = flow === 'baseline' && Boolean(state.consent.completedAt && state.consent.signature);
   const have = phaseHave(state);
   const toDo = flow === 'checkin' ? [] : platformsToDo(state);
+  // MyStory comes next once this page's data is in (before the break, enough to book; after it, every app), or after the check-in.
+  const dataIn = flow === 'baseline' ? readyToBook(state, labBooking.requires) : flow === 'after' ? have.screenshots > 0 && !toDo.length : flow === 'checkin';
+  const storyNext = dataIn && !storyTold(state, state.phase);
 
   useEffect(() => {
     document.title = 'Thank you – MyPhone/MyBrain';
@@ -126,13 +138,13 @@ export function LabDone() {
   const when = flow === 'checkin' ? state.checkIn.sentAt : submission.lastDonationAt;
   const steps =
     flow === 'checkin'
-      ? ['Carry on with your break. Check in again in about a week, on this same page.', 'If anything goes wrong with Brick or the break, contact the team; it is useful to know.', 'On the last day of your break, before you unlock your apps, take your screen-time screenshots on the after-break page; once your apps are unlocked, request your new data downloads.']
+      ? ['Carry on with your break. There is one check-in, so you have nothing more to do here.', 'If anything goes wrong with Brick or the break, contact the team; it is useful to know.', 'On the last day of your break, before you unlock your apps, take your screen-time screenshots on the after-break page; once your apps are unlocked, request your new data downloads.']
       : flow === 'after'
         ? ['Bring your phone to your second lab visit. The team will be able to see that your files have arrived.', 'If a data download arrives later, come back to this page, enter your details and add it.']
         : [
             canCopy ? 'Download a copy of your consent and keep it somewhere safe. Nothing is emailed to you.' : 'Your consent was recorded earlier; the team holds the record.',
             'Bring your phone to your first lab visit. The team will be able to see that your files have arrived.',
-            'During your break, check in once a week on the mid-break check-in page; afterwards, send your data again on the after-break page. Both find you from the same details you gave today; there is nothing to sign again.',
+            'On day 15 of your break, we send you a link to your mid-break check-in; afterwards, send your data again on the after-break page. Both find you from the same details you gave today; there is nothing to sign again.',
           ];
 
   return (
@@ -151,10 +163,9 @@ export function LabDone() {
         </p>
       </div>
       <div className="mpmb-step__body">
+        {storyNext && <StoryCard code={state.code} phase={state.phase as 'pre' | 'mid' | 'post'} onOpen={() => dispatch({ type: 'go-to', stepId: 'mystory' })} />}
         <VisitsCard onBook={() => dispatch({ type: 'go-to', stepId: 'book' })} />
-        {flow === 'checkin' ? (
-          <StoryCard code={state.code} sent={state.story.sent.length} onOpen={() => dispatch({ type: 'go-to', stepId: 'mystory' })} />
-        ) : (
+        {flow === 'checkin' ? null : (
           <>
             <div className="mpmb-done__why">
               <p>
@@ -211,11 +222,7 @@ export function LabDone() {
               Download a copy of my consent (PDF)
             </Button>
           )}
-          {flow === 'checkin' ? (
-            <Button variant="secondary" onClick={() => dispatch({ type: 'checkin-new' })}>
-              Start another check-in
-            </Button>
-          ) : toDo.length ? (
+          {flow === 'checkin' ? null : toDo.length ? (
             <Button variant="primary" arrow onClick={() => dispatch({ type: 'go-to', stepId: 'guide' })}>
               Get my {namesOf(toDo)} data
             </Button>

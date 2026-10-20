@@ -117,7 +117,8 @@ function screensFor(protocol: ChatProtocol) {
 }
 
 async function modelFor(): Promise<ModelCall | null> {
-  if (process.env.FUNCTIONS_EMULATOR === 'true') return mockModel;
+  // The emulator's stand-in model; the end-to-end test can switch the chat off (meta/e2e storyChatOff) to reach the written form.
+  if (process.env.FUNCTIONS_EMULATOR === 'true') return (await getFirestore().collection('meta').doc('e2e').get()).data()?.storyChatOff ? null : mockModel;
   const key = await readSecret(OPENAI_SECRET);
   return key ? openAiModel(key) : null;
 }

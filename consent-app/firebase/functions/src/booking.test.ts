@@ -55,7 +55,7 @@ test('calendar files: folded lines, CRLF, a reminder the day before, cancellatio
   assert.match(ics, /DTEND:20261014T110000Z/);
   assert.match(ics, /METHOD:PUBLISH/);
   assert.match(ics, /TRIGGER:-P1D/);
-  assert.match(ics, /LOCATION:School of Psychology\\, University of Leeds\\, Leeds LS2 9JT/);
+  assert.match(ics, /LOCATION:LG25 \(EEG Lab\)\\, School of Psychology\\, University of Leeds\\, Leed\r\n s LS2 9JT/);
   const cancelled = bookingIcs(booking({ sequence: 1 }), true);
   assert.match(cancelled, /METHOD:CANCEL/);
   assert.match(cancelled, /STATUS:CANCELLED/);
@@ -72,12 +72,14 @@ test('UK mobile numbers in their usual forms; anything else is refused', () => {
 test('who can book what: nothing until the data is in, then both visits together', () => {
   const now = new Date('2026-10-01T12:00:00Z');
   const none = bookingState(undefined, [], now);
-  assert.deepEqual(none.missing, ['your consent', 'your screen-time screenshots', 'the cleaned data from at least one of your apps']);
+  assert.deepEqual(none.missing, ['your consent', 'your screen-time screenshots', 'the cleaned data from at least one of your apps', 'your MyStory']);
   assert.deepEqual(none.toBook, []);
   const consented = { consentId: 'c1', phaseCounts: { pre: { screenshots: 2, archives: 0 }, mid: { screenshots: 0, archives: 0 }, post: { screenshots: 0, archives: 0 } } };
-  assert.deepEqual(bookingState(consented, [], now).missing, ['the cleaned data from at least one of your apps']);
+  assert.deepEqual(bookingState(consented, [], now).missing, ['the cleaned data from at least one of your apps', 'your MyStory']);
+  // MyStory Pre comes before booking (20 October 2026).
+  assert.deepEqual(bookingState({ ...consented, phaseCounts: { ...consented.phaseCounts, pre: { screenshots: 2, archives: 1 } } }, [], now).missing, ['your MyStory']);
   assert.deepEqual(bookingState(consented, [], now).toBook, [], 'nothing to book while data is missing');
-  const ready = { ...consented, phaseCounts: { ...consented.phaseCounts, pre: { screenshots: 2, archives: 1 } } };
+  const ready = { ...consented, phaseCounts: { ...consented.phaseCounts, pre: { screenshots: 2, archives: 1 } }, storyCounts: { pre: 1 } };
   assert.deepEqual(bookingState(ready, [], now).toBook, [1, 2]);
   const v1 = booking();
   const v2 = booking({ id: 'b2', visit: 2, slotId: 's2', start: new Date('2026-11-12T10:00:00Z'), end: new Date('2026-11-12T12:00:00Z') });
@@ -87,7 +89,7 @@ test('who can book what: nothing until the data is in, then both visits together
   assert.deepEqual(bookingState(ready, [booking({ status: 'missed' }), v2], now).toBook, [1]);
   assert.deepEqual(bookingState(ready, [booking({ status: 'attended' }), { ...v2, status: 'cancelled' }], now).toBook, [2]);
   // Rows from before phases were counted hold only totals, from the first page.
-  assert.deepEqual(bookingState({ consentId: 'c', screenshotCount: 1, archiveCount: 1 }, [], now).toBook, [1, 2]);
+  assert.deepEqual(bookingState({ consentId: 'c', screenshotCount: 1, archiveCount: 1, storyCounts: { pre: 1 } }, [], now).toBook, [1, 2]);
 });
 
 test('the days each visit can be on: the second 30 to 35 days after the first, once the break is over', () => {
@@ -144,35 +146,39 @@ test('visit reminders: due times, texts only in the daytime, nothing after a lat
   assert.equal(reminderAction(24, 'email', { start, bookedAt: new Date(start.getTime() - 20 * H) }, new Date(start.getTime() - 19 * H)), 'skip-booked-late');
 });
 
-test('break-time messages: weekly check-ins and the end of the break, on their day at nine, skipped when stale or not needed', () => {
+test('break-time messages: one a day from day 1 to 29, the check-in link on day 15, the last day on 30, at nine; skipped when stale', () => {
+  assert.equal(labJourneyMessages.length, 30);
   assert.deepEqual(
-    labJourneyMessages.map((m) => `${m.id}@${m.day}`),
-    ['check-in-1@7', 'check-in-2@14', 'check-in-3@21', 'check-in-4@28', 'end-of-break@30'],
-    'no nudge to book the second visit: both are booked together',
+    labJourneyMessages.filter((m) => m.kind !== 'daily').map((m) => `${m.id}@${m.day}`),
+    ['check-in@15', 'end-of-break@30'],
   );
+  assert.deepEqual(labJourneyMessages.map((m) => m.day), Array.from({ length: 30 }, (_, i) => i + 1));
   const visit1Start = new Date('2026-10-14T09:00:00Z');
-  const checkIn1 = labJourneyMessages.find((m) => m.id === 'check-in-1')!;
-  const due = atUkTime(addDays('2026-10-14', checkIn1.day), 9);
-  assert.equal(due.toISOString(), '2026-10-21T08:00:00.000Z');
-  const ctx = { visit1Start, visit2: null, lastCheckInAt: null };
-  assert.equal(journeyAction(checkIn1, ctx, new Date(due.getTime() - 60_000)), 'wait');
-  assert.equal(journeyAction(checkIn1, ctx, due), 'send');
-  assert.equal(journeyAction(checkIn1, ctx, new Date(due.getTime() + 2 * D)), 'skip-stale');
-  assert.equal(journeyAction(checkIn1, { ...ctx, lastCheckInAt: new Date(due.getTime() - D) }, due), 'skip-unless');
-  assert.equal(journeyAction(checkIn1, { ...ctx, lastCheckInAt: new Date(due.getTime() - 4 * D) }, due), 'send');
-  // A second visit 28 days on (the team can book any day): the day-28 check-in and the day-30 message give way to the visit's own reminders.
+  const checkIn = labJourneyMessages.find((m) => m.id === 'check-in')!;
+  const due = atUkTime(addDays('2026-10-14', checkIn.day), 9);
+  assert.equal(due.toISOString(), '2026-10-29T09:00:00.000Z');
+  const ctx = { visit1Start, visit2: null };
+  assert.equal(journeyAction(checkIn, ctx, new Date(due.getTime() - 60_000)), 'wait');
+  assert.equal(journeyAction(checkIn, ctx, due), 'send');
+  assert.equal(journeyAction(checkIn, ctx, new Date(due.getTime() + 2 * D)), 'skip-stale');
+  // A second visit 28 days on (the team can book any day): the messages from day 27 give way to the visit's own reminders.
   const end = labJourneyMessages.find((m) => m.id === 'end-of-break')!;
-  const checkIn4 = labJourneyMessages.find((m) => m.id === 'check-in-4')!;
+  const day28 = labJourneyMessages.find((m) => m.id === 'day-28')!;
   const early2 = booking({ id: 'b2', visit: 2, start: new Date('2026-11-11T10:00:00Z'), end: new Date('2026-11-11T12:00:00Z') });
-  assert.equal(journeyAction(checkIn4, { ...ctx, visit2: early2 }, atUkTime('2026-11-11', 9)), 'skip-visit-2');
+  assert.equal(journeyAction(day28, { ...ctx, visit2: early2 }, atUkTime('2026-11-11', 9)), 'skip-visit-2');
   assert.equal(journeyAction(end, { ...ctx, visit2: early2 }, atUkTime('2026-11-13', 9)), 'skip-visit-2');
   // A second visit 35 days on: everything goes.
   const late2 = booking({ id: 'b2', visit: 2, start: new Date('2026-11-18T10:00:00Z'), end: new Date('2026-11-18T12:00:00Z') });
   assert.equal(journeyAction(end, { ...ctx, visit2: late2 }, atUkTime('2026-11-13', 9)), 'send');
   for (const m of labJourneyMessages) assert.ok(journeyMessage(m.id, 'MP2670FF90A5F2', late2), `${m.id} has wording`);
   for (const m of labJourneyMessages) assert.ok(journeyMessage(m.id, 'MP2670FF90A5F2', late2)!.sms.length <= 160, `${m.id} fits one text`);
-  assert.match(journeyMessage('check-in-2', 'MP2670FF90A5F2', late2)!.text, /Your second lab visit is on Wednesday 18 November 2026, 10:00 to 12:00/);
-  assert.match(journeyMessage('check-in-2', 'MP2670FF90A5F2', late2)!.text, /if you haven't told your MyStory for the break yet, there is an optional one at the end/);
+  for (const m of labJourneyMessages.filter((x) => x.kind === 'daily')) assert.doesNotMatch(journeyMessage(m.id, 'MP2670FF90A5F2', late2)!.sms, /https?:/, `${m.id} asks for nothing`);
+  const checkInMessage = journeyMessage('check-in', 'MP2670FF90A5F2', late2)!;
+  assert.match(checkInMessage.sms, /day 15: time for your mid-break check-in and MyStory.*check-in/);
+  assert.match(checkInMessage.text, /Your second lab visit is on Wednesday 18 November 2026, 10:00 to 12:00/);
+  // Already checked in: day 15's ordinary message instead.
+  assert.equal(journeyMessage('check-in', 'MP2670FF90A5F2', late2, true)!.sms, 'MyPhone/MyBrain, day 15: Halfway there. Thank you for your check-in.');
+  assert.equal(journeyMessage('day-3', 'MP2670FF90A5F2', null)!.subject, 'MyPhone/MyBrain: day 3 of your break');
 });
 
 test('the confirmation email: both visits, what to bring, the links, copied to the team', () => {
@@ -213,7 +219,7 @@ test('the confirmation email: both visits, what to bring, the links, copied to t
     assert.ok(t.length <= 160, `fits one text: ${t}`);
     assert.doesNotMatch(t, /[‘’“”]/, 'texts use plain characters');
   }
-  assert.equal(visitsText('booked', [v2, v1]), 'MyPhone/MyBrain: your lab visits are booked for Wed 14 Oct, 10:00 and Thu 12 Nov, 10:00 at the School of Psychology. Details are in your email.');
+  assert.equal(visitsText('booked', [v2, v1]), 'MyPhone/MyBrain: your lab visits are booked for Wed 14 Oct, 10:00 and Thu 12 Nov, 10:00 at LG25 (EEG Lab), School of Psychology. Details are in your email.');
   assert.match(bookingText('same-day', v1), /main entrance/);
 });
 

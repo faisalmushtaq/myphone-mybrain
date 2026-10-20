@@ -51,7 +51,7 @@ export const labBooking = {
   timeZone: 'Europe/London',
   /** Where visits happen, unless a slot says otherwise. */
   location: {
-    name: 'School of Psychology, University of Leeds',
+    name: 'LG25 (EEG Lab), School of Psychology, University of Leeds',
     address: 'Leeds LS2 9JT',
     directions: 'A member of the team will meet you at the main entrance of the School of Psychology.',
     /** Shown only in preview builds. */
@@ -78,28 +78,31 @@ export const labBooking = {
 };
 
 /**
- * Messages during the break, timed from the first visit (day 0, UK date),
- * sent at 09:00 UK time by email, and by text to people who asked for texts.
- * Each goes once. A message more than a day overdue (for example because the
- * system was paused) is skipped, never sent late. Nothing goes after a visit
- * is marked as missed, or once the team pauses messages for someone.
+ * Messages during the break, timed from the first visit (day 0, UK date), at
+ * 09:00 UK time (20 October 2026): a short message every day from day 1 to
+ * day 29 that asks for nothing, except day 15, which brings the link to the
+ * mid-break check-in (with MyStory); and day 30, the last day of the break.
  *
- *   unless 'checked-in': skipped when a check-in arrived in the last three days
- *
- * Both visits are booked together, so there is no nudge to book the second.
+ * A daily message goes by text when there is a mobile number and texts are
+ * set up, otherwise by email. Day 15 and day 30 ask the person to do
+ * something, so they go by email as well. Each goes once. A message more
+ * than a day overdue (for example because the system was paused) is skipped,
+ * never sent late. Nothing goes after a visit is marked as missed, from a day
+ * before the second visit, or once the team pauses messages for someone. On
+ * day 15, someone who has already checked in gets the day's ordinary message.
  */
 export interface LabJourneyMessage {
   id: string;
   day: number;
-  unless?: 'checked-in';
+  kind: 'daily' | 'check-in' | 'end-of-break';
 }
 
+/** The day of the break that brings the check-in link. */
+export const labCheckInDay = 15;
+
 export const labJourneyMessages: LabJourneyMessage[] = [
-  { id: 'check-in-1', day: 7, unless: 'checked-in' },
-  { id: 'check-in-2', day: 14, unless: 'checked-in' },
-  { id: 'check-in-3', day: 21, unless: 'checked-in' },
-  { id: 'check-in-4', day: 28, unless: 'checked-in' },
-  { id: 'end-of-break', day: 30 },
+  ...Array.from({ length: 29 }, (_, i) => i + 1).map((day): LabJourneyMessage => (day === labCheckInDay ? { id: 'check-in', day, kind: 'check-in' } : { id: `day-${day}`, day, kind: 'daily' })),
+  { id: 'end-of-break', day: 30, kind: 'end-of-break' },
 ];
 
 /** The hour (UK time) the break-time messages go out. */

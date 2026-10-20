@@ -24,7 +24,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
           <li>Attend two sessions of about two hours in our lab, before and after the break.</li>
           <li>Take a 30-day break from social media, using a small device called Brick that restricts the apps you agree with us in advance. Calls, messages, WhatsApp and essential apps keep working.</li>
           <li>Share screenshots of your phone’s screen-time summary straight away, then your own data download from each of TikTok, YouTube and Instagram that you use, starting with the one you use most. Each is a separate request and can take a few days to arrive. This site reduces each one on your device to when you watched, liked or searched, the links, your search words and simple totals.</li>
-          <li>Complete simple computer-based tasks and short questionnaires, and brief weekly check-ins during the break.</li>
+          <li>Complete simple computer-based tasks and short questionnaires, and one brief check-in halfway through the break.</li>
         </ul>
       </div>
       <div class="info-panel info-panel-alt">
@@ -60,7 +60,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
 
     <div class="participant-next-step">
       <h3>Ready to take part?</h3>
-      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube and Instagram data. Downloads can take a few days to arrive. Once your data is in, you book both lab visits on this site at the same sitting: the first starts your 30-day break, and the second is once the break is over, 30 to 35 days after the first. You give your mobile number at the start, so the team can contact you, and your email address when you book; you get a confirmation with calendar files, and reminders. We can email you a link that brings you back to the right page, on any device; or just come back and enter your participant ID (it is in our emails), or the same name, date of birth and postcode.</p>
+      <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube and Instagram data. Downloads can take a few days to arrive. Once your data is in, you tell MyStory about your social media use (a short chat with Remi, our AI chatbot, about fifteen minutes), then book both lab visits on this site at the same sitting: the first starts your 30-day break, and the second is once the break is over, 30 to 35 days after the first. You give your mobile number at the start, so the team can contact you, and your email address when you book; you get a confirmation with calendar files, reminders before and on the day of each visit, and a short message each day of your break. We can email you a link that brings you back to the right page, on any device; or just come back and enter your participant ID (it is in our emails), or the same name, date of birth and postcode.</p>
       <a class="btn btn-primary" href="{{ '/break/take-part/' | relative_url }}">Take part &nbsp;→</a>
       <a class="text-link" href="{{ '/break/take-part/?step=guide' | relative_url }}">Just show me how to download my data &nbsp;→</a>
     </div>
@@ -70,12 +70,12 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
     <div class="participant-info-grid">
       <div class="info-panel">
         <h3>During your break</h3>
-        <p>Once a week, a quick check-in of about two minutes: a few questions about how it is going, and a screenshot of your screen time if you can. Then, if you like, MyStory: a moment from your week in your own words, and a few quick questions about it. We email (or text) you a link each week, or just enter your participant ID, or the same name, date of birth and postcode as at the start.</p>
+        <p>On day 15 of your break, one check-in: a few questions about how it is going, a screenshot of your screen time, then MyStory, a short chat with Remi about your break so far. About 20 minutes. We text you the link that morning (or email it, if we can’t text you); or just enter your participant ID, or the same name, date of birth and postcode as at the start. The other days’ messages need nothing from you.</p>
         <a class="text-link" href="{{ '/break/check-in/' | relative_url }}">Mid-break check-in &nbsp;→</a>
       </div>
       <div class="info-panel info-panel-alt">
         <h3>After your break</h3>
-        <p>On the last day of your break, before you unlock your apps, take your screen-time screenshots and send them on the after-break page. Once your apps are unlocked, request a new data download from each app and send it there too. It is shorter than the first time: nothing to sign again, just your participant ID, or the same name, date of birth and postcode as at the start.</p>
+        <p>On the last day of your break, before you unlock your apps, take your screen-time screenshots and send them on the after-break page. Once your apps are unlocked, request a new data download from each app and send it there too. Then tell MyStory about your break, in a short chat with Remi. It is shorter than the first time: nothing to sign again, just your participant ID, or the same name, date of birth and postcode as at the start.</p>
         <a class="text-link" href="{{ '/break/after/' | relative_url }}">After your break &nbsp;→</a>
       </div>
     </div>

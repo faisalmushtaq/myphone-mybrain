@@ -173,6 +173,8 @@ export interface LabLookupResult {
   phases: Record<LabPhase, LabPhaseCounts>;
   checkIns: number;
   lastCheckInAt: string | null;
+  /** The participant's check-in, once sent (one each, 20 October 2026). */
+  checkInId?: string | null;
   /** Apps the participant has said they do not use, so no data is expected from them. */
   platformsNotUsed?: LabPlatform[];
   /** The lab visits standing (booked or done). */

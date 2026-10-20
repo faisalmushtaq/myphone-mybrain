@@ -12,7 +12,7 @@ is about, without repeating MySelf.
 | Phase | Structure (`src/lab/mystory.ts`) | Where it is asked |
 | --- | --- | --- |
 | Before the break (`pre`) | `mystory-pre`: a recent moment with the phone, a typical evening, a time social media changed how they felt; the triangle *connecting with people / passing the time / finding things out*; sliders *worse–better* and *not my choice–completely my choice*; which app; how they feel about it now | **At the first lab visit**, on the lab computer, from the link on the staff page (`/break/mystory/?phase=pre&at=lab&code=MP…`) |
-| During the break (`mid`) | `mystory-mid`: a moment they wanted to open an app, what they did instead, what surprised them; the triangle *habit / people and connection / boredom or stress*; sliders *easy–very hard* and *worse–better*; where they were; how they feel now | **After every weekly check-in** (optional, with "Skip this time"), and `/break/mystory/?phase=mid` |
+| During the break (`mid`) | `mystory-mid`: a moment they wanted to open an app, what they did instead, what surprised them; the triangle *habit / people and connection / boredom or stress*; sliders *easy–very hard* and *worse–better*; where they were; how they feel now | After the one check-in on day 15 (required, no skip), and `/break/mystory/?phase=mid` |
 | After the break (`post`) | `mystory-post`: the moment that mattered most, the first time back on the apps, what they will do differently; the triangle *my time / my mood / my relationships*; sliders *harder–easier than expected* and *much less–much more than before*; would they do it again; how they feel now | **At the second lab visit**, on the lab computer, from the link on the staff page (`/break/mystory/?phase=post&at=lab&code=MP…`) |
 
 Every signifier can be left out or answered "not sure", as in SenseMaker. The
@@ -326,9 +326,11 @@ data should live in both, option 4 is the clean way.
 
 ## The pages
 
-Decided 7 October 2026 (`decisions.md`): MyStory runs on this site's own
-form; during the break it follows **every weekly check-in**; before and after
-the break it is told **at the lab visits**, on a lab computer. The drafts
+Since 20 October 2026 (`decisions.md`): MyStory is **required** and is a
+**chat with Remi** (the written form only when the chat cannot start): before
+the break straight after the data and before booking the visits; during it
+after the one check-in on day 15; after it straight after the after-break
+data. The lab computer links stay for anyone who has not told it. The drafts
 stay until MySelf's prompts and signifiers arrive.
 
 - After each check-in: `/break/check-in/` → MyStory → summary.

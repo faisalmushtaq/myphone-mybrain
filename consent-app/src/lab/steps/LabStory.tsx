@@ -48,8 +48,9 @@ export function LabStory() {
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
   const ready = state.codeConfirmed && state.submission.consentStage === 'sent';
   const ownPage = state.flow === 'story';
-  const leave = () => dispatch({ type: 'go-to', stepId: 'done' });
-  const leaveLabel = state.flow === 'checkin' ? 'Continue' : 'Back to my summary';
+  // MyStory is required at each phase (20 October 2026): no skipping. Once told: before the break, on to booking the visits; otherwise the summary.
+  const leave = () => dispatch({ type: 'go-to', stepId: state.flow === 'baseline' ? 'book' : 'done' });
+  const leaveLabel = state.flow === 'baseline' ? 'Book my lab visits' : 'Continue';
 
   if (!ready) {
     return (
@@ -105,8 +106,8 @@ export function LabStory() {
           announce('Your story has been sent. Thank you.');
           window.scrollTo({ top: 0 });
         }}
-        onLeave={ownPage ? null : leave}
-        leaveLabel={state.flow === 'checkin' ? 'Skip this time' : 'Not now'}
+        onLeave={null}
+        leaveLabel=""
       />
     );
   }
@@ -115,7 +116,7 @@ export function LabStory() {
   if (mode.mode === 'link' || mode.mode === 'embed') {
     const url = storySurveyUrl(phase, state.code, mode)!;
     return (
-      <LabShell kicker={labMyStory.name} title={structure.title} intro={<p>{structure.intro}</p>} hideContinue hideBack width="wide" secondaryAction={ownPage ? null : <Button variant="secondary" onClick={leave}>{state.flow === 'checkin' ? 'Skip this time' : leaveLabel}</Button>}>
+      <LabShell kicker={labMyStory.name} title={structure.title} intro={<p>{structure.intro}</p>} hideContinue hideBack width="wide" secondaryAction={null}>
         {mode.mode === 'embed' ? (
           <>
             <iframe className="mpmb-story-frame" src={url} title={`${mode.name}: ${structure.title}`} style={{ height: `${mode.height ?? 900}px` }} allow="clipboard-write" />
@@ -134,7 +135,7 @@ export function LabStory() {
             <p className="mpmb-hint">It opens in a new tab, already set up with your participant ID {state.code}, never your name.</p>
           </div>
         )}
-        {state.flow === 'checkin' && (
+        {!ownPage && (
           <div className="mpmb-actions">
             <Button variant="primary" arrow onClick={leave}>
               I’ve finished
@@ -284,13 +285,6 @@ export function LabStory() {
       continueLoading={busy}
       hideBack
       width="wide"
-      secondaryAction={
-        ownPage ? null : (
-          <Button variant="ghost" onClick={leave}>
-            {state.flow === 'checkin' ? 'Skip this time' : 'Not now'}
-          </Button>
-        )
-      }
     >
       {story.sent.length > 0 && (
         <p className="mpmb-hint" role="status">

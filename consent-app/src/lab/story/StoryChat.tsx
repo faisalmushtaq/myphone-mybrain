@@ -337,7 +337,7 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
 
   if (!open) {
     return (
-      <LabShell kicker={labMyStory.name} title="A short chat about your break." intro={<p>MyStory is a chat with {name}, an AI chatbot the research team set up for this study. {name} asks you a few questions, one at a time, then writes back what it heard in three different ways. You pick the one that fits best and can change anything that isn’t right. It takes about fifteen minutes.</p>} hideContinue hideBack width="wide" secondaryAction={leaveButton}>
+      <LabShell kicker={labMyStory.name} title={phase === 'pre' ? 'A short chat before your break.' : 'A short chat about your break.'} intro={<p>MyStory is a chat with {name}, an AI chatbot the research team set up for this study. {name} asks you a few questions, one at a time, then writes back what it heard in three different ways. You pick the one that fits best and can change anything that isn’t right. It takes about fifteen minutes.</p>} hideContinue hideBack width="wide" secondaryAction={leaveButton}>
         <Disclosure summary={`About ${name}`}>
           <ul>
             {character.about.map((line) => (
@@ -356,9 +356,10 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
           <Button variant="primary" arrow loading={working} onClick={() => void start()}>
             {chatId ? 'Carry on the chat' : 'Start the chat'}
           </Button>
-          {!chatId && (
+          {/* MyStory is a chat with Remi (20 October 2026): writing it yourself is offered only when the chat cannot start. */}
+          {!chatId && error && (
             <Button variant="link" onClick={onUnavailable}>
-              I’d rather write my story myself
+              {name} isn’t working? Write your story yourself
             </Button>
           )}
         </div>

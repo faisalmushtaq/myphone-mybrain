@@ -97,9 +97,9 @@ confirming a different ID there starts afresh, and progress saved under the
 old code scheme is dropped.
 
 Everything after the first visit runs by itself: confirmations, reminders
-the day before and on the day, weekly check-in nudges, a nudge to book the
-second visit and the end-of-break message go by email and, for people who
-asked, by text (`labMessages`, every 15 minutes; `docs/booking.md`). Every
+the day before and on the day, a short message each day of the break (day
+15's with the check-in link) and the end-of-break message go by text, or by
+email when a text cannot go (`labMessages`, every 15 minutes; `docs/booking.md`). Every
 page opens ready for one participant from a personal link
 (`?code=MP…`), which the emails, the texts and the staff page use.
 
