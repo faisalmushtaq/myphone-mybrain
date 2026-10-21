@@ -24,8 +24,10 @@ import { addDays, atUkTime, ukClock, ukDate, ukShortDate } from './ukTime.js';
  */
 
 export const DEFAULT_BREAK_DAYS = 30;
+/** The control group's one reminder: this many days before the follow-up visit. */
+export const FOLLOW_UP_DAYS_BEFORE = 7;
 
-export type DailyKind = 'daily' | 'check-in' | 'check-in-reminder' | 'visit-soon' | 'visit-tomorrow' | 'thank-you';
+export type DailyKind = 'daily' | 'check-in' | 'check-in-reminder' | 'visit-soon' | 'visit-tomorrow' | 'thank-you' | 'follow-up';
 
 export interface PlannedMessage {
   id: string;
@@ -44,9 +46,11 @@ export function breakLength(visit1Start: Date, visit2Start: Date | null): number
 }
 
 /** Every message this person is due: one a day from day 1 to the day before the second visit, then the thank-you after it. */
-export function dailyPlan(visit1Start: Date, visit2Start: Date | null): PlannedMessage[] {
+export function dailyPlan(visit1Start: Date, visit2Start: Date | null, group: 'break' | 'control' = 'break'): PlannedMessage[] {
   const days = breakLength(visit1Start, visit2Start);
   const start = ukDate(visit1Start);
+  // The control group (22 October 2026): no daily messages and no check-in, just a reminder a week before the follow-up visit.
+  if (group === 'control') return visit2Start ? [{ id: 'follow-up', day: days - FOLLOW_UP_DAYS_BEFORE, dueAt: atUkTime(addDays(ukDate(visit2Start), -FOLLOW_UP_DAYS_BEFORE), labJourneyHour) }] : [];
   const plan: PlannedMessage[] = Array.from({ length: days - 1 }, (_, i) => i + 1).map((day) => ({ id: `day-${day}`, day, dueAt: atUkTime(addDays(start, day), labJourneyHour) }));
   if (visit2Start) plan.push({ id: 'thank-you', day: days + 1, dueAt: atUkTime(addDays(ukDate(visit2Start), 1), labJourneyHour) });
   return plan;
@@ -99,10 +103,7 @@ const reminderLines = [
   "Your mid-break check-in helps us understand how the break is really going. Please do it when you can: {link}",
 ];
 
-/**
- * Each group's wording. The control group (21 October 2026) keeps using social media as usual, so its messages say
- * nothing about a break and never suggest using it more or less: just keeping in touch. Draft for the ethics amendment.
- */
+/** The break group's wording, by part of the break. */
 interface Wording {
   opening: string[];
   middle: string[];
@@ -114,7 +115,8 @@ interface Wording {
   nearlyTime: string;
 }
 
-const wordings: Record<'break' | 'control', Wording> = {
+/** The break group's wording. (The control group has no daily messages since 22 October 2026: one follow-up reminder.) */
+const wordings: Record<'break', Wording> = {
   break: {
     opening: openingLines,
     middle: middleLines,
@@ -125,54 +127,6 @@ const wordings: Record<'break' | 'control', Wording> = {
     thanksForTime: "Thanks for sharing your time with us. When we next see you, we'd love to hear what the experience has been like.",
     nearlyTime: "Nearly time to see you again! Please follow the team's instructions about when to finish your social media break.",
   },
-  control: {
-    opening: [
-      "Thanks for joining the MyPhone/MyBrain study! There's nothing to change: just carry on as usual. We'll say hello each day.",
-      "We hope your day's going well. Nothing to do today, just a quick hello from the team.",
-      'Thanks for being part of the study. Carry on using your phone as you normally would.',
-      'Just a little hello from us today. Thanks for taking part!',
-      'Five days in! Thanks for sticking with the study.',
-      'Got a quiet moment today? Enjoy it however you like.',
-      'One week in! We really appreciate your time.',
-      "Here's to another week. Thanks for being part of MyPhone/MyBrain.",
-      'However today is going, thanks for being part of the study.',
-      "A quick hello from the team. We're grateful for your time!",
-      'Thanks for keeping going with the study. No task from us today.',
-      "We hope you're having a good day, whatever you're up to.",
-      "Thanks for keeping at it. We know you're fitting this around everything else in your life.",
-      "Two weeks in! Tomorrow we'll send you a link to tell us how things have been going.",
-    ],
-    middle: [
-      'Hello again! Thanks for carrying on with us. No task from us today.',
-      "Thanks for the time you're giving the study.",
-      'Just stopping by to say we appreciate you taking part. No need to reply!',
-      "A quick hello from the team. We hope today's a good one.",
-      'Thanks for being part of MyPhone/MyBrain. Your time really does make a difference to the research.',
-      "Hope today's treating you kindly.",
-      'Questions about the study? Email us at {email}.',
-      "We're grateful you're taking part. Enjoy your day.",
-      "You're well into the study now. Thank you!",
-      'Nothing to do today, just a hello and a thank-you from the team.',
-      'Every day helps the study. Thank you for staying with us.',
-      "Thanks for being part of the research. We hope you're well.",
-      "A quick hello: we're cheering you on!",
-      "Hope you've had a moment for yourself today.",
-      "Nice work. You've come a long way since day one.",
-    ],
-    milestones: {
-      21: 'Three weeks in! Sending a big thank-you from the study team.',
-      28: "Four weeks in! Thank you for everything you've put into the study so far.",
-    },
-    reminders: [
-      "Just a reminder: your midway check-in is still open, and we'd love to hear how things are going. About 20 minutes: {link}",
-      'Got 20 minutes today? Your midway check-in is still waiting for you: a screenshot and your story. {link}',
-      'Your midway check-in helps us understand how things have really been going. Please do it when you can: {link}',
-    ],
-    checkIn: "You've reached the midway check-in! Please share your screen-time screenshot and your story here: {link} We'd like to hear how things have really been.",
-    checkInDone: 'Thanks for your midway check-in! It really helps to hear how things are going.',
-    thanksForTime: "Thanks for sharing your time with us. When we next see you, we'd love to hear how the month has been.",
-    nearlyTime: 'Nearly time to see you again! Have a quick look at your booking so you know where to find us.',
-  },
 };
 
 export interface DailyContext {
@@ -182,6 +136,8 @@ export interface DailyContext {
   /** The check-in is in: its answers, a screenshot and the mid-break MyStory. */
   checkInDone: boolean;
   checkInLink: string;
+  /** The page for sending the data again before the second visit (the control group's follow-up reminder). */
+  afterLink?: string;
   contactEmail: string;
   /** The participant's group (21 October 2026); the break group if not given. */
   group?: 'break' | 'control';
@@ -191,7 +147,11 @@ export interface DailyContext {
 export function dailyMessage(day: number, ctx: DailyContext): { kind: DailyKind; line: string } {
   const fill = (s: string) => s.replace('{link}', ctx.checkInLink).replace('{email}', ctx.contactEmail);
   const { days } = ctx;
-  const w = wordings[ctx.group ?? 'break'];
+  if (ctx.group === 'control') {
+    const when = ctx.visit2 ? `on ${ukShortDate(ctx.visit2.start)} at ${ukClock(ctx.visit2.start)}, ${ctx.visit2.place}` : 'in about a week (the details are in your email)';
+    return { kind: 'follow-up', line: `A reminder: your follow-up lab visit is ${when}. Before then, please send your screen-time screenshots and app data again: ${ctx.afterLink ?? ''}`.trim() };
+  }
+  const w = wordings.break;
   if (day > days) return { kind: 'thank-you', line: "A big thank-you from all of us! We're grateful for your time and for sharing your experience with us." };
   if (day === days - 1)
     return {
@@ -213,4 +173,4 @@ export function dailyMessage(day: number, ctx: DailyContext): { kind: DailyKind;
 }
 
 /** Whether a message asks the person to do something, so it goes by email as well as by text. */
-export const asksSomething = (kind: DailyKind) => kind === 'check-in' || kind === 'check-in-reminder';
+export const asksSomething = (kind: DailyKind) => kind === 'check-in' || kind === 'check-in-reminder' || kind === 'follow-up';

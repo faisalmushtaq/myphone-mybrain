@@ -38,6 +38,8 @@ const steps: Record<LabStepId, ComponentType> = {
 function Frame() {
   const { state, dispatch } = useLab();
   const { words } = useLabGroup();
+  // The shared pages serve both groups: until the person is found (or a link says which), the header names neither.
+  const groupKnown = state.flow === 'baseline' || Boolean(state.progress?.group) || state.group === 'control';
   const Step = steps[state.stepId];
   const journey = labJourney(state);
   const index = journey.indexOf(state.stepId);
@@ -69,8 +71,8 @@ function Frame() {
         <div className="mpmb-band__inner">
           <div className="mpmb-band__row">
             <p className="mpmb-band__kicker">
-              <span>MyPhone/MyBrain</span> {words.study}
-              {state.flow === 'checkin' ? ` · ${words.midName}` : state.flow === 'after' ? ` · ${words.After}` : state.flow !== 'baseline' ? ` · ${labPages[state.flow].label}` : ''}
+              <span>MyPhone/MyBrain</span> {groupKnown ? words.study : 'Lab study'}
+              {state.flow === 'checkin' ? ` · ${words.midName}` : state.flow === 'after' ? ` · ${groupKnown ? words.After : 'Before your second visit'}` : state.flow !== 'baseline' ? ` · ${labPages[state.flow].label}` : ''}
             </p>
             <a className="mpmb-band__back" href="/break/">
               ← About the study

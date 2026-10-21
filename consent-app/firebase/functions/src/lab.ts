@@ -822,6 +822,8 @@ export const submitLabCheckIn = onCall(callOptions, async (request) => {
     if (before) return { checkInId: ref.id, receivedAt: before.receivedAt?.toDate?.().toISOString?.() ?? receivedAt.toISOString(), count: Number(before.number ?? 1), first: false };
     const participant = participantSnap.data();
     if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please check your details.');
+    // The control group has no check-in (22 October 2026).
+    if (groupOf(participant) === 'control') throw new HttpsError('failed-precondition', 'There is no check-in in your part of the study: nothing to do here.');
     if (labCheckInForms[groupOf(participant)].id !== payload.formId) throw new HttpsError('failed-precondition', 'This check-in is for the other part of the study. Please reload the page and try again.');
     // One check-in for each participant (20 October 2026), apart from the team's test accounts: answers sent again join the
     // first check-in rather than starting another, so an unfinished one (its screenshot or story still to come) carries on.

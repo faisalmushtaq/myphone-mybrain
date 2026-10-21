@@ -227,7 +227,7 @@ export const labStudy = {
 export const labPages = {
   baseline: { path: '/break/take-part/', phase: 'pre', label: 'Before your break' },
   checkin: { path: '/break/check-in/', phase: 'mid', label: 'Mid-break check-in' },
-  after: { path: '/break/after/', phase: 'post', label: 'After your break' },
+  after: { path: '/break/after/', phase: 'post', label: 'Before your second visit' },
   /** Booking and changing the two lab visits (see booking.ts). */
   book: { path: '/break/book/', phase: 'pre', label: 'Your lab visits' },
   /** MyStory on its own, for any phase: /break/mystory/?phase=pre (see mystory.ts). */
@@ -360,35 +360,34 @@ export const labCheckInForm: { id: string; version: string; title: string; quest
  * social media break: controls carry on using social media as usual between
  * the visits. They sign up on their own page (/break/control/); the group is
  * kept with their consent, and every later page takes it from their record.
- * The wording below is a draft for the ethics amendment.
+ * The wording was finalised by the team on 22 October 2026, when the check-in
+ * and the daily messages were taken out for controls: they get a reminder a
+ * week before the follow-up visit instead.
  */
 export type LabGroup = 'break' | 'control';
 
-const CONTROL_DRAFT = 'Draft wording for the control group (21 October 2026), for the ethics amendment.';
-
 export const labConsentFormControl: typeof labConsentForm = {
   id: 'mpmb-lab-consent-control',
-  version: '1.0-draft',
+  version: '1.1',
   title: labConsentForm.title,
   statements: labConsentForm.statements.map((s) =>
     s.id === 'involves'
       ? {
           ...s,
-          version: '1.0-control-draft',
-          text: 'I understand that participation in this study involves: two laboratory sessions about 30 days apart, between which I use my phone and social media as I normally would; completion of questionnaires, computer-based tasks and a brief check-in between the sessions; and sharing my smartphone and social media usage data, which I download, review and clean myself, together with screen-time screenshots.',
-          draft: CONTROL_DRAFT,
+          version: '1.1-control',
+          text: 'I understand that participation in this study involves: two laboratory sessions about 30 days apart, between which I use my phone and social media as I normally would; completion of questionnaires and computer-based tasks; and sharing my smartphone and social media usage data, which I download, review and clean myself, together with screen-time screenshots.',
         }
       : s,
   ),
 };
 
-export const labInformationVersionControl = { version: '2.2-control-draft', label: 'Participant information sheet of 21 February 2026, ages 18 to 24, adapted for the control group (draft)' };
+export const labInformationVersionControl = { version: '2.2-control', label: 'Participant information sheet of 21 February 2026, ages 18 to 24, for the control group' };
 
 const controlSections: Record<string, Partial<LabInfoSection>> = {
   what: {
-    summary: 'Two lab visits of about two hours, about 30 days apart, your usage data, and a brief check-in in between. No social media break.',
+    summary: 'Two lab visits of about two hours, about 30 days apart, and your usage data before each. No social media break.',
     detail: [
-      'If you agree to participate, you will: attend two laboratory sessions, approximately two hours each, about 30 days apart; use your phone and social media as you normally would in between; follow our guide to download, review and clean your social media usage data, then upload it and your screen-time screenshots on this website, before the first visit and again before the second; and complete a brief check-in halfway between the visits, with a screen-time screenshot and a short chat about your social media use.',
+      'If you agree to participate, you will: attend two laboratory sessions, approximately two hours each, about 30 days apart; use your phone and social media as you normally would in between; follow our guide to download, review and clean your social media usage data, then upload it and your screen-time screenshots on this website, before the first visit and again before the second.',
       'Visit 1, baseline (about 2 hours): an EEG recording (measurement of brain activity); an ECG recording (measurement of heart activity using small sensors on the skin); an eye-tracking system while completing computer tasks; computer-based cognitive tasks; and questionnaires about wellbeing and digital behaviour.',
       'Visit 2, about 30 days later (about 2 hours): the EEG and ECG recordings are repeated, with eye-tracking during tasks, the cognitive tasks again, and follow-up questionnaires.',
     ],
@@ -398,7 +397,7 @@ const controlSections: Record<string, Partial<LabInfoSection>> = {
     summary: 'You carry on using your phone and social media as usual. You are not asked to take a break or change anything.',
     detail: [
       'Between the two laboratory visits, you carry on using your phone and social media as you normally would. You are not asked to take a break from social media or to change how you use it.',
-      'Halfway between the visits, we will send you a link to a brief check-in. We will also send you a short message every day, to keep in touch; these need nothing from you.',
+      'About a week before your second visit, we will send you a reminder about it, with a link for sending your screen-time screenshots and usage data again.',
     ],
   },
   risks: {

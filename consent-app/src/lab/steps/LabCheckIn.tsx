@@ -20,7 +20,7 @@ import type { FieldError } from "../validation";
  */
 export function LabCheckIn() {
   const { state, dispatch } = useLab();
-  const { forms, words } = useLabGroup();
+  const { forms, words, group } = useLabGroup();
   const labCheckInForm = forms.checkIn;
   const { send, busy: sending } = useLabSender();
   const [errors, setErrors] = useState<FieldError[]>([]);
@@ -144,6 +144,18 @@ export function LabCheckIn() {
       setBusy(false);
     }
   };
+
+  // The control group has no check-in (22 October 2026).
+  if (ready && group === "control") {
+    return (
+      <LabShell kicker="MyPhone/MyBrain" title="There is no check-in for you." hideContinue hideBack>
+        <p>
+          In your part of the study there is nothing to do between your visits. About a week before your second visit, we
+          remind you to send your screen-time screenshots and app data again.
+        </p>
+      </LabShell>
+    );
+  }
 
   if (!ready) {
     return (

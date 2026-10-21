@@ -121,6 +121,8 @@ const both = (xs: { start: string; end: string }[]) => xs.map((b) => `${ukDayYea
  * (/break/book/) and also opens from the other pages' summaries.
  */
 /** What the booking page says about the messages (wording from the team, 20 October 2026). */
+/** The control group's (22 October 2026): no daily messages and no check-in. */
+export const LAB_MESSAGES_NOTE_CONTROL = 'You will receive reminders before and on the day of each lab visit, and a reminder about a week before your second visit to send your screen-time screenshots and app data again.';
 export const LAB_MESSAGES_NOTE = 'You will receive reminders before and on the day of each lab visit. We will also send you a short message every day. No action is needed for these daily messages, except on day 15, when we will send you a link to complete your mid-break check-in and share your story.';
 
 export function LabBook() {
@@ -595,7 +597,7 @@ export function LabBook() {
                   )}
                 </>
               )}
-              <p>{group === 'control' ? LAB_MESSAGES_NOTE.replace('mid-break check-in', 'midway check-in') : LAB_MESSAGES_NOTE}</p>
+              <p>{group === 'control' ? LAB_MESSAGES_NOTE_CONTROL : LAB_MESSAGES_NOTE}</p>
               <p className="mpmb-hint">Used to send you your bookings and reminders, and for the research team to contact you about the study. Kept with your consent record, not with your data.</p>
             </div>
           )}
@@ -620,7 +622,13 @@ export function LabBook() {
           {backToSummary}
           {!inline && standing.length > 0 && (
             <p className="mpmb-hint">
-              On day 15, we text you a link to your <a href={labPages.checkin.path}>{words.mid}</a>; {group === 'control' ? 'before your second visit' : 'when the break ends'}, send your data again on the <a href={labPages.after.path}>{words.afterPage}</a>.
+              {group === 'control' ? (
+                <>About a week before your second visit, we remind you to send your data again on the <a href={labPages.after.path}>{words.afterPage}</a>.</>
+              ) : (
+                <>
+                  On day 15, we text you a link to your <a href={labPages.checkin.path}>mid-break check-in</a>; when the break ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+                </>
+              )}
             </p>
           )}
         </div>

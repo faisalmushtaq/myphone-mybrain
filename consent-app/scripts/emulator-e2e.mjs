@@ -1143,7 +1143,7 @@ async function inner() {
 
     // After the break: the code again, a reminder instead of a new consent, then the same two donations, filed as post.
     await page.goto(`http://127.0.0.1:${PORT}/lab.html?flow=after`);
-    await page.getByRole('heading', { name: 'Welcome back after your break.', level: 1 }).waitFor();
+    await page.getByRole('heading', { name: 'Welcome back.', level: 1 }).waitFor();
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: 'Before you start: a reminder.', level: 1 }).waitFor({ timeout: 30000 });
     const reminderText = await page.locator('.mpmb-step').innerText();
@@ -1434,13 +1434,19 @@ async function inner() {
     const controlRow = (await db.collection('labParticipants').where('group', '==', 'control').get()).docs[0];
     const controlCode = controlRow?.id;
     const controlConsent = controlRow ? (await db.collection('labConsents').doc(controlRow.data().consentId).get()).data() : null;
-    ok('the control participant is kept as the control group, on the control consent form and information sheet', Boolean(controlCode) && controlConsent?.formId === 'mpmb-lab-consent-control' && controlConsent?.group === 'control' && controlConsent?.informationVersion === '2.2-control-draft', JSON.stringify({ controlCode, form: controlConsent?.formId }));
-    // The shared check-in page, from a control link: the control group's words and questions.
+    ok('the control participant is kept as the control group, on the control consent form and information sheet', Boolean(controlCode) && controlConsent?.formId === 'mpmb-lab-consent-control' && controlConsent?.group === 'control' && controlConsent?.informationVersion === '2.2-control' && controlConsent?.formVersion === '1.1', JSON.stringify({ controlCode, form: controlConsent?.formId }));
+    // No check-in for controls (22 October 2026): the page says so, and the server refuses one.
     await cp.goto(`http://127.0.0.1:${PORT}/lab.html?flow=checkin&group=control&code=${controlCode}`);
-    await cp.getByRole('heading', { name: 'Your midway check-in.', level: 1 }).waitFor({ timeout: 30000 });
     await cp.getByRole('button', { name: 'Continue' }).click();
-    await cp.getByRole('heading', { name: 'How have things been going?', level: 1 }).waitFor({ timeout: 30000 });
-    ok('the control check-in asks about use compared with usual, nothing about a break or Brick', (await cp.getByText('In the past week, how has your social media use compared with usual?').count()) === 1 && (await cp.getByText(/break|Brick/).count()) === 0);
+    await cp.getByRole('heading', { name: 'There is no check-in for you.', level: 1 }).waitFor({ timeout: 30000 });
+    ok('a control who opens the check-in page is told there is none, and the server refuses one', (await cp.getByText(/break|Brick/).count()) === 0 && (await refused(() => httpsCallable(fns, 'submitLabCheckIn')({ participantCode: controlCode, formId: 'mpmb-lab-checkin-control', formVersion: '0.1-draft', answers: { 'use-change': 'same', mood: '4' }, client }), 'failed-precondition')));
+    // The page for the second data send: no break in its words, before or after signing in.
+    await cp.goto(`http://127.0.0.1:${PORT}/lab.html?flow=after`);
+    await cp.getByRole('heading', { name: 'Welcome back.', level: 1 }).waitFor({ timeout: 30000 });
+    const afterSignIn = await cp.locator('.mpmb-frame').innerText();
+    await cp.getByRole('button', { name: 'Continue' }).click();
+    await cp.getByRole('heading', { name: 'Before you start: a reminder.', level: 1 }).waitFor({ timeout: 30000 });
+    ok('the second data page says nothing about a break to a control, before or after they sign in', !/break/i.test(afterSignIn) && !/break/i.test(await cp.locator('.mpmb-frame').innerText()), afterSignIn.slice(0, 200));
     // MyStory: the control group's chat protocol.
     const controlChat = await httpsCallable(fns, 'labStoryChat')({ action: 'start', participantCode: controlCode, phase: 'pre', source: 'story', checkInId: null, client }).then((r) => r.data, () => null);
     ok('MyStory gives the control group its own chat, with no break in it', controlChat?.protocol?.key === 'np.sm_control_pre' && !/30-day break/.test(controlChat?.reply ?? ''), JSON.stringify(controlChat?.protocol));

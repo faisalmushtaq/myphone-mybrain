@@ -387,13 +387,14 @@ const journeySubjects: Record<DailyKind, (day: number, group: LabGroup) => strin
   'visit-soon': () => 'MyPhone/MyBrain: your second lab visit is coming up',
   'visit-tomorrow': () => 'MyPhone/MyBrain: your second lab visit is tomorrow',
   'thank-you': () => 'MyPhone/MyBrain: thank you',
+  'follow-up': () => 'MyPhone/MyBrain: your follow-up lab visit is in a week',
 };
 
 /** One of the daily messages (dailyMessages.ts) as an email and a text. */
 export function journeyMessage(m: PlannedMessage, code: string, ctx: { days: number; visit2: BookingRecord | null; checkInDone: boolean; group?: LabGroup }): { kind: DailyKind; subject: string; text: string; sms: string } {
   const group = ctx.group ?? 'break';
   const links = participantLinks(code, group);
-  const { kind, line } = dailyMessage(m.day, { days: ctx.days, visit2: ctx.visit2 ? { start: ctx.visit2.start, place: placeShort(ctx.visit2) } : null, checkInDone: ctx.checkInDone, checkInLink: links.checkIn, contactEmail: labStudy.contactEmail, group });
+  const { kind, line } = dailyMessage(m.day, { days: ctx.days, visit2: ctx.visit2 ? { start: ctx.visit2.start, place: placeShort(ctx.visit2) } : null, checkInDone: ctx.checkInDone, checkInLink: links.checkIn, afterLink: links.after, contactEmail: labStudy.contactEmail, group });
   const nothingToDo = kind === 'daily' || kind === 'thank-you';
   return {
     kind,
@@ -866,7 +867,7 @@ export async function runLabMessages(now = new Date()): Promise<{ reminders: num
     const days = breakLength(visit1.start, visit2?.start ?? null);
     // Complete: the answers, a screenshot and the mid-break MyStory are all in.
     const checkInDone = Number(participant.checkInCount ?? 0) > 0 && phaseCountsOf(participant).mid.screenshots > 0 && Number(participant.storyCounts?.mid ?? 0) > 0;
-    for (const m of dailyPlan(visit1.start, visit2?.start ?? null)) {
+    for (const m of dailyPlan(visit1.start, visit2?.start ?? null, groupOf(participant))) {
       if (done[m.id]) continue;
       const action = journeyAction(m, now);
       if (action === 'wait') continue;

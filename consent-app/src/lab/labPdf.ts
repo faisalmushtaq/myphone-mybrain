@@ -39,15 +39,17 @@ export async function downloadLabConsentCopy(state: LabState): Promise<string> {
 }
 
 const PHASE_WORDS: Record<string, string> = { pre: 'Before your break', mid: 'During your break', post: 'After your break' };
+/** The control group's (no break). */
+const PHASE_WORDS_CONTROL: Record<string, string> = { pre: 'Before your first visit', mid: 'Between your visits', post: 'Before your second visit' };
 
 /** A participant's copy of a MyStory story (19 October 2026), built on the device: the story, when, and how to have it removed. */
-export async function buildStoryCopy(story: { code: string; phase: string; title: string | null; text: string; receivedAt: string | null }): Promise<{ blob: Blob; fileName: string }> {
+export async function buildStoryCopy(story: { code: string; phase: string; title: string | null; text: string; receivedAt: string | null; group?: 'break' | 'control' }): Promise<{ blob: Blob; fileName: string }> {
   const doc = await createDocument();
   doc.setProperties({ title: `MyPhone/MyBrain – your MyStory story (${story.code})`, subject: 'Copy of a MyStory story', author: labStudy.contact.team, creator: 'MyPhone/MyBrain MyStory' });
   const w = new Writer(doc);
   w.paragraph('MyPhone/MyBrain · MyStory', { size: 10, style: 'bold', color: PDF_MUTED, after: 1 });
   w.paragraph(story.title || 'Your story', { size: 21, style: 'bold', after: 1.5 });
-  w.paragraph(`${PHASE_WORDS[story.phase] ?? ''} · Participant ID ${story.code}${story.receivedAt ? ` · Sent ${formatTimestamp(story.receivedAt)}` : ''}`, { size: 10.5, color: PDF_MUTED, after: 4 });
+  w.paragraph(`${(story.group === 'control' ? PHASE_WORDS_CONTROL : PHASE_WORDS)[story.phase] ?? ''} · Participant ID ${story.code}${story.receivedAt ? ` · Sent ${formatTimestamp(story.receivedAt)}` : ''}`, { size: 10.5, color: PDF_MUTED, after: 4 });
   for (const para of story.text.split(/\n\s*\n/)) w.paragraph(para.trim(), { size: 12, after: 3 });
   w.heading('About your story');
   w.paragraph(`It is saved for the research under your participant ID, never your name. If you ever want it removed, email ${labStudy.contact.name} at ${labStudy.contact.email} and quote your participant ID.`);

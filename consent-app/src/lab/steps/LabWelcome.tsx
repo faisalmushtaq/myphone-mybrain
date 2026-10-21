@@ -96,7 +96,13 @@ export function LabWelcome() {
         </Button>
       </p>
       <p className="mpmb-hint">
-        {words.during}, do your <a href={labPages.checkin.path}>{words.mid}</a>; {group === 'control' ? 'before your second visit' : 'when the break ends'}, send your data again on the <a href={labPages.after.path}>{words.afterPage}</a>.
+        {group === 'control' ? (
+          <>About a week before your second visit, we remind you to send your data again on the <a href={labPages.after.path}>{words.afterPage}</a>.</>
+        ) : (
+          <>
+            During your break, do your <a href={labPages.checkin.path}>mid-break check-in</a>; when the break ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+          </>
+        )}
       </p>
       <p className="mpmb-hint">
         Questions about the study: {labStudy.contact.name}, <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>. Nothing about your social media is read until you choose to send it.

@@ -44,10 +44,11 @@ const words = {
     leadKnown: 'A few quick questions about how your break is going: about two minutes. You gave your consent at the start, so there is nothing to sign.',
   },
   after: {
-    kicker: 'After your break',
-    title: 'Welcome back after your break.',
-    lead: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, from after the break. First, enter the details you gave at the start, or your participant ID, so we can find your record. There is nothing to sign.',
-    leadKnown: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, from after the break. There is nothing to sign.',
+    // Neutral until the person is found (22 October 2026): the page serves both groups, and controls have no break.
+    kicker: 'Before your second visit',
+    title: 'Welcome back.',
+    lead: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, for your second visit. First, enter the details you gave at the start, or your participant ID, so we can find your record. There is nothing to sign.',
+    leadKnown: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, for your second visit. There is nothing to sign.',
   },
   book: {
     kicker: 'Your lab visits',
@@ -199,7 +200,15 @@ export function ParticipantId() {
         </div>
         {nextStep === 'done' && (
           <p className="mpmb-hint">
-            {group === 'control' ? 'Between your visits' : 'During your break'}, use the <a href={labPages.checkin.path}>{group === 'control' ? 'midway check-in' : 'mid-break check-in'}</a>; {group === 'control' ? 'before your second visit' : 'when it ends'}, send your data again on the <a href={labPages.after.path}>{group === 'control' ? 'second data page' : 'after-break page'}</a>.
+            {group === 'control' ? (
+              <>
+                About a week before your second visit, we remind you to send your data again on the <a href={labPages.after.path}>second data page</a>.
+              </>
+            ) : (
+              <>
+                During your break, use the <a href={labPages.checkin.path}>mid-break check-in</a>; when it ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+              </>
+            )}
           </p>
         )}
         <p className="mpmb-hint">

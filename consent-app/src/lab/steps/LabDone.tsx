@@ -149,7 +149,9 @@ export function LabDone() {
         : [
             canCopy ? 'Download a copy of your consent and keep it somewhere safe. Nothing is emailed to you.' : 'Your consent was recorded earlier; the team holds the record.',
             'Bring your phone to your first lab visit. The team will be able to see that your files have arrived.',
-            `On day 15, we send you a link to your ${words.mid}; afterwards, send your data again on the ${words.afterPage}. Both find you from the same details you gave today; there is nothing to sign again.`,
+            group === 'control'
+              ? `About a week before your second visit, we remind you to send your data again on the ${words.afterPage}. It finds you from the same details you gave today; there is nothing to sign again.`
+              : 'On day 15, we send you a link to your mid-break check-in; afterwards, send your data again on the after-break page. Both find you from the same details you gave today; there is nothing to sign again.',
           ];
 
   return (
@@ -202,7 +204,7 @@ export function LabDone() {
             <p className="mpmb-hint">
               {flow === 'baseline' ? (
                 <>
-                  Pages for later: <a href={labPages.checkin.path}>{words.mid}</a> · <a href={labPages.after.path}>{words.after}</a>.
+                  Pages for later: {group === 'control' ? null : <><a href={labPages.checkin.path}>{words.mid}</a> · </>}<a href={labPages.after.path}>{words.afterPage}</a>.
                 </>
               ) : (
                 <>

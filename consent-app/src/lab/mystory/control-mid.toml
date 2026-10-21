@@ -1,6 +1,6 @@
-# MyStory chat protocol, CONTROL GROUP, mid phase. Control-group version, 0.1.0-draft (21 October 2026), adapted from
+# MyStory chat protocol, CONTROL GROUP, mid phase. Control-group version, 0.1.0, final (22 October 2026), adapted from
 # the break-group protocol 0.2.0 (mid.toml, Michelle Wain) for participants who keep using social media as usual;
-# draft for the team and the ethics amendment. Only what referred to the break (Brick, being off social media, keeping
+# wording finalised by the team (22 October 2026). Only what referred to the break (Brick, being off social media, keeping
 # to the break, slips) is reframed; the safety and crisis text, support numbers, follow-up rules, style, summary
 # constraints, model and settings are as in mid.toml 0.2.0. docs/mystory.md has the details of 0.2.0.
 model = "gpt-4o"
@@ -95,11 +95,11 @@ Answer: "There was a party and everyone was posting. I felt left out so I kept c
 scenario = "I sat down to do an essay and ended up on TikTok for an hour. I've been going to the gym with my flatmate, though, and I'm not really on social media there. At a party everyone was posting. I felt left out, so I kept checking Instagram all night."
 [myself]
 key = "np.sm_control_mid"
-version = "0.1.0-draft"
+version = "0.1.0"
 name = "30-day usual social media use (control): Mid-point"
 research_question = "How do first-year undergraduates experience 30 days of using social media as usual (the control group for the 30-day break)?"
 owner = "michellewain"
-approval_status = "draft"
+approval_status = "final"
 language = "en-GB"
 estimated_minutes = 15
 age_min = 18

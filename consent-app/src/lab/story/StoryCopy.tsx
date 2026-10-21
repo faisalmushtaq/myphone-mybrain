@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { TextField } from '../../components/ui/Field';
 import { announce } from '../../lib/announce';
 import { describeError, labSession } from '../api';
-import { useLab } from '../store';
+import { useLab, useLabGroup } from '../store';
 
 export interface StoryToKeep {
   storyId: string;
@@ -19,6 +19,7 @@ export interface StoryToKeep {
  */
 export function StoryCopy({ story }: { story: StoryToKeep }) {
   const { state, dispatch, atLab } = useLab();
+  const { group } = useLabGroup();
   const [email, setEmail] = useState('');
   const [emailOpen, setEmailOpen] = useState(false);
   const [busy, setBusy] = useState<'pdf' | 'email' | null>(null);
@@ -31,7 +32,7 @@ export function StoryCopy({ story }: { story: StoryToKeep }) {
     try {
       const { buildStoryCopy } = await import('../labPdf');
       const { downloadBlob } = await import('../../lib/consentPdf');
-      const { blob, fileName } = await buildStoryCopy(copy);
+      const { blob, fileName } = await buildStoryCopy({ ...copy, group });
       downloadBlob(blob, fileName);
       announce(`Downloaded ${fileName}.`);
     } catch {

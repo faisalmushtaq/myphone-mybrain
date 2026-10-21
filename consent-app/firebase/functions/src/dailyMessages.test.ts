@@ -64,14 +64,13 @@ test('texts: plain characters only, one part (160) for the daily ones, two (306)
   }
 });
 
-test('the control group: the same days, its own words, nothing about a break or about using social media more or less', () => {
-  for (const days of [30, 35]) {
-    for (const done of [true, false]) {
-      const lines = Array.from({ length: days }, (_, i) => dailyMessage(i + 1, ctx(days, { group: 'control', checkInDone: done })));
-      for (const { line } of lines) assert.doesNotMatch(line.replace(/https?:\/\/\S+/g, ''), /break|Brick|scroll|unlock/i, line);
-      assert.equal(lines[days - 2].kind, 'visit-tomorrow');
-      if (!done) assert.match(lines[14].line, /midway check-in/);
-    }
-  }
-  assert.notEqual(dailyMessage(1, ctx(30, { group: 'control' })).line, dailyMessage(1, ctx(30)).line);
+test('the control group (22 October 2026): no daily messages or check-in, one reminder a week before the follow-up visit', () => {
+  const plan = dailyPlan(v1, visit2On('2026-11-18'), 'control');
+  assert.deepEqual(plan.map((m) => m.id), ['follow-up']);
+  assert.equal(plan[0].dueAt.toISOString(), '2026-11-11T09:00:00.000Z', 'a week before, at 09:00');
+  assert.deepEqual(dailyPlan(v1, null, 'control'), [], 'nothing until the follow-up visit is booked');
+  const { kind, line } = dailyMessage(plan[0].day, ctx(35, { group: 'control', afterLink: 'https://myphonemybrain.com/break/after/?code=MP2670FF90A5F2&group=control' }));
+  assert.equal(kind, 'follow-up');
+  assert.match(line, /^A reminder: your follow-up lab visit is on Wed 18 Nov at 10:00, LG25 \(EEG Lab\), School of Psychology\. Before then, please send your screen-time screenshots and app data again: https:/);
+  assert.ok(`MyPhone/MyBrain: ${line}`.length <= 306);
 });
