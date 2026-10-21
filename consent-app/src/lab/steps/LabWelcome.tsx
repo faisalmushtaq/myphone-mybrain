@@ -3,7 +3,7 @@ import { Icon } from '../../components/ui/Icon';
 import { labPages, labStudy } from '../config';
 import { LabShell } from '../LabShell';
 import { resumeStep } from '../reducer';
-import { useLab } from '../store';
+import { useLab, useLabGroup } from '../store';
 
 /**
  * The break study's first page: two equal ways in (decided 7 October 2026),
@@ -14,6 +14,7 @@ import { useLab } from '../store';
  */
 export function LabWelcome() {
   const { state, dispatch } = useLab();
+  const { group, words } = useLabGroup();
   const consented = state.submission.consentStage === 'sent';
   const remembered = state.restored && state.codeConfirmed;
 
@@ -33,8 +34,8 @@ export function LabWelcome() {
 
   return (
     <LabShell
-      kicker={labStudy.name}
-      title="Take part in the social media break study."
+      kicker={group === 'control' ? 'MyPhone/MyBrain' : labStudy.name}
+      title={group === 'control' ? 'Take part in the MyPhone/MyBrain lab study.' : 'Take part in the social media break study.'}
       intro={
         <p>
           For adults aged {labStudy.minAge} to {labStudy.maxAge} who have been invited by the research team. Giving consent takes about five minutes. You then send screenshots of your screen-time summary straight away, request your data from each of TikTok, YouTube and Instagram that you use, and come back to choose what to share from it before your first lab visit.
@@ -95,7 +96,7 @@ export function LabWelcome() {
         </Button>
       </p>
       <p className="mpmb-hint">
-        During your break, do your <a href={labPages.checkin.path}>mid-break check-in</a>; when the break ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+        {words.during}, do your <a href={labPages.checkin.path}>{words.mid}</a>; {group === 'control' ? 'before your second visit' : 'when the break ends'}, send your data again on the <a href={labPages.after.path}>{words.afterPage}</a>.
       </p>
       <p className="mpmb-hint">
         Questions about the study: {labStudy.contact.name}, <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>. Nothing about your social media is read until you choose to send it.

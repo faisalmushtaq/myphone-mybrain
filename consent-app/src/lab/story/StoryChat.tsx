@@ -9,7 +9,7 @@ import { announce } from '../../lib/announce';
 import { describeError, labClientInfo, labSession } from '../api';
 import { LabShell } from '../LabShell';
 import { labMyStory, type StoryPhase } from '../mystory';
-import { useLab } from '../store';
+import { useLab, useLabGroup } from '../store';
 import { chatCharacter, chatSupport, withFirstName } from './chatProtocol';
 import { base64Of, LIVE_BARS, useVoice, type VoiceNote } from './useVoice';
 
@@ -73,6 +73,7 @@ export interface ChatFinished {
 export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLabel }: { source: LabStoryPayload['source']; onUnavailable: () => void; onFinished: (done: ChatFinished) => void; onLeave: (() => void) | null; leaveLabel: string }) {
   const { state, dispatch } = useLab();
   const phase = state.phase as StoryPhase;
+  const { group } = useLabGroup();
   const [stage, setStage] = useState<Stage>('ready');
   const [open, setOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -337,7 +338,7 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
 
   if (!open) {
     return (
-      <LabShell kicker={labMyStory.name} title={phase === 'pre' ? 'A short chat before your break.' : 'A short chat about your break.'} intro={<p>MyStory is a chat with {name}, an AI chatbot the research team set up for this study. {name} asks you a few questions, one at a time, then writes back what it heard in three different ways. You pick the one that fits best and can change anything that isn’t right. It takes about fifteen minutes.</p>} hideContinue hideBack width="wide" secondaryAction={leaveButton}>
+      <LabShell kicker={labMyStory.name} title={group === 'control' ? 'A short chat about your social media use.' : phase === 'pre' ? 'A short chat before your break.' : 'A short chat about your break.'} intro={<p>MyStory is a chat with {name}, an AI chatbot the research team set up for this study. {name} asks you a few questions, one at a time, then writes back what it heard in three different ways. You pick the one that fits best and can change anything that isn’t right. It takes about fifteen minutes.</p>} hideContinue hideBack width="wide" secondaryAction={leaveButton}>
         <Disclosure summary={`About ${name}`}>
           <ul>
             {character.about.map((line) => (

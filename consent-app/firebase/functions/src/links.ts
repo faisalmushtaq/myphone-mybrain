@@ -38,23 +38,29 @@ const withCode = (path: string, code: string, extra: Record<string, string> = {}
 };
 
 /** MyStory's address for one participant and phase; at the lab, on a shared computer. */
-export function storyLink(phase: StoryPhase, code: string, atLab = false): string {
+export function storyLink(phase: StoryPhase, code: string, atLab = false, group: 'break' | 'control' = 'break'): string {
   const mode = storyModes[phase];
-  if (mode.mode === 'native' || mode.mode === 'chat') return withCode(labPagePaths.story, code, atLab ? { phase, at: 'lab' } : { phase });
+  const g: Record<string, string> = group === 'control' ? { group: 'control' } : {};
+  if (mode.mode === 'native' || mode.mode === 'chat') return withCode(labPagePaths.story, code, atLab ? { phase, at: 'lab', ...g } : { phase, ...g });
   const url = new URL(mode.url);
   url.searchParams.set(mode.idParam, code);
   if (mode.phaseParam) url.searchParams.set(mode.phaseParam, phase);
   return url.toString();
 }
 
-export function participantLinks(code: string): ParticipantLinks {
+/** The control group's first page (21 October 2026); every later page is shared and finds the group from the record. */
+export const CONTROL_PATH = '/break/control/';
+
+export function participantLinks(code: string, group: 'break' | 'control' = 'break'): ParticipantLinks {
+  // The shared pages say the control group's words from the start when the link says so (they also learn it from the record).
+  const g: Record<string, string> = group === 'control' ? { group: 'control' } : {};
   return {
-    takePart: withCode(labPagePaths.baseline, code),
-    book: withCode(labPagePaths.book, code),
-    checkIn: withCode(labPagePaths.checkin, code),
-    after: withCode(labPagePaths.after, code),
-    story: { pre: storyLink('pre', code), mid: storyLink('mid', code), post: storyLink('post', code) },
-    atLab: { pre: storyLink('pre', code, true), post: storyLink('post', code, true) },
+    takePart: withCode(group === 'control' ? CONTROL_PATH : labPagePaths.baseline, code),
+    book: withCode(labPagePaths.book, code, g),
+    checkIn: withCode(labPagePaths.checkin, code, g),
+    after: withCode(labPagePaths.after, code, g),
+    story: { pre: storyLink('pre', code, false, group), mid: storyLink('mid', code, false, group), post: storyLink('post', code, false, group) },
+    atLab: { pre: storyLink('pre', code, true, group), post: storyLink('post', code, true, group) },
   };
 }
 

@@ -1,7 +1,7 @@
 import type { DeliveryOutcome, LabBooking, LabBookingOptions, LabConsentRecord, LabLookupResult, LabPhase, LabPhone, LabPlatform, StoryAnswer } from '../api/types';
 import type { SendStage, SessionInfo, SignatureRecord, StatementRecord } from '../model/types';
 import type { CategoryId } from './cleaner';
-import type { CodeParts } from './config';
+import type { CodeParts, LabGroup } from './config';
 
 /**
  * State of the social media break study's flow. Kept deliberately separate
@@ -131,6 +131,8 @@ export interface LabStoryState {
 export interface LabState {
   /** The page this state belongs to; fixed when the page loads. */
   flow: LabFlow;
+  /** The group of the page signed up on (21 October 2026): /break/control/ for the control group. Later pages take the group from the participant's record (progress.group). */
+  group: LabGroup;
   stepId: LabStepId;
   codeParts: CodeParts;
   code: string;

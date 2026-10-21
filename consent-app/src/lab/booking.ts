@@ -23,14 +23,16 @@ export interface LabVisit {
   summary: string;
   /** What happens, in a sentence: for the page, the email and the calendar entry. */
   what: string;
+  /** The same for the control group (21 October 2026): no break. */
+  whatControl: string;
 }
 
 export const labBooking = {
   /** Files from before the break (the first page) that must have arrived before the first visit can be booked. */
   requires: { screenshots: 1, archives: 1 },
   visits: [
-    { visit: 1, title: 'First lab visit', summary: 'MyPhone/MyBrain: first lab visit', what: 'About two hours: EEG, ECG and eye-tracking while you do some computer tasks, and questionnaires. Your 30-day social media break starts after this visit.' },
-    { visit: 2, title: 'Second lab visit', summary: 'MyPhone/MyBrain: second lab visit', what: 'About two hours: the same recordings, tasks and questionnaires again, at the end of your 30-day break.' },
+    { visit: 1, title: 'First lab visit', summary: 'MyPhone/MyBrain: first lab visit', what: 'About two hours: EEG, ECG and eye-tracking while you do some computer tasks, and questionnaires. Your 30-day social media break starts after this visit.', whatControl: 'About two hours: EEG, ECG and eye-tracking while you do some computer tasks, and questionnaires.' },
+    { visit: 2, title: 'Second lab visit', summary: 'MyPhone/MyBrain: second lab visit', what: 'About two hours: the same recordings, tasks and questionnaires again, at the end of your 30-day break.', whatControl: 'About two hours: the same recordings, tasks and questionnaires again, about 30 days after the first.' },
   ] as LabVisit[],
   /** Length of a visit, unless a slot says otherwise. */
   minutes: 120,

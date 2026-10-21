@@ -11,7 +11,7 @@ import { labBooking } from '../booking';
 import { byDay, downloadIcs, firstVisitDays, googleCalendarUrl, onDays, placeLine, secondVisitDays, ukDateWords, ukDay, ukDayYear, ukHours, visitName, visitTitle } from '../calendar';
 import { labPages, labStudy } from '../config';
 import { LabShell } from '../LabShell';
-import { useLab } from '../store';
+import { useLab, useLabGroup } from '../store';
 import { EMAIL, ukMobile, type FieldError } from '../validation';
 
 /** Days of times shown before "Show later dates". */
@@ -66,6 +66,7 @@ function SlotPicker({ visit, slots, chosen, onChoose, error, keep }: { visit: La
 
 /** One booked visit: when and where, and adding it to a calendar. */
 function VisitCard({ booking, code }: { booking: LabBooking; code: string }) {
+  const { group } = useLabGroup();
   const [saved, setSaved] = useState<string | null>(null);
   const done = booking.status === 'attended';
   return (
@@ -92,7 +93,7 @@ function VisitCard({ booking, code }: { booking: LabBooking; code: string }) {
             <Button variant="secondary" onClick={() => setSaved(downloadIcs(booking))}>
               Add to my calendar
             </Button>
-            <a className="mpmb-btn mpmb-btn--ghost" href={googleCalendarUrl(booking, code)} target="_blank" rel="noopener noreferrer">
+            <a className="mpmb-btn mpmb-btn--ghost" href={googleCalendarUrl(booking, code, group)} target="_blank" rel="noopener noreferrer">
               <span>Google Calendar</span>
             </a>
           </div>
@@ -124,6 +125,7 @@ export const LAB_MESSAGES_NOTE = 'You will receive reminders before and on the d
 
 export function LabBook() {
   const { state, dispatch } = useLab();
+  const { group, words } = useLabGroup();
   const { options, confirmed } = state.booking;
   const [load, setLoad] = useState<{ kind: 'idle' | 'loading' } | { kind: 'failed'; message: string }>({ kind: 'idle' });
   const [choice, setChoice] = useState<Record<LabVisit, string | null>>({ 1: null, 2: null });
@@ -326,7 +328,8 @@ export function LabBook() {
         </div>
       );
     }
-    const info = labBooking.visits.find((x) => x.visit === v)?.what;
+    const visitInfo = labBooking.visits.find((x) => x.visit === v);
+    const info = group === 'control' ? visitInfo?.whatControl : visitInfo?.what;
     if (v === 1) {
       return (
         <div className="mpmb-booking__visit" key={v}>
@@ -351,7 +354,7 @@ export function LabBook() {
       <div className="mpmb-booking__visit" key={v}>
         <h3 className="mpmb-h3">{heading}</h3>
         <p>
-          {info} It is once your 30-day break is over: {gap.min} to {gap.max} days after the first{days2 ? `: between ${ukDateWords(days2.from)} and ${ukDateWords(days2.to)}` : ''}.
+          {info} It is {words.secondWhen}: {gap.min} to {gap.max} days after the first{days2 ? `: between ${ukDateWords(days2.from)} and ${ukDateWords(days2.to)}` : ''}.
         </p>
         {!days2 ? (
           <p className="mpmb-hint" id="lab-slot-2" tabIndex={-1}>
@@ -502,7 +505,7 @@ export function LabBook() {
           </h2>
           {toBook.length === 2 && !changing && (
             <p>
-              Your first visit starts your 30-day social media break. Your second visit is once the break is over: {gap.min} to {gap.max} days after the first. Please book both now: taking part means coming to both.
+              {group === 'control' ? 'Your second visit is about 30 days after your first' : 'Your first visit starts your 30-day social media break. Your second visit is once the break is over'}: {gap.min} to {gap.max} days after the first. Please book both now: taking part means coming to both.
             </p>
           )}
           {changing && <p>Keep either time or choose a new one. The second visit needs to be {gap.min} to {gap.max} days after the first.</p>}
@@ -592,7 +595,7 @@ export function LabBook() {
                   )}
                 </>
               )}
-              <p>{LAB_MESSAGES_NOTE}</p>
+              <p>{group === 'control' ? LAB_MESSAGES_NOTE.replace('mid-break check-in', 'midway check-in') : LAB_MESSAGES_NOTE}</p>
               <p className="mpmb-hint">Used to send you your bookings and reminders, and for the research team to contact you about the study. Kept with your consent record, not with your data.</p>
             </div>
           )}
@@ -617,7 +620,7 @@ export function LabBook() {
           {backToSummary}
           {!inline && standing.length > 0 && (
             <p className="mpmb-hint">
-              On day 15 of your break, we text you a link to your <a href={labPages.checkin.path}>mid-break check-in</a>; when the break ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+              On day 15, we text you a link to your <a href={labPages.checkin.path}>{words.mid}</a>; {group === 'control' ? 'before your second visit' : 'when the break ends'}, send your data again on the <a href={labPages.after.path}>{words.afterPage}</a>.
             </p>
           )}
         </div>

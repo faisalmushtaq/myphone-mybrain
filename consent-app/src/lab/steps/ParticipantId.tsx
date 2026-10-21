@@ -10,9 +10,25 @@ import { ageFrom, buildParticipantId, formatPostcode, idName, isoDateOf, isUkPos
 import { LabShell } from '../LabShell';
 import { namesOf } from '../PlatformChecklist';
 import { nextFilesStep, phaseHave, platformsToDo, resumeStep } from '../reducer';
-import { useLab } from '../store';
+import { useLab, useLabGroup } from '../store';
 import { ukMobile, type FieldError } from '../validation';
 import { filesPhrase } from '../words';
+
+/** The control group's check-in and second data pages (21 October 2026): no break. */
+const controlWords = {
+  checkin: {
+    kicker: 'Midway check-in',
+    title: 'Your midway check-in.',
+    lead: 'A few quick questions about how things are going, a screenshot of your screen time, then a short chat about your social media use. First, enter the details you gave at the start, or your participant ID, so we can find your record. You gave your consent then, so there is nothing to sign.',
+    leadKnown: 'A few quick questions about how things are going, a screenshot of your screen time, then a short chat about your social media use. You gave your consent at the start, so there is nothing to sign.',
+  },
+  after: {
+    kicker: 'After the 30 days',
+    title: 'Welcome back.',
+    lead: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, from the last 30 days. First, enter the details you gave at the start, or your participant ID, so we can find your record. There is nothing to sign.',
+    leadKnown: 'This part is shorter: a reminder of what you agreed to, then your screen-time screenshots and app data again, from the last 30 days. There is nothing to sign.',
+  },
+};
 
 const words = {
   baseline: {
@@ -60,6 +76,7 @@ const words = {
  */
 export function ParticipantId() {
   const { state, dispatch } = useLab();
+  const { group } = useLabGroup();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [busy, setBusy] = useState(false);
   const [welcome, setWelcome] = useState(false);
@@ -78,7 +95,7 @@ export function ParticipantId() {
   const known = state.returning && Boolean(state.code);
   const text = carryingOn
     ? { kicker: 'Welcome back', title: 'Carry on where you left off.', lead: 'Enter the same details you gave at the start, or your participant ID (it is in our emails). You carry on from where you stopped, on any device.', leadKnown: 'Press Continue if this is your participant ID: you carry on from where you stopped.' }
-    : words[state.flow];
+    : group === 'control' && (state.flow === 'checkin' || state.flow === 'after') ? controlWords[state.flow] : words[state.flow];
   const dob = isoDateOf(parts.dateOfBirth);
   const age = dob ? ageFrom(dob) : null;
 
@@ -182,7 +199,7 @@ export function ParticipantId() {
         </div>
         {nextStep === 'done' && (
           <p className="mpmb-hint">
-            During your break, use the <a href={labPages.checkin.path}>mid-break check-in</a>; when it ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+            {group === 'control' ? 'Between your visits' : 'During your break'}, use the <a href={labPages.checkin.path}>{group === 'control' ? 'midway check-in' : 'mid-break check-in'}</a>; {group === 'control' ? 'before your second visit' : 'when it ends'}, send your data again on the <a href={labPages.after.path}>{group === 'control' ? 'second data page' : 'after-break page'}</a>.
           </p>
         )}
         <p className="mpmb-hint">

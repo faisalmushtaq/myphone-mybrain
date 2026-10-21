@@ -1,10 +1,10 @@
 import { useEffect, type ComponentType } from 'react';
 import type { LabPhase } from '../api/types';
-import { labPages, PARTICIPANT_CODE, normaliseParticipantCode } from './config';
+import { labPages, PARTICIPANT_CODE, normaliseParticipantCode, type LabGroup } from './config';
 import { labStepTitles, type LabFlow, type LabStepId } from './model';
 import { usage } from '../lib/usage';
 import { labJourney } from './reducer';
-import { LabStoreProvider, useLab } from './store';
+import { LabStoreProvider, useLab, useLabGroup } from './store';
 import { LabBook } from './steps/LabBook';
 import { LabCheckIn } from './steps/LabCheckIn';
 import { LabClean } from './steps/LabClean';
@@ -37,6 +37,7 @@ const steps: Record<LabStepId, ComponentType> = {
 
 function Frame() {
   const { state, dispatch } = useLab();
+  const { words } = useLabGroup();
   const Step = steps[state.stepId];
   const journey = labJourney(state);
   const index = journey.indexOf(state.stepId);
@@ -68,7 +69,8 @@ function Frame() {
         <div className="mpmb-band__inner">
           <div className="mpmb-band__row">
             <p className="mpmb-band__kicker">
-              <span>MyPhone/MyBrain</span> Social media break study{state.flow !== 'baseline' ? ` · ${labPages[state.flow].label}` : ''}
+              <span>MyPhone/MyBrain</span> {words.study}
+              {state.flow === 'checkin' ? ` · ${words.midName}` : state.flow === 'after' ? ` · ${words.After}` : state.flow !== 'baseline' ? ` · ${labPages[state.flow].label}` : ''}
             </p>
             <a className="mpmb-band__back" href="/break/">
               ← About the study
@@ -98,9 +100,9 @@ function Frame() {
   );
 }
 
-export function LabApp({ flow = 'baseline', phase, atLab = false }: { flow?: LabFlow; phase?: LabPhase; atLab?: boolean }) {
+export function LabApp({ flow = 'baseline', phase, atLab = false, group = 'break' }: { flow?: LabFlow; phase?: LabPhase; atLab?: boolean; group?: LabGroup }) {
   return (
-    <LabStoreProvider flow={flow} phase={phase} atLab={atLab}>
+    <LabStoreProvider flow={flow} phase={phase} atLab={atLab} group={group}>
       <Frame />
     </LabStoreProvider>
   );

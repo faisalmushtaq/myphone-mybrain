@@ -131,7 +131,7 @@ test('the lab dataset is labelled by participant ID, has one session per phase, 
     ],
   };
   const rows = labParticipantsTable(snap);
-  assert.deepEqual(rows[0], { participant_id: 'sub-MP2670FF90A5F2', consented_on: '2026-10-05', consent_version: '1.0', information_version: '1.0', consent_n: 1, age: 21, phases: ['pre', 'mid', 'post'], sends_n: 4, checkins_n: 1, archives_n: 1, screenshots_n: 3, platforms: ['tiktok'], platforms_not_used: ['instagram', 'youtube'], phone: 'iphone', first_send_at: '2026-10-05T10:00:00.000Z', last_send_at: '2026-11-10T10:00:00.000Z', stories_n: 0, visit1_on: null, visit1_status: null, visit2_on: null, visit2_status: null });
+  assert.deepEqual(rows[0], { participant_id: 'sub-MP2670FF90A5F2', group: 'break', consented_on: '2026-10-05', consent_version: '1.0', information_version: '1.0', consent_n: 1, age: 21, phases: ['pre', 'mid', 'post'], sends_n: 4, checkins_n: 1, archives_n: 1, screenshots_n: 3, platforms: ['tiktok'], platforms_not_used: ['instagram', 'youtube'], phone: 'iphone', first_send_at: '2026-10-05T10:00:00.000Z', last_send_at: '2026-11-10T10:00:00.000Z', stories_n: 0, visit1_on: null, visit1_status: null, visit2_on: null, visit2_status: null });
   assert.equal(rows[1].sends_n, 0, 'consented but nothing sent yet');
   assert.ok(!JSON.stringify(rows).includes('Jane'));
   const sessions = labSessionsOf(snap);
@@ -177,7 +177,7 @@ test('the lab dataset is labelled by participant ID, has one session per phase, 
   ]);
   assert.deepEqual(out.counts, { labParticipants: 2, labConsents: 2, labDonations: 4, labArchives: 1, labScreenshots: 3, labSignatures: 1, labCheckIns: 1, labStories: 0, labStoryChats: 0, labStoryVoiceClips: 0, labBookings: 0, labTestRecordsLeftOut: 0 });
   const checkins = out.files.find((f) => f.path === 'social-media-break/donations/phenotype/checkin.tsv')!.body;
-  assert.equal(checkins, 'participant_id\tsession_id\tcheck_in_id\tcheck_in_n\tsubmitted_at\tform_version\tweek\tapps_used\tmood\tdifficulty\tmissed\tnotes\nsub-MP2670FF90A5F2\tses-mid\tk1\t1\t2026-10-20T10:00:00.000Z\t0.1-draft\t2\tnever\t4\t3\t2\tBrick held up fine\n');
+  assert.equal(checkins, 'participant_id\tsession_id\tcheck_in_id\tcheck_in_n\tsubmitted_at\tform_version\tform_id\tweek\tapps_used\tmood\tdifficulty\tmissed\tnotes\tuse_change\nsub-MP2670FF90A5F2\tses-mid\tk1\t1\t2026-10-20T10:00:00.000Z\t0.1-draft\tmpmb-lab-checkin\t2\tnever\t4\t3\t2\tBrick held up fine\tn/a\n');
   const checkinDictionary = JSON.parse(out.files.find((f) => f.path === 'social-media-break/donations/phenotype/checkin.json')!.body);
   assert.equal(checkinDictionary.apps_used.Levels.never, 'Not at all', 'the data dictionary carries the answer labels');
   const labTsv = out.files.find((f) => f.path === 'social-media-break/donations/participants.tsv')!.body;

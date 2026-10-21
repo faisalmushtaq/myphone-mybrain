@@ -3,7 +3,7 @@ import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 import { asksSomething, dailyMessage, dailyPlan, breakLength, type DailyKind, type PlannedMessage } from './dailyMessages.js';
-import { labBooking, labStudy } from './forms.js';
+import { groupOf, labBooking, labStudy, type LabGroup } from './forms.js';
 import { icsFor } from './ics.js';
 import { normaliseCode, phaseCountsOf, rateLimitLookups } from './lab.js';
 import { participantLinks } from './links.js';
@@ -68,6 +68,8 @@ export interface BookingRecord {
   status: BookingStatus;
   bookedAt: Date;
   sequence: number;
+  /** The participant's group when booked (21 October 2026), for the wording; the break group before then. */
+  group?: LabGroup;
 }
 
 export interface Contact {
@@ -90,6 +92,7 @@ export function bookingFrom(id: string, d: DocumentData): BookingRecord {
     status: (['booked', 'attended', 'missed', 'cancelled'].includes(d.status) ? d.status : 'booked') as BookingStatus,
     bookedAt: toDate(d.bookedAt ?? d.createdAt ?? d.start),
     sequence: Number(d.sequence ?? 0),
+    group: d.group === 'control' ? 'control' : 'break',
   };
 }
 
@@ -101,7 +104,10 @@ export function placeOf(slot: DocumentData): Place {
   return own ? { name: own, address: '', directions: '' } : defaultPlace();
 }
 
-const visitInfo = (visit: Visit) => labBooking.visits.find((v) => v.visit === visit) ?? labBooking.visits[0];
+const visitInfo = (visit: Visit, group: LabGroup = 'break') => {
+  const v = labBooking.visits.find((x) => x.visit === visit) ?? labBooking.visits[0];
+  return group === 'control' ? { ...v, what: v.whatControl } : v;
+};
 const visitWords = (visit: Visit) => (visit === 1 ? 'first lab visit' : 'second lab visit');
 const placeLine = (p: Place) => [p.name, p.address].filter(Boolean).join(', ');
 
@@ -223,8 +229,8 @@ export const changeable = (b: BookingRecord, now: Date) => b.status === 'booked'
 /* ── Calendar files and messages ───────────────────────────────────────── */
 
 export function bookingIcs(b: BookingRecord, cancelled = false, now = new Date()): string {
-  const info = visitInfo(b.visit);
-  const links = participantLinks(b.participantCode);
+  const info = visitInfo(b.visit, b.group);
+  const links = participantLinks(b.participantCode, b.group);
   return icsFor(
     {
       // The same id for a visit however often it moves, so calendars update the entry instead of adding another.
@@ -257,7 +263,7 @@ function whereLines(b: BookingRecord): string[] {
 
 /** One visit in an email: its title, when, where and what happens. */
 function visitBlock(b: BookingRecord, note = ''): string[] {
-  return [`${visitTitle(b.visit)}${note}`, `When:  ${ukSpan(b.start, b.end)} (UK time)`, ...whereLines(b), `What happens: ${visitInfo(b.visit).what}`];
+  return [`${visitTitle(b.visit)}${note}`, `When:  ${ukSpan(b.start, b.end)} (UK time)`, ...whereLines(b), `What happens: ${visitInfo(b.visit, b.group).what}`];
 }
 
 const bringLines = () => ['Before each visit, please remember:', ...labBooking.bring.map((x) => `- ${x}`)];
@@ -276,7 +282,7 @@ function reminderPromise(contact: Contact): string {
 export function visitsEmail(kind: 'booked' | 'moved' | 'cancelled', visits: BookingRecord[], contact: Contact, opts: { changed?: string[]; byTeam?: boolean; reason?: string } = {}): { subject: string; text: string } {
   const sorted = byVisit(visits);
   const code = sorted[0]?.participantCode ?? '';
-  const links = participantLinks(code);
+  const links = participantLinks(code, sorted[0]?.group);
   const both = sorted.length > 1;
   if (kind === 'cancelled') {
     return {
@@ -346,7 +352,7 @@ export function bookingText(kind: 'day-before' | 'same-day', b: BookingRecord): 
 }
 
 export function reminderEmail(b: BookingRecord): { subject: string; text: string } {
-  const links = participantLinks(b.participantCode);
+  const links = participantLinks(b.participantCode, b.group);
   return {
     subject: `MyPhone/MyBrain: your ${visitWords(b.visit)} is tomorrow at ${ukClock(b.start)}`,
     text: [
@@ -358,7 +364,7 @@ export function reminderEmail(b: BookingRecord): { subject: string; text: string
       `Participant ID: ${b.participantCode}`,
       '',
       ...bringLines(),
-      ...(b.visit === 2 ? ['', `If you have not sent your screen-time screenshots from the end of your break yet, please do it before the visit: ${links.after}`] : []),
+      ...(b.visit === 2 ? ['', `If you have not sent your screen-time screenshots from ${b.group === 'control' ? 'the last few days' : 'the end of your break'} yet, please do it before the visit: ${links.after}`] : []),
       '',
       `Can't come? Please ${contactLine} as soon as you can, so the time can go to someone else.`,
       ...signOff,
@@ -374,24 +380,25 @@ export function sameDayEmail(b: BookingRecord): { subject: string; text: string 
   };
 }
 
-const journeySubjects: Record<DailyKind, (day: number) => string> = {
-  daily: (day) => `MyPhone/MyBrain: day ${day} of your break`,
-  'check-in': () => 'MyPhone/MyBrain: your mid-break check-in',
-  'check-in-reminder': () => 'MyPhone/MyBrain: a reminder about your mid-break check-in',
+const journeySubjects: Record<DailyKind, (day: number, group: LabGroup) => string> = {
+  daily: (day, group) => `MyPhone/MyBrain: day ${day} ${group === 'control' ? 'of 30' : 'of your break'}`,
+  'check-in': (_day, group) => `MyPhone/MyBrain: your ${group === 'control' ? 'midway' : 'mid-break'} check-in`,
+  'check-in-reminder': (_day, group) => `MyPhone/MyBrain: a reminder about your ${group === 'control' ? 'midway' : 'mid-break'} check-in`,
   'visit-soon': () => 'MyPhone/MyBrain: your second lab visit is coming up',
   'visit-tomorrow': () => 'MyPhone/MyBrain: your second lab visit is tomorrow',
   'thank-you': () => 'MyPhone/MyBrain: thank you',
 };
 
 /** One of the daily messages (dailyMessages.ts) as an email and a text. */
-export function journeyMessage(m: PlannedMessage, code: string, ctx: { days: number; visit2: BookingRecord | null; checkInDone: boolean }): { kind: DailyKind; subject: string; text: string; sms: string } {
-  const links = participantLinks(code);
-  const { kind, line } = dailyMessage(m.day, { days: ctx.days, visit2: ctx.visit2 ? { start: ctx.visit2.start, place: placeShort(ctx.visit2) } : null, checkInDone: ctx.checkInDone, checkInLink: links.checkIn, contactEmail: labStudy.contactEmail });
+export function journeyMessage(m: PlannedMessage, code: string, ctx: { days: number; visit2: BookingRecord | null; checkInDone: boolean; group?: LabGroup }): { kind: DailyKind; subject: string; text: string; sms: string } {
+  const group = ctx.group ?? 'break';
+  const links = participantLinks(code, group);
+  const { kind, line } = dailyMessage(m.day, { days: ctx.days, visit2: ctx.visit2 ? { start: ctx.visit2.start, place: placeShort(ctx.visit2) } : null, checkInDone: ctx.checkInDone, checkInLink: links.checkIn, contactEmail: labStudy.contactEmail, group });
   const nothingToDo = kind === 'daily' || kind === 'thank-you';
   return {
     kind,
-    subject: journeySubjects[kind](m.day),
-    text: ['Hello,', '', line, ...(nothingToDo ? ['', 'There is nothing you need to do: no need to reply.'] : []), '', `Questions, or problems with Brick or the break? ${Contact_(contactLine)}.`, ...signOff].join('\n'),
+    subject: journeySubjects[kind](m.day, group),
+    text: ['Hello,', '', line, ...(nothingToDo ? ['', 'There is nothing you need to do: no need to reply.'] : []), '', `${group === 'control' ? 'Questions about the study?' : 'Questions, or problems with Brick or the break?'} ${Contact_(contactLine)}.`, ...signOff].join('\n'),
     sms: `MyPhone/MyBrain: ${line}`,
   };
 }
@@ -538,9 +545,10 @@ export async function placeVisits(db: Firestore, req: PlaceRequest, now = new Da
       const ref = db.collection('labBookings').doc();
       const previous = replaced.find((b) => b.visit === c.visit) ?? null;
       const sequence = Math.max(-1, ...bookings.filter((b) => b.visit === c.visit).map((b) => b.sequence)) + 1;
-      const booking: BookingRecord = { id: ref.id, participantCode: req.code, visit: c.visit, slotId: c.slotId, start: toDate(slot.start), end: toDate(slot.end), place: placeOf(slot), status: 'booked', bookedAt: now, sequence };
+      const booking: BookingRecord = { id: ref.id, participantCode: req.code, visit: c.visit, slotId: c.slotId, start: toDate(slot.start), end: toDate(slot.end), place: placeOf(slot), status: 'booked', bookedAt: now, sequence, group: groupOf(participant) };
       tx.set(ref, {
         studyId: labStudy.studyId,
+        group: booking.group,
         participantCode: req.code,
         visit: c.visit,
         slotId: c.slotId,
@@ -868,7 +876,7 @@ export async function runLabMessages(now = new Date()): Promise<{ reminders: num
         skipped += 1;
         continue;
       }
-      const message = journeyMessage(m, code, { days, visit2, checkInDone });
+      const message = journeyMessage(m, code, { days, visit2, checkInDone, group: groupOf(participant) });
       const contact = await contactFor(code);
       // A text when there is a mobile number and texts are set up, otherwise an email (20 October 2026); the check-in
       // messages go by email as well, so the link is not lost.

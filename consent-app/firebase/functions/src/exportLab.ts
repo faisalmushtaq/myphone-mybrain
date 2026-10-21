@@ -1,7 +1,7 @@
 import type { DocumentData } from 'firebase-admin/firestore';
 import JSZip from 'jszip';
 import { jsonFile, jsonlFile, rejectedOf, researchDocs, textFile, toTsv, tsvFile, type Doc, type OutFile, type Row } from './export.js';
-import { cleaner, labCheckInForm, labConsentForm, labStudy, storyChats, storyStructures, type StoryPhase, type StorySignifier } from './forms.js';
+import { cleaner, groupOf, labCheckInForm, labCheckInFormControl, labConsentForm, labStudy, storyChatsFor, storyStructures, type LabGroup, type StoryPhase, type StorySignifier } from './forms.js';
 
 /**
  * The social media break study's part of the hourly export: its own folder,
@@ -176,6 +176,7 @@ export function labParticipantsTable(snap: LabSnapshot): Row[] {
       const sends = mine.flatMap((s) => s.donations).sort((a, b) => String(a.data.receivedAt ?? '').localeCompare(String(b.data.receivedAt ?? '')));
       return {
         participant_id: labLabel(id),
+        group: groupOf(d),
         consented_on: consent?.data.confirmedDate,
         consent_version: consent?.data.formVersion,
         information_version: consent?.data.informationVersion,
@@ -210,7 +211,7 @@ export function visitColumns(bookings: Doc[], code: string): Row {
   return out;
 }
 
-export const LAB_PARTICIPANT_COLUMNS = ['participant_id', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'age', 'phases', 'sends_n', 'checkins_n', 'archives_n', 'screenshots_n', 'platforms', 'platforms_not_used', 'phone', 'first_send_at', 'last_send_at', 'stories_n', 'visit1_on', 'visit1_status', 'visit2_on', 'visit2_status'];
+export const LAB_PARTICIPANT_COLUMNS = ['participant_id', 'group', 'consented_on', 'consent_version', 'information_version', 'consent_n', 'age', 'phases', 'sends_n', 'checkins_n', 'archives_n', 'screenshots_n', 'platforms', 'platforms_not_used', 'phone', 'first_send_at', 'last_send_at', 'stories_n', 'visit1_on', 'visit1_status', 'visit2_on', 'visit2_status'];
 
 /* ── MyStory ───────────────────────────────────────────────────────────── */
 
@@ -257,8 +258,8 @@ export function labStoryTable(phase: StoryPhase, stories: Doc[]): Row[] {
 
 /* ── MyStory's AI chat ─────────────────────────────────────────────────── */
 
-export function labStoryChatColumns(phase: StoryPhase): string[] {
-  return ['participant_id', 'session_id', 'chat_id', 'chat_n', 'story_id', 'started_at', 'finished_at', 'protocol', 'protocol_version', 'model', 'source', 'check_in_id', 'status', 'ending', 'turns', 'interview_closed', 'questions_covered', 'own_words', ...storyChats[phase].extractionKeys.map((k) => `said_${k.key}`), 'candidates_n', 'retellings_added', 'retellings_still_added', 'retellings_check_failed', 'chosen_persona', 'chosen_similarity', 'rating', 'requests_n', 'edited', 'voice_clips', 'final_story', 'final_similarity', 'flags', 'model_calls', 'failed_calls', 'input_tokens', 'output_tokens'];
+export function labStoryChatColumns(phase: StoryPhase, group: LabGroup = 'break'): string[] {
+  return ['participant_id', 'session_id', 'chat_id', 'chat_n', 'story_id', 'started_at', 'finished_at', 'protocol', 'protocol_version', 'model', 'source', 'check_in_id', 'status', 'ending', 'turns', 'interview_closed', 'questions_covered', 'own_words', ...storyChatsFor(group)[phase].extractionKeys.map((k) => `said_${k.key}`), 'candidates_n', 'retellings_added', 'retellings_still_added', 'retellings_check_failed', 'chosen_persona', 'chosen_similarity', 'rating', 'requests_n', 'edited', 'voice_clips', 'final_story', 'final_similarity', 'flags', 'model_calls', 'failed_calls', 'input_tokens', 'output_tokens'];
 }
 
 /**
@@ -275,11 +276,12 @@ export function chatEnding(d: DocumentData): string | null {
 }
 
 /** One phase's chat conversations, finished or not: one row each, the participant's own words by question, the retelling chosen, rated and corrected. */
-export function labStoryChatTable(phase: StoryPhase, chats: Doc[]): Row[] {
-  const p = storyChats[phase];
+export function labStoryChatTable(phase: StoryPhase, chats: Doc[], group: LabGroup = 'break'): Row[] {
+  const p = storyChatsFor(group)[phase];
   const counts = new Map<string, number>();
   return chats
-    .filter((x) => x.data.phase === phase)
+    // Each group's chats in their own table (21 October 2026): the control group's questions differ.
+    .filter((x) => x.data.phase === phase && (x.data.group === 'control' ? 'control' : 'break') === group)
     .sort((a, b) => String(a.data.participantCode).localeCompare(String(b.data.participantCode)) || String(a.data.startedAt ?? '').localeCompare(String(b.data.startedAt ?? '')))
     .map(({ id, data: d }) => {
       const code = String(d.participantCode);
@@ -332,8 +334,8 @@ export function labStoryChatTable(phase: StoryPhase, chats: Doc[]): Row[] {
     });
 }
 
-export function labStoryChatDictionary(phase: StoryPhase): Record<string, unknown> {
-  const p = storyChats[phase];
+export function labStoryChatDictionary(phase: StoryPhase, group: LabGroup = 'break'): Record<string, unknown> {
+  const p = storyChatsFor(group)[phase];
   const out: Record<string, unknown> = {
     MeasurementToolMetadata: { Description: `MyStory's AI chat (${p.key} ${p.version}, ${p.model}): the MySelf micro-narrative protocol (Skeggs et al., CHI 2025, https://doi.org/10.1145/3706598.3713999). An AI interviewer asks the phase's questions one at a time; the answers are extracted in the participant's own words; ${p.personas.length} personas (${p.personas.map((x) => x.key).join(', ')}) each write a short retelling; the participant chooses one, rates how well it fits (0 to 10) and can edit it or ask for changes. The full conversations, every model call and every change are in sourcedata/raw/labStoryChats.jsonl.` },
     participant_id: { Description: 'sub- followed by the participant ID' },
@@ -676,12 +678,16 @@ export function labCheckInTable(checkIns: Doc[]): Row[] {
       check_in_n: d.number,
       submitted_at: d.receivedAt,
       form_version: d.formVersion,
-      ...Object.fromEntries(labCheckInForm.questions.map((q) => [q.id.replace(/-/g, '_'), (d.answers as Record<string, unknown> | undefined)?.[q.id] ?? null])),
+      form_id: d.formId ?? labCheckInForm.id,
+      ...Object.fromEntries(checkInQuestions.map((q) => [q.id.replace(/-/g, '_'), (d.answers as Record<string, unknown> | undefined)?.[q.id] ?? null])),
     }));
 }
 
+/** Both groups' check-in questions, one column each: the break group's, then the control group's own (21 October 2026). */
+const checkInQuestions = [...labCheckInForm.questions, ...labCheckInFormControl.questions.filter((q) => !labCheckInForm.questions.some((b) => b.id === q.id))];
+
 export function labCheckInColumns(): string[] {
-  return ['participant_id', 'session_id', 'check_in_id', 'check_in_n', 'submitted_at', 'form_version', ...labCheckInForm.questions.map((q) => q.id.replace(/-/g, '_'))];
+  return ['participant_id', 'session_id', 'check_in_id', 'check_in_n', 'submitted_at', 'form_version', 'form_id', ...checkInQuestions.map((q) => q.id.replace(/-/g, '_'))];
 }
 
 export function labCheckInDictionary(): Record<string, unknown> {
@@ -693,8 +699,9 @@ export function labCheckInDictionary(): Record<string, unknown> {
     check_in_n: { Description: 'Which check-in this was for the participant: 1 for the first' },
     submitted_at: { Description: 'When the check-in was received (ISO 8601, UTC)' },
     form_version: { Description: 'Version of the check-in questions answered' },
+    form_id: { Description: `Which check-in was answered: ${labCheckInForm.id} (the break group) or ${labCheckInFormControl.id} (the control group, 21 October 2026); a question not in it is n/a`, Levels: { [labCheckInForm.id]: 'The break group’s', [labCheckInFormControl.id]: 'The control group’s' } },
   };
-  for (const q of labCheckInForm.questions) {
+  for (const q of checkInQuestions) {
     out[q.id.replace(/-/g, '_')] = q.type === 'choice' ? { LongName: q.label, Description: q.text, Levels: Object.fromEntries(q.options.map((o) => [o.value, o.label])) } : { LongName: q.label, Description: `${q.text} Free text, at most ${q.maxLength} characters; n/a when left blank.` };
   }
   return out;
@@ -717,6 +724,7 @@ export function labDatasetDescription(exportedAt: string): Record<string, unknow
 export function labParticipantsDictionary(): Record<string, unknown> {
   return {
     participant_id: { Description: 'sub- followed by the participant ID: MP and the first 12 hexadecimal digits of the SHA-256 hash of the participant’s first name, last name, date of birth and postcode, normalised as described in the website’s docs/participant-id.md. The study’s survey platform builds the same ID from the same four details, so the two meet without a name.' },
+    group: { Description: 'The participant’s group, from the page they signed up on (21 October 2026)', Levels: { break: 'Took the 30-day social media break between the visits (signed up at /break/take-part/)', control: 'Control group: kept using social media as usual between the visits (signed up at /break/control/); their consent, information sheet, check-in and MyStory chats are the control versions' } },
     consented_on: { Description: 'Date the participant confirmed consent on the website, from the current consent record' },
     consent_version: { Description: 'Version of the consent form wording agreed to' },
     information_version: { Description: 'Version of the participant information sheet shown' },
@@ -1056,6 +1064,7 @@ export function labExport(everything: LabSnapshot, exportedAt: string): { files:
   for (const phase of LAB_PHASES) {
     files.push(tsvFile(`${B}/phenotype/mystory_${phase}.tsv`, labStoryTable(phase, snap.stories ?? []), labStoryColumns(phase)), jsonFile(`${B}/phenotype/mystory_${phase}.json`, labStoryDictionary(phase)));
     files.push(tsvFile(`${B}/phenotype/mystory_chat_${phase}.tsv`, labStoryChatTable(phase, snap.storyChats ?? []), labStoryChatColumns(phase)), jsonFile(`${B}/phenotype/mystory_chat_${phase}.json`, labStoryChatDictionary(phase)));
+    files.push(tsvFile(`${B}/phenotype/mystory_chat_control_${phase}.tsv`, labStoryChatTable(phase, snap.storyChats ?? [], 'control'), labStoryChatColumns(phase, 'control')), jsonFile(`${B}/phenotype/mystory_chat_control_${phase}.json`, labStoryChatDictionary(phase, 'control')));
   }
   const { records, statements } = labConsentTables(snap.consents);
   files.push(tsvFile(`${I}/consents.tsv`, records), tsvFile(`${I}/consent_statements.tsv`, statements));

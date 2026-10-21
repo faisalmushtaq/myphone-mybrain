@@ -3,7 +3,7 @@ import { FieldValue, getFirestore, type DocumentReference, type Firestore } from
 import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { labStudy, storyChats, type ChatProtocol, type StoryPhase } from './forms.js';
+import { groupOf, labStudy, storyChatsFor, type ChatProtocol, type StoryPhase } from './forms.js';
 import { normaliseCode, rateLimitLookups } from './lab.js';
 import { readSecret } from './secrets.js';
 import {
@@ -96,6 +96,8 @@ export interface ChatDoc {
   phase: StoryPhase;
   protocolKey: string;
   protocolVersion: string;
+  /** The participant's group when the chat began (21 October 2026); absent before then: the break group. */
+  group?: string;
   status: Status;
   transcript: (ChatMessage & { at: string })[];
   turns: number;
@@ -305,12 +307,14 @@ export const labStoryChat = onCall(callOptions, async (request) => {
     if (data.checkInId !== null && data.checkInId !== undefined && (typeof data.checkInId !== 'string' || !DOC_ID.test(data.checkInId))) problems.push('The check-in reference is malformed.');
     validateClient(data.client, problems);
     if (problems.length) throw new HttpsError('invalid-argument', problems[0], { problems });
-    const protocol = storyChats[phase!];
     const model = await modelFor();
     // Not set up yet (no key stored): the page offers MyStory's own form instead.
     if (!model) return { available: false };
     const participant = (await db.collection('labParticipants').doc(code!).get()).data();
     if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please check your details.');
+    // The participant's group's protocol (21 October 2026): the control group has its own, with no break.
+    const group = groupOf(participant);
+    const protocol = storyChatsFor(group)[phase!];
     // One story for each phase (19 October 2026), apart from the team's test accounts.
     if (Number(participant.storyCounts?.[phase!] ?? 0) >= 1 && !mayRetellStory(code!)) throw new HttpsError('failed-precondition', alreadyToldMessage);
     // "Start the chat" sent again (after its answer was lost on a poor connection): the chat this device has just begun,
@@ -332,6 +336,7 @@ export const labStoryChat = onCall(callOptions, async (request) => {
       participantCode: code,
       phase,
       protocolKey: protocol.key,
+      group,
       protocolVersion: protocol.version,
       approvalStatus: protocol.approvalStatus,
       model: protocol.model,
@@ -373,7 +378,7 @@ export const labStoryChat = onCall(callOptions, async (request) => {
   const snap = await ref.get();
   const chat = snap.data() as (ChatDoc & Record<string, unknown>) | undefined;
   if (!chat || chat.sessionUid !== uid) throw new HttpsError('not-found', 'This conversation could not be found. Please start again.');
-  const protocol = storyChats[chat.phase];
+  const protocol = storyChatsFor(chat.group === 'control' ? 'control' : 'break')[chat.phase];
   if (chat.status === 'done') return { stage: 'done', story: chat.finalScenario, storyId: chat.storyId ?? null };
   const model = await modelFor();
 

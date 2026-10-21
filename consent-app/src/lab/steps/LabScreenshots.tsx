@@ -5,7 +5,7 @@ import { androidSteps, jumpTo, phones, screenTimeIphone, Steps } from '../guideS
 import { LabShell } from '../LabShell';
 import { ShotPicker } from '../ShotPicker';
 import { phaseHave } from '../reducer';
-import { useLab } from '../store';
+import { useLab, useLabGroup } from '../store';
 import { useLabSender } from '../useLabSender';
 import type { FieldError } from '../validation';
 
@@ -18,6 +18,7 @@ import type { FieldError } from '../validation';
  */
 export function LabScreenshots() {
   const { state, dispatch } = useLab();
+  const { group, words } = useLabGroup();
   const { send, busy } = useLabSender();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [nudges, setNudges] = useState(0);
@@ -65,10 +66,10 @@ export function LabScreenshots() {
   return (
     <LabShell
       kicker="Your screenshots"
-      title={after ? 'Send your screen-time screenshots from after your break.' : 'Send your screen-time screenshots.'}
+      title={after ? `Send your screen-time screenshots from ${words.after}.` : 'Send your screen-time screenshots.'}
       intro={
         <p>
-          {after ? 'Take them on the last day of your break, before you unlock your apps, the same way as last time. ' : ''}This part takes a few minutes and goes to the team straight away. Take screenshots of your phone’s Screen Time (iPhone) or Digital Wellbeing (Android) summary, add them here and send them. Several are better than one: the weekly chart, the daily view and the full list of apps with their times.
+          {after ? (group === 'control' ? 'Take them the day before your second visit, the same way as last time. ' : 'Take them on the last day of your break, before you unlock your apps, the same way as last time. ') : ''}This part takes a few minutes and goes to the team straight away. Take screenshots of your phone’s Screen Time (iPhone) or Digital Wellbeing (Android) summary, add them here and send them. Several are better than one: the weekly chart, the daily view and the full list of apps with their times.
         </p>
       }
       errors={errors}

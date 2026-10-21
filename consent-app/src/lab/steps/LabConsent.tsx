@@ -9,9 +9,9 @@ import { announce } from '../../lib/announce';
 import { formatIsoDate, todayIso } from '../../lib/dates';
 import { limits } from '../../lib/validation';
 import { describeError, labClientInfo, labSession } from '../api';
-import { idDetails, labConsentForm, type LabStatement } from '../config';
+import { idDetails, type LabStatement } from '../config';
 import { LabShell } from '../LabShell';
-import { useLab } from '../store';
+import { useLab, useLabGroup } from '../store';
 import { ukMobile, validateLabConsent, type FieldError } from '../validation';
 
 /** A statement's note for the participant, and in preview builds the remark about its wording's approval. */
@@ -20,6 +20,7 @@ const hintOf = (s: LabStatement): string | undefined => [s.note, __PROTOTYPE__ ?
 /** The approved consent form: every statement ticked, a name, a signature and the date. Sent as soon as it is signed. */
 export function LabConsent() {
   const { state, dispatch } = useLab();
+  const labConsentForm = useLabGroup().forms.consent;
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [editDate, setEditDate] = useState(false);
   const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));

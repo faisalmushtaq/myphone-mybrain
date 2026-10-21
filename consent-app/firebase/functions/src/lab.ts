@@ -5,7 +5,10 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
-import { cleaner, labCheckInForm, labConsentForm, labInformationVersion, labStudy, PARTICIPANT_CODE, UK_POSTCODE } from './forms.js';
+import { cleaner, groupOf, labCheckInForm, labCheckInFormControl, labCheckInForms, labConsentForm, labConsentFormControl, labConsentForms, labInformationVersions, labStudy, PARTICIPANT_CODE, UK_POSTCODE, type LabGroup } from './forms.js';
+
+/** The group a consent form belongs to. */
+export const consentGroupOf = (formId: unknown): LabGroup => (formId === labConsentFormControl.id ? 'control' : 'break');
 import { checkImage, cleanImage, RejectedUpload, sha256 } from './images.js';
 import type { Quality } from './quality.js';
 import { sendMail } from './mail.js';
@@ -204,11 +207,14 @@ export function validateLabConsentPayload(input: unknown): string[] {
   const c = p.consent;
   if (!isObj(c)) problems.push('The consent record is missing.');
   else {
-    if (c.formId !== labConsentForm.id || c.formVersion !== labConsentForm.version) problems.push(`The consent form must be ${labConsentForm.id} ${labConsentForm.version}.`);
-    if (c.informationVersion !== labInformationVersion) problems.push(`The information shown must be version ${labInformationVersion}.`);
-    validateResponses(c.responses, labConsentForm, problems, 'Consent');
+    // Either group's form (21 October 2026): the form decides the group.
+    const group = consentGroupOf(c.formId);
+    const form = labConsentForms[group];
+    if (c.formId !== form.id || c.formVersion !== form.version) problems.push(`The consent form must be ${labConsentForm.id} ${labConsentForm.version} or ${labConsentFormControl.id} ${labConsentFormControl.version}.`);
+    if (c.informationVersion !== labInformationVersions[group]) problems.push(`The information shown must be version ${labInformationVersions[group]}.`);
+    validateResponses(c.responses, form, problems, 'Consent');
     const responses = isObj(c.responses) ? (c.responses as Record<string, StatementRecord>) : {};
-    for (const s of labConsentForm.statements) {
+    for (const s of form.statements) {
       if (s.kind === 'optional') {
         if (!responses[s.id]) problems.push(`Optional statement "${s.id}" was not answered.`);
       } else if (responses[s.id]?.response !== 'agreed') problems.push(`Statement "${s.id}" was not agreed; it is needed to take part.`);
@@ -260,13 +266,15 @@ export function validateLabCheckInPayload(input: unknown): string[] {
   if (!isObj(input)) return ['The check-in is not an object.'];
   const p = input as Partial<LabCheckInPayload>;
   if (!normaliseCode(p.participantCode)) problems.push('The participant ID is malformed.');
-  if (p.formId !== labCheckInForm.id || p.formVersion !== labCheckInForm.version) problems.push(`The check-in must be ${labCheckInForm.id} ${labCheckInForm.version}.`);
+  // Either group's check-in; the handler checks it is the participant's own group's.
+  const form = p.formId === labCheckInFormControl.id ? labCheckInFormControl : labCheckInForm;
+  if (p.formId !== form.id || p.formVersion !== form.version) problems.push(`The check-in must be ${labCheckInForm.id} ${labCheckInForm.version} or ${labCheckInFormControl.id} ${labCheckInFormControl.version}.`);
   if (!isObj(p.answers)) problems.push('The answers are malformed.');
   else {
     const answers = p.answers as Record<string, unknown>;
-    const known = new Set(labCheckInForm.questions.map((q) => q.id));
+    const known = new Set(form.questions.map((q) => q.id));
     for (const id of Object.keys(answers)) if (!known.has(id)) problems.push(`Unknown question "${id}".`);
-    for (const q of labCheckInForm.questions) {
+    for (const q of form.questions) {
       const a = answers[q.id];
       if (a === undefined || a === null || a === '') {
         if (q.required) problems.push(`Question "${q.id}" was not answered.`);
@@ -469,6 +477,9 @@ export const submitLabConsent = onCall(callOptions, async (request) => {
       logger.warn('Sign-up refused: over the age range', { participantCode: code });
       throw new HttpsError('invalid-argument', `This study is for people aged ${labStudy.minAge} to ${labStudy.maxAge}.`);
     }
+    // Someone already taking part stays in their group: a consent on the other group's form is refused.
+    const group = consentGroupOf(payload.consent.formId);
+    if (previous?.consentId && groupOf(previous) !== group) throw new HttpsError('failed-precondition', 'You are already taking part in the other part of this study. Please use the link the team gave you, or contact the team.');
     const version = Number(previous?.consentVersion ?? 0) + 1;
     const contactBefore = contactSnap.data();
     tx.create(consentRef, {
@@ -479,6 +490,7 @@ export const submitLabConsent = onCall(callOptions, async (request) => {
       formId: payload.consent.formId,
       formVersion: payload.consent.formVersion,
       informationVersion: payload.consent.informationVersion,
+      group,
       responses: payload.consent.responses,
       typedName: payload.consent.typedName.trim(),
       signature: signatureRecord(sig, stored),
@@ -497,6 +509,7 @@ export const submitLabConsent = onCall(callOptions, async (request) => {
         participantCode: code,
         consentId: consentRef.id,
         consentVersion: version,
+        group,
         consentedAt: previous?.consentedAt ?? receivedAt,
         lastConsentAt: receivedAt,
         sessionUids: FieldValue.arrayUnion(uid),
@@ -547,6 +560,8 @@ export const lookupLabParticipant = onCall(callOptions, async (request) => {
     phases: Object.fromEntries(PHASES.map((ph) => [ph, { ...phases[ph], platforms: Array.from(seen[ph]).sort() }])),
     checkIns: Number(participant.checkInCount ?? 0),
     lastCheckInAt: toIso(participant.lastCheckInAt),
+    // The participant's group (21 October 2026), so every page uses its words, forms and MyStory chat.
+    group: groupOf(participant),
     // The check-in already in, so an unfinished one carries on (its screenshot and story) on any device.
     checkInId: Array.isArray(participant.checkInIds) && participant.checkInIds.length ? String(participant.checkInIds[0]) : null,
     platformsNotUsed: notUsedOf(participant),
@@ -807,6 +822,7 @@ export const submitLabCheckIn = onCall(callOptions, async (request) => {
     if (before) return { checkInId: ref.id, receivedAt: before.receivedAt?.toDate?.().toISOString?.() ?? receivedAt.toISOString(), count: Number(before.number ?? 1), first: false };
     const participant = participantSnap.data();
     if (!participant?.consentId) throw new HttpsError('failed-precondition', 'We have no consent on file for this participant ID. Please check your details.');
+    if (labCheckInForms[groupOf(participant)].id !== payload.formId) throw new HttpsError('failed-precondition', 'This check-in is for the other part of the study. Please reload the page and try again.');
     // One check-in for each participant (20 October 2026), apart from the team's test accounts: answers sent again join the
     // first check-in rather than starting another, so an unfinished one (its screenshot or story still to come) carries on.
     const firstId = Array.isArray(participant.checkInIds) && participant.checkInIds.length ? String(participant.checkInIds[0]) : null;

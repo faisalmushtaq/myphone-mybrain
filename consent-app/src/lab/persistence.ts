@@ -1,4 +1,4 @@
-import { PARTICIPANT_CODE } from './config';
+import { PARTICIPANT_CODE, type LabGroup } from './config';
 import type { LabPhase } from '../api/types';
 import { labFlowPhase, type LabFlow, type LabState } from './model';
 import { emptyStory, initialLabState } from './reducer';
@@ -83,15 +83,15 @@ function rememberContact(c: { email: string; mobile: string; smsReminders: boole
 }
 
 /** A new page's starting point: the remembered code filled in, ready to confirm with one press, and the contact details from the last booking. */
-export function startingLabState(flow: LabFlow, phase?: LabPhase): LabState {
-  const base = initialLabState(flow, phase);
+export function startingLabState(flow: LabFlow, phase?: LabPhase, group: LabGroup = 'break'): LabState {
+  const base = initialLabState(flow, phase, group);
   const code = flow === 'baseline' ? null : rememberedCode();
   const contact = rememberedContact();
   const withContact = contact ? { ...base, booking: { ...base.booking, ...contact } } : base;
   return code ? { ...withContact, code, returning: true } : withContact;
 }
 
-export function loadLabState(flow: LabFlow, phase: LabPhase = labFlowPhase[flow]): LabState | null {
+export function loadLabState(flow: LabFlow, phase: LabPhase = labFlowPhase[flow], group: LabGroup = 'break'): LabState | null {
   const store = storage();
   if (!store) return null;
   const key = KEYS[flow];
@@ -106,7 +106,9 @@ export function loadLabState(flow: LabFlow, phase: LabPhase = labFlowPhase[flow]
       store.removeItem(key);
       return null;
     }
-    const base = initialLabState(flow, phase);
+    // The first page of the other group (the control group's has its own address, 21 October 2026): a sign-up there is not this one's.
+    if (flow === 'baseline' && (parsed.group ?? 'break') !== group) return null;
+    const base = initialLabState(flow, phase, group);
     const { savedAt: _ignored, ...rest } = parsed;
     const contact = rememberedContact();
     // A check-in sent a while ago is done: open ready for the next one, keeping only the code.
@@ -119,6 +121,7 @@ export function loadLabState(flow: LabFlow, phase: LabPhase = labFlowPhase[flow]
       // The page decides the flow and the phase; saved progress from before they existed is read in as the first page's.
       flow,
       phase,
+      group: flow === 'baseline' || group === 'control' ? group : (parsed.group ?? group),
       // What the server said about bookings is asked again on every visit; the contact details are kept.
       booking: { ...base.booking, email: parsed.booking?.email ?? contact?.email ?? '', mobile: parsed.booking?.mobile ?? contact?.mobile ?? '', smsReminders: parsed.booking?.smsReminders ?? contact?.smsReminders ?? true },
       // A story half-written for another phase's questions is not this page's.

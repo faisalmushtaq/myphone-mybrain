@@ -5,7 +5,7 @@ import { logger } from 'firebase-functions/v2';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { bookingFrom, bookingsOf, bookingState, bookingView, cancelVisits, contactOf, notifyVisits, placeVisits, toDate, visitWindow, type BookingState, type Contact, type Visit } from './booking.js';
 import { dailyPlan } from './dailyMessages.js';
-import { labBooking, schools } from './forms.js';
+import { groupOf, labBooking, schools } from './forms.js';
 import { normaliseCode, notUsedOf, phaseCountsOf, toIso } from './lab.js';
 import { participantLinks, schoolUploadLink } from './links.js';
 import { sendMail, settingsFromEnv } from './mail.js';
@@ -182,6 +182,7 @@ async function participantDetail(db: Firestore, code: string) {
   const state = bookingState(p, bookings, new Date());
   return {
     participantCode: code,
+    group: groupOf(p),
     exists: Boolean(p?.consentId),
     consentedAt: toIso(p?.consentedAt),
     phases: p ? phaseCountsOf(p) : null,
@@ -197,7 +198,7 @@ async function participantDetail(db: Firestore, code: string) {
     progressEmail: typeof reminder?.email === 'string' ? reminder.email : null,
     messages: plainOf(p?.messages) ?? {},
     messagesPaused: Boolean(p?.messagesPaused),
-    links: participantLinks(code),
+    links: participantLinks(code, groupOf(p)),
   };
 }
 
@@ -217,6 +218,7 @@ async function participantsList(db: Firestore) {
       const phases = phaseCountsOf(p);
       return {
         participantCode: d.id,
+        group: groupOf(p),
         consentedAt: toIso(p.consentedAt),
         pre: phases.pre,
         mid: phases.mid,

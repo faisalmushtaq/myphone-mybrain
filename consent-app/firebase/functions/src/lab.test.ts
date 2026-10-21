@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import JSZip from 'jszip';
-import { cleaner, labCheckInForm, labConsentForm, labInformationVersion } from './forms.js';
+import { cleaner, statementWording, labCheckInForm, labCheckInFormControl, labConsentForm, labConsentFormControl, labInformationVersion, labInformationVersionControl } from './forms.js';
 import { RejectedUpload } from './images.js';
-import { tooOldToJoin, ageAt, appsToCome, buildParticipantId, idName, inspectCleanedArchive, labFollowUpEmail, labStatusEmail, normaliseCode, normaliseCodeParts, notUsedOf, outstanding, phaseCountsOf, validateLabCheckInPayload, validateLabConsentPayload, validateLabDonationPayload, validateLabPlatformsPayload, validateLabReminderPayload, type LabProgress } from './lab.js';
+import { consentGroupOf, tooOldToJoin, ageAt, appsToCome, buildParticipantId, idName, inspectCleanedArchive, labFollowUpEmail, labStatusEmail, normaliseCode, normaliseCodeParts, notUsedOf, outstanding, phaseCountsOf, validateLabCheckInPayload, validateLabConsentPayload, validateLabDonationPayload, validateLabPlatformsPayload, validateLabReminderPayload, type LabProgress } from './lab.js';
 
 const now = new Date().toISOString();
 const client = { userAgent: 'test', submittedAt: now, timezoneOffset: 0 };
@@ -244,4 +244,20 @@ test('the progress email says what is in and what is still to come; the follow-u
   assert.ok(validateLabReminderPayload({ participantCode: 'nope', email: 'jane@example.com' }).includes('The participant ID is malformed.'));
   assert.deepEqual(validateLabReminderPayload({ participantCode: 'MP2670FF90A5F2', email: 'jane@example.com', phase: 'post' }), []);
   assert.ok(validateLabReminderPayload({ participantCode: 'MP2670FF90A5F2', email: 'jane@example.com', phase: 'mid' }).some((p) => p.includes('before or after the break')));
+});
+
+test('the control group (21 October 2026): its own consent form and information decide the group; its own check-in', () => {
+  const controlAgreed = Object.fromEntries(labConsentFormControl.statements.map((s) => [s.id, { statementId: s.id, version: s.version, response: 'agreed', respondedAt: now, via: 'individual' }]));
+  const control = { ...consent(), consent: { ...consent().consent, formId: labConsentFormControl.id, formVersion: labConsentFormControl.version, informationVersion: labInformationVersionControl, responses: controlAgreed } };
+  assert.deepEqual(validateLabConsentPayload(control), []);
+  assert.equal(consentGroupOf(control.consent.formId), 'control');
+  assert.equal(consentGroupOf(labConsentForm.id), 'break');
+  // The control form with the break group's information sheet is refused.
+  assert.ok(validateLabConsentPayload({ ...control, consent: { ...control.consent, informationVersion: labInformationVersion } }).some((p) => p.includes('information shown must be')));
+  assert.doesNotMatch(statementWording[labConsentFormControl.id].involves.text, /break|Brick/);
+  // The control check-in: its own questions, nothing about a break.
+  const answers = { 'use-change': 'same', mood: '4' };
+  assert.deepEqual(validateLabCheckInPayload({ participantCode: 'MP2670FF90A5F2', formId: labCheckInFormControl.id, formVersion: labCheckInFormControl.version, answers, client }), []);
+  assert.ok(validateLabCheckInPayload({ participantCode: 'MP2670FF90A5F2', formId: labCheckInFormControl.id, formVersion: labCheckInFormControl.version, answers: { ...answers, week: '2' }, client }).includes('Unknown question "week".'));
+  assert.ok(labCheckInFormControl.questions.every((q) => !/break|Brick/.test(`${q.text} ${q.label}`)));
 });

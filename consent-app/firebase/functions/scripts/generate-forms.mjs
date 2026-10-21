@@ -49,14 +49,28 @@ const questionForm = (f) => ({
   ),
 });
 
+/** A lab consent form as the server checks it. */
+const consentFormOf = (f) => ({ id: f.id, version: f.version, title: f.title, statements: f.statements.map((s) => ({ id: s.id, version: s.version, kind: s.kind, label: s.label, text: s.text })) });
+
+/** A check-in form as the server checks it and the export describes it. */
+const checkInFormOf = (f) => ({
+  id: f.id,
+  version: f.version,
+  questions: f.questions.map((q) =>
+    q.type === 'choice'
+      ? { id: q.id, version: q.version, type: 'choice', required: q.required, label: q.label, text: q.text, options: q.options.map((o) => ({ value: o.value, label: o.label })) }
+      : { id: q.id, version: q.version, type: 'text', required: q.required, label: q.label, text: q.text, maxLength: q.maxLength },
+  ),
+});
+
 /**
  * One phase's MyStory chat protocol, read from its TOML file (the MySelf /
  * KCL micro-narratives format) into what the server needs. Anything the chat
  * cannot run without is checked here, so a broken file stops the build rather
  * than a participant's conversation.
  */
-function chatProtocol(phase) {
-  const file = path.resolve(here, `../../../src/lab/mystory/${phase}.toml`);
+function chatProtocol(phase, name = phase) {
+  const file = path.resolve(here, `../../../src/lab/mystory/${name}.toml`);
   const t = parseToml(fs.readFileSync(file, 'utf8'));
   const m = t.myself ?? {};
   const fail = (what) => {
@@ -144,23 +158,14 @@ const generated = {
   // From this age a young person decides alone about sharing their screen time (null: never alone).
   selfConsentAge: studyConfig.study.selfConsentAge,
   // The social media break study (adults): required statements plus an optional record-linkage choice.
-  labConsentForm: {
-    id: lab.labConsentForm.id,
-    version: lab.labConsentForm.version,
-    title: lab.labConsentForm.title,
-    statements: lab.labConsentForm.statements.map((s) => ({ id: s.id, version: s.version, kind: s.kind, label: s.label, text: s.text })),
-  },
+  labConsentForm: consentFormOf(lab.labConsentForm),
   labInformationVersion: lab.labInformationVersion.version,
   // The mid-break check-in's questions.
-  labCheckInForm: {
-    id: lab.labCheckInForm.id,
-    version: lab.labCheckInForm.version,
-    questions: lab.labCheckInForm.questions.map((q) =>
-      q.type === 'choice'
-        ? { id: q.id, version: q.version, type: 'choice', required: q.required, label: q.label, text: q.text, options: q.options.map((o) => ({ value: o.value, label: o.label })) }
-        : { id: q.id, version: q.version, type: 'text', required: q.required, label: q.label, text: q.text, maxLength: q.maxLength },
-    ),
-  },
+  labCheckInForm: checkInFormOf(lab.labCheckInForm),
+  // The control group (21 October 2026): its own consent, information and check-in; no break.
+  labConsentFormControl: consentFormOf(lab.labConsentFormControl),
+  labInformationVersionControl: lab.labInformationVersionControl.version,
+  labCheckInFormControl: checkInFormOf(lab.labCheckInFormControl),
   labStudy: {
     studyId: lab.labStudy.studyId,
     minAge: lab.labStudy.minAge,
@@ -191,6 +196,8 @@ const generated = {
   storyModes: mystory.labMyStory.phases,
   // MyStory's AI chat, one MySelf protocol per phase (src/lab/mystory/<phase>.toml), checked here so a file that cannot run stops the build.
   storyChats: Object.fromEntries(['pre', 'mid', 'post'].map((phase) => [phase, chatProtocol(phase)])),
+  // The control group's versions (src/lab/mystory/control-<phase>.toml): no break.
+  storyChatsControl: Object.fromEntries(['pre', 'mid', 'post'].map((phase) => [phase, chatProtocol(phase, `control-${phase}`)])),
   schools: schools.map((x) => ({ slug: x.slug, id: x.id, name: x.name, area: x.area })),
 };
 

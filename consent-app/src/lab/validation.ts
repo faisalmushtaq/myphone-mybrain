@@ -1,12 +1,13 @@
 import type { LabConsentRecord } from '../api/types';
 import type { FieldError } from '../lib/validation';
-import { labConsentForm, labStudy } from './config';
+import { labConsentForm, labConsentFormControl, labStudy } from './config';
 
 export type { FieldError };
 
 export function validateLabConsent(consent: LabConsentRecord): FieldError[] {
   const errors: FieldError[] = [];
-  for (const s of labConsentForm.statements) {
+  const form = consent.formId === labConsentFormControl.id ? labConsentFormControl : labConsentForm;
+  for (const s of form.statements) {
     if (s.kind === 'optional') {
       if (!consent.responses[s.id]) errors.push({ field: `lab-stmt-${s.id}-agreed`, message: `Choose Yes or No for “${s.label}”.` });
     } else if (consent.responses[s.id]?.response !== 'agreed') errors.push({ field: `lab-stmt-${s.id}`, message: `Tick to confirm “${s.label}”. This statement is needed to take part.` });

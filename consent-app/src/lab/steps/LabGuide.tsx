@@ -10,7 +10,7 @@ import { labStudy } from '../config';
 import { apps, jumpTo, NextLink, Steps } from '../guideSteps';
 import { LabShell } from '../LabShell';
 import { PlatformChecklist } from '../PlatformChecklist';
-import { useLab } from '../store';
+import { useLab, useLabGroup } from '../store';
 
 /**
  * How to request a copy of your data from the app you use most. It can take
@@ -19,6 +19,7 @@ import { useLab } from '../store';
  */
 export function LabGuide() {
   const { state, dispatch } = useLab();
+  const { group } = useLabGroup();
   const [later, setLater] = useState(false);
   const [email, setEmail] = useState('');
   const [reminder, setReminder] = useState<{ kind: 'idle' } | { kind: 'sending' } | { kind: 'sent'; followUpAt: string } | { kind: 'not-sent'; message: string }>({ kind: 'idle' });
@@ -66,7 +67,7 @@ export function LabGuide() {
       title={after ? 'Request a new data download.' : 'Request your data download.'}
       intro={
         after ? (
-          <p>Once your apps are unlocked, ask each app you use for a fresh copy of your data, even if you still have the old file: the new one covers your break. It can take from a few minutes to a few days to arrive. Start now, then come back to this page with the files; you will choose exactly what to share before anything is sent.</p>
+          <p>{group === 'control' ? 'Ask each app you use for a fresh copy of your data, even if you still have the old file: the new one covers the last 30 days.' : 'Once your apps are unlocked, ask each app you use for a fresh copy of your data, even if you still have the old file: the new one covers your break.'} It can take from a few minutes to a few days to arrive. Start now, then come back to this page with the files; you will choose exactly what to share before anything is sent.</p>
         ) : (
           <p>Ask each of TikTok, YouTube and Instagram that you use for a copy of your data, starting with the one you use most. Each can take from a few minutes to a few days to arrive. Start now, then come back to this page with the files; you will choose exactly what to share before anything is sent.</p>
         )

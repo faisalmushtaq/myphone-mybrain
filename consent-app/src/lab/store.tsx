@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useReducer, type Dispatch, type R
 import { getApi } from '../api';
 import type { LabPhase } from '../api/types';
 import type { LabFlow, LabState } from './model';
+import { groupWords, labForms, type LabGroup } from './config';
+import { groupOfState } from './reducer';
 import { loadLabState, saveLabState, startingLabState } from './persistence';
 import { initialLabState, labReducer, type LabAction } from './reducer';
 
@@ -14,8 +16,8 @@ interface LabStore {
 
 const LabContext = createContext<LabStore | null>(null);
 
-export function LabStoreProvider({ flow, phase, atLab = false, children }: { flow: LabFlow; phase?: LabPhase; atLab?: boolean; children: ReactNode }) {
-  const [state, dispatch] = useReducer(labReducer, flow, (f: LabFlow) => (atLab ? initialLabState(f, phase) : (loadLabState(f, phase) ?? startingLabState(f, phase))));
+export function LabStoreProvider({ flow, phase, group = 'break', atLab = false, children }: { flow: LabFlow; phase?: LabPhase; group?: LabGroup; atLab?: boolean; children: ReactNode }) {
+  const [state, dispatch] = useReducer(labReducer, flow, (f: LabFlow) => (atLab ? initialLabState(f, phase, group) : (loadLabState(f, phase, group) ?? startingLabState(f, phase, group))));
 
   useEffect(() => {
     if (!atLab) saveLabState(state);
@@ -64,4 +66,11 @@ export function useLab(): LabStore {
   const store = useContext(LabContext);
   if (!store) throw new Error('useLab must be used inside LabStoreProvider');
   return store;
+}
+
+/** This person's group, its words and its forms (21 October 2026): from their record once known, else the page's. */
+export function useLabGroup() {
+  const { state } = useLab();
+  const group = groupOfState(state);
+  return { group, words: groupWords[group], forms: labForms[group] };
 }

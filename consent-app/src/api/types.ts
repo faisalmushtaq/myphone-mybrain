@@ -166,6 +166,8 @@ export interface LabPhaseCounts {
 /** What the server will say about a participant code, so someone can carry on where they left off, on any device. */
 export interface LabLookupResult {
   exists: boolean;
+  /** The participant's group (21 October 2026): the break group, or the control group, who keep using social media as usual. */
+  group?: 'break' | 'control';
   consentedAt: string | null;
   archives: number;
   screenshots: number;

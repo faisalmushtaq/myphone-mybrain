@@ -355,6 +355,135 @@ export const labCheckInForm: { id: string; version: string; title: string; quest
  * handled as personal data; the four details are kept with the consent
  * record (identifying data, never in the research dataset).
  */
+/* ── The control group (21 October 2026) ─────────────────────────────────
+ * The same two visits and data, the day-15 check-in and MyStory, but no
+ * social media break: controls carry on using social media as usual between
+ * the visits. They sign up on their own page (/break/control/); the group is
+ * kept with their consent, and every later page takes it from their record.
+ * The wording below is a draft for the ethics amendment.
+ */
+export type LabGroup = 'break' | 'control';
+
+const CONTROL_DRAFT = 'Draft wording for the control group (21 October 2026), for the ethics amendment.';
+
+export const labConsentFormControl: typeof labConsentForm = {
+  id: 'mpmb-lab-consent-control',
+  version: '1.0-draft',
+  title: labConsentForm.title,
+  statements: labConsentForm.statements.map((s) =>
+    s.id === 'involves'
+      ? {
+          ...s,
+          version: '1.0-control-draft',
+          text: 'I understand that participation in this study involves: two laboratory sessions about 30 days apart, between which I use my phone and social media as I normally would; completion of questionnaires, computer-based tasks and a brief check-in between the sessions; and sharing my smartphone and social media usage data, which I download, review and clean myself, together with screen-time screenshots.',
+          draft: CONTROL_DRAFT,
+        }
+      : s,
+  ),
+};
+
+export const labInformationVersionControl = { version: '2.2-control-draft', label: 'Participant information sheet of 21 February 2026, ages 18 to 24, adapted for the control group (draft)' };
+
+const controlSections: Record<string, Partial<LabInfoSection>> = {
+  what: {
+    summary: 'Two lab visits of about two hours, about 30 days apart, your usage data, and a brief check-in in between. No social media break.',
+    detail: [
+      'If you agree to participate, you will: attend two laboratory sessions, approximately two hours each, about 30 days apart; use your phone and social media as you normally would in between; follow our guide to download, review and clean your social media usage data, then upload it and your screen-time screenshots on this website, before the first visit and again before the second; and complete a brief check-in halfway between the visits, with a screen-time screenshot and a short chat about your social media use.',
+      'Visit 1, baseline (about 2 hours): an EEG recording (measurement of brain activity); an ECG recording (measurement of heart activity using small sensors on the skin); an eye-tracking system while completing computer tasks; computer-based cognitive tasks; and questionnaires about wellbeing and digital behaviour.',
+      'Visit 2, about 30 days later (about 2 hours): the EEG and ECG recordings are repeated, with eye-tracking during tasks, the cognitive tasks again, and follow-up questionnaires.',
+    ],
+  },
+  restriction: {
+    title: 'What happens between the visits?',
+    summary: 'You carry on using your phone and social media as usual. You are not asked to take a break or change anything.',
+    detail: [
+      'Between the two laboratory visits, you carry on using your phone and social media as you normally would. You are not asked to take a break from social media or to change how you use it.',
+      'Halfway between the visits, we will send you a link to a brief check-in. We will also send you a short message every day, to keep in touch; these need nothing from you.',
+    ],
+  },
+  risks: {
+    summary: 'No known serious risks. Mild discomfort from the sensors.',
+    detail: ['There are no known serious risks associated with these measurements. Possible risks include mild discomfort from wearing the EEG headset or ECG sensors.'],
+  },
+  compensation: {
+    detail: ['You will receive £25 for each completed laboratory visit, plus an additional £25 for completing all parts of the study, up to £75 in total. If you withdraw early, you will still receive £25 for each laboratory visit you have completed.'],
+  },
+};
+
+export const labInformationControl: LabInfoSection[] = labInformation.map((section) => ({ ...section, ...(controlSections[section.id] ?? {}), id: section.id }));
+
+export const labCheckInFormControl: typeof labCheckInForm = {
+  id: 'mpmb-lab-checkin-control',
+  version: '0.1-draft',
+  title: 'Midway check-in',
+  questions: [
+    {
+      id: 'use-change',
+      version: '0.1-draft',
+      type: 'choice',
+      label: 'Social media use compared with usual',
+      text: 'In the past week, how has your social media use compared with usual?',
+      hint: 'There is no wrong answer; an honest one helps the study most.',
+      required: true,
+      options: [
+        { value: 'much-less', label: 'Much less than usual' },
+        { value: 'less', label: 'A bit less than usual' },
+        { value: 'same', label: 'About the same' },
+        { value: 'more', label: 'A bit more than usual' },
+        { value: 'much-more', label: 'Much more than usual' },
+      ],
+    },
+    ...labCheckInForm.questions.filter((q) => q.id === 'mood'),
+    ...labCheckInForm.questions.filter((q) => q.id === 'notes').map((q) => ({ ...q, hint: 'For example, anything that has changed how you use your phone or social media lately.' })),
+  ],
+};
+
+/** Each group's forms and information, by group. */
+export const labForms = {
+  break: { consent: labConsentForm, information: labInformation, informationVersion: labInformationVersion, checkIn: labCheckInForm },
+  control: { consent: labConsentFormControl, information: labInformationControl, informationVersion: labInformationVersionControl, checkIn: labCheckInFormControl },
+} as const;
+
+/** The words that differ between the groups. */
+export const groupWords = {
+  break: {
+    study: 'Social media break study',
+    the: 'the break',
+    your: 'your break',
+    during: 'During your break',
+    before: 'before your break',
+    after: 'after your break',
+    After: 'After your break',
+    afterPage: 'after-break page',
+    midName: 'Mid-break check-in',
+    mid: 'mid-break check-in',
+    checkInTitle: 'How is your break going?',
+    firstStarts: 'the first starts your 30-day break, and the second is once the break is over',
+    secondWhen: 'once your 30-day break is over',
+    problems: 'Problems with Brick or the break?',
+    carryOn: 'Carry on with your break.',
+    lastDay: 'On the last day of your break, before you unlock your apps',
+  },
+  control: {
+    study: 'MyPhone/MyBrain lab study',
+    the: 'the 30 days',
+    your: 'the 30 days between your visits',
+    during: 'Between your visits',
+    before: 'before the 30 days',
+    after: 'after the 30 days',
+    After: 'After the 30 days',
+    afterPage: 'second data page',
+    midName: 'Midway check-in',
+    mid: 'midway check-in',
+    checkInTitle: 'How have things been going?',
+    firstStarts: 'the second is about 30 days after the first',
+    secondWhen: 'about 30 days after the first',
+    problems: 'Questions about the study?',
+    carryOn: 'Carry on as usual.',
+    lastDay: 'The day before your second visit',
+  },
+} as const;
+
 export const PARTICIPANT_CODE = /^MP[0-9A-F]{12}$/;
 
 export interface CodeParts {

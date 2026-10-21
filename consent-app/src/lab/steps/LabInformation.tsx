@@ -1,9 +1,11 @@
-import { labInformation, labInformationVersion, labStudy } from '../config';
+import { labStudy } from '../config';
+import { useLabGroup } from '../store';
 import { LabShell } from '../LabShell';
 import { useLab } from '../store';
 
 /** The approved participant information sheet, one line per section with the full wording underneath. */
 export function LabInformation() {
+  const { information: labInformation, informationVersion: labInformationVersion } = useLabGroup().forms;
   const { dispatch } = useLab();
   return (
     <LabShell kicker="About the study" title="What taking part involves." intro={<p>The participant information sheet, section by section. Open any line for the full wording. Please read it before you consent.</p>} onContinue={() => dispatch({ type: 'next' })} continueLabel="I have read this" width="wide">

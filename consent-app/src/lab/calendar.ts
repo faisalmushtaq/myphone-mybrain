@@ -58,14 +58,14 @@ export function downloadIcs(booking: LabBooking): string {
 const stamp = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 
 /** Google Calendar's page for adding the visit, for phones that do not open calendar files. */
-export function googleCalendarUrl(booking: LabBooking, code: string): string {
+export function googleCalendarUrl(booking: LabBooking, code: string, group: 'break' | 'control' = 'break'): string {
   const info = labBooking.visits.find((v) => v.visit === booking.visit);
   const url = new URL('https://calendar.google.com/calendar/render');
   url.searchParams.set('action', 'TEMPLATE');
   url.searchParams.set('text', info?.summary ?? 'MyPhone/MyBrain lab visit');
   url.searchParams.set('dates', `${stamp(booking.start)}/${stamp(booking.end)}`);
   url.searchParams.set('location', placeLine(booking.place));
-  url.searchParams.set('details', [info?.what, booking.place.directions, `Participant ID: ${code}`].filter(Boolean).join('\n'));
+  url.searchParams.set('details', [group === 'control' ? info?.whatControl : info?.what, booking.place.directions, `Participant ID: ${code}`].filter(Boolean).join('\n'));
   return url.toString();
 }
 

@@ -72,6 +72,7 @@ function Detail({ staff, code, onClose }: { staff: Staff; code: string; onClose:
       <div className="mpmb-tools__bar">
         <h2 className="mpmb-h3" id="detail-title">
           <span className="mpmb-mono">{detail.participantCode}</span>
+          {detail.group === 'control' && <span className="mpmb-tag"> Control group</span>}
         </h2>
         <Button variant="ghost" onClick={onClose}>
           Close
@@ -201,6 +202,7 @@ export function Participants({ staff }: { staff: Staff }) {
               <span className="mpmb-tools__main">
                 <Button variant="link" onClick={() => setOpen(r.participantCode)}>
                   <span className="mpmb-mono">{r.participantCode}</span>
+                  {r.group === 'control' && <span className="mpmb-tag"> Control</span>}
                 </Button>{' '}
                 consent {when(r.consentedAt)} · before: {files(r.pre)} · visit 1: {r.visit1 ? `${when(r.visit1.start)} (${r.visit1.status})` : r.toBook.includes(1) ? 'to book' : 'n/a'} · visit 2: {r.visit2 ? `${when(r.visit2.start)} (${r.visit2.status})` : r.toBook.includes(2) ? 'to book' : 'n/a'} · {r.checkIns} check-ins · after: {files(r.post)}
                 {r.missing.length && !r.visit1 ? ` · waiting for ${r.missing.join(', ')}` : ''}

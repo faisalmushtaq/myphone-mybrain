@@ -99,6 +99,82 @@ const reminderLines = [
   "Your mid-break check-in helps us understand how the break is really going. Please do it when you can: {link}",
 ];
 
+/**
+ * Each group's wording. The control group (21 October 2026) keeps using social media as usual, so its messages say
+ * nothing about a break and never suggest using it more or less: just keeping in touch. Draft for the ethics amendment.
+ */
+interface Wording {
+  opening: string[];
+  middle: string[];
+  milestones: Record<number, string>;
+  reminders: string[];
+  checkIn: string;
+  checkInDone: string;
+  thanksForTime: string;
+  nearlyTime: string;
+}
+
+const wordings: Record<'break' | 'control', Wording> = {
+  break: {
+    opening: openingLines,
+    middle: middleLines,
+    milestones,
+    reminders: reminderLines,
+    checkIn: "You've reached the mid-break check-in! Please share your screen-time screenshot and your story here: {link} Easy, hard or a bit of both, we'd like to hear how it's really been.",
+    checkInDone: 'Thanks for your mid-break check-in! It really helps to hear how the break is going.',
+    thanksForTime: "Thanks for sharing your time with us. When we next see you, we'd love to hear what the experience has been like.",
+    nearlyTime: "Nearly time to see you again! Please follow the team's instructions about when to finish your social media break.",
+  },
+  control: {
+    opening: [
+      "Thanks for joining the MyPhone/MyBrain study! There's nothing to change: just carry on as usual. We'll say hello each day.",
+      "We hope your day's going well. Nothing to do today, just a quick hello from the team.",
+      'Thanks for being part of the study. Carry on using your phone as you normally would.',
+      'Just a little hello from us today. Thanks for taking part!',
+      'Five days in! Thanks for sticking with the study.',
+      'Got a quiet moment today? Enjoy it however you like.',
+      'One week in! We really appreciate your time.',
+      "Here's to another week. Thanks for being part of MyPhone/MyBrain.",
+      'However today is going, thanks for being part of the study.',
+      "A quick hello from the team. We're grateful for your time!",
+      'Thanks for keeping going with the study. No task from us today.',
+      "We hope you're having a good day, whatever you're up to.",
+      "Thanks for keeping at it. We know you're fitting this around everything else in your life.",
+      "Two weeks in! Tomorrow we'll send you a link to tell us how things have been going.",
+    ],
+    middle: [
+      'Hello again! Thanks for carrying on with us. No task from us today.',
+      "Thanks for the time you're giving the study.",
+      'Just stopping by to say we appreciate you taking part. No need to reply!',
+      "A quick hello from the team. We hope today's a good one.",
+      'Thanks for being part of MyPhone/MyBrain. Your time really does make a difference to the research.',
+      "Hope today's treating you kindly.",
+      'Questions about the study? Email us at {email}.',
+      "We're grateful you're taking part. Enjoy your day.",
+      "You're well into the study now. Thank you!",
+      'Nothing to do today, just a hello and a thank-you from the team.',
+      'Every day helps the study. Thank you for staying with us.',
+      "Thanks for being part of the research. We hope you're well.",
+      "A quick hello: we're cheering you on!",
+      "Hope you've had a moment for yourself today.",
+      "Nice work. You've come a long way since day one.",
+    ],
+    milestones: {
+      21: 'Three weeks in! Sending a big thank-you from the study team.',
+      28: "Four weeks in! Thank you for everything you've put into the study so far.",
+    },
+    reminders: [
+      "Just a reminder: your midway check-in is still open, and we'd love to hear how things are going. About 20 minutes: {link}",
+      'Got 20 minutes today? Your midway check-in is still waiting for you: a screenshot and your story. {link}',
+      'Your midway check-in helps us understand how things have really been going. Please do it when you can: {link}',
+    ],
+    checkIn: "You've reached the midway check-in! Please share your screen-time screenshot and your story here: {link} We'd like to hear how things have really been.",
+    checkInDone: 'Thanks for your midway check-in! It really helps to hear how things are going.',
+    thanksForTime: "Thanks for sharing your time with us. When we next see you, we'd love to hear how the month has been.",
+    nearlyTime: 'Nearly time to see you again! Have a quick look at your booking so you know where to find us.',
+  },
+};
+
 export interface DailyContext {
   /** Days from the first visit to the second (breakLength). */
   days: number;
@@ -107,12 +183,15 @@ export interface DailyContext {
   checkInDone: boolean;
   checkInLink: string;
   contactEmail: string;
+  /** The participant's group (21 October 2026); the break group if not given. */
+  group?: 'break' | 'control';
 }
 
 /** What a day's message is and says (without the "MyPhone/MyBrain:" at the start of a text). */
 export function dailyMessage(day: number, ctx: DailyContext): { kind: DailyKind; line: string } {
   const fill = (s: string) => s.replace('{link}', ctx.checkInLink).replace('{email}', ctx.contactEmail);
   const { days } = ctx;
+  const w = wordings[ctx.group ?? 'break'];
   if (day > days) return { kind: 'thank-you', line: "A big thank-you from all of us! We're grateful for your time and for sharing your experience with us." };
   if (day === days - 1)
     return {
@@ -120,19 +199,17 @@ export function dailyMessage(day: number, ctx: DailyContext): { kind: DailyKind;
       line: ctx.visit2 ? `Not long now! Your second lab visit is tomorrow, ${ukShortDate(ctx.visit2.start)} at ${ukClock(ctx.visit2.start)}, ${ctx.visit2.place}. We look forward to seeing you.` : "Not long now! Your second lab visit is coming up: the details are in your email. We look forward to seeing you.",
     };
   if (day === labCheckInDay) {
-    return ctx.checkInDone
-      ? { kind: 'daily', line: 'Thanks for your mid-break check-in! It really helps to hear how the break is going.' }
-      : { kind: 'check-in', line: fill("You've reached the mid-break check-in! Please share your screen-time screenshot and your story here: {link} Easy, hard or a bit of both, we'd like to hear how it's really been.") };
+    return ctx.checkInDone ? { kind: 'daily', line: w.checkInDone } : { kind: 'check-in', line: fill(w.checkIn) };
   }
-  if (day > labCheckInDay && !ctx.checkInDone) return { kind: 'check-in-reminder', line: fill(reminderLines[(day - labCheckInDay - 1) % reminderLines.length]) };
+  if (day > labCheckInDay && !ctx.checkInDone) return { kind: 'check-in-reminder', line: fill(w.reminders[(day - labCheckInDay - 1) % w.reminders.length]) };
   if (day === days - 4) return { kind: 'visit-soon', line: ctx.visit2 ? `Your second lab visit is coming up on ${ukShortDate(ctx.visit2.start)}. Have a quick look at your booking so you know when we'll see you!` : 'Your second lab visit is coming up. Have a quick look at your booking so you know when we will see you!' };
-  if (day === days - 3) return { kind: 'daily', line: "Thanks for sharing your time with us. When we next see you, we'd love to hear what the experience has been like." };
-  if (day === days - 2) return { kind: 'daily', line: "Nearly time to see you again! Please follow the team's instructions about when to finish your social media break." };
-  if (day <= openingLines.length) return { kind: 'daily', line: openingLines[day - 1] };
-  if (milestones[day]) return { kind: 'daily', line: milestones[day] };
+  if (day === days - 3) return { kind: 'daily', line: w.thanksForTime };
+  if (day === days - 2) return { kind: 'daily', line: w.nearlyTime };
+  if (day <= w.opening.length) return { kind: 'daily', line: w.opening[day - 1] };
+  if (w.milestones[day]) return { kind: 'daily', line: w.milestones[day] };
   let index = 0;
-  for (let d = labCheckInDay + 1; d < day; d += 1) if (!milestones[d]) index += 1;
-  return { kind: 'daily', line: fill(middleLines[index % middleLines.length]) };
+  for (let d = labCheckInDay + 1; d < day; d += 1) if (!w.milestones[d]) index += 1;
+  return { kind: 'daily', line: fill(w.middle[index % w.middle.length]) };
 }
 
 /** Whether a message asks the person to do something, so it goes by email as well as by text. */

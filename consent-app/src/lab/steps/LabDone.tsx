@@ -11,7 +11,7 @@ import { labMyStory, storySurveyUrl } from '../mystory';
 import { clearLabState } from '../persistence';
 import { namesOf, PlatformChecklist } from '../PlatformChecklist';
 import { phaseHave, platformsToDo, readyToBook, storyTold } from '../reducer';
-import { useLab } from '../store';
+import { useLab, useLabGroup } from '../store';
 import { filesPhrase } from '../words';
 
 type CopyStatus = { kind: 'idle' } | { kind: 'working' } | { kind: 'done'; fileName: string } | { kind: 'failed' };
@@ -21,6 +21,7 @@ type CopyStatus = { kind: 'idle' } | { kind: 'working' } | { kind: 'done'; fileN
  * booking the visits), and after the check-in. A chat with Remi, or another survey if that phase is run elsewhere.
  */
 function StoryCard({ code, phase, onOpen }: { code: string; phase: 'pre' | 'mid' | 'post'; onOpen: () => void }) {
+  const { group, words } = useLabGroup();
   const mode = labMyStory.phases[phase];
   const url = storySurveyUrl(phase, code);
   return (
@@ -31,8 +32,8 @@ function StoryCard({ code, phase, onOpen }: { code: string; phase: 'pre' | 'mid'
         {phase === 'pre'
           ? 'Before you book your lab visits: a short chat with Remi about your social media use, about fifteen minutes. It is labelled with your participant ID, never your name.'
           : phase === 'post'
-            ? 'A short chat with Remi about your break and how it went, about fifteen minutes. It is labelled with your participant ID, never your name.'
-            : 'A short chat with Remi about your break so far, about fifteen minutes. It is labelled with your participant ID, never your name.'}
+            ? `A short chat with Remi about ${group === 'control' ? 'your social media use over the 30 days' : 'your break and how it went'}, about fifteen minutes. It is labelled with your participant ID, never your name.`
+            : `A short chat with Remi about ${group === 'control' ? 'your social media use lately' : `${words.your} so far`}, about fifteen minutes. It is labelled with your participant ID, never your name.`}
       </p>
       {mode.mode === 'link' && url ? (
         <a className="mpmb-btn mpmb-btn--primary" href={url} target="_blank" rel="noopener noreferrer">
@@ -53,6 +54,7 @@ function StoryCard({ code, phase, onOpen }: { code: string; phase: 'pre' | 'mid'
 /** The lab visits from this page: the ones still to come, or booking them (both together) once the data is in. */
 function VisitsCard({ onBook }: { onBook: () => void }) {
   const { state } = useLab();
+  const { group, words } = useLabGroup();
   const gap = state.booking.options?.gap ?? labBooking.visit2AfterDays;
   const standing = state.booking.options ? state.booking.options.bookings.filter((b) => b.status === 'booked' || b.status === 'attended').map((b) => ({ visit: b.visit, start: b.start, end: b.end as string | null })) : (state.progress?.visits ?? []).filter((v) => v.status === 'booked' || v.status === 'attended').map((v) => ({ visit: v.visit, start: v.start, end: null as string | null }));
   const has = (v: 1 | 2) => standing.some((b) => b.visit === v);
@@ -67,9 +69,9 @@ function VisitsCard({ onBook }: { onBook: () => void }) {
         <h2 className="mpmb-h3">{bookBoth ? 'Book your two lab visits.' : `Book your ${visitName(missing!)}.`}</h2>
         <p>
           {bookBoth
-            ? `Your data from before the break is in, so you can book your visits now, both together: the first starts your 30-day break, and the second is once the break is over, ${gap.min} to ${gap.max} days after the first. Each takes about two hours.`
+            ? `Your data from ${words.before} is in, so you can book your visits now, both together: ${words.firstStarts}${group === 'control' ? ` (${gap.min} to ${gap.max} days)` : `, ${gap.min} to ${gap.max} days after the first`}. Each takes about two hours.`
             : missing === 2
-              ? `Your second visit is once your 30-day break is over, ${gap.min} to ${gap.max} days after the first. Choose a time for it now, so it is in your calendar.`
+              ? `Your second visit is ${words.secondWhen}, ${gap.min} to ${gap.max} days after the first. Choose a time for it now, so it is in your calendar.`
               : 'Choose a new time for your first visit.'}
         </p>
         <Button variant="primary" arrow onClick={onBook}>
@@ -99,6 +101,7 @@ function VisitsCard({ onBook }: { onBook: () => void }) {
 
 export function LabDone() {
   const { state, dispatch } = useLab();
+  const { group, words } = useLabGroup();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [copy, setCopy] = useState<CopyStatus>({ kind: 'idle' });
   const { submission, flow } = state;
@@ -134,17 +137,19 @@ export function LabDone() {
     dispatch({ type: 'reset' });
   };
 
-  const title = flow === 'checkin' ? 'Thank you. Your check-in has been sent.' : flow === 'after' ? 'Thank you. Your after-break data is in.' : 'Thank you. Your data has been sent.';
+  const title = flow === 'checkin' ? 'Thank you. Your check-in has been sent.' : flow === 'after' ? `Thank you. Your data from ${words.after} is in.` : 'Thank you. Your data has been sent.';
   const when = flow === 'checkin' ? state.checkIn.sentAt : submission.lastDonationAt;
   const steps =
     flow === 'checkin'
-      ? ['Carry on with your break. There is one check-in, so you have nothing more to do here.', 'If anything goes wrong with Brick or the break, contact the team; it is useful to know.', 'On the last day of your break, before you unlock your apps, take your screen-time screenshots on the after-break page; once your apps are unlocked, request your new data downloads.']
+      ? group === 'control'
+        ? [`${words.carryOn} There is one check-in, so you have nothing more to do here.`, 'If you have any questions about the study, contact the team.', `${words.lastDay}, take your screen-time screenshots on the ${words.afterPage} and request your new data downloads.`]
+        : ['Carry on with your break. There is one check-in, so you have nothing more to do here.', 'If anything goes wrong with Brick or the break, contact the team; it is useful to know.', 'On the last day of your break, before you unlock your apps, take your screen-time screenshots on the after-break page; once your apps are unlocked, request your new data downloads.']
       : flow === 'after'
         ? ['Bring your phone to your second lab visit. The team will be able to see that your files have arrived.', 'If a data download arrives later, come back to this page, enter your details and add it.']
         : [
             canCopy ? 'Download a copy of your consent and keep it somewhere safe. Nothing is emailed to you.' : 'Your consent was recorded earlier; the team holds the record.',
             'Bring your phone to your first lab visit. The team will be able to see that your files have arrived.',
-            'On day 15 of your break, we send you a link to your mid-break check-in; afterwards, send your data again on the after-break page. Both find you from the same details you gave today; there is nothing to sign again.',
+            `On day 15, we send you a link to your ${words.mid}; afterwards, send your data again on the ${words.afterPage}. Both find you from the same details you gave today; there is nothing to sign again.`,
           ];
 
   return (
@@ -169,7 +174,7 @@ export function LabDone() {
           <>
             <div className="mpmb-done__why">
               <p>
-                <strong>Received {flow === 'after' ? 'from after your break' : 'from before your break'}: {filesPhrase(have)}.</strong> This is the part of the study no one else can provide: what you actually did on your phone, with your own choices about what to share.
+                <strong>Received from {flow === 'after' ? words.after : words.before}: {filesPhrase(have)}.</strong> This is the part of the study no one else can provide: what you actually did on your phone, with your own choices about what to share.
               </p>
             </div>
             <section aria-labelledby="done-apps">
@@ -197,11 +202,11 @@ export function LabDone() {
             <p className="mpmb-hint">
               {flow === 'baseline' ? (
                 <>
-                  Pages for later: <a href={labPages.checkin.path}>mid-break check-in</a> · <a href={labPages.after.path}>after your break</a>.
+                  Pages for later: <a href={labPages.checkin.path}>{words.mid}</a> · <a href={labPages.after.path}>{words.after}</a>.
                 </>
               ) : (
                 <>
-                  When the break is over: <a href={labPages.after.path}>after your break</a>.
+                  When {words.the} {group === 'control' ? 'are' : 'is'} over: <a href={labPages.after.path}>{words.after}</a>.
                 </>
               )}
             </p>
@@ -239,7 +244,7 @@ export function LabDone() {
           <Button variant="link" onClick={finish}>
             Clear my details from this device
           </Button>{' '}
-          Everything you sent is already with the team. On your own phone, leave it: the check-ins and the after-break page will recognise you.
+          Everything you sent is already with the team. On your own phone, leave it: the check-in and the {words.afterPage} will recognise you.
         </p>
       </div>
     </div>

@@ -77,6 +77,7 @@ export const statementWording: Record<string, Record<string, { label: string; te
   [generated.parentConsentForm.id]: Object.fromEntries(generated.parentConsentForm.statements.map((s) => [s.id, { label: s.label as string, text: s.text as string }])),
   [generated.childAssentForm.id]: Object.fromEntries(generated.childAssentForm.statements.map((s) => [s.id, { label: s.label as string, text: s.text as string }])),
   [generated.labConsentForm.id]: Object.fromEntries(generated.labConsentForm.statements.map((s) => [s.id, { label: s.label as string, text: s.text as string }])),
+  [generated.labConsentFormControl.id]: Object.fromEntries(generated.labConsentFormControl.statements.map((s) => [s.id, { label: s.label as string, text: s.text as string }])),
 };
 
 export const study = {
@@ -108,6 +109,24 @@ export const labConsentForm = {
 
 export const labInformationVersion: string = generated.labInformationVersion;
 
+/** The two groups of the break study (21 October 2026): the break, and the control group, who keep using social media as usual. */
+export type LabGroup = 'break' | 'control';
+export const LAB_GROUPS: LabGroup[] = ['break', 'control'];
+/** A participant's group, from their record: everyone before the control group began is in the break group. */
+export const groupOf = (participant: { group?: unknown } | undefined | null): LabGroup => (participant?.group === 'control' ? 'control' : 'break');
+
+export const labConsentFormControl = {
+  id: generated.labConsentFormControl.id,
+  version: generated.labConsentFormControl.version,
+  title: generated.labConsentFormControl.title,
+  statements: generated.labConsentFormControl.statements.map(served),
+};
+export const labInformationVersionControl: string = generated.labInformationVersionControl;
+
+/** Each group's consent form and information version. */
+export const labConsentForms: Record<LabGroup, { id: string; version: string; title: string; statements: typeof labConsentForm.statements }> = { break: labConsentForm, control: labConsentFormControl };
+export const labInformationVersions: Record<LabGroup, string> = { break: labInformationVersion, control: labInformationVersionControl };
+
 export const labStudy = {
   studyId: generated.labStudy.studyId,
   minAge: generated.labStudy.minAge,
@@ -129,15 +148,21 @@ export const labStudy = {
 /** The mid-break check-in's questions (labCheckInForm in src/lab/config.ts): what the server accepts and the export describes. */
 export type ServedCheckInQuestion = { id: string; version: string; type: 'choice'; required: boolean; label: string; text: string; options: { value: string; label: string }[] } | { id: string; version: string; type: 'text'; required: boolean; label: string; text: string; maxLength: number };
 
-export const labCheckInForm = {
-  id: generated.labCheckInForm.id as string,
-  version: generated.labCheckInForm.version as string,
-  questions: generated.labCheckInForm.questions.map((q): ServedCheckInQuestion =>
+type GeneratedCheckIn = { id: string; version: string; questions: readonly ({ id: string; version: string; type: string; required: boolean; label: string; text: string; options?: readonly { value: string; label: string }[]; maxLength?: number })[] };
+const servedCheckIn = (f: GeneratedCheckIn) => ({
+  id: f.id,
+  version: f.version,
+  questions: f.questions.map((q): ServedCheckInQuestion =>
     q.type === 'choice'
-      ? { id: q.id, version: q.version, type: 'choice', required: q.required, label: q.label, text: q.text, options: q.options.map((o) => ({ value: o.value as string, label: o.label as string })) }
-      : { id: q.id, version: q.version, type: 'text', required: q.required, label: q.label, text: q.text, maxLength: q.maxLength },
+      ? { id: q.id, version: q.version, type: 'choice', required: q.required, label: q.label, text: q.text, options: (q.options ?? []).map((o) => ({ value: o.value, label: o.label })) }
+      : { id: q.id, version: q.version, type: 'text', required: q.required, label: q.label, text: q.text, maxLength: q.maxLength ?? 1000 },
   ),
-};
+});
+
+export const labCheckInForm = servedCheckIn(generated.labCheckInForm as unknown as GeneratedCheckIn);
+export const labCheckInFormControl = servedCheckIn(generated.labCheckInFormControl as unknown as GeneratedCheckIn);
+/** Each group's check-in. */
+export const labCheckInForms: Record<LabGroup, typeof labCheckInForm> = { break: labCheckInForm, control: labCheckInFormControl };
 
 /** The participant ID, for example MP2670FF90A5F2: "MP" and 12 hexadecimal digits of a hash of the person's details; see src/lab/config.ts. */
 export const PARTICIPANT_CODE = new RegExp(generated.labStudy.participantCodePattern);
@@ -169,7 +194,7 @@ export interface BookingReminder {
 /** Booking the two lab visits: what must have arrived first, the windows, the reminders. */
 export const labBooking = {
   requires: { screenshots: generated.labBooking.requires.screenshots as number, archives: generated.labBooking.requires.archives as number },
-  visits: generated.labBooking.visits.map((v) => ({ visit: v.visit as 1 | 2, title: v.title as string, summary: v.summary as string, what: v.what as string })),
+  visits: generated.labBooking.visits.map((v) => ({ visit: v.visit as 1 | 2, title: v.title as string, summary: v.summary as string, what: v.what as string, whatControl: v.whatControl as string })),
   minutes: generated.labBooking.minutes as number,
   visit2AfterDays: { min: generated.labBooking.visit2AfterDays.min as number, max: generated.labBooking.visit2AfterDays.max as number },
   minNoticeHours: generated.labBooking.minNoticeHours as number,
@@ -237,6 +262,9 @@ export interface ChatProtocol {
   safeguarding: { key: string; tier: string; terms: string[] }[];
 }
 export const storyChats = generated.storyChats as unknown as Record<StoryPhase, ChatProtocol>;
+/** The control group's chats (control-<phase>.toml): no break. */
+export const storyChatsControl = generated.storyChatsControl as unknown as Record<StoryPhase, ChatProtocol>;
+export const storyChatsFor = (group: LabGroup) => (group === 'control' ? storyChatsControl : storyChats);
 
 export interface SchoolEntry {
   slug: string;

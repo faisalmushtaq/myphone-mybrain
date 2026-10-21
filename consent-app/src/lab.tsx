@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { LabApp } from './lab/LabApp';
 import type { LabPhase } from './api/types';
 import type { LabFlow } from './lab/model';
+import type { LabGroup } from './lab/config';
 import './styles/app.css';
 
 const mount = document.getElementById('mpmb-lab-app');
@@ -21,6 +22,11 @@ function phaseOf(flow: LabFlow): LabPhase | undefined {
 }
 
 /** MyStory told at a lab visit, on the lab's computer (?at=lab, from the staff page's links): nothing is kept on the device. */
+/** The control group's first page (/break/control/) says so with data-group="control"; the plain test page takes ?group=control. */
+function groupOf(el: HTMLElement): LabGroup {
+  return (el.dataset.group ?? new URLSearchParams(window.location.search).get('group')) === 'control' ? 'control' : 'break';
+}
+
 const atLabOf = (flow: LabFlow) => flow === 'story' && new URLSearchParams(window.location.search).get('at') === 'lab';
 
 if (mount) {
@@ -28,7 +34,7 @@ if (mount) {
   const flow = flowOf(mount);
   createRoot(mount).render(
     <StrictMode>
-      <LabApp flow={flow} phase={phaseOf(flow)} atLab={atLabOf(flow)} />
+      <LabApp flow={flow} phase={phaseOf(flow)} atLab={atLabOf(flow)} group={groupOf(mount)} />
     </StrictMode>,
   );
 }

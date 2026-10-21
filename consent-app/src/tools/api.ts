@@ -87,6 +87,8 @@ export interface Overview {
 
 export interface ParticipantRow {
   participantCode: string;
+  /** The break group or the control group (21 October 2026). */
+  group?: 'break' | 'control';
   consentedAt: string | null;
   pre: { archives: number; screenshots: number };
   mid: { archives: number; screenshots: number };
@@ -103,6 +105,7 @@ export interface ParticipantRow {
 
 export interface ParticipantDetail {
   participantCode: string;
+  group?: 'break' | 'control';
   exists: boolean;
   consentedAt: string | null;
   phases: Record<'pre' | 'mid' | 'post', { archives: number; screenshots: number }> | null;

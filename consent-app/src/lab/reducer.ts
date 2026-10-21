@@ -1,7 +1,7 @@
 import type { LabBookingOptions, LabConsentRecord, LabLookupResult, LabPhase, LabPhone, LabPlatform, StoryAnswer } from '../api/types';
 import { todayIso } from '../lib/dates';
 import type { SessionInfo, SignatureRecord } from '../model/types';
-import { labConsentForm, labInformationVersion, labStudy, type CodeParts } from './config';
+import { labForms, labStudy, type CodeParts, type LabGroup } from './config';
 
 /** The apps whose data the study takes, in the order they are listed. */
 export const labPlatforms: LabPlatform[] = [...labStudy.platforms];
@@ -46,15 +46,20 @@ export type LabAction =
   | { type: 'restored'; state: LabState }
   | { type: 'reset' };
 
-export function initialConsent(): LabConsentRecord {
-  return { formId: labConsentForm.id, formVersion: labConsentForm.version, informationVersion: labInformationVersion.version, responses: {}, typedName: '', signature: null, confirmedDate: todayIso(), completedAt: null };
+export function initialConsent(group: LabGroup = 'break'): LabConsentRecord {
+  const forms = labForms[group];
+  return { formId: forms.consent.id, formVersion: forms.consent.version, informationVersion: forms.informationVersion.version, responses: {}, typedName: '', signature: null, confirmedDate: todayIso(), completedAt: null };
 }
+
+/** This person's group: from their record once it is known, else the page's (21 October 2026). */
+export const groupOfState = (state: Pick<LabState, 'group' | 'progress'>): LabGroup => state.progress?.group ?? state.group;
 
 export const emptyStory = (): LabStoryState => ({ promptId: '', title: '', story: '', answers: {}, sent: [] });
 
-export function initialLabState(flow: LabFlow = 'baseline', phase: LabPhase = labFlowPhase[flow]): LabState {
+export function initialLabState(flow: LabFlow = 'baseline', phase: LabPhase = labFlowPhase[flow], group: LabGroup = 'break'): LabState {
   return {
     flow,
+    group,
     stepId: labFlowSteps[flow][0],
     codeParts: { firstName: '', lastName: '', dateOfBirth: { day: '', month: '', year: '' }, postcode: '' },
     code: '',
@@ -63,7 +68,7 @@ export function initialLabState(flow: LabFlow = 'baseline', phase: LabPhase = la
     // Set when the ID comes from a link or this device's memory: confirmed with one press instead of the four details.
     returning: false,
     carryOn: false,
-    consent: initialConsent(),
+    consent: initialConsent(group),
     phone: null,
     phase,
     progress: null,
@@ -165,7 +170,7 @@ export function labReducer(state: LabState, action: LabAction): LabState {
       return { ...state, carryOn: action.on };
     case 'confirm-code': {
       // A different person on this device: their consent, files and progress are not this one's.
-      const base = state.confirmedCode && state.confirmedCode !== action.code ? { ...initialLabState(state.flow, state.phase), session: state.session, codeParts: state.codeParts, stepId: state.stepId, booking: { ...initialLabState(state.flow).booking, email: state.booking.email, mobile: state.booking.mobile, smsReminders: state.booking.smsReminders } } : state;
+      const base = state.confirmedCode && state.confirmedCode !== action.code ? { ...initialLabState(state.flow, state.phase, state.group), session: state.session, codeParts: state.codeParts, stepId: state.stepId, booking: { ...initialLabState(state.flow).booking, email: state.booking.email, mobile: state.booking.mobile, smsReminders: state.booking.smsReminders } } : state;
       const onFile = action.lookup.exists;
       // Someone signing up: their name, from the details they just gave, starts the consent's typed name.
       const typedName = base.consent.typedName || [base.codeParts.firstName.trim(), base.codeParts.lastName.trim()].filter(Boolean).join(' ');
@@ -296,7 +301,7 @@ export function labReducer(state: LabState, action: LabAction): LabState {
     case 'restored':
       return { ...action.state, restored: true };
     case 'reset':
-      return initialLabState(state.flow, state.phase);
+      return initialLabState(state.flow, state.phase, state.group);
     default:
       return state;
   }

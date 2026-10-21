@@ -5,10 +5,10 @@ import { Callout } from "../../components/ui/Callout";
 import { ChoiceField, FieldWrapper } from "../../components/ui/Field";
 import { announce } from "../../lib/announce";
 import { describeError, labClientInfo, labSession } from "../api";
-import { labCheckInForm, labStudy } from "../config";
+import { labStudy } from "../config";
 import { LabShell } from "../LabShell";
 import { ShotPicker } from "../ShotPicker";
-import { useLab } from "../store";
+import { useLab, useLabGroup } from "../store";
 import { useLabSender } from "../useLabSender";
 import type { FieldError } from "../validation";
 
@@ -20,6 +20,8 @@ import type { FieldError } from "../validation";
  */
 export function LabCheckIn() {
   const { state, dispatch } = useLab();
+  const { forms, words } = useLabGroup();
+  const labCheckInForm = forms.checkIn;
   const { send, busy: sending } = useLabSender();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [busy, setBusy] = useState(false);
@@ -146,7 +148,7 @@ export function LabCheckIn() {
   if (!ready) {
     return (
       <LabShell
-        kicker="Mid-break check-in"
+        kicker={words.midName}
         title="First, tell us who you are."
         intro={
           <p>
@@ -174,8 +176,8 @@ export function LabCheckIn() {
 
   return (
     <LabShell
-      kicker="Mid-break check-in"
-      title="How is your break going?"
+      kicker={words.midName}
+      title={words.checkInTitle}
       intro={
         <p>
           A few quick questions about the past week. There are no right answers,
@@ -276,8 +278,8 @@ export function LabCheckIn() {
       <p className="mpmb-hint">
         Sent to the study’s secure storage at the University of Leeds, labelled
         with your participant ID{" "}
-        <strong className="mpmb-mono">{state.code}</strong>. Problems with Brick
-        or the break? Contact {labStudy.contact.name} at{" "}
+        <strong className="mpmb-mono">{state.code}</strong>. {words.problems}{" "}
+        Contact {labStudy.contact.name} at{" "}
         <a href={`mailto:${labStudy.contact.email}`}>
           {labStudy.contact.email}
         </a>

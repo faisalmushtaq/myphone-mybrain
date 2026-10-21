@@ -1173,7 +1173,7 @@ async function inner() {
     await page.getByRole('button', { name: /Next: check and send/ }).click();
     await page.getByRole('heading', { name: /Check and send/ }).waitFor();
     await page.getByRole('button', { name: 'Send my data' }).click();
-    await page.getByRole('heading', { name: /after-break data is in/ }).waitFor({ timeout: 90000 });
+    await page.getByRole('heading', { name: /data from after your break is in/ }).waitFor({ timeout: 90000 });
     ok('after the break, TikTok is ticked off, and MyStory comes next', (await page.getByText('Every app you use is ticked off. Thank you.').count()) === 1 && (await page.getByRole('heading', { name: 'Tell MyStory your story.' }).count()) === 1);
     await snap('after-done');
     const labP4 = (await db.collection('labParticipants').doc('MP2670FF90A5F2').get()).data();
@@ -1208,7 +1208,7 @@ async function inner() {
     const labBeh = await readExport('social-media-break/donations/sub-MP2670FF90A5F2/ses-pre/beh/sub-MP2670FF90A5F2_ses-pre_task-donation_beh.tsv');
     const watchTsv = await readExport('social-media-break/donations/sub-MP2670FF90A5F2/ses-pre/beh/sub-MP2670FF90A5F2_ses-pre_task-tiktokwatch_run-02_beh.tsv');
     const checkinTsv = await readExport('social-media-break/donations/phenotype/checkin.tsv');
-    ok('the check-ins are exported, one row each, with their mid-break screenshot in ses-mid and the after-break files in ses-post', checkinTsv.startsWith('participant_id\tsession_id\tcheck_in_id\tcheck_in_n\tsubmitted_at\tform_version\tweek\tapps_used\tmood\tdifficulty\tmissed\tnotes\n') && checkinTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && checkinTsv.includes('\t2\tonce-or-twice\t4\t3\t2\tBrick held up fine.') && labManifest.counts?.labCheckIns === 1 && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-mid/sub-MP2670FF90A5F2_ses-mid_run-01_screenshot.png') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-post/sub-MP2670FF90A5F2_ses-post_run-01_screenshot.png') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-post/sub-MP2670FF90A5F2_ses-post_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sub-MP2670FF90A5F2/ses-post/beh/sub-MP2670FF90A5F2_ses-post_task-tiktokwatch_run-02_beh.tsv'), JSON.stringify(labManifest.counts));
+    ok('the check-ins are exported, one row each, with their mid-break screenshot in ses-mid and the after-break files in ses-post', checkinTsv.startsWith('participant_id\tsession_id\tcheck_in_id\tcheck_in_n\tsubmitted_at\tform_version\tform_id\tweek\tapps_used\tmood\tdifficulty\tmissed\tnotes\tuse_change\n') && checkinTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && checkinTsv.includes('\tmpmb-lab-checkin\t2\tonce-or-twice\t4\t3\t2\tBrick held up fine.\tn/a') && labManifest.counts?.labCheckIns === 1 && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-mid/sub-MP2670FF90A5F2_ses-mid_run-01_screenshot.png') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-post/sub-MP2670FF90A5F2_ses-post_run-01_screenshot.png') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-post/sub-MP2670FF90A5F2_ses-post_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sub-MP2670FF90A5F2/ses-post/beh/sub-MP2670FF90A5F2_ses-post_task-tiktokwatch_run-02_beh.tsv'), JSON.stringify(labManifest.counts));
     ok('the lab study has its own folder: a pre session with unpacked tables under donations/, names only under identifying/', labManifest.counts?.labParticipants === 1 && labManifest.counts?.labArchives === 2 && labManifest.counts?.labScreenshots === 3 && labManifest.counts?.labSignatures === 1 && labParticipantsTsv.includes('sub-MP2670FF90A5F2\t') && labParticipantsTsv.includes('\ttiktok\tinstagram; youtube\tandroid\t') && labParticipantsTsv.includes('pre; mid; post') && !labParticipantsTsv.includes('Jane') && !labParticipantsTsv.includes('LS2 9JT') && !labParticipantsTsv.includes('2005-03-14') && labParticipantsTsv.includes('\t21\t') && labConsentsTsv.includes('Jane Smith') && labConsentsTsv.includes('LS2 9JT') && labConsentsTsv.includes('2005-03-14') && remindersTsv.includes('MP2670FF90A5F2\tsub-MP2670FF90A5F2\tjane@example.com') && !labParticipantsTsv.includes('jane@') && labBeh.includes('archive\tsourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-02_archive.zip') && watchTsv === 'time\tlink\n2026-09-01 20:11:03\thttps://www.tiktokv.com/share/video/1/\n2026-09-01 20:12:40\thttps://www.tiktokv.com/share/video/2/\n' && !labManifest.files?.some((n) => n.includes('tiktoksearch')) && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-02_archive.zip') && labManifest.files?.includes('social-media-break/donations/sourcedata/sub-MP2670FF90A5F2/ses-pre/sub-MP2670FF90A5F2_ses-pre_run-01_screenshot.png') && labManifest.files?.some((n) => n.startsWith('social-media-break/identifying/signatures/sub-MP2670FF90A5F2/')) && !labManifest.files?.some((n) => n.startsWith('schools/') && n.includes('MP2670FF90A5F2')), JSON.stringify(labManifest.counts));
 
     // The booking page on its own, later, on a device that knows nothing: signing in with the participant ID typed from an email;
@@ -1405,6 +1405,50 @@ async function inner() {
     const demoStories = (await db.collection('labStories').where('participantCode', '==', 'MP9C78C162BB9F').get()).docs.length;
     ok('the demo account can tell a second story in the same phase, and is offered another', demoStories === 2 && (await page.getByRole('button', { name: 'Tell another story' }).count()) === 1, String(demoStories));
     ok('no browser errors on the booking and MyStory pages', errors.length === 0, errors.join(' | '));
+
+    // The control group (21 October 2026): its own first page, consent and information sheet, no break; the group is kept
+    // with the consent, and the shared pages, the check-in and MyStory follow it.
+    const controlContext = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const cp = await controlContext.newPage();
+    await cp.goto(`http://127.0.0.1:${PORT}/lab.html?group=control`);
+    await cp.getByRole('heading', { name: 'Take part in the MyPhone/MyBrain lab study.', level: 1 }).waitFor({ timeout: 30000 });
+    ok('the control group’s first page does not call it the social media break study', (await cp.getByText(/social media break study/i).count()) === 0);
+    await cp.getByRole('button', { name: 'New to the study' }).click();
+    await cp.getByLabel('First name').fill('Ana');
+    await cp.getByLabel('Last name').fill('Lee');
+    await cp.getByLabel('Date of birth').fill('2004-05-06');
+    await cp.getByLabel('Postcode').fill('LS6 1AB');
+    await cp.getByLabel('Mobile number').fill('07700 900456');
+    await cp.getByRole('button', { name: 'Continue' }).click();
+    await cp.getByRole('heading', { name: /What taking part involves/ }).waitFor({ timeout: 30000 });
+    const controlInfo = await cp.locator('.mpmb-step').innerText();
+    ok('the control group’s information sheet: no break, no Brick, what happens between the visits', controlInfo.includes('What happens between the visits?') && !/Brick/.test(controlInfo) && !controlInfo.includes('What is the social media restriction phase?'));
+    await cp.getByRole('button', { name: 'I have read this' }).click();
+    await cp.getByRole('heading', { name: /Your consent to take part/ }).waitFor();
+    ok('the control consent says the visits are about 30 days apart with social media as usual, and nothing about a break', (await cp.getByText(/use my phone and social media as I normally would/).count()) === 1 && (await cp.getByText(/30-day social media break using Brick/).count()) === 0);
+    for (const id of ['read-information', 'involves', 'voluntary', 'data-kept', 'donation-required', 'publication', 'data-protection', 'take-part']) await cp.locator(`#lab-stmt-${id}`).check();
+    await cp.locator('#lab-stmt-link-records-declined').check();
+    await draw(cp.locator('#lab-signature'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.7]]);
+    await cp.getByRole('button', { name: 'Confirm and sign' }).click();
+    await cp.getByRole('heading', { name: 'Send your screen-time screenshots.', level: 1 }).waitFor({ timeout: 60000 });
+    const controlRow = (await db.collection('labParticipants').where('group', '==', 'control').get()).docs[0];
+    const controlCode = controlRow?.id;
+    const controlConsent = controlRow ? (await db.collection('labConsents').doc(controlRow.data().consentId).get()).data() : null;
+    ok('the control participant is kept as the control group, on the control consent form and information sheet', Boolean(controlCode) && controlConsent?.formId === 'mpmb-lab-consent-control' && controlConsent?.group === 'control' && controlConsent?.informationVersion === '2.2-control-draft', JSON.stringify({ controlCode, form: controlConsent?.formId }));
+    // The shared check-in page, from a control link: the control group's words and questions.
+    await cp.goto(`http://127.0.0.1:${PORT}/lab.html?flow=checkin&group=control&code=${controlCode}`);
+    await cp.getByRole('heading', { name: 'Your midway check-in.', level: 1 }).waitFor({ timeout: 30000 });
+    await cp.getByRole('button', { name: 'Continue' }).click();
+    await cp.getByRole('heading', { name: 'How have things been going?', level: 1 }).waitFor({ timeout: 30000 });
+    ok('the control check-in asks about use compared with usual, nothing about a break or Brick', (await cp.getByText('In the past week, how has your social media use compared with usual?').count()) === 1 && (await cp.getByText(/break|Brick/).count()) === 0);
+    // MyStory: the control group's chat protocol.
+    const controlChat = await httpsCallable(fns, 'labStoryChat')({ action: 'start', participantCode: controlCode, phase: 'pre', source: 'story', checkInId: null, client }).then((r) => r.data, () => null);
+    ok('MyStory gives the control group its own chat, with no break in it', controlChat?.protocol?.key === 'np.sm_control_pre' && !/30-day break/.test(controlChat?.reply ?? ''), JSON.stringify(controlChat?.protocol));
+    // Someone already in one group cannot sign the other group's form.
+    const nowIso = new Date().toISOString();
+    const breakIntoControl = { participantCode: 'MP2670FF90A5F2', codeParts: { firstName: 'Jane', lastName: 'Smith', dateOfBirth: '2005-03-14', postcode: 'LS2 9JT' }, mobile: '07700 900123', consent: { formId: 'mpmb-lab-consent-control', formVersion: controlConsent?.formVersion, informationVersion: controlConsent?.informationVersion, responses: controlConsent?.responses, typedName: 'Jane Smith', signature: { method: 'typed', typedName: 'Jane Smith', capturedAt: nowIso }, confirmedDate: nowIso.slice(0, 10), completedAt: nowIso }, client };
+    ok('a break-group participant cannot sign the control consent', await refused(() => httpsCallable(fns, 'submitLabConsent')(breakIntoControl), 'failed-precondition'));
+    await controlContext.close();
 
     // The staff page: the key, the times, a participant's links, a school's password.
     const toolsSnap = (name) => page.screenshot({ path: path.join(root, 'dist-emulator', `tools-${name}.png`), fullPage: true });
@@ -1656,7 +1700,7 @@ async function inner() {
     const phoneUseTsv = await readExport('schools/donations/phenotype/parent_phone_use.tsv');
     const noPhoneTsv = await readExport('schools/donations/phenotype/parent_no_phone.tsv');
     ok('the no-phone answers have their own table, and the research table their own status column', noPhoneTsv.split('\n')[0].startsWith('participant_id\twhy_no_phone\texpected_age\t') && noPhoneTsv.includes('\ttoo-young\t13\t') && familiesTsv.split('\n')[0].includes('\tmore_questions_status\tno_phone_questions_status\t') && familiesTsv.includes('\tno-phone\t'), noPhoneTsv.slice(0, 300));
-    ok('MyStory is exported by phase, the triangle over three columns', midTsv.split('\n')[0].includes('pull_habit\tpull_people_and_connection\tpull_boredom_or_stress\tpull_status') && midTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && midTsv.includes('\tThe bus\t') && midTsv.includes('\tnot-sure\t') && !postTsv.includes('flatmates') && postChatTsv.includes('sub-MP2670FF90A5F2\tses-post\t') && postChatTsv.includes('\tdone\tedited\t') && /\t0\t0\t0\tcasual\t0\.\d+\t7\t1\ttrue\t/.test(postChatTsv) && postChatTsv.split('\n')[0].includes('\tretellings_added\tretellings_still_added\tretellings_check_failed\tchosen_persona\tchosen_similarity\t') && finalManifest.counts?.labStoryChats === 1 && finalManifest.counts?.labStoryVoiceClips === 1 && postChatTsv.split('\n')[0].includes('\tvoice_clips\t') && preTsv.includes('sub-MP2670FF90A5F2\tses-pre\t') && preTsv.includes('\tLate nights\t') && finalManifest.counts?.labStories === 3, JSON.stringify(finalManifest.counts));
+    ok('MyStory is exported by phase, the triangle over three columns', midTsv.split('\n')[0].includes('pull_habit\tpull_people_and_connection\tpull_boredom_or_stress\tpull_status') && midTsv.includes('sub-MP2670FF90A5F2\tses-mid\t') && midTsv.includes('\tThe bus\t') && midTsv.includes('\tnot-sure\t') && !postTsv.includes('flatmates') && postChatTsv.includes('sub-MP2670FF90A5F2\tses-post\t') && postChatTsv.includes('\tdone\tedited\t') && /\t0\t0\t0\tcasual\t0\.\d+\t7\t1\ttrue\t/.test(postChatTsv) && postChatTsv.split('\n')[0].includes('\tretellings_added\tretellings_still_added\tretellings_check_failed\tchosen_persona\tchosen_similarity\t') && finalManifest.counts?.labStoryChats === 2 && finalManifest.counts?.labStoryVoiceClips === 1 && postChatTsv.split('\n')[0].includes('\tvoice_clips\t') && preTsv.includes('sub-MP2670FF90A5F2\tses-pre\t') && preTsv.includes('\tLate nights\t') && finalManifest.counts?.labStories === 3, JSON.stringify(finalManifest.counts));
     // Every exported screenshot is stamped with the image it was copied from, and that image is still one a record holds: the one removed from the automatic save (and the images after it moving up) never leaves a file under the wrong name.
     const [shotFiles] = await exportsBucket.getFiles({ prefix: 'schools/donations/sourcedata/sub-' });
     const heldImages = new Set((await db.collection('donations').get()).docs.flatMap((d) => (d.data().images ?? []).map((i) => i.path)));
