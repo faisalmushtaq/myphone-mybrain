@@ -17,7 +17,7 @@ stats:
     label: "Age range"
   - value: "3 years"
     label: "School sessions"
-  - value: "2"
+  - value: "Up to 3"
     label: "Workshops for each pupil"
   - value: "EEG + digital data"
     label: "Ways to take part"

@@ -22,7 +22,7 @@ function valid(): ConsentPayload {
     consent: {
       formId: 'mpmb-parent-consent',
       formVersion: '0.9-draft',
-      informationVersion: '0.6-draft',
+      informationVersion: '0.7-draft',
       responses: {
         'read-information': r('read-information', 'agreed', 'group', '0.5-draft'),
         answers: r('answers', 'agreed', 'group', '0.3-draft'),
@@ -127,8 +127,8 @@ test('rejects a missing required statement, and the statements no longer asked',
 
 test('the current information, or a recent earlier version for a family who signed before an update', () => {
   const p = valid();
-  assert.deepEqual(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.5-draft' } }), []);
-  assert.ok(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.4-draft' } }).some((m) => m.includes('information shown must be version 0.6-draft')));
+  assert.deepEqual(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.6-draft' } }), []);
+  assert.ok(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.4-draft' } }).some((m) => m.includes('information shown must be version 0.7-draft')));
 });
 
 test('rejects an old statement version', () => {

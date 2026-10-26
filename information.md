@@ -43,9 +43,9 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <li class="consent-route">
         <span class="consent-route__tag">Opt-out</span>
         <h3>The workshop at school</h3>
-        <p>Every young person in the classes taking part is invited. <strong>You don’t need to do anything for your child to take part.</strong> If you don’t want them to, a parent or carer emails us before the workshop. There is no form and no paper slip.</p>
+        <p>Every young person in the classes taking part is invited. <strong>You don’t need to do anything for your child to take part.</strong> If you don’t want them to, a parent or carer emails us, or tells the school, which passes it on, before the workshop. There is no form to fill in.</p>
         <p>On the day, the researchers explain the workshop again and ask each young person whether they want to take part. <strong>Your child can say no</strong>, choose which parts to do, or stop at any time, without giving a reason. Nobody will mind, and it will not affect anything at school.</p>
-        <p>You can opt out in one of two ways, each with one email: <strong>out of the workshop and the study</strong>; or <strong>in the workshop, with none of their information used</strong>, so your child joins in with their class but nothing recorded about them is kept or used. Either way, nothing about your child is linked with their education and health records.</p>
+        <p>You can opt out in one of two ways, each with one message: <strong>out of the workshop and the study</strong>; or <strong>in the workshop, with none of their information used</strong>, so your child joins in with their class but nothing recorded about them is kept or used. Either way, nothing about your child is linked with their education and health records.</p>
         <a class="text-link" href="#opting-out">How to opt out &nbsp;→</a>
       </li>
       <li class="consent-route consent-route--mist">
@@ -129,7 +129,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       </div>
     </div>
     <div class="prose">
-      <p>The parent or carer also answers some short questions about their child’s phone and social media use, whether or not the screen time is shared: about three minutes, and any question can be skipped. On the form, a parent or carer gives their name, their relationship to the young person and their home address and postcode, so that records can be matched correctly; an email address and phone number are optional. What you give is saved from the moment you sign, so it counts even if you can’t finish, and you can finish later with the reference on your thank-you page.</p>
+      <p>The parent or carer also answers some short questions about their child’s phone and social media use, whether or not the screen time is shared: about three minutes, and any question can be skipped. On the form, a parent or carer gives their name, their relationship to the young person and their home address and postcode, so that records can be matched correctly; at least one of an email address or a mobile number is needed, so that we can send reminders and contact you about the study. What you give is saved from the moment you sign, so it counts even if you can’t finish, and you can finish later with the reference on your thank-you page.</p>
       <p><a class="text-link" href="{{ '/take-part/consent/?who=parent' | relative_url }}">Start now &nbsp;→</a></p>
     </div>
       </div>
@@ -140,7 +140,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <div class="info-fold__body">
     <p class="section-subheading">For young people who take part in the workshop, the study links their information with records that already exist about them, to look at longer-term patterns in learning, health and wellbeing.</p>
     <div class="prose">
-      <p>The records are education records, such as attendance and results, held by the Department for Education, and NHS health records. The linking is done through Connected West Yorkshire, using your child’s Unique Pupil Number, which the school gives us, and only with the approvals in place.</p>
+      <p>The records are education records, such as attendance and results, held by the Department for Education, and NHS health records. The linking is done through Connected West Yorkshire, using your child’s Unique Pupil Number, which the school gives us, together with their name, date of birth and home address from the workshop questionnaire. If you use the online form, the address finder also adds your home’s Unique Property Reference Number (UPRN), which helps match records more reliably. Linking happens only with the approvals in place.</p>
       <p>It happens inside a secure research environment: names and other details that identify someone directly are removed before researchers see anything, the analysis stays inside that environment, and only results about groups of people come out. Linking is part of the workshop, so opting out, either way, also opts your child out of linking.</p>
     </div>
       </div>
@@ -152,11 +152,11 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <p class="section-subheading">It is kept securely by the University of Leeds, labelled with a study code instead of a name, and used only for research, including research using machine learning (computers finding patterns in data).</p>
     <div class="info-panel">
       <ul class="info-checklist">
-        <li><strong>What is collected:</strong> at the workshop, the EEG recording, the computer task and the questionnaire answers. From the school, your child’s name, date of birth, year group, class and Unique Pupil Number, so that their information can be matched and linked. If you use the online form, the details and answers you give there, and any screenshots.</li>
-        <li><strong>How it is labelled:</strong> research data carry a study code, never a name. Names, dates of birth, Unique Pupil Numbers, contact details and opt-out records are kept separately, and only the few people who need them can see them.</li>
+        <li><strong>What is collected:</strong> at the workshop, the EEG recording, the computer task and the questionnaire answers. The workshop questionnaire also asks for your child’s name, date of birth and home address, so that their answers can be kept together and linked. From the school, your child’s name, date of birth, year group, class and Unique Pupil Number, so that their information can be matched and linked. If you use the online form, the details and answers you give there (including your home address and its UPRN), and any screenshots.</li>
+        <li><strong>How it is labelled:</strong> research data carry a study code, never a name. Names, dates of birth, addresses, Unique Pupil Numbers, UPRNs, contact details and opt-out records are kept separately, and only the few people who need them can see them.</li>
         <li><strong>Who sees it:</strong> only the research team and approved collaborators, through secure systems. Teachers, the school and other pupils never see your child’s answers, recordings or screenshots.</li>
         <li><strong>How long it is kept:</strong> up to 10 years after the project ends, as the University’s research data rules require. Identifying information is then securely deleted; fully anonymous data may be kept for future research.</li>
-        <li><strong>How results are shared:</strong> in scientific journals, at conferences, in reports and in future research, and as general findings for the schools taking part. Results are about groups of young people, never individuals. Fully anonymous EEG recordings, with no names or other identifying details, may be shared with other researchers through research data platforms.</li>
+        <li><strong>How results are shared:</strong> in scientific journals, at conferences, in reports and in future research, and as general findings for the schools taking part. Results are about groups of young people, never individuals. Fully anonymous EEG recordings, with no names or other identifying details, may be shared with other researchers through open research data platforms such as G-Node, EEGNet and OpenNeuro. Study data may also be made available to approved researchers through the Born in Bradford Executive (BiB Exec) and the Born in Bradford data dictionary, and linked data can be used only within Connected West Yorkshire’s secure environment.</li>
         <li><strong>Never sold:</strong> we do not sell data or give it to social media or other commercial companies.</li>
         <li><strong>The law:</strong> the University of Leeds is the data controller. It uses the information because research is a task in the public interest (UK GDPR Article 6(1)(e)) and, for sensitive information such as health records and information about wellbeing, because the processing is for research in the public interest (Article 9(2)(j)). The University’s research participant privacy notice explains your rights; ask us if you would like a copy. More on our <a href="{{ '/privacy/' | relative_url }}">data and privacy</a> page.</li>
       </ul>
@@ -220,10 +220,10 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <div class="info-fold__body">
     <p class="section-subheading">We are happy to answer any question, before or after the workshop.</p>
     <div class="prose">
-      <p>Email Dr Sarmad Ali, the study’s contact, at <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>; we aim to reply within five working days. You can also contact the study lead, Professor Faisal Mushtaq, at <a href="mailto:F.Mushtaq@leeds.ac.uk">F.Mushtaq@leeds.ac.uk</a>, both at the School of Psychology, University of Leeds. To opt out, please email Dr Sarmad Ali at S.A.Ali1@leeds.ac.uk.</p>
+      <p>Email Dr Sarmad Ali, the study’s contact, at <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>; we aim to reply within five working days. You can also contact the study lead, Professor Faisal Mushtaq, at <a href="mailto:F.Mushtaq@leeds.ac.uk">F.Mushtaq@leeds.ac.uk</a>, both at the School of Psychology, University of Leeds. To opt out, please email Dr Sarmad Ali at S.A.Ali1@leeds.ac.uk, or tell your child’s school, which passes it on.</p>
       <p>Need this information in another language, in an easier-to-read version or on paper? <a href="{{ '/contact/?topic=Participant%20information' | relative_url }}">Contact us</a> and we will send you what works for you. There are also <a href="{{ '/faq/' | relative_url }}">questions and answers</a>.</p>
-      <p>This study has been approved by the University of Leeds School of Psychology Research Ethics Committee, reference SoPREC 4202, on 11 June 2026. The University’s data protection team signed off its data protection impact assessment in May 2026.</p>
-      <p class="info-sheet__updated">Last updated 7 October 2026.</p>
+      <p>This study has been approved by the University of Leeds School of Psychology Research Ethics Committee, reference SoPREC - 2026 4202-7027, on 11 June 2026. The University’s data protection team signed off its data protection impact assessment in May 2026.</p>
+      <p class="info-sheet__updated">Last updated 26 October 2026.</p>
     </div>
       </div>
     </details>

@@ -28,7 +28,7 @@ export const aboutStudy = {
     cards: [
       {
         title: 'The workshop at school',
-        body: 'Every young person in the classes taking part is invited to a MyPhone/MyBrain workshop at school, unless a parent or carer opts them out. Opting out is by email, and also means nothing about them is linked with health or school records. You don’t need this form for the workshop.',
+        body: 'Every young person in the classes taking part is invited to a MyPhone/MyBrain workshop at school, unless a parent or carer opts them out. Opting out is by email or through the school, and also means nothing about them is linked with health or school records. You don’t need this form for the workshop.',
       },
       {
         title: 'What this form is for',
@@ -70,15 +70,16 @@ export const aboutStudy = {
  * PLACEHOLDER — replace with the approved sheet's version and date.
  * 0.5: no separate route for concerns or complaints (7 October 2026).
  * 0.6: a lightweight headset, as in the approved information sheet, not a "soft cap" (7 October 2026).
+ * 0.7: opting out through the school as well as by email; one set of questions (26 October 2026).
  */
-export const parentInformationVersion = { version: '0.6-draft', date: '2026-10-07' };
+export const parentInformationVersion = { version: '0.7-draft', date: '2026-10-26' };
 
 /**
  * Earlier versions the server still accepts, so a family who read one of them
  * and signed before an update reached the site can still save. List only
  * recent ones; the version a family saw is stored with their permission.
  */
-export const earlierInformationVersions: string[] = ['0.5-draft'];
+export const earlierInformationVersions: string[] = ['0.6-draft', '0.5-draft'];
 
 /** The information for parents and carers, shown before their permission. */
 export const parentInformation: InfoSection[] = [
@@ -88,7 +89,7 @@ export const parentInformation: InfoSection[] = [
     summary: 'Sharing your child’s screen time, if you agree, and a few questions for you about their phone use. Both are optional.',
     detail: [
       'Screen time means screenshots of the phone’s Screen Time or Digital Wellbeing page: the list of apps and the time spent on each. How a phone is used matters as much as how much. If you can see your child’s screen time on your own phone (Apple Family Sharing or Google Family Link), you can send it from there; otherwise your child can send it from their phone, if they want to.',
-      'Your answers to the questions are used in the study too, labelled with a code rather than a name. There are two short sets of questions, and you can skip any of them.',
+      'Your answers to the questions are used in the study too, labelled with a code rather than a name. There is one short set of questions, and you can skip any of them.',
       'Young people aged 16 or over decide for themselves about sharing their own screen time.',
     ],
     draft: true,
@@ -96,11 +97,11 @@ export const parentInformation: InfoSection[] = [
   {
     id: 'workshop',
     title: 'The workshop at school',
-    summary: 'Separate from this form: every young person in the classes taking part is invited, unless a parent or carer opts them out by email.',
+    summary: 'Separate from this form: every young person in the classes taking part is invited, unless a parent or carer opts them out, by email or through the school.',
     detail: [
       'In the workshop, young people wear a lightweight headset that records brain activity (EEG) while they do simple tasks on a computer. It doesn’t hurt, and they can stop at any time.',
       'As part of the same study, information about young people who take part may be linked, through Connected West Yorkshire, with records already held about them (NHS health records, and education records such as attendance and results, held by the Department for Education), using a code rather than a name and only with the approvals in place.',
-      'To opt your child out of the workshop, and so out of the linking, a parent or carer emails the team: see “Opt out of the workshop” at the start of this form. This form does not change anything about the workshop.',
+      'To opt your child out of the workshop, and so out of the linking, a parent or carer emails the team or tells the school, which passes it on: see “Opt out of the workshop” at the start of this form. This form does not change anything about the workshop.',
     ],
     draft: true, // PLACEHOLDER — confirm the wording, the approvals and their references with the governance team
   },

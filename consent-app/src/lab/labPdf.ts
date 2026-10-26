@@ -1,6 +1,6 @@
 import { createDocument, downloadBlob, PDF_MUTED, Writer } from '../lib/consentPdf';
 import { formatIsoDate, formatTimestamp } from '../lib/dates';
-import { labForms, labStudy } from './config';
+import { groupWords, labForms, labStudy } from './config';
 import type { LabState } from './model';
 
 /** The participant's copy of their consent to the social media break study, built on the device. */
@@ -12,9 +12,11 @@ export async function buildLabConsentCopy(state: LabState): Promise<{ blob: Blob
   w.paragraph('MyPhone/MyBrain', { size: 10, style: 'bold', color: PDF_MUTED, after: 1 });
   w.paragraph('Your copy of your consent', { size: 21, style: 'bold', after: 1.5 });
   w.paragraph(`${labStudy.formalName} · Participant ID ${state.code}${submission.consentSentAt ? ` · Recorded ${formatTimestamp(submission.consentSentAt)}` : ''}`, { size: 10.5, color: PDF_MUTED, after: 4 });
-  w.paragraph(`This is a copy of the consent you gave to take part in the ${labStudy.name.toLowerCase()}. Keep it somewhere safe. To withdraw, or to ask anything, email ${labStudy.contact.email} and quote your participant ID.`);
+  const group = consent.formId === labForms.control.consent.id ? 'control' : 'break';
+  const studyName = group === 'control' ? groupWords.control.study : labStudy.name.toLowerCase();
+  w.paragraph(`This is a copy of the consent you gave to take part in the ${studyName}. Keep it somewhere safe. To withdraw, or to ask anything, email ${labStudy.contact.email} and quote your participant ID.`);
 
-  const forms = labForms[consent.formId === labForms.control.consent.id ? 'control' : 'break'];
+  const forms = labForms[group];
   w.heading(forms.consent.title);
   for (const s of forms.consent.statements) w.statement(s.text, consent.responses[s.id]?.response);
   w.row('Signed by', consent.typedName);

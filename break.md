@@ -23,7 +23,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
         <ul class="info-checklist">
           <li>Attend two sessions of about two hours in our lab, before and after the break.</li>
           <li>Take a 30-day break from social media, using a small device called Brick that restricts the apps you agree with us in advance. Calls, messages, WhatsApp and essential apps keep working.</li>
-          <li>Share screenshots of your phone’s screen-time summary straight away, then your own data download from each of TikTok, YouTube and Instagram that you use, starting with the one you use most. Each is a separate request and can take a few days to arrive. This site reduces each one on your device to when you watched, liked or searched, the links, your search words and simple totals.</li>
+          <li>Share screenshots of your phone’s screen-time summary straight away, then your own data download from each of TikTok, YouTube and Instagram that you use, starting with the one you use most. Each is a separate request and can take a few days to arrive. This site reduces each one on your device to when you watched, liked or searched, the links, your search words and simple totals, plus YouTube video titles and channels, the YouTube channels you follow and the Instagram accounts you searched for.</li>
           <li>Complete simple computer-based tasks and short questionnaires, and one brief check-in halfway through the break.</li>
         </ul>
       </div>
@@ -44,6 +44,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
           <li>You are aged 18 to 24.</li>
           <li>You regularly use social media, including TikTok, YouTube or Instagram, so that you can share your usage data from them.</li>
           <li>You are willing to take a temporary break from social media.</li>
+          <li>You do not have epilepsy or a history of seizures.</li>
         </ul>
       </div>
       <div class="info-panel info-panel-alt">
@@ -93,7 +94,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
     <div class="prose">
       <h3>Questions</h3>
       <p>Contact Miftah Faizah, School of Psychology, University of Leeds, at <a href="mailto:M.Faizah@leeds.ac.uk">M.Faizah@leeds.ac.uk</a>, or the study lead, Professor Faisal Mushtaq, at <a href="mailto:F.Mushtaq@leeds.ac.uk">F.Mushtaq@leeds.ac.uk</a>.</p>
-      <p>This study has been approved by the University of Leeds School of Psychology Research Ethics Committee, reference SoPREC 4202, on 11 June 2026. The University of Leeds is the data controller; the University’s research participant privacy notice explains your rights.</p>
+      <p>This study has been approved by the University of Leeds School of Psychology Research Ethics Committee, reference SoPREC - 2026 4202-7027, on 11 June 2026. The University of Leeds is the data controller; the University’s research participant privacy notice explains your rights.</p>
     </div>
   </div>
 </section>

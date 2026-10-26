@@ -9,6 +9,8 @@ is about, without repeating MySelf.
 
 ## What is built
 
+> Since 20 October 2026 the before and after chats happen on the website, before booking and after the second set of screenshots, using the AI interview (MyStory chat) described below. The table records the earlier structured version, kept as the written fallback.
+
 | Phase | Structure (`src/lab/mystory.ts`) | Where it is asked |
 | --- | --- | --- |
 | Before the break (`pre`) | `mystory-pre`: a recent moment with the phone, a typical evening, a time social media changed how they felt; the triangle *connecting with people / passing the time / finding things out*; sliders *worse–better* and *not my choice–completely my choice*; which app; how they feel about it now | **At the first lab visit**, on the lab computer, from the link on the staff page (`/break/mystory/?phase=pre&at=lab&code=MP…`) |
@@ -58,6 +60,8 @@ and here:
 | Before (`pre`, first lab visit) | `src/lab/mystory/pre.toml` (`np.sm_abstinence_pre`) | 6: when they use it most (and whether feelings lead them to it), whether it impacts other areas of life, mental health, how they feel after, putting it down, how they feel about the 30 days off | 10 keys |
 | During (`mid`, after each check-in) | `src/lab/mystory/mid.toml` (`np.sm_abstinence_mid`) | 5: how it has affected them so far, a moment that stood out (including anything physical), what they do instead, wanting to go on, turning to anyone for support | 14 keys |
 | After (`post`, second lab visit) | `src/lab/mystory/post.toml` (`np.sm_abstinence_post`) | 5: how the 30 days have been, anything different in how social media affects their mental health, what they missed, are they back on (and has the way they use it changed), what they will take forward | 18 keys |
+
+**Safeguarding declaration and control opening (26 October 2026; pre 0.2.2, mid and post 0.2.3, control pre and mid 0.1.2, control post 0.1.3).** The safeguarding declaration no longer says participants are anonymous and not contacted: the team holds names and contact details and reviews flagged conversations after the session. The control group's first chat opens with "before your first lab visit", as it runs before booking.
 
 **Age range (26 October 2026; pre 0.2.1, mid and post 0.2.2, control pre and mid 0.1.1, control post 0.1.2).** All six protocols now describe participants as young adults aged 18 to 24, matching the break study's age range (they said first-year students aged 18 or 19), and `age_max` is 24. Nothing else changed.
 

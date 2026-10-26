@@ -298,7 +298,7 @@ export async function buildConsentCopy(state: AppState): Promise<{ blob: Blob; f
   }
 
   w.heading('Changing your mind');
-  w.paragraph(`You can change your mind at any time, about the screenshots or the answers, by emailing ${study.contact.email}. Quote your reference if you have it. Nobody will ask why. The workshop at school is separate: to opt a young person out of it, a parent or carer emails the same address.`);
+  w.paragraph(`You can change your mind at any time, about the screenshots or the answers, by emailing ${study.contact.email}. Quote your reference if you have it. Nobody will ask why. The workshop at school is separate: to opt a young person out of it, a parent or carer emails the same address, or tells the school, which passes it on.`);
   w.note(`Produced on ${formatTimestamp(new Date().toISOString())} by the MyPhone/MyBrain consent form from the answers on this device. ${study.contact.team}.`);
   w.footer(reference);
 

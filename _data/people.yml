@@ -10,13 +10,13 @@
       url: "https://scholar.google.com/citations?user=bcjpWSwAAAAJ&hl=en"
 
 - name: "Dr Sarmad Ali"
-  role: "Project Manager"
+  role: "Programme Coordinator"
   bio: |
     Sarmad manages project operations, timelines and partnerships, bringing extensive experience in coordinating complex multi-site research programmes.
   image: "sarmad_ali.png"
   links:
     - label: "Contact"
-      url: "mailto:myphone-mybrain@leeds.ac.uk"
+      url: "mailto:S.A.Ali1@leeds.ac.uk"
 
 - name: "Dr Olivia Jones"
   role: "Researcher"

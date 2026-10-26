@@ -104,6 +104,9 @@ export function placeOf(slot: DocumentData): Place {
   return own ? { name: own, address: '', directions: '' } : defaultPlace();
 }
 
+/** The study's name in messages: the control group's pages never mention a break (26 October 2026). */
+export const studyNameFor = (group: LabGroup = 'break'): string => (group === 'control' ? 'MyPhone/MyBrain lab study' : labStudy.name);
+
 const visitInfo = (visit: Visit, group: LabGroup = 'break') => {
   const v = labBooking.visits.find((x) => x.visit === visit) ?? labBooking.visits[0];
   return group === 'control' ? { ...v, what: v.whatControl } : v;
@@ -290,7 +293,7 @@ export function visitsEmail(kind: 'booked' | 'moved' | 'cancelled', visits: Book
       text: [
         'Hello,',
         '',
-        `${both ? 'Your lab visits' : `Your ${visitWords(sorted[0].visit)}`} for the ${labStudy.name} ${both ? 'have' : 'has'} been cancelled${opts.byTeam ? ' by the research team' : ''}.${opts.reason ? ` ${opts.reason}` : ''}`,
+        `${both ? 'Your lab visits' : `Your ${visitWords(sorted[0].visit)}`} for the ${studyNameFor(sorted[0]?.group)} ${both ? 'have' : 'has'} been cancelled${opts.byTeam ? ' by the research team' : ''}.${opts.reason ? ` ${opts.reason}` : ''}`,
         '',
         ...sorted.flatMap((b) => [`${visitTitle(b.visit)}: ${ukSpan(b.start, b.end)}`]),
         `Participant ID: ${code}`,
@@ -307,8 +310,8 @@ export function visitsEmail(kind: 'booked' | 'moved' | 'cancelled', visits: Book
   const changed = new Set(opts.changed ?? []);
   const intro =
     kind === 'moved'
-      ? `Your lab visit times for the ${labStudy.name} have changed${opts.byTeam ? ' (the research team made the change)' : ''}. Your visits now:`
-      : `Your ${both ? 'two lab visits' : visitWords(sorted[0].visit)} for the ${labStudy.name} ${both ? 'are' : 'is'} booked. Thank you!`;
+      ? `Your lab visit times for the ${studyNameFor(sorted[0]?.group)} have changed${opts.byTeam ? ' (the research team made the change)' : ''}. Your visits now:`
+      : `Your ${both ? 'two lab visits' : visitWords(sorted[0].visit)} for the ${studyNameFor(sorted[0]?.group)} ${both ? 'are' : 'is'} booked. Thank you!`;
   return {
     subject: kind === 'moved' ? 'MyPhone/MyBrain: your lab visit times have changed' : both ? `MyPhone/MyBrain: your lab visits are booked: ${ukShortDate(sorted[0].start)} and ${ukShortDate(sorted[1].start)}` : `MyPhone/MyBrain: your ${visitWords(sorted[0].visit)} is booked for ${shortWhen(sorted[0])}`,
     text: [
@@ -358,7 +361,7 @@ export function reminderEmail(b: BookingRecord): { subject: string; text: string
     text: [
       'Hello,',
       '',
-      `A reminder: your ${visitWords(b.visit)} for the ${labStudy.name} is tomorrow.`,
+      `A reminder: your ${visitWords(b.visit)} for the ${studyNameFor(b.group)} is tomorrow.`,
       '',
       ...visitBlock(b),
       `Participant ID: ${b.participantCode}`,
@@ -376,7 +379,7 @@ export function reminderEmail(b: BookingRecord): { subject: string; text: string
 export function sameDayEmail(b: BookingRecord): { subject: string; text: string } {
   return {
     subject: `MyPhone/MyBrain: see you today at ${ukClock(b.start)}`,
-    text: ['Hello,', '', `A reminder: your ${visitWords(b.visit)} for the ${labStudy.name} is today.`, '', ...visitBlock(b), `Participant ID: ${b.participantCode}`, '', `Running late, or can't come? Please ${contactLine} as soon as you can.`, ...signOff].join('\n'),
+    text: ['Hello,', '', `A reminder: your ${visitWords(b.visit)} for the ${studyNameFor(b.group)} is today.`, '', ...visitBlock(b), `Participant ID: ${b.participantCode}`, '', `Running late, or can't come? Please ${contactLine} as soon as you can.`, ...signOff].join('\n'),
   };
 }
 
@@ -439,7 +442,7 @@ export function addressChangedEmail(visits: BookingRecord[]): { subject: string;
     text: [
       'Hello,',
       '',
-      `Your lab visits for the ${labStudy.name} were just booked or changed, and the confirmation went to a different email address from this one. From now on, emails about your visits go to that address.`,
+      `Your lab visits for the ${studyNameFor(sorted[0]?.group)} were just booked or changed, and the confirmation went to a different email address from this one. From now on, emails about your visits go to that address.`,
       '',
       ...(sorted.length ? ['Your visits now:', ...sorted.map((b) => `${visitTitle(b.visit)}: ${ukSpan(b.start, b.end)} (UK time)`), ''] : []),
       `Participant ID: ${code}`,
