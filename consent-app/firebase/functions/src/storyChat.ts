@@ -360,15 +360,11 @@ export const labStoryChat = onCall(callOptions, async (request) => {
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    try {
-      const turn = await call<{ reply: string; interviewDone: boolean }>(db, ref, model, interviewerPrompt(protocol, []), protocol, 'collect');
-      if (!turn.reply.trim()) throw new ModelError('malformed_output', 'the interviewer had nothing to ask', false);
-      await ref.update({ transcript: FieldValue.arrayUnion({ role: 'assistant', content: turn.reply, at: new Date().toISOString() }) });
-      return { available: true, chatId: ref.id, protocol: { key: protocol.key, version: protocol.version }, screens: screensFor(protocol), reply: turn.reply };
-    } catch {
-      await ref.update({ status: 'stopped', fallback: 'the interviewer could not be reached' });
-      return { available: false };
-    }
+    // The first question is the protocol's own words, not the model's (26 October 2026): asked to "react to what they just
+    // said" before each question, the model opened with "Great, thanks for being here" before anyone had said anything.
+    const opening = protocol.interview.questions[0];
+    await ref.update({ transcript: FieldValue.arrayUnion({ role: 'assistant', content: opening, at: new Date().toISOString() }) });
+    return { available: true, chatId: ref.id, protocol: { key: protocol.key, version: protocol.version }, screens: screensFor(protocol), reply: opening };
   }
 
   /* ── Every other step continues a conversation this device started ── */

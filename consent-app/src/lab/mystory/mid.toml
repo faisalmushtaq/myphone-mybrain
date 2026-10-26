@@ -1,4 +1,4 @@
-# MyStory chat protocol, mid phase. 0.2.0 (19 October 2026): the team's update after testing (Michelle Wain), merged
+# MyStory chat protocol, mid phase. 0.2.1 (26 October 2026): the greeting reminds them of the chat before the break. 0.2.0 (19 October 2026): the team's update after testing (Michelle Wain), merged
 # with the fixes kept from 0.1.1 to 0.1.3: max_turns 20 (MySelf's limit), the example's closing quote escaped,
 # UK English, faithful retellings no longer than the answers, no repeated follow-ups, and the on-screen wording
 # (participant ID, select and adapt text). docs/mystory.md has the details.
@@ -6,7 +6,7 @@ model = "gpt-4o"
 quality_control_flagging = false
 
 [consent]
-intro_and_consent = "Hi {first_name}, I'm Remi. I'm an AI bot, a bit like ChatGPT, but our research team made me just for this project. Today we will talk about how your 30-day break from social media is going. Nobody reads this chat while you are typing. If you need to talk to someone about how you are feeling, please reach out to the numbers under the help icon at the top of the page, or on the participant information sheet, or to someone you trust, like a friend or a family member."
+intro_and_consent = "Hi {first_name}, I'm Remi. I'm an AI bot, a bit like ChatGPT, but our research team made me just for this project. You might remember we chatted before your break started. Today we will talk about how your 30-day break from social media is going. Nobody reads this chat while you are typing. If you need to talk to someone about how you are feeling, please reach out to the numbers under the help icon at the top of the page, or on the participant information sheet, or to someone you trust, like a friend or a family member."
 
 [participant]
 require_participant_id = false
@@ -95,7 +95,7 @@ scenario = "Reading and going to the gym with my flatmate have filled some of th
 
 [myself]
 key = "np.sm_abstinence_mid"
-version = "0.2.0"
+version = "0.2.1"
 name = "30-day social media abstinence: Mid-point"
 research_question = "How do first-year undergraduates experience a 30-day break from social media?"
 owner = "michellewain"

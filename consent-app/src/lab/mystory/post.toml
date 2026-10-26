@@ -6,7 +6,7 @@ model = "gpt-4o"
 quality_control_flagging = false
 
 [consent]
-intro_and_consent = "Hi {first_name}, I'm Remi. I'm an AI bot, a bit like ChatGPT, but our research team made me just for this project. Today we will talk about your 30-day break from social media, now that it is over. Nobody reads this chat while you are typing. If you need to talk to someone about how you are feeling, please reach out to the numbers under the help icon at the top of the page, or on the participant information sheet, or to someone you trust, like a friend or a family member."
+intro_and_consent = "Hi {first_name}, I'm Remi. I'm an AI bot, a bit like ChatGPT, but our research team made me just for this project. You might remember we chatted before your break started, and again halfway through. Today we will talk about your 30-day break from social media, now that it is over. Nobody reads this chat while you are typing. If you need to talk to someone about how you are feeling, please reach out to the numbers under the help icon at the top of the page, or on the participant information sheet, or to someone you trust, like a friend or a family member."
 
 [participant]
 require_participant_id = false
@@ -96,7 +96,7 @@ scenario = "What I missed most was seeing what my friends from home were up to, 
 
 [myself]
 key = "np.sm_abstinence_post"
-version = "0.2.0"
+version = "0.2.1"
 name = "30-day social media abstinence: Post-experiment"
 research_question = "How do first-year undergraduates experience a 30-day break from social media?"
 owner = "michellewain"

@@ -9,7 +9,7 @@ model = "gpt-4o"
 quality_control_flagging = false
 
 [consent]
-intro_and_consent = "Hi {first_name}, I'm Remi. I'm an AI bot, a bit like ChatGPT, but our research team made me just for this project. Today we will look back at how social media has been for you over the 30 days since your first visit. Nobody reads this chat while you are typing. If you need to talk to someone about how you are feeling, please reach out to the numbers under the help icon at the top of the page, or on the participant information sheet, or to someone you trust, like a friend or a family member."
+intro_and_consent = "Hi {first_name}, I'm Remi. I'm an AI bot, a bit like ChatGPT, but our research team made me just for this project. You might remember we chatted before your first visit. Today we will look back at how social media has been for you over the 30 days since your first visit. Nobody reads this chat while you are typing. If you need to talk to someone about how you are feeling, please reach out to the numbers under the help icon at the top of the page, or on the participant information sheet, or to someone you trust, like a friend or a family member."
 
 [participant]
 require_participant_id = false
@@ -98,7 +98,7 @@ Answer: "Seeing what my friends from home were up to. But I could do without com
 scenario = "What I got most out of social media this month was seeing what my friends from home were up to, but I could do without comparing myself to other people."
 [myself]
 key = "np.sm_control_post"
-version = "0.1.0"
+version = "0.1.1"
 name = "30-day usual social media use (control): Post-experiment"
 research_question = "How do first-year undergraduates experience 30 days of using social media as usual (the control group for the 30-day break)?"
 owner = "michellewain"
