@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore, type DocumentData, type Firestore } from 'firebase-admin/firestore';
+import { redactOptedOutPupils } from './schoolRedact.js';
 import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
@@ -543,6 +544,8 @@ export const staffApi = onCall(callOptions, async (request) => {
       const ref = db.collection('optOuts').doc();
       await ref.set({ ...optOut, status: 'active', recordedAt: FieldValue.serverTimestamp(), recordedBy: 'staff' });
       logger.info('Opt-out logged', { optOutId: ref.id, schoolId: optOut.schoolId, afterWorkshop: optOut.afterWorkshop });
+      // The pupil's extra class-list details go at once (schoolRedact.ts), not just at the next hourly export.
+      await redactOptedOutPupils(db);
       return { optOutId: ref.id };
     }
 

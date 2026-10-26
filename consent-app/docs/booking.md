@@ -11,8 +11,9 @@ it (decided 7 October 2026, `decisions.md`).
 Everything after that runs by itself: confirmations with a calendar file per
 visit, reminders before and on the day of each visit, and a short message at
 09:00 every day of the break, from the day after the first visit to the day
-before the second (day 15's with the link to the one mid-break check-in, and
-then a reminder each day until it is complete), and a thank-you after the
+before the second (days 8, 15, 22 and 29 with the link to that week's
+check-in, weekly since 26 October 2026, MyStory only on day 15; then a
+reminder on each of the next two days while it is not complete), and a thank-you after the
 second visit. Booking waits until MyStory Pre is told, straight
 after the data (20 October 2026).
 
@@ -55,8 +56,8 @@ once texts are set up; anything that cannot go by text goes by email.
 | The day before a visit | Reminder: when, where, what to bring (for the second visit, also the after-break screenshots) | Reminder |
 | On the day, two hours before | Only if a text cannot go | Reminder (texts go only 08:00 to 21:00 UK time; an earlier one goes at 08:00 if the visit is still at least 30 minutes away) |
 | Every day of the break at 09:00, from the day after the first visit to the day before the second | Only if a text cannot go | The team's messages of encouragement, which ask for nothing; they stretch to the break (30 to 35 days or whatever was booked): the opening ones on days 1 to 14, the middle ones after the check-in, and the last four days about the second visit, the very last with its date, time and place (`firebase/functions/src/dailyMessages.ts`) |
-| Day 15 | The link to the mid-break check-in (questions, a screenshot, MyStory) | Same |
-| From day 16, until the check-in is complete | A reminder with the link, instead of that day's message | Same |
+| Days 8, 15, 22 and 29 | The link to that week's check-in (questions and a screenshot; on day 15 also MyStory). On a 30-day break day 29 is the last day, and the message says when the visit is too | Same |
+| The 2 days after each, while that check-in is not complete | A reminder with the link, instead of that day's message; then they stop | Same |
 | The morning after the second visit | Only if a text cannot go | A thank-you |
 
 If the second visit moves, the messages follow it. The visit's own
@@ -159,7 +160,7 @@ again:
 | --- | --- |
 | `/break/take-part/?code=MP…` | Before the break: consent, screenshots, app data |
 | `/break/book/?code=MP…` | Their lab visits |
-| `/break/check-in/?code=MP…` | The mid-break check-in, once, on day 15 (with MyStory at the end) |
+| `/break/check-in/?code=MP…` | The weekly check-in, on days 8, 15, 22 and 29 (MyStory at the end of the day-15 one); which week it is comes from the day of the break |
 | `/break/after/?code=MP…` | After the break: screenshots and app data again |
 | `/break/mystory/?phase=mid&code=MP…` | MyStory during the break (or the external survey, with the ID and phase passed on; see `mystory.md`) |
 | `/break/mystory/?phase=pre\|post&at=lab&code=MP…` | MyStory at a lab visit, on the lab computer: nothing is kept on the computer, and **Finish** clears it for the next person |

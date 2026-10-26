@@ -4,7 +4,7 @@ import { breakLength, dailyMessage, dailyPlan, middleLines, openingLines, type D
 
 const v1 = new Date('2026-10-14T09:00:00Z');
 const visit2On = (date: string) => new Date(`${date}T10:00:00Z`);
-const ctx = (days: number, over: Partial<DailyContext> = {}): DailyContext => ({ days, visit2: { start: visit2On('2026-11-18'), place: 'LG25 (EEG Lab), School of Psychology' }, checkInDone: true, checkInLink: 'https://myphonemybrain.com/break/check-in/?code=MP2670FF90A5F2', contactEmail: 'M.Faizah@leeds.ac.uk', ...over });
+const ctx = (days: number, over: Partial<DailyContext> = {}): DailyContext => ({ days, visit2: { start: visit2On('2026-11-18'), place: 'LG25 (EEG Lab), School of Psychology' }, checkInsDone: [1, 2, 3, 4], checkInLink: 'https://myphonemybrain.com/break/check-in/?code=MP2670FF90A5F2', contactEmail: 'M.Faizah@leeds.ac.uk', ...over });
 
 test('one message a day from the day after the first visit to the day before the second, at nine UK time, then a thank-you', () => {
   // A 28-day break and a 35-day one: the messages stretch to each.
@@ -38,14 +38,25 @@ test('the wording: the opening messages, the check-in on day 15, the middle ones
   assert.equal(dailyMessage(36, ctx(35)).kind, 'thank-you');
 });
 
-test('day 15 brings the check-in link; until it is complete, each day after brings a reminder instead', () => {
-  const open = ctx(30, { checkInDone: false });
-  assert.equal(dailyMessage(15, open).kind, 'check-in');
-  assert.match(dailyMessage(15, open).line, /check-in\/\?code=MP2670FF90A5F2/);
-  for (const day of [16, 17, 18, 25]) assert.equal(dailyMessage(day, open).kind, 'check-in-reminder', `day ${day}`);
+test('weekly check-ins (26 October 2026): links on days 8, 15, 22 and 29, two days of reminders after each while open, MyStory only on day 15', () => {
+  const open = ctx(35, { checkInsDone: [] });
+  for (const day of [8, 15, 22, 29]) {
+    assert.equal(dailyMessage(day, open).kind, 'check-in', `day ${day}`);
+    assert.match(dailyMessage(day, open).line, /check-in\/\?code=MP2670FF90A5F2/);
+  }
+  assert.match(dailyMessage(15, open).line, /mid-break check-in.*your story/);
+  for (const day of [8, 22, 29]) assert.doesNotMatch(dailyMessage(day, open).line, /story/, `day ${day}: no MyStory`);
+  for (const day of [9, 10, 16, 17, 23, 24, 30, 31]) assert.equal(dailyMessage(day, open).kind, 'check-in-reminder', `day ${day}`);
+  for (const day of [11, 12, 18, 25]) assert.notEqual(dailyMessage(day, open).kind, 'check-in-reminder', `day ${day}: reminders stop after two days`);
   assert.notEqual(dailyMessage(16, open).line, dailyMessage(17, open).line, 'the reminders vary');
-  // The last day still says when the visit is.
-  assert.equal(dailyMessage(29, open).kind, 'visit-tomorrow');
+  // One check-in done: its reminders stop, the others carry on.
+  const firstDone = ctx(35, { checkInsDone: [1] });
+  assert.equal(dailyMessage(9, firstDone).kind, 'daily');
+  assert.equal(dailyMessage(16, firstDone).kind, 'check-in-reminder');
+  // A 30-day break: the last check-in falls on the day before the second visit, and says when it is too.
+  const short = dailyMessage(29, ctx(30, { checkInsDone: [] }));
+  assert.equal(short.kind, 'check-in');
+  assert.match(short.line, /Your second lab visit is tomorrow, Wed 18 Nov at 10:00/);
   // Once complete, the ordinary messages again.
   assert.equal(dailyMessage(16, ctx(30)).kind, 'daily');
   assert.equal(dailyMessage(15, ctx(30)).kind, 'daily');
@@ -55,7 +66,7 @@ test('texts: plain characters only, one part (160) for the daily ones, two (306)
   for (const days of [28, 35]) {
     for (const done of [true, false]) {
       for (let day = 1; day <= days + 1; day += 1) {
-        const { kind, line } = dailyMessage(day, ctx(days, { checkInDone: done }));
+        const { kind, line } = dailyMessage(day, ctx(days, { checkInsDone: done ? [1, 2, 3, 4] : [] }));
         const sms = `MyPhone/MyBrain: ${line}`;
         assert.match(sms, /^[\x20-\x7E]+$/, `day ${day}: plain characters, so it is billed as GSM text`);
         assert.ok(sms.length <= (kind === 'check-in' || kind === 'check-in-reminder' ? 306 : 160), `day ${day} (${kind}): ${sms.length} characters`);

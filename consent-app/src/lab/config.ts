@@ -217,7 +217,7 @@ export const labStudy = {
  * The pages of the study, each its own short flow on the website, all
  * keyed by the participant ID:
  *   baseline  /break/take-part/  consent, then screenshots and app data before the break
- *   checkin   /break/check-in/   during the break: a few questions, optional screenshots, MyStory
+ *   checkin   /break/check-in/   during the break: weekly questions and a screenshot (days 8, 15, 22, 29), MyStory on day 15
  *   after     /break/after/      after the break: a reminder (no new consent), screenshots and app data
  *   book      /break/book/       booking the two lab visits, once the data from before the break is in
  *   story     /break/mystory/    MyStory on its own, for the phase in the link (?phase=pre, mid or post)
@@ -226,7 +226,7 @@ export const labStudy = {
  */
 export const labPages = {
   baseline: { path: '/break/take-part/', phase: 'pre', label: 'Before your break' },
-  checkin: { path: '/break/check-in/', phase: 'mid', label: 'Mid-break check-in' },
+  checkin: { path: '/break/check-in/', phase: 'mid', label: 'Weekly check-in' },
   after: { path: '/break/after/', phase: 'post', label: 'Before your second visit' },
   /** Booking and changing the two lab visits (see booking.ts). */
   book: { path: '/break/book/', phase: 'pre', label: 'Your lab visits' },
@@ -239,28 +239,31 @@ export type LabCheckInQuestion =
   | { id: string; version: string; type: 'text'; label: string; text: string; hint?: string; required: boolean; maxLength: number };
 
 /**
- * The mid-break check-in: a few quick questions, asked each time someone
- * checks in (the information sheet promises brief weekly check-ins). Draft
- * wording, to be replaced by the team's agreed items; ids and versions are
- * what the server accepts and the export's data dictionary describes.
+ * The weekly check-in (26 October 2026: weekly, on days 8, 15, 22 and 29 of
+ * the break, with MyStory only in the halfway one): a few quick questions
+ * about the week just gone. The week is filled in from the check-in, and the
+ * participant can change it. Draft wording, to be replaced by the team's
+ * agreed items; ids and versions are what the server accepts and the export's
+ * data dictionary describes.
  */
 export const labCheckInForm: { id: string; version: string; title: string; questions: LabCheckInQuestion[] } = {
   id: 'mpmb-lab-checkin',
-  version: '0.1-draft',
-  title: 'Mid-break check-in',
+  version: '0.2-draft',
+  title: 'Weekly check-in',
   questions: [
     {
       id: 'week',
-      version: '0.1-draft',
+      version: '0.2-draft',
       type: 'choice',
       label: 'Week of the break',
-      text: 'Which week of your social media break are you in?',
+      text: 'Which week of your social media break are you telling us about?',
+      hint: 'We have filled this in from today’s date. Change it if it is not right.',
       required: true,
       options: [
         { value: '1', label: 'Week 1 (days 1 to 7)' },
         { value: '2', label: 'Week 2 (days 8 to 14)' },
         { value: '3', label: 'Week 3 (days 15 to 21)' },
-        { value: '4', label: 'Week 4 (days 22 to 30)' },
+        { value: '4', label: 'Week 4 (day 22 to the end of the break)' },
       ],
     },
     {
@@ -454,8 +457,8 @@ export const groupWords = {
     after: 'after your break',
     After: 'After your break',
     afterPage: 'after-break page',
-    midName: 'Mid-break check-in',
-    mid: 'mid-break check-in',
+    midName: 'Weekly check-in',
+    mid: 'weekly check-in',
     checkInTitle: 'How is your break going?',
     firstStarts: 'the first starts your 30-day break, and the second is once the break is over',
     secondWhen: 'once your 30-day break is over',

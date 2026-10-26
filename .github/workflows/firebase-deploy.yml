@@ -12,7 +12,11 @@ name: Deploy Firebase backend
 # MPMB_MAIL_TO, MPMB_SMTP_HOST, MPMB_SMTP_PORT (the password itself is stored
 # in Secret Manager by consent-app/firebase/scripts/set-mail-password.sh), and
 # for text reminders MPMB_SMS_FROM, the sender (MyPhoneStdy unless set; texts
-# start once the Twilio credentials are stored by set-sms-credentials.sh). The staff page's key is stored by
+# start once the Twilio credentials are stored by set-sms-credentials.sh),
+# MPMB_TWILIO_BASE_URL (https://api.dublin.ie1.twilio.com for Twilio's Ireland
+# region, with credentials created there) and MPMB_OPENAI_BASE_URL
+# (https://eu.api.openai.com for OpenAI's European data residency, with a key
+# from a project set up for it). The staff page's key is stored by
 # set-staff-key.sh.
 on:
   push:
@@ -84,6 +88,8 @@ jobs:
             echo "MPMB_SMTP_SECRET=mpmb-smtp-password"
             echo "MPMB_EXPORT_BUCKET=${{ vars.MPMB_EXPORT_BUCKET || 'myphone-mybrain-exports' }}"
             echo "MPMB_SMS_FROM=${{ vars.MPMB_SMS_FROM || 'MyPhoneStdy' }}"
+            echo "MPMB_OPENAI_BASE_URL=${{ vars.MPMB_OPENAI_BASE_URL || 'https://api.openai.com' }}"
+            echo "MPMB_TWILIO_BASE_URL=${{ vars.MPMB_TWILIO_BASE_URL || 'https://api.twilio.com' }}"
             echo "MPMB_ADDRESS_DAILY_CAP=${{ vars.MPMB_ADDRESS_DAILY_CAP || '1500' }}"
           } > consent-app/firebase/functions/.env
 

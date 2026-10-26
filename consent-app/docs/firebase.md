@@ -277,6 +277,24 @@ Run it again any time; it skips what is already done.
     workflow. Until the password is stored, messages are kept in
     `enquiries/` with `notified: not-configured`. Nothing is ever emailed
     to families.
+
+    **Switching to a University mailbox** (recommended over the default
+    Gmail account, 26 October 2026). Set the repository variables
+    `MPMB_SMTP_HOST=smtp.office365.com`, `MPMB_SMTP_PORT=587` and
+    `MPMB_SMTP_USER` to the University mailbox (a shared or service
+    mailbox with SMTP AUTH enabled by IT), store its password with
+    `set-mail-password.sh`, and redeploy. Port 587 uses STARTTLS (mail.ts
+    picks TLS from the port). Send one test enquiry and check it arrives.
+
+    **Regions for OpenAI and Twilio** (26 October 2026). Both default to
+    their standard US endpoints. To keep MyStory's AI calls in Europe, set
+    up a project with European data residency in OpenAI's dashboard, store
+    its key as `mpmb-openai-key`, and set the repository variable
+    `MPMB_OPENAI_BASE_URL=https://eu.api.openai.com`. To send texts from
+    Twilio's Ireland region, create an API key in the IE1 region, store
+    `<key sid>:<secret>` with `set-sms-credentials.sh`, and set
+    `MPMB_TWILIO_BASE_URL=https://api.dublin.ie1.twilio.com`. Redeploy after
+    either change and send a test.
 11. **The break study's lab visits, texts and staff page.** Make the staff
     key once, in Cloud Shell:
     `bash consent-app/firebase/scripts/set-staff-key.sh <project-id>` (it

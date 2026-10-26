@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { redactOptedOutPupils } from './schoolRedact.js';
 import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
@@ -275,6 +276,8 @@ export const schoolUpload = onCall({ ...callOptions }, async (request) => {
     text: ['Hello,', '', `Thank you. We received your file ${fileName}: ${summary}.`, '', 'If you need to correct anything, upload the file again on the same page; the research team uses the latest one. Questions? Reply to this email.', '', 'The MyPhone/MyBrain team, University of Leeds'].join('\n'),
   });
   await db.collection('schoolUploads').doc(uploadId).set({ notified: { team, receipt } }, { merge: true });
+  // Pupils already opted out keep only a minimal record from the start (schoolRedact.ts).
+  await redactOptedOutPupils(db);
   logger.info('School UPN list received', { school: school.slug, uploadId, kind, manual: !list, pupils: list?.pupils.length ?? 0, valid: list?.valid ?? 0, problems: list?.problems.length ?? 0, team, receipt });
   return { uploadId, receivedAt: receivedAt.toISOString(), preview, receipt };
 });

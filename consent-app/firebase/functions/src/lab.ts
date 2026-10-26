@@ -6,6 +6,7 @@ import { logger } from 'firebase-functions/v2';
 import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
 import { cleaner, groupOf, labCheckInForm, labCheckInFormControl, labCheckInForms, labConsentForm, labConsentFormControl, labConsentForms, labInformationVersions, labStudy, PARTICIPANT_CODE, UK_POSTCODE, type LabGroup } from './forms.js';
+import { checkInNumberNow, checkInShotsOf, checkInsDone, checkInsOf } from './checkIns.js';
 
 /** The group a consent form belongs to. */
 export const consentGroupOf = (formId: unknown): LabGroup => (formId === labConsentFormControl.id ? 'control' : 'break');
@@ -268,7 +269,8 @@ export function validateLabCheckInPayload(input: unknown): string[] {
   if (!normaliseCode(p.participantCode)) problems.push('The participant ID is malformed.');
   // Either group's check-in; the handler checks it is the participant's own group's.
   const form = p.formId === labCheckInFormControl.id ? labCheckInFormControl : labCheckInForm;
-  if (p.formId !== form.id || p.formVersion !== form.version) problems.push(`The check-in must be ${labCheckInForm.id} ${labCheckInForm.version} or ${labCheckInFormControl.id} ${labCheckInFormControl.version}.`);
+  // 0.1-draft (before weekly check-ins, 26 October 2026) still accepted from a page loaded before the change: the same questions.
+  if (p.formId !== form.id || (p.formVersion !== form.version && !(form.id === labCheckInForm.id && p.formVersion === '0.1-draft'))) problems.push(`The check-in must be ${labCheckInForm.id} ${labCheckInForm.version} or ${labCheckInFormControl.id} ${labCheckInFormControl.version}.`);
   if (!isObj(p.answers)) problems.push('The answers are malformed.');
   else {
     const answers = p.answers as Record<string, unknown>;
@@ -552,6 +554,10 @@ export const lookupLabParticipant = onCall(callOptions, async (request) => {
     const phase = (d.data().phase ?? 'pre') as Phase;
     for (const f of (d.data().files ?? []) as DocumentData[]) for (const pl of (f.platforms ?? []) as string[]) seen[phase]?.add(pl);
   }
+  // The weekly check-in open today (26 October 2026), from the day of the break: the first visit standing.
+  const visit1 = bookings.docs.map((d) => d.data()).filter((b) => b.visit !== 2 && (b.status === 'booked' || b.status === 'attended')).map((b) => b.start?.toDate?.() as Date | undefined).filter((d): d is Date => Boolean(d)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+  const checkInNumber = checkInNumberNow(visit1, new Date());
+  const filed = checkInsOf(participant);
   return {
     exists: true,
     consentedAt: toIso(participant.consentedAt),
@@ -562,8 +568,11 @@ export const lookupLabParticipant = onCall(callOptions, async (request) => {
     lastCheckInAt: toIso(participant.lastCheckInAt),
     // The participant's group (21 October 2026), so every page uses its words, forms and MyStory chat.
     group: groupOf(participant),
-    // The check-in already in, so an unfinished one carries on (its screenshot and story) on any device.
-    checkInId: Array.isArray(participant.checkInIds) && participant.checkInIds.length ? String(participant.checkInIds[0]) : null,
+    // This week's check-in, if already in, so an unfinished one carries on (its screenshot, and its story) on any device.
+    checkInNumber,
+    checkInId: filed[checkInNumber] ?? null,
+    checkInShots: checkInShotsOf(participant, filed[checkInNumber] ?? null),
+    checkInsDone: checkInsDone(participant),
     platformsNotUsed: notUsedOf(participant),
     // The lab visits standing (booked or done), so each page can say what comes next.
     visits: bookings.docs
@@ -771,6 +780,8 @@ export const submitLabDonation = onCall(callOptions, async (request) => {
               next[phase] = { archives: next[phase].archives + stored.filter((f) => f.kind === 'archive').length, screenshots: next[phase].screenshots + stored.filter((f) => f.kind === 'screenshot').length };
               return next;
             })(),
+        // Screenshots sent with each weekly check-in, so each one's completeness is known (26 October 2026).
+        ...(payload.checkInId && stored.some((f) => f.kind === 'screenshot') ? { checkInShots: { [payload.checkInId]: FieldValue.increment(stored.filter((f) => f.kind === 'screenshot').length) } } : {}),
         lastDonationAt: receivedAt,
         lastPhase: payload.phase,
         ...(sentPlatforms.length ? { platformsNotUsed: FieldValue.arrayRemove(...sentPlatforms) } : {}),
@@ -816,6 +827,14 @@ export const submitLabCheckIn = onCall(callOptions, async (request) => {
     .digest('hex')
     .slice(0, 27);
   const ref = db.collection('labCheckIns').doc(`k${same}`);
+  // Which weekly check-in this is (26 October 2026): from the day of the break, by the first visit standing.
+  const firstVisit = (await db.collection('labBookings').where('participantCode', '==', code).get()).docs
+    .map((d) => d.data())
+    .filter((b) => b.visit !== 2 && (b.status === 'booked' || b.status === 'attended'))
+    .map((b) => b.start?.toDate?.() as Date | undefined)
+    .filter((d): d is Date => Boolean(d))
+    .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+  const number = checkInNumberNow(firstVisit, receivedAt);
   const result = await db.runTransaction(async (tx) => {
     const [held, participantSnap] = await Promise.all([tx.get(ref), tx.get(participantRef)]);
     const before = held.data();
@@ -825,18 +844,18 @@ export const submitLabCheckIn = onCall(callOptions, async (request) => {
     // The control group has no check-in (22 October 2026).
     if (groupOf(participant) === 'control') throw new HttpsError('failed-precondition', 'There is no check-in in your part of the study: nothing to do here.');
     if (labCheckInForms[groupOf(participant)].id !== payload.formId) throw new HttpsError('failed-precondition', 'This check-in is for the other part of the study. Please reload the page and try again.');
-    // One check-in for each participant (20 October 2026), apart from the team's test accounts: answers sent again join the
-    // first check-in rather than starting another, so an unfinished one (its screenshot or story still to come) carries on.
-    const firstId = Array.isArray(participant.checkInIds) && participant.checkInIds.length ? String(participant.checkInIds[0]) : null;
-    if (firstId && !mayRetellStory(code)) {
-      const first = (await tx.get(db.collection('labCheckIns').doc(firstId))).data();
-      return { checkInId: firstId, receivedAt: first?.receivedAt?.toDate?.().toISOString?.() ?? receivedAt.toISOString(), count: 1, first: false };
+    // One check-in each week (26 October 2026; before, one in all), apart from the team's test accounts: answers sent again
+    // that week join its check-in rather than starting another, so an unfinished one (its screenshot or story) carries on.
+    const filed = checkInsOf(participant);
+    const thisWeek = filed[number] ?? null;
+    if (thisWeek && !mayRetellStory(code)) {
+      const earlier = (await tx.get(db.collection('labCheckIns').doc(thisWeek))).data();
+      return { checkInId: thisWeek, receivedAt: earlier?.receivedAt?.toDate?.().toISOString?.() ?? receivedAt.toISOString(), count: number, first: false };
     }
-    const count = Number(participant.checkInCount ?? 0) + 1;
     tx.create(ref, {
       studyId: labStudy.studyId,
       participantCode: code,
-      number: count,
+      number,
       formId: payload.formId,
       formVersion: payload.formVersion,
       answers,
@@ -845,8 +864,9 @@ export const submitLabCheckIn = onCall(callOptions, async (request) => {
       receivedAt,
       createdAt: FieldValue.serverTimestamp(),
     });
-    tx.set(participantRef, { checkInIds: FieldValue.arrayUnion(ref.id), checkInCount: FieldValue.increment(1), lastCheckInAt: receivedAt, sessionUids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    return { checkInId: ref.id, receivedAt: receivedAt.toISOString(), count, first: true };
+    // Records from before weekly check-ins keep their one check-in as the halfway one (checkInsOf), written out here.
+    tx.set(participantRef, { checkInIds: FieldValue.arrayUnion(ref.id), checkInByNumber: { ...filed, [number]: ref.id }, checkInCount: FieldValue.increment(1), lastCheckInAt: receivedAt, sessionUids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return { checkInId: ref.id, receivedAt: receivedAt.toISOString(), count: number, first: true };
   });
   if (result.first) logger.info('Lab check-in recorded', { participantCode: code, checkInId: ref.id, number: result.count });
   return { checkInId: result.checkInId, receivedAt: result.receivedAt, count: result.count };

@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/Button';
 import { Icon } from '../../components/ui/Icon';
 import { announce } from '../../lib/announce';
 import { formatTimestamp } from '../../lib/dates';
-import { labBooking } from '../booking';
+import { labBooking, labStoryCheckIn } from '../booking';
 import { ukDayYear, ukHours, visitName, visitTitle } from '../calendar';
 import { labPages, labStudy } from '../config';
 import { labFileStore } from '../fileStore';
@@ -110,7 +110,8 @@ export function LabDone() {
   const toDo = flow === 'checkin' ? [] : platformsToDo(state);
   // MyStory comes next once this page's data is in (before the break, enough to book; after it, every app), or after the check-in.
   const dataIn = flow === 'baseline' ? readyToBook(state, labBooking.requires) : flow === 'after' ? have.screenshots > 0 && !toDo.length : flow === 'checkin';
-  const storyNext = dataIn && !storyTold(state, state.phase);
+  // MyStory is in the halfway check-in only (weekly check-ins, 26 October 2026).
+  const storyNext = dataIn && !storyTold(state, state.phase) && (flow !== 'checkin' || (state.progress?.checkInNumber ?? labStoryCheckIn) === labStoryCheckIn);
 
   useEffect(() => {
     document.title = 'Thank you – MyPhone/MyBrain';
@@ -143,7 +144,7 @@ export function LabDone() {
     flow === 'checkin'
       ? group === 'control'
         ? [`${words.carryOn} There is one check-in, so you have nothing more to do here.`, 'If you have any questions about the study, contact the team.', `${words.lastDay}, take your screen-time screenshots on the ${words.afterPage} and request your new data downloads.`]
-        : ['Carry on with your break. There is one check-in, so you have nothing more to do here.', 'If anything goes wrong with Brick or the break, contact the team; it is useful to know.', 'On the last day of your break, before you unlock your apps, take your screen-time screenshots on the after-break page; once your apps are unlocked, request your new data downloads.']
+        : ['Carry on with your break. Your next weekly check-in link comes by text (or email) on its day: days 8, 15, 22 and 29 of the break.', 'If anything goes wrong with Brick or the break, contact the team; it is useful to know.', 'On the last day of your break, before you unlock your apps, take your screen-time screenshots on the after-break page; once your apps are unlocked, request your new data downloads.']
       : flow === 'after'
         ? ['Bring your phone to your second lab visit. The team will be able to see that your files have arrived.', 'If a data download arrives later, come back to this page, enter your details and add it.']
         : [
@@ -151,7 +152,7 @@ export function LabDone() {
             'Bring your phone to your first lab visit. The team will be able to see that your files have arrived.',
             group === 'control'
               ? `About a week before your second visit, we remind you to send your data again on the ${words.afterPage}. It finds you from the same details you gave today; there is nothing to sign again.`
-              : 'On day 15, we send you a link to your mid-break check-in; afterwards, send your data again on the after-break page. Both find you from the same details you gave today; there is nothing to sign again.',
+              : 'On days 8, 15, 22 and 29 of your break, we send you a link to that week’s check-in (MyStory is in the one on day 15); afterwards, send your data again on the after-break page. Both find you from the same details you gave today; there is nothing to sign again.',
           ];
 
   return (

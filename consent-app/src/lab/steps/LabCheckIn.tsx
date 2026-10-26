@@ -5,6 +5,7 @@ import { Callout } from "../../components/ui/Callout";
 import { ChoiceField, FieldWrapper } from "../../components/ui/Field";
 import { announce } from "../../lib/announce";
 import { describeError, labClientInfo, labSession } from "../api";
+import { labCheckInDays, labStoryCheckIn } from "../booking";
 import { labStudy } from "../config";
 import { LabShell } from "../LabShell";
 import { ShotPicker } from "../ShotPicker";
@@ -13,10 +14,12 @@ import { useLabSender } from "../useLabSender";
 import type { FieldError } from "../validation";
 
 /**
- * The mid-break check-in, once, on day 15 of the break (20 October 2026): a
- * few quick questions and a screenshot of this week's screen time (required),
- * then MyStory (required). The answers are filed under the
- * participant ID; the screenshots go with them, linked to the check-in.
+ * The weekly check-in (26 October 2026), on days 8, 15, 22 and 29 of the
+ * break: a few quick questions and a screenshot of this week's screen time
+ * (required). The halfway one, on day 15, is followed by MyStory (required);
+ * the others end there. Which week it is comes from the server, from the day
+ * of the break. The answers are filed under the participant ID; the
+ * screenshots go with them, linked to the check-in.
  */
 export function LabCheckIn() {
   const { state, dispatch } = useLab();
@@ -30,12 +33,15 @@ export function LabCheckIn() {
   const answers = state.checkIn.answers;
   const pending = state.screenshots.filter((s) => s.status !== "sent");
   const answered = Boolean(state.checkIn.checkInId);
+  // Which weekly check-in is open (1 to 4), from the server; the halfway one has MyStory.
+  const number = state.progress?.checkInNumber ?? 1;
+  const withStory = number === labStoryCheckIn;
   // Screenshots already in for this check-in: sent from this device, or (on another device) counted by the server.
   const shotsIn = Math.max(
     state.screenshots.filter((s) => s.status === "sent").length,
-    state.progress?.phases?.mid?.screenshots ?? 0,
+    state.progress?.checkInShots ?? 0,
   );
-  // One check-in each: one already sent (on any device) carries on, with its screenshot and story still to come.
+  // One check-in a week: this week's, already sent (on any device), carries on, with its screenshot (and story) still to come.
   const earlierId = state.progress?.storyRepeatAllowed
     ? null
     : (state.progress?.checkInId ?? null);
@@ -45,15 +51,21 @@ export function LabCheckIn() {
         type: "checkin-sent",
         checkInId: earlierId,
         receivedAt: state.progress?.lastCheckInAt ?? new Date().toISOString(),
-        count: 1,
+        count: number,
       });
   }, [
+    number,
     earlierId,
     state.checkIn.checkInId,
     state.progress?.lastCheckInAt,
     dispatch,
   ]);
   const answersHere = Object.values(answers).some((v) => (v ?? "").trim());
+  // The week is filled in from the check-in (the participant can change it).
+  useEffect(() => {
+    if (!state.checkIn.checkInId && !answers.week && labCheckInForm.questions.some((q) => q.id === "week"))
+      dispatch({ type: "checkin-answer", questionId: "week", value: String(number) });
+  }, [number, answers.week, state.checkIn.checkInId, labCheckInForm, dispatch]);
 
   const validate = (): FieldError[] => {
     const found: FieldError[] = [];
@@ -130,12 +142,12 @@ export function LabCheckIn() {
           return;
         }
       }
-      // MyStory follows the check-in (required, 20 October 2026), then the summary; once the break's story is in, straight to the summary
-      // (one story a phase, 19 October 2026, apart from the team's test accounts).
+      // MyStory follows the halfway check-in only (required, 20 October 2026; weekly check-ins, 26 October 2026), then the summary;
+      // once the break's story is in, straight to the summary (one story a phase, 19 October 2026, apart from the team's test accounts).
       const told =
         (state.progress?.stories?.mid ?? 0) > 0 &&
         state.progress?.storyRepeatAllowed !== true;
-      dispatch({ type: "go-to", stepId: told ? "done" : "mystory" });
+      dispatch({ type: "go-to", stepId: !withStory || told ? "done" : "mystory" });
     } catch (error) {
       setErrors([
         { field: "lab-files", message: describeError(error, "your check-in") },
@@ -188,12 +200,12 @@ export function LabCheckIn() {
 
   return (
     <LabShell
-      kicker={words.midName}
+      kicker={`${words.midName} ${number} of ${labCheckInDays.length}`}
       title={words.checkInTitle}
       intro={
         <p>
-          A few quick questions about the past week. There are no right answers,
-          and nothing here changes your payment or your place in the study.
+          A few quick questions about the past week{withStory ? ", then your story for MyStory" : ""}. There are no right
+          answers, and nothing here changes your payment or your place in the study.
         </p>
       }
       errors={errors}

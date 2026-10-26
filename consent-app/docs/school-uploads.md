@@ -48,7 +48,7 @@ not read, but stay in the file as it was sent.
 
 | | |
 | --- | --- |
-| Storage `schoolupns/<slug>/<id>/<file>` | the file exactly as sent (coordinators only) |
+| Storage `schoolupns/<slug>/<id>/<file>` | the file exactly as sent (coordinators only), until it names an opted-out pupil: then it is deleted, and what was read from it, redacted, is the record (26 October 2026; a file read by hand is kept, and the team removes the pupil's details by hand) |
 | Firestore `schoolUploads/` | who sent it and when, what was read (UPN, names, date of birth, year group, class) and the rows to check |
 | Storage `schoolquarantine/<session>/<id>` | a file over 7 MB, put there by the browser before the function reads it (the call itself cannot carry more than about 7 MB); deleted once sent, or after a day if never sent. The browser can create and delete its own only, never read it |
 | Firestore `schoolUploadAccess/<slug>` | the password's hash (scrypt), when it was made, whether uploads are open |
@@ -84,3 +84,18 @@ school's own password, and the files are never public. Retention follows the
 study's: the UPN lists can be deleted from the database once matching is
 done (`scripts/delete-record.mjs` style), and the export removes them on its
 next run.
+
+## Opted-out pupils (26 October 2026)
+
+The class list follows the standard Born in Bradford template, so it carries
+gender, ethnicity, address, postcode, school email, free school meals and SEN
+for each pupil. For a pupil whose parent or carer opted them out, only what
+honours the opt-out is kept: names, school, year group, class and UPN, with the
+opt-out's kind and date. `firebase/functions/src/schoolRedact.ts` blanks the
+rest (date of birth included) in `schoolUploads/`, so the export never carries
+it, and deletes the original file once it names an opted-out pupil, if the
+website read it (the parsed rows and the file's SHA-256 remain). It runs when an
+opt-out is logged on the staff page, when a school sends a list, and before
+every hourly export. A cancelled opt-out does not bring the details back: ask
+the school to send the list again. The OneDrive mirror moves the deleted file
+to "MyPhoneMyBrain removed", emptied after 90 days.

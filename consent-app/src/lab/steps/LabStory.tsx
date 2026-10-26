@@ -22,7 +22,7 @@ const SOURCE: Record<string, LabStoryPayload['source']> = { baseline: 'baseline'
 /**
  * MyStory: a short story in the participant's own words, then a few
  * questions placing it, with its own structure for each phase of the study
- * (src/lab/mystory.ts). It follows each mid-break check-in, can be told from
+ * (src/lab/mystory.ts). It follows the halfway (day 15) weekly check-in, can be told from
  * the other pages' summaries, and has a page of its own for personal links
  * (/break/mystory/?phase=…). A phase run by another survey (MySelf, for
  * example) shows that survey, given the participant ID and the phase.

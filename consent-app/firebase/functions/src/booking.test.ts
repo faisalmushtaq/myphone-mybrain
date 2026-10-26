@@ -151,11 +151,14 @@ test('daily messages as email and text: the link in the check-in ones, the visit
   const v1 = new Date('2026-10-14T09:00:00Z');
   const late2 = booking({ id: 'b2', visit: 2, start: new Date('2026-11-18T10:00:00Z'), end: new Date('2026-11-18T12:00:00Z') });
   const plan = dailyPlan(v1, late2.start);
-  const ctx = { days: 35, visit2: late2, checkInDone: false };
+  const ctx = { days: 35, visit2: late2, checkInsDone: [] as number[] };
   const at = (id: string) => journeyMessage(plan.find((m) => m.id === id)!, 'MP2670FF90A5F2', ctx);
   assert.match(at('day-15').sms, /^MyPhone\/MyBrain: You've reached the mid-break check-in!.*check-in\/\?code=MP2670FF90A5F2/);
   assert.equal(at('day-15').subject, 'MyPhone/MyBrain: your mid-break check-in');
   assert.equal(at('day-16').kind, 'check-in-reminder');
+  assert.equal(at('day-8').subject, 'MyPhone/MyBrain: your weekly check-in');
+  assert.equal(at('day-9').subject, 'MyPhone/MyBrain: a reminder about your weekly check-in');
+  assert.equal(at('day-16').subject, 'MyPhone/MyBrain: a reminder about your mid-break check-in');
   assert.equal(at('day-34').sms, 'MyPhone/MyBrain: Not long now! Your second lab visit is tomorrow, Wed 18 Nov at 10:00, LG25 (EEG Lab), School of Psychology. We look forward to seeing you.');
   assert.match(at('day-3').text, /There is nothing you need to do/);
   assert.equal(at('day-3').subject, 'MyPhone/MyBrain: day 3 of your break');

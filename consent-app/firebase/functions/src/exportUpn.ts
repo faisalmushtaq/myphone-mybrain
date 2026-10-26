@@ -151,11 +151,11 @@ export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<strin
     files.push(
       tsvFile(
         `${base}_pupils.tsv`,
-        ((d.pupils ?? []) as Record<string, unknown>[]).map((p) => ({ row: p.row, upn: p.upn, first_name: p.firstName, middle_name: p.middleName ?? null, last_name: p.lastName, date_of_birth: p.dateOfBirth, gender: p.gender ?? null, ethnicity: p.ethnicity ?? null, school_name: p.schoolName ?? null, year_group: p.yearGroup, form_tutor: p.formTutor ?? null, class: p.className, address: p.address ?? null, postcode: p.postcode ?? null, school_email: p.email ?? null, fsm: p.fsm ?? null, sen: p.sen ?? null })),
-        ['row', 'upn', 'first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender', 'ethnicity', 'school_name', 'year_group', 'form_tutor', 'class', 'address', 'postcode', 'school_email', 'fsm', 'sen'],
+        ((d.pupils ?? []) as Record<string, unknown>[]).map((p) => ({ row: p.row, upn: p.upn, first_name: p.firstName, middle_name: p.middleName ?? null, last_name: p.lastName, date_of_birth: p.dateOfBirth, gender: p.gender ?? null, ethnicity: p.ethnicity ?? null, school_name: p.schoolName ?? null, year_group: p.yearGroup, form_tutor: p.formTutor ?? null, class: p.className, address: p.address ?? null, postcode: p.postcode ?? null, school_email: p.email ?? null, fsm: p.fsm ?? null, sen: p.sen ?? null, opted_out: p.optedOut === true, opt_out_kind: p.optOutKind ?? null })),
+        ['row', 'upn', 'first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender', 'ethnicity', 'school_name', 'year_group', 'form_tutor', 'class', 'address', 'postcode', 'school_email', 'fsm', 'sen', 'opted_out', 'opt_out_kind'],
       ),
     );
-    uploadRows.push({ upload_id: u.id, school_id: d.schoolId, school_name: d.schoolName, received_at: d.receivedAt, file_name: d.fileName, stored_as: original.slice(UPN_ROOT.length + 1), pupils_n: d.pupilCount, valid_upns_n: d.validUpns, problems_n: Array.isArray(d.problems) ? d.problems.length : 0, uploader_name: d.uploader?.name, uploader_role: d.uploader?.role, uploader_email: d.uploader?.email, note: d.note, sha256: d.sha256, read_by_hand: d.needsManualReading === true, why_not_read: d.unreadableReason ?? null, file_kind: d.fileKind ?? null });
+    uploadRows.push({ upload_id: u.id, school_id: d.schoolId, school_name: d.schoolName, received_at: d.receivedAt, file_name: d.fileName, stored_as: typeof d.path === 'string' && d.path ? original.slice(UPN_ROOT.length + 1) : 'removed: it named an opted-out pupil (what was read from it is kept, redacted)', pupils_n: d.pupilCount, valid_upns_n: d.validUpns, problems_n: Array.isArray(d.problems) ? d.problems.length : 0, uploader_name: d.uploader?.name, uploader_role: d.uploader?.role, uploader_email: d.uploader?.email, note: d.note, sha256: d.sha256, read_by_hand: d.needsManualReading === true, why_not_read: d.unreadableReason ?? null, file_kind: d.fileKind ?? null });
   }
   // Every row the reader flagged, in full (16 October 2026; the staff page and uploads.tsv give only the number): the message may quote the cell, so coordinators only, like the rest of this folder.
   files.push(tsvFile(`${UPN_ROOT}/problems.tsv`, problemRows, ['upload_id', 'school_id', 'received_at', 'file_name', 'row', 'problem']));
@@ -251,9 +251,17 @@ problems.tsv           every row the reader flagged in each file (no UPN, not a
                        it could not read), with the file and row
 upn_unmatched.tsv      pupils on a school's lists with no record on the website
                        Both tables say opted_out (and which opt-out) for a pupil
-                       whose parent or carer opted them out of the workshop by
-                       email: see ../identifying/opt_outs.tsv. Opted out means
-                       no workshop and no data at all, including linking.
+                       whose parent or carer opted them out of the workshop (by
+                       email, or through the school): see ../identifying/opt_outs.tsv.
+                       Opted out means no workshop and no data at all, including
+                       linking. An opted-out pupil keeps only a minimal record
+                       (26 October 2026): names, school, year group, class and
+                       UPN, with the opt-out; date of birth, gender, ethnicity,
+                       address, postcode, email, FSM and SEN are blanked
+                       (opted_out in each pupils.tsv), and a file that names an
+                       opted-out pupil is removed once read (stored_as says so).
+                       A file read by hand is kept: the team removes the
+                       opted-out pupil's details from it by hand.
 
 Files are tab-separated UTF-8 with n/a for missing values; timestamps are
 ISO 8601 in UTC.

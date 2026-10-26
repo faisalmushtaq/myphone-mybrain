@@ -82,9 +82,11 @@ export const labBooking = {
 /**
  * Messages during the break (the team's wording, 20 October 2026): one at
  * 09:00 UK time every day from the day after the first visit to the day
- * before the second, so they stretch to each person's break; day 15 brings the
- * link to the mid-break check-in, and from day 16 a reminder replaces the
- * day's message until it is complete; the last day says when and where the
+ * before the second, so they stretch to each person's break; days 8, 15, 22
+ * and 29 bring the link to that week's check-in (26 October 2026: weekly
+ * check-ins, with MyStory only in the halfway one on day 15), and for two days
+ * after each a reminder replaces the day's message until it is complete; the
+ * last day says when and where the
  * second visit is; a thank-you follows it. The schedule and the wording are in
  * firebase/functions/src/dailyMessages.ts.
  *
@@ -93,8 +95,23 @@ export const labBooking = {
  * one more than a day overdue is skipped, never sent late. Nothing goes once
  * the team pauses messages for someone, or for a first visit marked missed.
  */
-/** The day of the break that brings the check-in link. */
-export const labCheckInDay = 15;
+/** The days of the break that bring each weekly check-in's link (26 October 2026); check-in n opens on labCheckInDays[n - 1]. */
+export const labCheckInDays = [8, 15, 22, 29] as const;
+/** The check-in that includes MyStory (the AI chat): the halfway one, on day 15. */
+export const labStoryCheckIn = 2;
+/** The day of the halfway check-in, with MyStory. */
+export const labCheckInDay = labCheckInDays[labStoryCheckIn - 1];
+/** Reminders follow an open check-in for this many days, then stop (the next check-in is a week later). */
+export const labCheckInReminderDays = 2;
+
+/** Which weekly check-in is open on a day of the break (day 0 is the first visit): the latest one already reached, or the first before day 8. */
+export function labCheckInNumberOn(day: number): number {
+  let n = 1;
+  labCheckInDays.forEach((d, i) => {
+    if (day >= d) n = i + 1;
+  });
+  return n;
+}
 
 /** The hour (UK time) the break-time messages go out. */
 export const labJourneyHour = 9;

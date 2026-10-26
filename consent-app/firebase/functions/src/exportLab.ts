@@ -696,7 +696,7 @@ export function labCheckInDictionary(): Record<string, unknown> {
     participant_id: { Description: 'sub- followed by the participant ID' },
     session_id: { Description: 'Always ses-mid: the check-ins happen during the break; screenshots sent with them are in that session, linked by check_in_id' },
     check_in_id: { Description: 'Identifier of the check-in; the check_in_id column of ses-mid’s donation index points here' },
-    check_in_n: { Description: 'Which check-in this was for the participant: 1 for the first' },
+    check_in_n: { Description: 'Which weekly check-in this was (26 October 2026): 1 to 4, opening on days 8, 15, 22 and 29 of the break; 2, the halfway one, also has MyStory. Before 26 October there was one check-in, on day 15, numbered 1' },
     submitted_at: { Description: 'When the check-in was received (ISO 8601, UTC)' },
     form_version: { Description: 'Version of the check-in questions answered' },
     form_id: { Description: `Which check-in was answered: ${labCheckInForm.id} (the break group) or ${labCheckInFormControl.id} (the control group, 21 October 2026); a question not in it is n/a`, Levels: { [labCheckInForm.id]: 'The break group’s', [labCheckInFormControl.id]: 'The control group’s' } },

@@ -189,6 +189,9 @@ const generated = {
   // Booking the lab visits, and the messages during the break (src/lab/booking.ts).
   labBooking: { ...booking.labBooking, location: { name: booking.labBooking.location.name, address: booking.labBooking.location.address, directions: booking.labBooking.location.directions } },
   labCheckInDay: booking.labCheckInDay,
+  labCheckInDays: [...booking.labCheckInDays],
+  labStoryCheckIn: booking.labStoryCheckIn,
+  labCheckInReminderDays: booking.labCheckInReminderDays,
   labJourneyHour: booking.labJourneyHour,
   // MyStory: each phase's structure, the limits, and how each phase is collected (src/lab/mystory.ts).
   storyStructures: mystory.storyStructures,

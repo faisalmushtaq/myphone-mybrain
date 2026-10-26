@@ -29,6 +29,7 @@ import {
   type Embedder,
   type ModelCall,
   type Prompt,
+  openAiBase,
 } from './storyPrompts.js';
 import { isObj, validateClient, type ClientInfo } from './validate.js';
 import { alreadyToldMessage } from './story.js';
@@ -554,7 +555,7 @@ async function transcribeClip(apiKey: string, audio: Buffer, mimeType: string, e
   form.append('model', TRANSCRIBE_MODEL);
   form.append('language', 'en');
   form.append('response_format', 'json');
-  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { authorization: `Bearer ${apiKey}` }, body: form });
+  const response = await fetch(`${openAiBase()}/v1/audio/transcriptions`, { method: 'POST', headers: { authorization: `Bearer ${apiKey}` }, body: form });
   // The provider's own message is not passed on: it can quote the request back, and the request is somebody's voice.
   if (!response.ok) throw new ModelError(response.status === 429 ? 'rate_limit' : 'transport', `HTTP ${response.status}`);
   const { text } = (await response.json()) as { text?: string };

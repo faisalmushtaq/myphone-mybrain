@@ -211,8 +211,23 @@ export const labBooking = {
   copyTo: generated.labBooking.copyTo as readonly string[],
 };
 
-/** The day of the break that brings the check-in link (dailyMessages.ts has the rest). */
+/** The day of the halfway check-in, with MyStory (dailyMessages.ts has the rest). */
 export const labCheckInDay: number = generated.labCheckInDay;
+/** The days of the break that open each weekly check-in (26 October 2026). */
+export const labCheckInDays: readonly number[] = generated.labCheckInDays;
+/** The check-in that includes MyStory. */
+export const labStoryCheckIn: number = generated.labStoryCheckIn;
+/** How many days reminders follow an open check-in. */
+export const labCheckInReminderDays: number = generated.labCheckInReminderDays;
+
+/** Which weekly check-in is open on a day of the break (day 0 is the first visit): the latest one reached, or the first before it opens. */
+export function labCheckInNumberOn(day: number): number {
+  let n = 1;
+  labCheckInDays.forEach((d, i) => {
+    if (day >= d) n = i + 1;
+  });
+  return n;
+}
 export const labJourneyHour: number = generated.labJourneyHour;
 
 export type StoryPhase = 'pre' | 'mid' | 'post';

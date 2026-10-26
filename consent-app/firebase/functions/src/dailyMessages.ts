@@ -1,4 +1,4 @@
-import { labCheckInDay, labJourneyHour } from './forms.js';
+import { labCheckInDay, labCheckInDays, labCheckInReminderDays, labJourneyHour, labStoryCheckIn } from './forms.js';
 import { addDays, atUkTime, ukClock, ukDate, ukShortDate } from './ukTime.js';
 
 /**
@@ -10,9 +10,12 @@ import { addDays, atUkTime, ukClock, ukDate, ukShortDate } from './ukTime.js';
  * the team booked). Then a thank-you the morning after the second visit.
  *
  *   days 1 to 14       the opening messages, in order
- *   day 15             the link to the mid-break check-in
- *   from day 16        until the check-in is complete (answers, screenshot and
- *                      MyStory), a reminder with the link each day instead
+ *   days 8, 15, 22, 29 the link to that week's check-in (weekly check-ins, 26
+ *                      October 2026); the one on day 15, at the halfway point,
+ *                      also has MyStory
+ *   the 2 days after   while that check-in is not complete (answers and a
+ *                      screenshot, and MyStory on day 15), a reminder with the
+ *                      link instead of the day's message; then they stop
  *   in between         the middle messages, in order (weeks 3 and 4 marked on
  *                      days 21 and 28), as many as the break needs
  *   the last 4 days    the second visit coming up, a thank-you, nearly time,
@@ -97,11 +100,25 @@ const milestones: Record<number, string> = {
   28: "Four weeks in! Thank you for everything you've put into the break so far.",
 };
 
+/** Reminders for the halfway check-in, with MyStory. */
 const reminderLines = [
   "Just a reminder: your mid-break check-in is still open, and we'd love to hear how it's going. About 20 minutes: {link}",
   'Got 20 minutes today? Your mid-break check-in is still waiting for you: a screenshot and your story. {link}',
   "Your mid-break check-in helps us understand how the break is really going. Please do it when you can: {link}",
 ];
+
+/** Reminders for the other weekly check-ins (questions and a screenshot). */
+const weeklyReminderLines = [
+  'Just a reminder: your weekly check-in is still open. A few quick questions and a screenshot, about 5 minutes: {link}',
+  "Got 5 minutes today? Your weekly check-in is still waiting: a few questions and this week's screen-time screenshot. {link}",
+];
+
+/** Each weekly check-in's message on its day (the halfway one is the mid-break check-in, with MyStory). */
+const weeklyCheckInLines: Record<number, string> = {
+  1: "Your first weekly check-in is ready: a few quick questions and this week's screen-time screenshot. About 5 minutes: {link}",
+  3: "Your third weekly check-in is ready: a few quick questions and this week's screen-time screenshot. About 5 minutes: {link}",
+  4: "Your last weekly check-in is ready: a few quick questions and this week's screen-time screenshot. About 5 minutes: {link}",
+};
 
 /** The break group's wording, by part of the break. */
 interface Wording {
@@ -133,8 +150,8 @@ export interface DailyContext {
   /** Days from the first visit to the second (breakLength). */
   days: number;
   visit2: { start: Date; place: string } | null;
-  /** The check-in is in: its answers, a screenshot and the mid-break MyStory. */
-  checkInDone: boolean;
+  /** The weekly check-ins complete (1 to 4): answers and a screenshot, and for the halfway one MyStory too. */
+  checkInsDone: readonly number[];
   checkInLink: string;
   /** The page for sending the data again before the second visit (the control group's follow-up reminder). */
   afterLink?: string;
@@ -153,15 +170,25 @@ export function dailyMessage(day: number, ctx: DailyContext): { kind: DailyKind;
   }
   const w = wordings.break;
   if (day > days) return { kind: 'thank-you', line: "A big thank-you from all of us! We're grateful for your time and for sharing your experience with us." };
-  if (day === days - 1)
-    return {
-      kind: 'visit-tomorrow',
-      line: ctx.visit2 ? `Not long now! Your second lab visit is tomorrow, ${ukShortDate(ctx.visit2.start)} at ${ukClock(ctx.visit2.start)}, ${ctx.visit2.place}. We look forward to seeing you.` : "Not long now! Your second lab visit is coming up: the details are in your email. We look forward to seeing you.",
-    };
-  if (day === labCheckInDay) {
-    return ctx.checkInDone ? { kind: 'daily', line: w.checkInDone } : { kind: 'check-in', line: fill(w.checkIn) };
+  const tomorrow = ctx.visit2 ? `Your second lab visit is tomorrow, ${ukShortDate(ctx.visit2.start)} at ${ukClock(ctx.visit2.start)}, ${ctx.visit2.place}.` : 'Your second lab visit is coming up: the details are in your email.';
+  // A weekly check-in opens today (days 8, 15, 22 and 29): its link, unless it is already complete.
+  const opening = labCheckInDays.indexOf(day) + 1;
+  if (opening && !ctx.checkInsDone.includes(opening) && day < days) {
+    // On the last day of a short break the visit tomorrow goes with it, in short, so neither is lost.
+    if (day === days - 1) return { kind: 'check-in', line: fill(`Your last weekly check-in is ready, about 5 minutes: {link} ${tomorrow}`) };
+    return { kind: 'check-in', line: fill(opening === labStoryCheckIn ? w.checkIn : weeklyCheckInLines[opening] ?? weeklyCheckInLines[3]) };
   }
-  if (day > labCheckInDay && !ctx.checkInDone) return { kind: 'check-in-reminder', line: fill(w.reminders[(day - labCheckInDay - 1) % w.reminders.length]) };
+  if (day === days - 1) return { kind: 'visit-tomorrow', line: ctx.visit2 ? `Not long now! ${tomorrow} We look forward to seeing you.` : "Not long now! Your second lab visit is coming up: the details are in your email. We look forward to seeing you." };
+  // A check-in already complete on its day: the halfway one is thanked; the others leave the day's usual message.
+  if (opening === labStoryCheckIn) return { kind: 'daily', line: w.checkInDone };
+  // For two days after a check-in opens, a reminder while it is still not complete; then they stop, so the next week's is never crowded.
+  for (const [i, d] of labCheckInDays.entries()) {
+    const n = i + 1;
+    if (day > d && day <= d + labCheckInReminderDays && !ctx.checkInsDone.includes(n)) {
+      const lines = n === labStoryCheckIn ? w.reminders : weeklyReminderLines;
+      return { kind: 'check-in-reminder', line: fill(lines[(day - d - 1) % lines.length]) };
+    }
+  }
   if (day === days - 4) return { kind: 'visit-soon', line: ctx.visit2 ? `Your second lab visit is coming up on ${ukShortDate(ctx.visit2.start)}. Have a quick look at your booking so you know when we'll see you!` : 'Your second lab visit is coming up. Have a quick look at your booking so you know when we will see you!' };
   if (day === days - 3) return { kind: 'daily', line: w.thanksForTime };
   if (day === days - 2) return { kind: 'daily', line: w.nearlyTime };

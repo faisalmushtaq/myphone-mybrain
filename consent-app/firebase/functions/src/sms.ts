@@ -37,6 +37,16 @@ export async function smsReady(env: NodeJS.ProcessEnv = process.env): Promise<bo
   return Boolean(credentials && credentials.includes(':'));
 }
 
+/**
+ * Where Twilio's API is reached (26 October 2026): https://api.twilio.com (US1)
+ * by default; for Twilio's Ireland region, https://api.dublin.ie1.twilio.com,
+ * with credentials (an API key) created in that region. Set MPMB_TWILIO_BASE_URL.
+ */
+export function twilioBase(env: NodeJS.ProcessEnv = process.env): string {
+  const set = env.MPMB_TWILIO_BASE_URL?.trim().replace(/\/+$/, '');
+  return set && /^https:\/\/[a-z0-9.-]+\.twilio\.com$/i.test(set) ? set : 'https://api.twilio.com';
+}
+
 /** Sends one text. Never throws: the caller records the outcome. */
 export async function sendSms(to: string, body: string, env: NodeJS.ProcessEnv = process.env): Promise<SmsOutcome> {
   const number = ukMobile(to);
@@ -47,7 +57,7 @@ export async function sendSms(to: string, body: string, env: NodeJS.ProcessEnv =
   if (!from || !credentials || !credentials.includes(':')) return 'not-configured';
   const [sid, token] = credentials.split(':', 2).map((s) => s.trim());
   try {
-    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
+    const res = await fetch(`${twilioBase(env)}/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
       method: 'POST',
       headers: { Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`, 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ To: number, From: from, Body: body }).toString(),

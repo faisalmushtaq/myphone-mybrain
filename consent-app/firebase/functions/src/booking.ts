@@ -3,7 +3,8 @@ import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 import { asksSomething, dailyMessage, dailyPlan, breakLength, type DailyKind, type PlannedMessage } from './dailyMessages.js';
-import { groupOf, labBooking, labStudy, type LabGroup } from './forms.js';
+import { groupOf, labBooking, labCheckInDay, labCheckInReminderDays, labStudy, type LabGroup } from './forms.js';
+import { checkInsDone } from './checkIns.js';
 import { icsFor } from './ics.js';
 import { normaliseCode, phaseCountsOf, rateLimitLookups } from './lab.js';
 import { participantLinks } from './links.js';
@@ -385,8 +386,8 @@ export function sameDayEmail(b: BookingRecord): { subject: string; text: string 
 
 const journeySubjects: Record<DailyKind, (day: number, group: LabGroup) => string> = {
   daily: (day, group) => `MyPhone/MyBrain: day ${day} ${group === 'control' ? 'of 30' : 'of your break'}`,
-  'check-in': (_day, group) => `MyPhone/MyBrain: your ${group === 'control' ? 'midway' : 'mid-break'} check-in`,
-  'check-in-reminder': (_day, group) => `MyPhone/MyBrain: a reminder about your ${group === 'control' ? 'midway' : 'mid-break'} check-in`,
+  'check-in': (day, group) => `MyPhone/MyBrain: your ${group === 'control' ? 'midway' : day === labCheckInDay ? 'mid-break' : 'weekly'} check-in`,
+  'check-in-reminder': (day, group) => `MyPhone/MyBrain: a reminder about your ${group === 'control' ? 'midway' : day > labCheckInDay && day <= labCheckInDay + labCheckInReminderDays ? 'mid-break' : 'weekly'} check-in`,
   'visit-soon': () => 'MyPhone/MyBrain: your second lab visit is coming up',
   'visit-tomorrow': () => 'MyPhone/MyBrain: your second lab visit is tomorrow',
   'thank-you': () => 'MyPhone/MyBrain: thank you',
@@ -394,10 +395,10 @@ const journeySubjects: Record<DailyKind, (day: number, group: LabGroup) => strin
 };
 
 /** One of the daily messages (dailyMessages.ts) as an email and a text. */
-export function journeyMessage(m: PlannedMessage, code: string, ctx: { days: number; visit2: BookingRecord | null; checkInDone: boolean; group?: LabGroup }): { kind: DailyKind; subject: string; text: string; sms: string } {
+export function journeyMessage(m: PlannedMessage, code: string, ctx: { days: number; visit2: BookingRecord | null; checkInsDone: readonly number[]; group?: LabGroup }): { kind: DailyKind; subject: string; text: string; sms: string } {
   const group = ctx.group ?? 'break';
   const links = participantLinks(code, group);
-  const { kind, line } = dailyMessage(m.day, { days: ctx.days, visit2: ctx.visit2 ? { start: ctx.visit2.start, place: placeShort(ctx.visit2) } : null, checkInDone: ctx.checkInDone, checkInLink: links.checkIn, afterLink: links.after, contactEmail: labStudy.contactEmail, group });
+  const { kind, line } = dailyMessage(m.day, { days: ctx.days, visit2: ctx.visit2 ? { start: ctx.visit2.start, place: placeShort(ctx.visit2) } : null, checkInsDone: ctx.checkInsDone, checkInLink: links.checkIn, afterLink: links.after, contactEmail: labStudy.contactEmail, group });
   const nothingToDo = kind === 'daily' || kind === 'thank-you';
   return {
     kind,
@@ -868,8 +869,8 @@ export async function runLabMessages(now = new Date()): Promise<{ reminders: num
     // The second visit decides how long the break runs, so the messages stretch to it (and follow it if it moves).
     const visit2 = (await bookingsOf(db, code)).filter((b) => b.visit === 2 && ACTIVE.includes(b.status)).sort((a, b) => b.start.getTime() - a.start.getTime())[0] ?? null;
     const days = breakLength(visit1.start, visit2?.start ?? null);
-    // Complete: the answers, a screenshot and the mid-break MyStory are all in.
-    const checkInDone = Number(participant.checkInCount ?? 0) > 0 && phaseCountsOf(participant).mid.screenshots > 0 && Number(participant.storyCounts?.mid ?? 0) > 0;
+    // The weekly check-ins complete: answers and a screenshot, and for the halfway one MyStory too.
+    const done_ = checkInsDone(participant);
     for (const m of dailyPlan(visit1.start, visit2?.start ?? null, groupOf(participant))) {
       if (done[m.id]) continue;
       const action = journeyAction(m, now);
@@ -880,7 +881,7 @@ export async function runLabMessages(now = new Date()): Promise<{ reminders: num
         skipped += 1;
         continue;
       }
-      const message = journeyMessage(m, code, { days, visit2, checkInDone, group: groupOf(participant) });
+      const message = journeyMessage(m, code, { days, visit2, checkInsDone: done_, group: groupOf(participant) });
       const contact = await contactFor(code);
       // A text when there is a mobile number and texts are set up, otherwise an email (20 October 2026); the check-in
       // messages go by email as well, so the link is not lost.

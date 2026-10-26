@@ -5,6 +5,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { labExport, type Derivation } from './exportLab.js';
 import { optOutFor, optOutsOf, upnExport } from './exportUpn.js';
+import { redactOptedOutPupils } from './schoolRedact.js';
 import { usageExport } from './exportUsage.js';
 import { COPY_LIMIT, needsWrite, planCopies, staleObjects, stampFor, copyState, UNPACK_LIMIT, unpackDue, type CopyJob, type ObjectInfo, type UnpackFailure } from './exportWrite.js';
 import { moreQuestionTopics, moreQuestionWording, noPhoneQuestionWording, parentMoreForm, parentNoPhoneForm, parentQuestionsForm, questionWording, study, type ServedQuestionForm } from './forms.js';
@@ -979,6 +980,8 @@ export async function runExport(): Promise<Manifest> {
   const now = new Date();
   const exportedAt = now.toISOString();
 
+  // Opted-out pupils keep only a minimal record (schoolRedact.ts), before anything is written out.
+  await redactOptedOutPupils(db);
   const load = async (name: string): Promise<Doc[]> => (await db.collection(name).get()).docs.map((d) => ({ id: d.id, data: plain(d.data()) as DocumentData }));
   const loaded = await Promise.all(COLLECTIONS.map(load));
   const c = Object.fromEntries(COLLECTIONS.map((name, i) => [name, loaded[i]])) as Collections;

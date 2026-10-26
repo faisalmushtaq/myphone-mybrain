@@ -12,7 +12,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
 
 <section class="section participant-info-section">
   <div class="container narrow-content">
-    <p class="participant-shortcut">Already taking part? <a href="{{ '/break/check-in/' | relative_url }}">Mid-break check-in</a> · <a href="{{ '/break/after/' | relative_url }}">After your break</a> · <a href="{{ '/break/take-part/' | relative_url }}">Carry on sending your data</a></p>
+    <p class="participant-shortcut">Already taking part? <a href="{{ '/break/check-in/' | relative_url }}">Weekly check-in</a> · <a href="{{ '/break/after/' | relative_url }}">After your break</a> · <a href="{{ '/break/take-part/' | relative_url }}">Carry on sending your data</a></p>
 
     <h2>What the study involves.</h2>
     <p class="section-subheading">Researchers in the School of Psychology are exploring how a temporary break from social media relates to brain activity, attention, behaviour and wellbeing. This is the laboratory part of the MyPhone/MyBrain programme.</p>
@@ -24,7 +24,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
           <li>Attend two sessions of about two hours in our lab, before and after the break.</li>
           <li>Take a 30-day break from social media, using a small device called Brick that restricts the apps you agree with us in advance. Calls, messages, WhatsApp and essential apps keep working.</li>
           <li>Share screenshots of your phone’s screen-time summary straight away, then your own data download from each of TikTok, YouTube and Instagram that you use, starting with the one you use most. Each is a separate request and can take a few days to arrive. This site reduces each one on your device to when you watched, liked or searched, the links, your search words and simple totals, plus YouTube video titles and channels, the YouTube channels you follow and the Instagram accounts you searched for.</li>
-          <li>Complete simple computer-based tasks and short questionnaires, and one brief check-in halfway through the break.</li>
+          <li>Complete simple computer-based tasks and short questionnaires, and a brief check-in each week of the break.</li>
         </ul>
       </div>
       <div class="info-panel info-panel-alt">
@@ -60,7 +60,9 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
     </div>
 
     <div class="participant-next-step">
-      <h3>Ready to take part?</h3>
+      <h3>Interested in taking part?</h3>
+      <p>Email Miftah Faizah at <a href="mailto:M.Faizah@leeds.ac.uk?subject=Social%20media%20break%20study">M.Faizah@leeds.ac.uk</a>. The research team tells you which part of the study you are in, and sends you the link to start.</p>
+      <h3>Sent a link by the team?</h3>
       <p>Give your consent, send your screen-time screenshots, then follow the step-by-step guide to request your TikTok, YouTube and Instagram data. Downloads can take a few days to arrive. Once your data is in, you tell MyStory about your social media use (a short chat with Remi, our AI chatbot, about fifteen minutes), then book both lab visits on this site at the same sitting: the first starts your 30-day break, and the second is once the break is over, 30 to 35 days after the first. You give your mobile number at the start, so the team can contact you, and your email address when you book; you get a confirmation with calendar files, reminders before and on the day of each visit, and a short message each day of your break. We can email you a link that brings you back to the right page, on any device; or just come back and enter your participant ID (it is in our emails), or the same name, date of birth and postcode.</p>
       <a class="btn btn-primary" href="{{ '/break/take-part/' | relative_url }}">Take part &nbsp;→</a>
       <a class="text-link" href="{{ '/break/take-part/?step=guide' | relative_url }}">Just show me how to download my data &nbsp;→</a>
@@ -71,8 +73,8 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
     <div class="participant-info-grid">
       <div class="info-panel">
         <h3>During your break</h3>
-        <p>On day 15 of your break, one check-in: a few questions about how it is going, a screenshot of your screen time, then MyStory, a short chat with Remi about your break so far. About 20 minutes. We text you the link that morning (or email it, if we can’t text you); or just enter your participant ID, or the same name, date of birth and postcode as at the start. The other days’ messages need nothing from you.</p>
-        <a class="text-link" href="{{ '/break/check-in/' | relative_url }}">Mid-break check-in &nbsp;→</a>
+        <p>Once a week, on days 8, 15, 22 and 29 of your break, a check-in: a few questions about the past week and a screenshot of your screen time, about 5 minutes. The one halfway through, on day 15, also has MyStory, a short chat with Remi about your break so far, so it takes about 20 minutes. We text you the link that morning (or email it, if we can’t text you); or just enter your participant ID, or the same name, date of birth and postcode as at the start. The other days’ messages need nothing from you.</p>
+        <a class="text-link" href="{{ '/break/check-in/' | relative_url }}">Weekly check-in &nbsp;→</a>
       </div>
       <div class="info-panel info-panel-alt">
         <h3>After your break</h3>
@@ -84,7 +86,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
     <div class="info-panel break-data-panel">
       <h3>Your data in this study</h3>
       <ul class="info-checklist">
-        <li><strong>What is collected:</strong> your screen-time screenshots, the cleaned files from your apps, your check-in answers and any MyStory stories, and the record of your consent (with your name, signature, date of birth and postcode), plus the mobile number you give when you sign up and the email address you give when you book, for your bookings and reminders and so the team can contact you.</li>
+        <li><strong>What is collected:</strong> your screen-time screenshots, the cleaned files from your apps, your weekly check-in answers and any MyStory stories, and the record of your consent (with your name, signature, date of birth and postcode), plus the mobile number you give when you sign up and the email address you give when you book, for your bookings and reminders and so the team can contact you.</li>
         <li><strong>How it is labelled:</strong> research data carry your participant ID, never your name. Your name and contact details are kept separately, for the study coordinators only.</li>
         <li><strong>Where it is kept:</strong> secure storage run for the University of Leeds, which is the data controller. Only the research team can see it.</li>
         <li><strong>Changing your mind:</strong> what you have sent is kept and used unless you ask to withdraw, which you can do up to one month after your final session. Email Miftah Faizah to ask.</li>

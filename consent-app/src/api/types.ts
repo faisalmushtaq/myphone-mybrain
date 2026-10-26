@@ -175,8 +175,14 @@ export interface LabLookupResult {
   phases: Record<LabPhase, LabPhaseCounts>;
   checkIns: number;
   lastCheckInAt: string | null;
-  /** The participant's check-in, once sent (one each, 20 October 2026). */
+  /** The weekly check-in open now (1 to 4; 26 October 2026), from the day of the break. */
+  checkInNumber?: number;
+  /** This week's check-in, once sent (one a week), so an unfinished one carries on on any device. */
   checkInId?: string | null;
+  /** Screenshots already sent with this week's check-in. */
+  checkInShots?: number;
+  /** The weekly check-ins complete (answers and a screenshot, and MyStory for the halfway one). */
+  checkInsDone?: number[];
   /** Apps the participant has said they do not use, so no data is expected from them. */
   platformsNotUsed?: LabPlatform[];
   /** The lab visits standing (booked or done). */

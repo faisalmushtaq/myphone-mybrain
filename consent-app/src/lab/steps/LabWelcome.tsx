@@ -100,7 +100,7 @@ export function LabWelcome() {
           <>About a week before your second visit, we remind you to send your data again on the <a href={labPages.after.path}>{words.afterPage}</a>.</>
         ) : (
           <>
-            During your break, do your <a href={labPages.checkin.path}>mid-break check-in</a>; when the break ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+            During your break, do your <a href={labPages.checkin.path}>weekly check-ins</a>; when the break ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
           </>
         )}
       </p>

@@ -329,6 +329,16 @@ export function revisePrompt(story: string, added: string[]): Prompt {
  * of embeddings, real pairs M = 0.79 against 0.37 by chance). Recorded for the
  * team to review the lowest by hand; it decides nothing on its own.
  */
+/**
+ * Where OpenAI's API is reached (26 October 2026): https://api.openai.com by
+ * default; https://eu.api.openai.com for OpenAI's European data residency,
+ * with a key from a project set up for it. Set MPMB_OPENAI_BASE_URL.
+ */
+export function openAiBase(env: NodeJS.ProcessEnv = process.env): string {
+  const set = env.MPMB_OPENAI_BASE_URL?.trim().replace(/\/+$/, '');
+  return set && /^https:\/\/[a-z0-9.-]+$/i.test(set) ? set : 'https://api.openai.com';
+}
+
 export type Embedder = (texts: string[]) => Promise<number[][]>;
 export const EMBEDDING_MODEL = 'text-embedding-3-small';
 
@@ -337,7 +347,7 @@ export function openAiEmbedder(apiKey: string, fetchImpl: typeof fetch = fetch):
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 20_000);
     try {
-      const response = await fetchImpl('https://api.openai.com/v1/embeddings', {
+      const response = await fetchImpl(`${openAiBase()}/v1/embeddings`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({ model: EMBEDDING_MODEL, input: texts }),
@@ -432,7 +442,7 @@ async function callOnce<T>(apiKey: string, prompt: Prompt, protocol: ChatProtoco
   const timer = setTimeout(() => controller.abort(), seconds * 1000);
   let response: Response;
   try {
-    response = await fetchImpl('https://api.openai.com/v1/chat/completions', {
+    response = await fetchImpl(`${openAiBase()}/v1/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({

@@ -38,10 +38,10 @@ const words = {
     leadKnown: 'Your participant ID is the label on everything you send, instead of your name.',
   },
   checkin: {
-    kicker: 'Mid-break check-in',
-    title: 'Your mid-break check-in.',
-    lead: 'A few quick questions about how your break is going: about two minutes. First, enter the details you gave at the start, or your participant ID, so we can find your record. You gave your consent then, so there is nothing to sign.',
-    leadKnown: 'A few quick questions about how your break is going: about two minutes. You gave your consent at the start, so there is nothing to sign.',
+    kicker: 'Weekly check-in',
+    title: 'Your weekly check-in.',
+    lead: 'A few quick questions about how your break is going: about five minutes. First, enter the details you gave at the start, or your participant ID, so we can find your record. You gave your consent then, so there is nothing to sign.',
+    leadKnown: 'A few quick questions about how your break is going: about five minutes. You gave your consent at the start, so there is nothing to sign.',
   },
   after: {
     // Neutral until the person is found (22 October 2026): the page serves both groups, and controls have no break.
@@ -206,7 +206,7 @@ export function ParticipantId() {
               </>
             ) : (
               <>
-                During your break, use the <a href={labPages.checkin.path}>mid-break check-in</a>; when it ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+                During your break, use the <a href={labPages.checkin.path}>weekly check-in</a>; when it ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
               </>
             )}
           </p>

@@ -1,7 +1,7 @@
 import { study } from '../config/study';
 import { referenceCode } from '../lib/ids';
 import type { SessionInfo } from '../model/types';
-import { labBooking } from '../lab/booking';
+import { labBooking, labCheckInNumberOn } from '../lab/booking';
 import { addDays, atUkTime, daysBetween, previewIcs, ukIsoDay } from '../lab/calendar';
 import { ApiError, type AddressLookup, type AddressSuggestions, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBooking, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabSlot, type LabStoryChatRequest, type LabStoryChatResponse, type LabStoryVoiceResponse, type LabStoryPayload, type LabStoryResult, type LabVisit, type LateAgreementPayload, type LateAgreementResult, type PickedAddress, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
 
@@ -29,7 +29,7 @@ interface MockLab {
   sessionId: string;
   consents: LabConsentPayload[];
   donations: LabDonationPayload[];
-  checkIns: (LabCheckInPayload & { receivedAt: string })[];
+  checkIns: (LabCheckInPayload & { receivedAt: string; number?: number; id?: string })[];
   notUsed: LabPlatform[];
   bookings: MockBooking[];
   stories: Pick<LabStoryPayload, 'phase' | 'promptId' | 'title'>[];
@@ -349,6 +349,12 @@ export class MockConsentApi implements ConsentApi {
       phases: { pre: counts('pre'), mid: counts('mid'), post: counts('post') },
       checkIns: found?.checkIns.length ?? 0,
       lastCheckInAt: found?.checkIns.at(-1)?.receivedAt ?? null,
+      checkInNumber: this.checkInNumberFor(found),
+      checkInId: found?.checkIns.find((c) => (c.number ?? 1) === this.checkInNumberFor(found))?.id ?? null,
+      checkInShots: (() => {
+        const id = found?.checkIns.find((c) => (c.number ?? 1) === this.checkInNumberFor(found))?.id;
+        return id ? (found?.donations ?? []).filter((d) => d.checkInId === id).flatMap((d) => d.uploads).filter((u) => u.kind === 'screenshot').length : 0;
+      })(),
       platformsNotUsed: found?.notUsed ?? [],
       visits: (found?.bookings ?? []).filter((b) => b.status === 'booked' || b.status === 'attended').map((b) => ({ visit: b.visit, start: b.start, status: b.status })),
       stories: { pre: found?.stories.filter((x) => x.phase === 'pre').length ?? 0, mid: found?.stories.filter((x) => x.phase === 'mid').length ?? 0, post: found?.stories.filter((x) => x.phase === 'post').length ?? 0 },
@@ -395,9 +401,21 @@ export class MockConsentApi implements ConsentApi {
     const participant = this.lab.get(payload.participantCode);
     if (!participant?.consents.length) throw new ApiError('validation', 'We have no consent on file for this participant code.');
     const receivedAt = new Date().toISOString();
-    participant.checkIns.push({ ...payload, receivedAt });
+    // One check-in a week (26 October 2026): this week's, if already in, carries on.
+    const number = this.checkInNumberFor(participant);
+    const earlier = participant.checkIns.find((c) => (c.number ?? 1) === number);
+    if (earlier?.id) return { checkInId: earlier.id, receivedAt: earlier.receivedAt, count: number };
+    const id = `labk_${participant.checkIns.length + 1}_${payload.participantCode}`;
+    participant.checkIns.push({ ...payload, receivedAt, number, id });
     this.persistLab();
-    return { checkInId: `labk_${participant.checkIns.length}_${payload.participantCode}`, receivedAt, count: participant.checkIns.length };
+    return { checkInId: id, receivedAt, count: number };
+  }
+
+  /** The weekly check-in open today, from the first visit booked (the first, before any visit). */
+  private checkInNumberFor(found: { bookings?: { visit: LabVisit; start: string; status: string }[] } | undefined): number {
+    const first = (found?.bookings ?? []).filter((b) => b.visit === 1 && (b.status === 'booked' || b.status === 'attended')).map((b) => b.start).sort()[0];
+    if (!first) return 1;
+    return labCheckInNumberOn(daysBetween(ukIsoDay(first), ukIsoDay(new Date().toISOString())));
   }
 
   async updateLabPlatforms(session: SessionInfo, payload: { participantCode: string; notUsed: LabPlatform[] }): Promise<{ notUsed: LabPlatform[] }> {
