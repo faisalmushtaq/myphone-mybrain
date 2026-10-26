@@ -40,6 +40,8 @@ export function OptOut() {
   const [kind, setKind] = useState<Kind | null>(null);
   const [copied, setCopied] = useState<boolean | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const school = schoolFromLink();
+  const contact = school?.optOutContact;
 
   useEffect(() => {
     document.title = 'Opting out of the workshop – MyPhone/MyBrain';
@@ -164,7 +166,7 @@ export function OptOut() {
           {heading('How to opt out.')}
           <div className="mpmb-step__body">
             <p className="mpmb-lead">
-              Email {study.optOut.name} at <strong>{study.optOut.email}</strong>, from your own email address, with:
+              Email {study.optOut.name}, the study’s contact for schools and families, at <strong>{study.optOut.email}</strong>, with:
             </p>
             <ul className="mpmb-list">
               <li>{kind === 'data-only' ? 'that your child can take part in the workshop, but their information is not to be used;' : 'that you are opting your child out of the workshop and the study;'}</li>
@@ -182,6 +184,15 @@ export function OptOut() {
             </div>
             {copied === false && <p className="mpmb-hint">Copying did not work on this device: the address is {study.optOut.email}.</p>}
             <p>We reply to confirm. Only a parent or carer can opt a child out.</p>
+            <h2 className="mpmb-h2">Or tell your child’s school</h2>
+            {contact ? (
+              <p>
+                If you’d rather, email {contact.name} at {school?.name} (<a href={`mailto:${contact.email}`}>{contact.email}</a>) with the same details, and they will pass it on to us.
+              </p>
+            ) : (
+              <p>If you’d rather, tell your child’s school in the way you usually contact them, for example the school office, and they will pass it on to us.</p>
+            )}
+            <p className="mpmb-hint">We ask for these details so that we can make sure your child is left out. We use them only to record your opt-out.</p>
             <p className="mpmb-hint">
               Changed your mind? You don’t need to do anything: your child stays in the workshop and the study.{' '}
               <Button variant="link" onClick={stay}>

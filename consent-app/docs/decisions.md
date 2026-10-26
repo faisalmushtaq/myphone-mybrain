@@ -157,3 +157,4 @@ part without a birthday check (the parent is trusted to send it only to them).
 | Decision | Where |
 | --- | --- |
 | The New Year break prototype stays live but unlisted at `/new-year/`. | `new-year.md` |
+| **Opting out through the school as well (26 October 2026)**, after a parent's complaint about sending their child's details to an address they did not know: the opt-out page, the information page, each school's page and the FAQ say parents can email Dr Sarmad Ali or tell the school in the way they usually contact it, and the school passes it on. Schools are asked only to forward the message. A school can name a member of staff (`optOutContact` in `_data/schools.json`), shown only once they agree. The page says why the details are needed and that they are used only to record the opt-out. Kate Hiley removed from the information page's contacts. | `src/steps/OptOut.tsx`, `src/config/schools.ts`, `information.md`, `_layouts/school.html`, `_data/faqs.yml` |

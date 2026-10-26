@@ -47,7 +47,7 @@ layout: default
 
     <div class="info-panel school-landing__optout" id="opt-out">
       <h2>Don’t want your child to take part?</h2>
-      <p>You can opt your child out of the workshop and the study, or let them take part in the workshop with their class while none of their information is used. Either way, nothing about them is linked with health or school records. Opting out is by email, from a parent or carer; there is no form or paper slip. If you opt out after the workshop, we withdraw your child’s information too, as far as is still possible.</p>
+      <p>You can opt your child out of the workshop and the study, or let them take part in the workshop with their class while none of their information is used. Either way, nothing about them is linked with health or school records. A parent or carer emails the study’s contact for schools and families, Dr Sarmad Ali, or tells the school{% if school.optOutContact %} ({{ school.optOutContact.name }}, <a href="mailto:{{ school.optOutContact.email }}">{{ school.optOutContact.email }}</a>){% endif %}, which passes it on to us. If you opt out after the workshop, we withdraw your child’s information too, as far as is still possible.</p>
       <a class="btn btn-secondary" href="{{ optout_url }}">How to opt out &nbsp;&rarr;</a>
     </div>
 

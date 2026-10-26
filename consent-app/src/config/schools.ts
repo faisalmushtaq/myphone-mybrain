@@ -13,6 +13,12 @@ export interface School {
   slug: string;
   name: string;
   area: string;
+  /**
+   * A member of school staff parents can tell instead of emailing the team
+   * (26 October 2026), shown only once the school has agreed to it. They pass
+   * the opt-out on to the team; nothing else is asked of the school.
+   */
+  optOutContact?: { name: string; email: string };
 }
 
 export const schools: School[] = list;
