@@ -59,6 +59,8 @@ and here:
 | During (`mid`, after each check-in) | `src/lab/mystory/mid.toml` (`np.sm_abstinence_mid`) | 5: how it has affected them so far, a moment that stood out (including anything physical), what they do instead, wanting to go on, turning to anyone for support | 14 keys |
 | After (`post`, second lab visit) | `src/lab/mystory/post.toml` (`np.sm_abstinence_post`) | 5: how the 30 days have been, anything different in how social media affects their mental health, what they missed, are they back on (and has the way they use it changed), what they will take forward | 18 keys |
 
+**Age range (26 October 2026; pre 0.2.1, mid and post 0.2.2, control pre and mid 0.1.1, control post 0.1.2).** All six protocols now describe participants as young adults aged 18 to 24, matching the break study's age range (they said first-year students aged 18 or 19), and `age_max` is 24. Nothing else changed.
+
 **0.2.0 (19 October 2026): the team's update after testing (Michelle Wain).**
 In all three: before each question the interviewer checks whether it has
 already been answered, even in other words, and if so sums up what was said
