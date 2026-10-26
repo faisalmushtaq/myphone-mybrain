@@ -182,7 +182,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <div class="info-panel">
       <ul class="info-checklist">
         <li><strong>On the day:</strong> your child can stop at any time. They just tell a researcher or their teacher.</li>
-        <li><strong>Afterwards:</strong> email <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a>, quoting the reference from the online form if you have one. You can withdraw everything, or just the screenshots or your answers.</li>
+        <li><strong>Afterwards:</strong> email <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>, quoting the reference from the online form if you have one. You can withdraw everything, or just the screenshots or your answers.</li>
         <li><strong>How much can be removed:</strong> ask within one month of the workshop and we can remove all of your child’s information. After that, information that has been made anonymous, or already used in analyses, may no longer be removable; we remove everything we still can. Opting out after the workshop withdraws your child’s information, including from linking, in the same way.</li>
         <li>None of this affects your child’s education or their relationship with school.</li>
       </ul>
@@ -196,7 +196,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <p class="section-subheading">One email from a parent or carer is all it takes, for either choice: out of the workshop and the study, or in the workshop with none of your child’s information used.</p>
     <div class="info-panel">
       <h3>How to opt out</h3>
-      <p>A parent or carer emails <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a> saying which you would like, with your child’s full name, their school and their class or year group, and your name:</p>
+      <p>A parent or carer emails <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a> saying which you would like, with your child’s full name, their school and their class or year group, and your name:</p>
       <ul>
         <li><strong>Out of the workshop and the study:</strong> your child does something else at school while their class does the workshop, and none of their information is used.</li>
         <li><strong>In the workshop, information not used:</strong> your child joins in with their class as normal, but nothing recorded about them in the workshop is kept or used for the study.</li>
@@ -220,7 +220,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <div class="info-fold__body">
     <p class="section-subheading">We are happy to answer any question, before or after the workshop.</p>
     <div class="prose">
-      <p>Email the MyPhone/MyBrain team at <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a>; we aim to reply within five working days. You can also contact Kate Hiley at <a href="mailto:K.E.Hiley@leeds.ac.uk">K.E.Hiley@leeds.ac.uk</a>, or the study lead, Professor Faisal Mushtaq, at <a href="mailto:F.Mushtaq@leeds.ac.uk">F.Mushtaq@leeds.ac.uk</a>, both at the School of Psychology, University of Leeds. To opt out, please use the team’s address, brainpop@leeds.ac.uk.</p>
+      <p>Email Dr Sarmad Ali, the study’s contact, at <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>; we aim to reply within five working days. You can also contact Kate Hiley at <a href="mailto:K.E.Hiley@leeds.ac.uk">K.E.Hiley@leeds.ac.uk</a>, or the study lead, Professor Faisal Mushtaq, at <a href="mailto:F.Mushtaq@leeds.ac.uk">F.Mushtaq@leeds.ac.uk</a>, both at the School of Psychology, University of Leeds. To opt out, please email Dr Sarmad Ali at S.A.Ali1@leeds.ac.uk.</p>
       <p>Need this information in another language, in an easier-to-read version or on paper? <a href="{{ '/contact/?topic=Participant%20information' | relative_url }}">Contact us</a> and we will send you what works for you. There are also <a href="{{ '/faq/' | relative_url }}">questions and answers</a>.</p>
       <p>This study has been approved by the University of Leeds School of Psychology Research Ethics Committee, reference SoPREC 4202, on 11 June 2026. The University’s data protection team signed off its data protection impact assessment in May 2026.</p>
       <p class="info-sheet__updated">Last updated 7 October 2026.</p>

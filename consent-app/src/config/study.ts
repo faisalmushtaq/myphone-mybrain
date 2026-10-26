@@ -70,7 +70,9 @@ export const study = {
    * paper slip (decided 7 October 2026).
    */
   optOut: {
-    email: 'brainpop@leeds.ac.uk',
+    /** Dr Sarmad Ali, the schools study's contact (26 October 2026; it was the team inbox, S.A.Ali1@leeds.ac.uk). */
+    name: 'Dr Sarmad Ali',
+    email: 'S.A.Ali1@leeds.ac.uk',
     subject: 'Opt out: MyPhone/MyBrain workshop',
     /** Two kinds (19 October 2026): out of the workshop and the study, or in the workshop with the data not used. */
     subjects: { 'workshop-and-data': 'Opt out: MyPhone/MyBrain workshop and study', 'data-only': 'Opt out of data use: MyPhone/MyBrain (workshop is fine)' },
@@ -87,7 +89,9 @@ export const study = {
 
   /** Contact details shown on the information and confirmation screens. */
   contact: {
-    email: 'brainpop@leeds.ac.uk',
+    /** The schools study's contact (26 October 2026; it was the team inbox, S.A.Ali1@leeds.ac.uk). */
+    name: 'Dr Sarmad Ali',
+    email: 'S.A.Ali1@leeds.ac.uk',
     phone: null as string | null, // PLACEHOLDER — add the team phone number if one is to be published
     team: 'The MyPhone/MyBrain team, University of Leeds',
     contactPageUrl: '/contact/',

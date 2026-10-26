@@ -66,7 +66,7 @@ choices:
 * **They don’t take part, and their information isn’t used.** Your child
   does something else at school while their class does the workshop.
 
-For either one, email **brainpop@leeds.ac.uk** before [date], saying which
+For either one, email **S.A.Ali1@leeds.ac.uk (Dr Sarmad Ali)** before [date], saying which
 you would like, with your child’s name, school and class or year group.
 There is no form or slip to return, and we reply
 to confirm. Please also email us, or tell the school, if your child
@@ -77,7 +77,7 @@ won’t do the brain recording.
 
 Everything about the study, including how information is kept safe, is at
 **myphonemybrain.com/information**. Questions are welcome at
-brainpop@leeds.ac.uk.
+S.A.Ali1@leeds.ac.uk (Dr Sarmad Ali).
 
 Thank you for your help.
 

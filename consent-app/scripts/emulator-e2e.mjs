@@ -824,7 +824,7 @@ async function inner() {
     await page.getByRole('button', { name: 'Yes, don’t use their information' }).click();
     await page.getByRole('heading', { name: 'How to opt out.' }).waitFor();
     const mailto = (await page.getByRole('link', { name: 'Write the email' }).getAttribute('href')) ?? '';
-    ok('then how to email the team, saying which, with the school already in the email', mailto.startsWith('mailto:brainpop@leeds.ac.uk?subject=Opt%20out%20of%20data%20use') && decodeURIComponent(mailto).includes('can take part in the MyPhone/MyBrain workshop at school, but please do not keep or use any of their information') && decodeURIComponent(mailto).includes('Their school: Dixons Unity Academy'), mailto.slice(0, 80));
+    ok('then how to email the team, saying which, with the school already in the email', mailto.startsWith('mailto:S.A.Ali1@leeds.ac.uk?subject=Opt%20out%20of%20data%20use') && decodeURIComponent(mailto).includes('can take part in the MyPhone/MyBrain workshop at school, but please do not keep or use any of their information') && decodeURIComponent(mailto).includes('Their school: Dixons Unity Academy'), mailto.slice(0, 80));
     ok('the opt-out pages record nothing', (await db.collection('optOuts').get()).size === 0);
     await page.getByRole('button', { name: 'Back to the start' }).click();
     await page.getByRole('heading', { name: /Share screen time with MyPhone/ }).waitFor();

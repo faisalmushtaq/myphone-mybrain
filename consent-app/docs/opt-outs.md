@@ -15,7 +15,7 @@ Since 19 October 2026 there are **two kinds** of opt-out:
 
 ## How a parent or carer opts out
 
-Only by **email to brainpop@leeds.ac.uk**, from a parent or carer. There is no
+Only by **email to S.A.Ali1@leeds.ac.uk (Dr Sarmad Ali)**, from a parent or carer. There is no
 form and no paper slip. The website adds deliberate friction first:
 
 1. "Opt out of the workshop" on the form's first page (or a link with

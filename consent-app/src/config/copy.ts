@@ -131,7 +131,7 @@ export const parentInformation: InfoSection[] = [
     title: 'Who to contact',
     summary: 'The MyPhone/MyBrain team at the University of Leeds.',
     detail: [
-      'Email brainpop@leeds.ac.uk with any question about the study. We aim to reply within five working days.',
+      'Email Dr Sarmad Ali at S.A.Ali1@leeds.ac.uk with any question about the study. We aim to reply within five working days.',
     ],
     draft: true,
   },

@@ -164,7 +164,7 @@ export function OptOut() {
           {heading('How to opt out.')}
           <div className="mpmb-step__body">
             <p className="mpmb-lead">
-              Email us at <strong>{study.optOut.email}</strong>, from your own email address, with:
+              Email {study.optOut.name} at <strong>{study.optOut.email}</strong>, from your own email address, with:
             </p>
             <ul className="mpmb-list">
               <li>{kind === 'data-only' ? 'that your child can take part in the workshop, but their information is not to be used;' : 'that you are opting your child out of the workshop and the study;'}</li>

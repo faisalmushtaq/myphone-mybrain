@@ -126,7 +126,7 @@ export function SchoolUpload() {
       <div className="mpmb-step mpmb-tools">
         <h1 className="mpmb-h1">Class lists for MyPhone/MyBrain</h1>
         <Callout tone="important">
-          <p>This link does not name a school taking part. Please use the link the research team sent you, or email <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a>.</p>
+          <p>This link does not name a school taking part. Please use the link the research team sent you, or email <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>.</p>
         </Callout>
       </div>
     );
@@ -240,7 +240,7 @@ export function SchoolUpload() {
           </Button>
         </div>
         <p className="mpmb-hint">
-          No password, or a problem? Email the research team at <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a>.
+          No password, or a problem? Email Dr Sarmad Ali at <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>.
         </p>
       </form>
     );
@@ -377,7 +377,7 @@ export function SchoolUpload() {
         </section>
       )}
       <p className="mpmb-hint">
-        The file goes to the University of Leeds’ secure storage for the MyPhone/MyBrain study and is used only to match the study’s records with the school’s. {unlocked.uploads + sentCount ? `Files sent from this page so far: ${unlocked.uploads + sentCount}.` : ''} Questions: <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a>.
+        The file goes to the University of Leeds’ secure storage for the MyPhone/MyBrain study and is used only to match the study’s records with the school’s. {unlocked.uploads + sentCount ? `Files sent from this page so far: ${unlocked.uploads + sentCount}.` : ''} Questions: <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>.
       </p>
     </div>
   );

@@ -10,7 +10,7 @@ Decided by the study lead (`decisions.md`):
 
 * The **workshop at school** (EEG), and **linking with records** through
   Connected West Yorkshire, are **opt-out**, as one: a parent or carer opts
-  their child out **by email** to brainpop@leeds.ac.uk, after **two warnings**
+  their child out **by email** to S.A.Ali1@leeds.ac.uk (Dr Sarmad Ali), after **two warnings**
   on this site saying what the child would miss. No form and no paper slip;
   the form records nothing about it, and the team logs each email on the staff
   page (Opt-outs). An opt-out after the workshop withdraws the data too.

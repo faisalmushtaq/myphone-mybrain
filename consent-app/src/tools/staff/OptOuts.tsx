@@ -37,7 +37,7 @@ const blank = { firstName: '', lastName: '', dateOfBirth: '', schoolId: '', year
 
 /**
  * The opt-outs from the workshop that parents and carers email to
- * brainpop@leeds.ac.uk (decided 7 October 2026: by email only, no form, no
+ * S.A.Ali1@leeds.ac.uk (decided 7 October 2026: by email only, no form, no
  * paper slip). Log each one here as it arrives; the hourly export then flags
  * the young person in the family records and the schools' UPN lists, and
  * lists every opt-out in schools/identifying/opt_outs.tsv. An opt-out after
@@ -125,7 +125,7 @@ export function OptOuts({ staff }: { staff: Staff }) {
         <h2 className="mpmb-h3" id="optout-add">
           Log an opt-out email
         </h2>
-        <p className="mpmb-hint">Parents and carers opt out by emailing brainpop@leeds.ac.uk, after two warnings on the website. Only a parent or carer can opt a child out. There are two kinds (19 October 2026): out of the workshop and the study; or taking part in the workshop with their class, but nothing they do is kept or used, and no linking with records. The website’s email says which; if it doesn’t, ask before logging it.</p>
+        <p className="mpmb-hint">Parents and carers opt out by emailing S.A.Ali1@leeds.ac.uk, after two warnings on the website. Only a parent or carer can opt a child out. There are two kinds (19 October 2026): out of the workshop and the study; or taking part in the workshop with their class, but nothing they do is kept or used, and no linking with records. The website’s email says which; if it doesn’t, ask before logging it.</p>
         <fieldset className="mpmb-choice">
           <legend className="mpmb-choice__legend">What did the parent ask for?</legend>
           <div className="mpmb-choice__options">

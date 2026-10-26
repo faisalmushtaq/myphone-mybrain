@@ -11,7 +11,7 @@ usage: false
   <noscript>
     <div class="container" style="padding: 3rem 0;">
       <h1>Class lists for MyPhone/MyBrain</h1>
-      <p>This page needs JavaScript, which is switched off in your browser. Please email the research team at <a href="mailto:{{ site.email }}">{{ site.email }}</a>.</p>
+      <p>This page needs JavaScript, which is switched off in your browser. Please email {{ site.contact_name }} at <a href="mailto:{{ site.email }}">{{ site.email }}</a>.</p>
     </div>
   </noscript>
   <p class="mpmb-app-loading container" aria-hidden="true">Loading…</p>

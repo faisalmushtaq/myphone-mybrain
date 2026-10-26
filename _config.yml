@@ -1,7 +1,9 @@
 title: "MyPhone/MyBrain"
 tagline: "A research project about digital life, brain development and growing up in Bradford and Leeds."
 description: "MyPhone/MyBrain is a University of Leeds research project about how digital life connects with brain development, wellbeing and learning. We work with secondary schools in Bradford and Leeds."
-email: "brainpop@leeds.ac.uk"
+email: "S.A.Ali1@leeds.ac.uk"
+# The schools study's contact, shown with the address (26 October 2026; it was the team inbox).
+contact_name: "Dr Sarmad Ali"
 # The contact and school forms post here (the enquiry Cloud Function in consent-app/firebase). Empty = fall back to an email draft.
 enquiry_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/enquiry"
 # Anonymous usage counts (assets/js/usage.js → the usage Cloud Function): sent only from the live site. Empty = nothing is sent.
