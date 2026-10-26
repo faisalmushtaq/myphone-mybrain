@@ -114,7 +114,7 @@ export class MockConsentApi implements ConsentApi {
           sessionId: p.sessionId,
           consents: p.consents.map((c) => ({ consent: { completedAt: c.consent.completedAt } })),
           donations: p.donations.map((d) => ({ phase: d.phase, uploads: d.uploads.map((u) => ({ uploadId: u.uploadId, kind: u.kind, platforms: u.platforms })) })),
-          checkIns: p.checkIns.map((c) => ({ receivedAt: c.receivedAt, answers: c.answers })),
+          checkIns: p.checkIns.map((c) => ({ receivedAt: c.receivedAt, answers: c.answers, number: c.number, id: c.id })),
           notUsed: p.notUsed,
           bookings: p.bookings,
           stories: p.stories.map((x) => ({ phase: x.phase, promptId: x.promptId, title: x.title })),
