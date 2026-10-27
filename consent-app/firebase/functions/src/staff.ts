@@ -21,7 +21,7 @@ import { isObj } from './validate.js';
 import { usageSummary } from './usage.js';
 
 /**
- * The research team's page (myphonemybrain.com/break/staff/), behind the
+ * The research team's page (myphonemybrain.com/staff/), behind the
  * staff key: a long random password kept in Secret Manager
  * (scripts/set-staff-key.sh makes it), shared only within the team. One
  * callable, staffApi, does everything the page needs:

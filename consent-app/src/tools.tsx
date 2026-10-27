@@ -5,7 +5,7 @@ import { StaffApp } from './tools/StaffApp';
 import './styles/app.css';
 
 /**
- * The tools: the research team's staff page (/break/staff/) and each
+ * The tools: the research team's staff page (/staff/) and each
  * school's upload page for its UPN lists (/schools/upload/?school=<slug>).
  * The Jekyll page says which with data-tool; the plain test page takes ?tool=.
  */

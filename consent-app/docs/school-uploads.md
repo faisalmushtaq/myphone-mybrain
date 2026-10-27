@@ -8,7 +8,7 @@ password the team gives it.
 
 ## For the team
 
-1. On the staff page (<https://myphonemybrain.com/break/staff/>), **School
+1. On the staff page (<https://myphonemybrain.com/staff/>), **School
    uploads**: each school in `_data/schools.json` has its link,
    `https://myphonemybrain.com/schools/upload/?school=<slug>` (for example
    `?school=dua`), and **Make a password**. The password (three groups of
