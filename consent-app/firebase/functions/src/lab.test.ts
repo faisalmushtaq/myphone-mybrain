@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import JSZip from 'jszip';
-import { cleaner, statementWording, labCheckInForm, labCheckInFormControl, labConsentForm, labConsentFormControl, labInformationVersion, labInformationVersionControl } from './forms.js';
+import { cleaner, statementWording, labCheckInForm, labCheckInFormControl, labConsentForm, labConsentFormControl, labEarlierConsentForms, labInformationVersion, labInformationVersionControl } from './forms.js';
 import { RejectedUpload } from './images.js';
 import { consentGroupOf, tooOldToJoin, ageAt, appsToCome, buildParticipantId, idName, inspectCleanedArchive, labFollowUpEmail, labStatusEmail, normaliseCode, normaliseCodeParts, notUsedOf, outstanding, phaseCountsOf, validateLabCheckInPayload, validateLabConsentPayload, validateLabDonationPayload, validateLabPlatformsPayload, validateLabReminderPayload, type LabProgress } from './lab.js';
 
@@ -260,4 +260,23 @@ test('the control group (21 October 2026): its own consent form and information 
   assert.deepEqual(validateLabCheckInPayload({ participantCode: 'MP2670FF90A5F2', formId: labCheckInFormControl.id, formVersion: labCheckInFormControl.version, answers, client }), []);
   assert.ok(validateLabCheckInPayload({ participantCode: 'MP2670FF90A5F2', formId: labCheckInFormControl.id, formVersion: labCheckInFormControl.version, answers: { ...answers, week: '2' }, client }).includes('Unknown question "week".'));
   assert.ok(labCheckInFormControl.questions.every((q) => !/break|Brick/.test(`${q.text} ${q.label}`)));
+});
+
+test('consent 2.2 and 1.2 (27 October 2026): the AI statement is required; the earlier forms are still accepted', () => {
+  assert.equal(labConsentForm.version, '2.2');
+  assert.equal(labConsentFormControl.version, '1.2');
+  for (const form of [labConsentForm, labConsentFormControl]) {
+    assert.ok(form.statements.some((s) => s.id === 'mystory-ai' && s.kind === 'required'), `${form.id} has the AI statement`);
+  }
+  assert.match(statementWording[labConsentForm.id]['mystory-ai'].text, /OpenAI.*European Economic Area/);
+  // A page loaded before the change: the break group's 2.1-draft with information 2.2.
+  const old = labEarlierConsentForms.break[0];
+  const oldAgreed = Object.fromEntries(old.statements.map((s) => [s.id, { statementId: s.id, version: s.version, response: 'agreed', respondedAt: now, via: 'individual' }]));
+  const before = { ...consent(), consent: { ...consent().consent, formVersion: old.version, informationVersion: '2.2', responses: oldAgreed } };
+  assert.deepEqual(validateLabConsentPayload(before), []);
+  // The old form does not carry the new statement, so it cannot be mixed with the new one.
+  assert.ok(validateLabConsentPayload({ ...before, consent: { ...before.consent, responses: agreed() } }).some((p) => p.includes('unknown statement')));
+  // An unknown version is refused.
+  assert.ok(validateLabConsentPayload({ ...consent(), consent: { ...consent().consent, formVersion: '1.0' } }).some((p) => p.includes('consent form must be')));
+  assert.ok(validateLabConsentPayload({ ...consent(), consent: { ...consent().consent, informationVersion: '2.0' } }).some((p) => p.includes('information shown must be')));
 });

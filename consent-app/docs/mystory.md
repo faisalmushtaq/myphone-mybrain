@@ -63,6 +63,8 @@ and here:
 
 **Safeguarding declaration and control opening (26 October 2026; pre 0.2.2, mid and post 0.2.3, control pre and mid 0.1.2, control post 0.1.3).** The safeguarding declaration no longer says participants are anonymous and not contacted: the team holds names and contact details and reviews flagged conversations after the session. The control group's first chat opens with "before your first lab visit", as it runs before booking.
 
+**Safeguarding declaration (27 October 2026; pre 0.2.3, mid and post 0.2.4, control pre and mid 0.1.3, control post 0.1.4).** All six protocols' `safeguarding_declaration` now says what participants are told: conversations are stored under the participant ID without the name, the team reads them only for research, does not use them to identify participants and will not contact them about what they write, and support numbers are under the Help button. The team reviews flagged conversations under the participant ID. The same wording is on the MyStory start page ("About Remi") and in the information sheets (version 2.3). Nothing else changed.
+
 **Age range (26 October 2026; pre 0.2.1, mid and post 0.2.2, control pre and mid 0.1.1, control post 0.1.2).** All six protocols now describe participants as young adults aged 18 to 24, matching the break study's age range (they said first-year students aged 18 or 19), and `age_max` is 24. Nothing else changed.
 
 **0.2.0 (19 October 2026): the team's update after testing (Michelle Wain).**

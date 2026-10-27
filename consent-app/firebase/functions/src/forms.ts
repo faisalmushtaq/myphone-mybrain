@@ -127,6 +127,21 @@ export const labInformationVersionControl: string = generated.labInformationVers
 export const labConsentForms: Record<LabGroup, { id: string; version: string; title: string; statements: typeof labConsentForm.statements }> = { break: labConsentForm, control: labConsentFormControl };
 export const labInformationVersions: Record<LabGroup, string> = { break: labInformationVersion, control: labInformationVersionControl };
 
+type LabConsentFormServed = { id: string; version: string; title: string; statements: typeof labConsentForm.statements };
+const servedLabForm = (f: { id: string; version: string; title: string; statements: readonly { id: string; version: string; kind: string }[] }): LabConsentFormServed => ({ id: f.id, version: f.version, title: f.title, statements: f.statements.map(served) });
+/** Earlier versions still accepted (27 October 2026), for anyone who loaded the page before an update; the current one is preferred. */
+export const labEarlierConsentForms: Record<LabGroup, LabConsentFormServed[]> = {
+  break: generated.labEarlierConsentForms.break.map(servedLabForm),
+  control: generated.labEarlierConsentForms.control.map(servedLabForm),
+};
+export const labEarlierInformationVersions: Record<LabGroup, readonly string[]> = generated.labEarlierInformationVersions;
+/** The form a consent was given on, current or earlier, by its version; undefined if neither. */
+export const labConsentFormFor = (group: LabGroup, version: unknown): LabConsentFormServed | undefined =>
+  [labConsentForms[group], ...labEarlierConsentForms[group]].find((f) => f.version === version);
+/** Whether an information version may go with a consent: the current one, or an earlier one still accepted. */
+export const labInformationAccepted = (group: LabGroup, version: unknown): boolean =>
+  version === labInformationVersions[group] || labEarlierInformationVersions[group].includes(version as string);
+
 export const labStudy = {
   studyId: generated.labStudy.studyId,
   minAge: generated.labStudy.minAge,

@@ -165,6 +165,9 @@ const generated = {
   // The control group (21 October 2026): its own consent, information and check-in; no break.
   labConsentFormControl: consentFormOf(lab.labConsentFormControl),
   labInformationVersionControl: lab.labInformationVersionControl.version,
+  // Earlier consent forms and information versions still accepted (27 October 2026), for anyone who loaded a page before an update.
+  labEarlierConsentForms: { break: lab.labEarlierConsentForms.break.map(consentFormOf), control: lab.labEarlierConsentForms.control.map(consentFormOf) },
+  labEarlierInformationVersions: lab.labEarlierInformationVersions,
   labCheckInFormControl: checkInFormOf(lab.labCheckInFormControl),
   labStudy: {
     studyId: lab.labStudy.studyId,

@@ -95,7 +95,7 @@ scenario = "Reading and going to the gym with my flatmate have filled some of th
 
 [myself]
 key = "np.sm_abstinence_mid"
-version = "0.2.3"
+version = "0.2.4"
 name = "30-day social media abstinence: Mid-point"
 research_question = "How do young adults aged 18 to 24 experience a 30-day break from social media?"
 owner = "michellewain"
@@ -132,7 +132,7 @@ long_message_chars = 250
 flag_above_share = 0.3
 stop_before_generation = true
 offline_fallback = "continue_without_model"
-safeguarding_declaration = "No automated safeguarding decisions and no live monitoring. Participants are told in the consent form, the information sheet and at the start of the chat that nobody reads the chat as they type, that the researchers cannot provide support in the moment, that they can reach out to the listed support services or to a friend or family member, and that they can withdraw at any time. If a participant discloses suicidal thoughts, self-harm or distress, the model stops the questions, responds with empathy, gives the pre-approved support message and offers to pause, or carry on. Lexicon rules flag the transcript for researcher review only. When a flagged or concerning transcript is found during analysis, the researcher completes an incident report (date of the interaction, participant ID, date found, description), informs the supervisor, and checks whether the model's risk response fired correctly. The research team holds participants' names and contact details and reviews flagged conversations after the session; where there is a risk of harm to a child or vulnerable adult, the University's safeguarding lead is contacted."
+safeguarding_declaration = "No automated safeguarding decisions and no live monitoring. Participants are told in the consent form, the information sheet and at the start of the chat that nobody reads the chat as they type, that MyStory conversations are stored under their participant ID without their name, that the research team reads them only for research, does not use them to identify participants and will not contact them about anything they write, and that support numbers are under the Help button. If a participant discloses suicidal thoughts, self-harm or distress, the model stops the questions, responds with empathy, gives the pre-approved support message and offers to pause, stop or carry on. Lexicon rules flag the transcript for researcher review only. The team reviews flagged conversations under the participant ID and does not identify or contact participants about what they write. When a flagged transcript is found, the researcher completes an incident report (date of the interaction, participant ID, date found, description), informs the supervisor, and checks whether the model's risk response fired correctly."
 consent_requirements = ["consent.narrative_ai_assistance", "consent.free_text_storage"]
 
 [myself.character]

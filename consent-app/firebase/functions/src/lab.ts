@@ -5,7 +5,7 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
-import { cleaner, groupOf, labCheckInForm, labCheckInFormControl, labCheckInForms, labConsentForm, labConsentFormControl, labConsentForms, labInformationVersions, labStudy, PARTICIPANT_CODE, UK_POSTCODE, type LabGroup } from './forms.js';
+import { cleaner, groupOf, labCheckInForm, labCheckInFormControl, labCheckInForms, labConsentForm, labConsentFormControl, labConsentFormFor, labConsentForms, labInformationAccepted, labInformationVersions, labStudy, PARTICIPANT_CODE, UK_POSTCODE, type LabGroup } from './forms.js';
 import { checkInNumberNow, checkInShotsOf, checkInsDone, checkInsOf } from './checkIns.js';
 
 /** The group a consent form belongs to. */
@@ -210,9 +210,10 @@ export function validateLabConsentPayload(input: unknown): string[] {
   else {
     // Either group's form (21 October 2026): the form decides the group.
     const group = consentGroupOf(c.formId);
-    const form = labConsentForms[group];
+    // The current form, or an earlier one still accepted (27 October 2026) for a page loaded before an update.
+    const form = (c.formId === labConsentForms[group].id ? labConsentFormFor(group, c.formVersion) : undefined) ?? labConsentForms[group];
     if (c.formId !== form.id || c.formVersion !== form.version) problems.push(`The consent form must be ${labConsentForm.id} ${labConsentForm.version} or ${labConsentFormControl.id} ${labConsentFormControl.version}.`);
-    if (c.informationVersion !== labInformationVersions[group]) problems.push(`The information shown must be version ${labInformationVersions[group]}.`);
+    if (!labInformationAccepted(group, c.informationVersion)) problems.push(`The information shown must be version ${labInformationVersions[group]}.`);
     validateResponses(c.responses, form, problems, 'Consent');
     const responses = isObj(c.responses) ? (c.responses as Record<string, StatementRecord>) : {};
     for (const s of form.statements) {

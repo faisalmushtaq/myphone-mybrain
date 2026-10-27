@@ -344,7 +344,8 @@ export function StoryChat({ source, onUnavailable, onFinished, onLeave, leaveLab
             {character.about.map((line) => (
               <li key={line}>{line}</li>
             ))}
-            <li>What you type is sent to an AI service (OpenAI) to write {name}’s replies, without your name or your participant ID. The service is asked not to keep it.</li>
+            <li>What you type or say is sent to an AI service (OpenAI), which processes it within the European Economic Area, to write {name}’s replies, without your name or your participant ID. The service is asked not to keep it. Recordings, if you speak your answers, are kept by the study.</li>
+            <li>MyStory conversations are stored under your participant ID, without your name. The research team reads them only for research, does not use them to identify you, and will not contact you about anything you write. If you need support, please use the numbers under the Help button.</li>
             <li>Please leave out names and anything that could identify someone.</li>
           </ul>
         </Disclosure>
