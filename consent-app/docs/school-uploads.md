@@ -30,26 +30,31 @@ To add a school, add a line to `_data/schools.json`; its page for parents
 
 ## What is read
 
-Only the study's columns are read, whatever the file calls them (most
-systems' names are recognised: `UPN`; `Legal Forename`, `Forename`, `First
-name`; `Legal Surname`, `Surname`, `Last name`, or a single `Name` column as
-"Surname, Forename"; `DOB`, `Date of birth`; `Year`, `NC Year`, `Year group`;
-`Reg Group`, `Form`, `Tutor group`, `Class`). Legal names are preferred to
+Only the UPN, the names (first, middle, last) and the date of birth are read
+(27 October 2026), whatever the file calls them (most systems' names are
+recognised: `UPN`; `Legal Forename`, `Forename`, `First name`; `Middle name`;
+`Legal Surname`, `Surname`, `Last name`, or a single `Name` column as
+"Surname, Forename"; `DOB`, `Date of birth`). Year group, class and every
+other column are listed as "not read". Legal names are preferred to
 preferred names. Dates are read the UK way (14/03/2012, 14-03-12, 14 Mar
 2012) and Excel's own dates too. A UPN is 13 characters, a letter then
 twelve digits (a temporary UPN ends in a letter); anything else, a missing
 name, an unreadable date or a repeated UPN is listed as a row to check, and
 the school can send the file anyway or fix it first.
 
-The page asks schools to leave out every other column. Any that are sent are
-not read, but stay in the file as it was sent.
+The page and its template ask for those columns only, and ask schools to
+leave out every other column. Any that are sent are not read or stored in the
+database, but stay in the file as it was sent (coordinators only). The file is
+kept as sent so the team can check what the reader made of it, and because a
+file the website cannot read is read by hand; a school that sends extra
+columns can be asked to send the list again without them.
 
 ## Where it goes
 
 | | |
 | --- | --- |
 | Storage `schoolupns/<slug>/<id>/<file>` | the file exactly as sent (coordinators only), until it names an opted-out pupil: then it is deleted, and what was read from it, redacted, is the record (26 October 2026; a file read by hand is kept, and the team removes the pupil's details by hand) |
-| Firestore `schoolUploads/` | who sent it and when, what was read (UPN, names, date of birth, year group, class) and the rows to check |
+| Firestore `schoolUploads/` | who sent it and when, what was read (UPN, names, date of birth) and the rows to check |
 | Storage `schoolquarantine/<session>/<id>` | a file over 7 MB, put there by the browser before the function reads it (the call itself cannot carry more than about 7 MB); deleted once sent, or after a day if never sent. The browser can create and delete its own only, never read it |
 | Firestore `schoolUploadAccess/<slug>` | the password's hash (scrypt), when it was made, whether uploads are open |
 
@@ -87,15 +92,21 @@ next run.
 
 ## Opted-out pupils (26 October 2026)
 
-The class list follows the standard Born in Bradford template, so it carries
-gender, ethnicity, address, postcode, school email, free school meals and SEN
-for each pupil. For a pupil whose parent or carer opted them out, only what
-honours the opt-out is kept: names, school, year group, class and UPN, with the
-opt-out's kind and date. `firebase/functions/src/schoolRedact.ts` blanks the
-rest (date of birth included) in `schoolUploads/`, so the export never carries
-it, and deletes the original file once it names an opted-out pupil, if the
-website read it (the parsed rows and the file's SHA-256 remain). It runs when an
+Since 27 October 2026 the class list asks only for the UPN, the legal first,
+middle and last names and the date of birth. For a pupil whose parent or
+carer opted them out, only what honours the opt-out is kept: names, school
+and UPN, with the opt-out's kind and date. `firebase/functions/src/schoolRedact.ts`
+blanks the date of birth in `schoolUploads/`, so the export never carries it,
+and deletes the original file once it names an opted-out pupil, if the website
+read it (the parsed rows and the file's SHA-256 remain). It runs when an
 opt-out is logged on the staff page, when a school sends a list, and before
-every hourly export. A cancelled opt-out does not bring the details back: ask
-the school to send the list again. The OneDrive mirror moves the deleted file
-to "MyPhoneMyBrain removed", emptied after 90 days.
+every hourly export. A cancelled opt-out does not bring the date of birth back:
+ask the school to send the list again. The OneDrive mirror moves the deleted
+file to "MyPhoneMyBrain removed", emptied after 90 days.
+
+Lists read between 19 and 27 October 2026 used the fuller Born in Bradford
+template (gender, ethnicity, year group, form tutor, class, address, postcode,
+school email, FSM, SEN). The same pass removes those fields from every stored
+pupil (`LEGACY_FIELDS`), opted out or not, so the export no longer carries them.
+A file kept as the school sent it still holds whatever columns it had; the team
+should delete or redact any such file by hand.

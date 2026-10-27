@@ -262,10 +262,10 @@ test('UPN lists: kept in their own folder, read rows beside each file, matched b
   const { matchPupil, nameKey, upnExport } = await import('./exportUpn.js');
   assert.equal(nameKey("Zoë O'Brien-Smith"), 'ZOEOBRIENSMITH');
   const pupils = [
-    { upn: 'A123456789012', firstName: 'Zoe', lastName: 'Obrien-Smith', dateOfBirth: '2012-03-14', yearGroup: '9', className: '9X', uploadId: 'u1', row: 2 },
-    { upn: 'A123456789013', firstName: 'Samuel', lastName: 'Lee', dateOfBirth: '2012-05-01', yearGroup: '9', className: '9Y', uploadId: 'u1', row: 3 },
-    { upn: 'A123456789014', firstName: 'Amir', lastName: 'Khan', dateOfBirth: '2012-01-01', yearGroup: '9', className: '9X', uploadId: 'u1', row: 4 },
-    { upn: 'A123456789015', firstName: 'Amir', lastName: 'Khan', dateOfBirth: '2012-02-02', yearGroup: '9', className: '9Y', uploadId: 'u1', row: 5 },
+    { upn: 'A123456789012', firstName: 'Zoe', lastName: 'Obrien-Smith', dateOfBirth: '2012-03-14', uploadId: 'u1', row: 2 },
+    { upn: 'A123456789013', firstName: 'Samuel', lastName: 'Lee', dateOfBirth: '2012-05-01', uploadId: 'u1', row: 3 },
+    { upn: 'A123456789014', firstName: 'Amir', lastName: 'Khan', dateOfBirth: '2012-01-01', uploadId: 'u1', row: 4 },
+    { upn: 'A123456789015', firstName: 'Amir', lastName: 'Khan', dateOfBirth: '2012-02-02', uploadId: 'u1', row: 5 },
   ];
   assert.equal(matchPupil({ firstName: "Zoë", lastName: "O'Brien Smith", dateOfBirth: '2012-03-14' }, pupils).level, 'name-and-dob');
   assert.equal(matchPupil({ firstName: 'Sam', lastName: 'Lee', dateOfBirth: '2012-05-01' }, pupils).level, 'surname-and-dob');
@@ -305,7 +305,7 @@ test('UPN lists: kept in their own folder, read rows beside each file, matched b
   assert.ok(flaggedMatches[0].endsWith('\topted_out\topt_out_kind\topt_out_id'));
   assert.ok(flaggedMatches[1].endsWith('\ttrue\tdata-only\to2'), `the opt-out names p1 (a different date of birth does not), and says which kind: ${flaggedMatches[1]}`);
   assert.ok(flaggedMatches[2].endsWith('\tfalse\tn/a\tn/a'), 'no opt-out for this one');
-  assert.ok(flagged.files.find((f) => f.path === 'schools/upn-uploads/upn_unmatched.tsv')!.body.includes('DUA\tA123456789013\tSamuel\tLee\t2012-05-01\t9\t9Y\taaaaaaaa-1111-2222-3333-444444444444\t3\ttrue\tworkshop-and-data\to1'), 'an opt-out logged before the two kinds is out of both');
+  assert.ok(flagged.files.find((f) => f.path === 'schools/upn-uploads/upn_unmatched.tsv')!.body.includes('DUA\tA123456789013\tSamuel\tLee\t2012-05-01\taaaaaaaa-1111-2222-3333-444444444444\t3\ttrue\tworkshop-and-data\to1'), 'an opt-out logged before the two kinds is out of both');
   assert.equal(flagged.counts.optOuts, 3);
   assert.deepEqual(
     flagged.optOutTable.map((r) => [r.opt_out_id, r.status, r.website_participant_id, r.upn, r.upn_match]),

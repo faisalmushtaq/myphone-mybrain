@@ -5,12 +5,15 @@ import type { Doc } from './export.js';
 import { optOutFor, optOutsOf, type OptOut } from './exportUpn.js';
 
 /**
- * Opted-out pupils keep only a minimal record (26 October 2026). A school's
- * class list (the standard BiB template) carries gender, ethnicity, address,
- * postcode, school email, free school meals and SEN for every pupil. For a
+ * Opted-out pupils keep only a minimal record (26 October 2026). Since 27
+ * October 2026 a class list gives only the UPN, names and date of birth. For a
  * pupil whose parent or carer opted them out, only what honours the opt-out is
- * kept: their names, school, year group, class and UPN, with the opt-out's
- * kind and date; the rest is blanked in the stored list, and so in the export.
+ * kept: their names, school and UPN, with the opt-out's kind and date; the
+ * date of birth is blanked in the stored list, and so in the export.
+ *
+ * Lists read before 27 October 2026 may also hold year group, class, gender,
+ * ethnicity, address, postcode, email, FSM and SEN (the earlier template):
+ * those fields are removed from every pupil, opted out or not (LEGACY_FIELDS).
  *
  * The file as the school sent it holds those fields too, so once a file that
  * the website read automatically names an opted-out pupil, the file itself is
@@ -21,7 +24,18 @@ import { optOutFor, optOutsOf, type OptOut } from './exportUpn.js';
  */
 
 /** The fields blanked for an opted-out pupil. */
-export const REDACTED_FIELDS = ['dateOfBirth', 'gender', 'ethnicity', 'formTutor', 'address', 'postcode', 'email', 'fsm', 'sen'] as const;
+export const REDACTED_FIELDS = ['dateOfBirth'] as const;
+
+/** Read from lists before 27 October 2026, and no longer kept for anyone. */
+export const LEGACY_FIELDS = ['gender', 'ethnicity', 'schoolName', 'yearGroup', 'formTutor', 'className', 'address', 'postcode', 'email', 'fsm', 'sen'] as const;
+
+/** A pupil's row without the fields the study no longer keeps; null when it had none of them. */
+export function withoutLegacy(p: Record<string, unknown>): Record<string, unknown> | null {
+  if (!LEGACY_FIELDS.some((f) => f in p)) return null;
+  const out = { ...p };
+  for (const f of LEGACY_FIELDS) delete out[f];
+  return out;
+}
 
 export interface Redaction {
   uploadId: string;
@@ -37,7 +51,8 @@ export interface Redaction {
 /** One pupil's row, reduced to the minimal record, with the opt-out it honours. */
 export function redactPupil(p: Record<string, unknown>, o: OptOut, at: string): Record<string, unknown> {
   const out: Record<string, unknown> = { ...p };
-  for (const f of REDACTED_FIELDS) out[f] = f === 'dateOfBirth' ? null : '';
+  for (const f of REDACTED_FIELDS) out[f] = null;
+  for (const f of LEGACY_FIELDS) delete out[f];
   return { ...out, optedOut: true, optOutId: o.id, optOutKind: o.kind, optOutReceivedOn: o.receivedOn, redactedAt: at };
 }
 
@@ -49,7 +64,11 @@ export function redactionsFor(uploads: Doc[], optOutDocs: Doc[], at: string): Re
     const school = String(d.schoolId ?? '');
     let newly = 0;
     let named = false;
-    const pupils = ((d.pupils ?? []) as Record<string, unknown>[]).map((p) => {
+    let trimmed = false;
+    const pupils = ((d.pupils ?? []) as Record<string, unknown>[]).map((row) => {
+      const lean = withoutLegacy(row);
+      if (lean) trimmed = true;
+      const p = lean ?? row;
       if (p.optedOut === true) {
         named = true;
         return p;
@@ -62,7 +81,7 @@ export function redactionsFor(uploads: Doc[], optOutDocs: Doc[], at: string): Re
     });
     const kept = typeof d.path === 'string' && d.path;
     const removeOriginal = named && kept && d.needsManualReading !== true ? (d.path as string) : null;
-    if (newly || removeOriginal) out.push({ uploadId: id, pupils, newly, removeOriginal, byHand: named && d.needsManualReading === true });
+    if (newly || removeOriginal || trimmed) out.push({ uploadId: id, pupils, newly, removeOriginal, byHand: named && d.needsManualReading === true });
   }
   return out;
 }

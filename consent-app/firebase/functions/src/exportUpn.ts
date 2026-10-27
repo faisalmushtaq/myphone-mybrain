@@ -40,8 +40,6 @@ export interface SchoolPupil {
   firstName: string;
   lastName: string;
   dateOfBirth: string | null;
-  yearGroup: string;
-  className: string;
   uploadId: string;
   row: number;
 }
@@ -126,7 +124,7 @@ export function pupilsBySchool(uploads: Doc[]): Map<string, SchoolPupil[]> {
     for (const p of (u.data.pupils ?? []) as Record<string, unknown>[]) {
       const upn = String(p.upn ?? '');
       if (!/^[A-Z]\d{11}[0-9A-Z]$/.test(upn)) continue;
-      out.get(school)!.set(upn, { upn, firstName: String(p.firstName ?? ''), lastName: String(p.lastName ?? ''), dateOfBirth: typeof p.dateOfBirth === 'string' ? p.dateOfBirth : null, yearGroup: String(p.yearGroup ?? ''), className: String(p.className ?? ''), uploadId: u.id, row: Number(p.row ?? 0) });
+      out.get(school)!.set(upn, { upn, firstName: String(p.firstName ?? ''), lastName: String(p.lastName ?? ''), dateOfBirth: typeof p.dateOfBirth === 'string' ? p.dateOfBirth : null, uploadId: u.id, row: Number(p.row ?? 0) });
     }
   }
   return new Map(Array.from(out, ([k, v]) => [k, Array.from(v.values())]));
@@ -151,8 +149,8 @@ export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<strin
     files.push(
       tsvFile(
         `${base}_pupils.tsv`,
-        ((d.pupils ?? []) as Record<string, unknown>[]).map((p) => ({ row: p.row, upn: p.upn, first_name: p.firstName, middle_name: p.middleName ?? null, last_name: p.lastName, date_of_birth: p.dateOfBirth, gender: p.gender ?? null, ethnicity: p.ethnicity ?? null, school_name: p.schoolName ?? null, year_group: p.yearGroup, form_tutor: p.formTutor ?? null, class: p.className, address: p.address ?? null, postcode: p.postcode ?? null, school_email: p.email ?? null, fsm: p.fsm ?? null, sen: p.sen ?? null, opted_out: p.optedOut === true, opt_out_kind: p.optOutKind ?? null })),
-        ['row', 'upn', 'first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender', 'ethnicity', 'school_name', 'year_group', 'form_tutor', 'class', 'address', 'postcode', 'school_email', 'fsm', 'sen', 'opted_out', 'opt_out_kind'],
+        ((d.pupils ?? []) as Record<string, unknown>[]).map((p) => ({ row: p.row, upn: p.upn, first_name: p.firstName, middle_name: p.middleName ?? null, last_name: p.lastName, date_of_birth: p.dateOfBirth, opted_out: p.optedOut === true, opt_out_kind: p.optOutKind ?? null })),
+        ['row', 'upn', 'first_name', 'middle_name', 'last_name', 'date_of_birth', 'opted_out', 'opt_out_kind'],
       ),
     );
     uploadRows.push({ upload_id: u.id, school_id: d.schoolId, school_name: d.schoolName, received_at: d.receivedAt, file_name: d.fileName, stored_as: typeof d.path === 'string' && d.path ? original.slice(UPN_ROOT.length + 1) : 'removed: it named an opted-out pupil (what was read from it is kept, redacted)', pupils_n: d.pupilCount, valid_upns_n: d.validUpns, problems_n: Array.isArray(d.problems) ? d.problems.length : 0, uploader_name: d.uploader?.name, uploader_role: d.uploader?.role, uploader_email: d.uploader?.email, note: d.note, sha256: d.sha256, read_by_hand: d.needsManualReading === true, why_not_read: d.unreadableReason ?? null, file_kind: d.fileKind ?? null });
@@ -174,18 +172,18 @@ export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<strin
       matched.get(school)!.add(m.pupil.upn);
     }
     const optOut = optOutFor(d, optOuts);
-    matchRows.push({ participant_id: labels.get(id) ?? null, firestore_id: id, kind: d.kind, school_id: school, first_name: d.firstName, last_name: d.lastName, date_of_birth: d.dateOfBirth, year_group: d.yearGroup, upn: m.pupil?.upn ?? null, match: m.level, candidates_n: m.candidates, school_first_name: m.pupil?.firstName ?? null, school_last_name: m.pupil?.lastName ?? null, school_date_of_birth: m.pupil?.dateOfBirth ?? null, school_class: m.pupil ? [m.pupil.yearGroup, m.pupil.className].filter(Boolean).join(' ') : null, upload_id: m.pupil?.uploadId ?? null, opted_out: Boolean(optOut), opt_out_kind: optOut?.kind ?? null, opt_out_id: optOut?.id ?? null });
+    matchRows.push({ participant_id: labels.get(id) ?? null, firestore_id: id, kind: d.kind, school_id: school, first_name: d.firstName, last_name: d.lastName, date_of_birth: d.dateOfBirth, year_group: d.yearGroup, upn: m.pupil?.upn ?? null, match: m.level, candidates_n: m.candidates, school_first_name: m.pupil?.firstName ?? null, school_last_name: m.pupil?.lastName ?? null, school_date_of_birth: m.pupil?.dateOfBirth ?? null, upload_id: m.pupil?.uploadId ?? null, opted_out: Boolean(optOut), opt_out_kind: optOut?.kind ?? null, opt_out_id: optOut?.id ?? null });
   }
   matchRows.sort((a, b) => String(a.school_id).localeCompare(String(b.school_id)) || String(a.participant_id ?? 'zzz').localeCompare(String(b.participant_id ?? 'zzz')));
-  files.push(tsvFile(`${UPN_ROOT}/upn_matches.tsv`, matchRows, ['participant_id', 'firestore_id', 'kind', 'school_id', 'first_name', 'last_name', 'date_of_birth', 'year_group', 'upn', 'match', 'candidates_n', 'school_first_name', 'school_last_name', 'school_date_of_birth', 'school_class', 'upload_id', 'opted_out', 'opt_out_kind', 'opt_out_id']));
+  files.push(tsvFile(`${UPN_ROOT}/upn_matches.tsv`, matchRows, ['participant_id', 'firestore_id', 'kind', 'school_id', 'first_name', 'last_name', 'date_of_birth', 'year_group', 'upn', 'match', 'candidates_n', 'school_first_name', 'school_last_name', 'school_date_of_birth', 'upload_id', 'opted_out', 'opt_out_kind', 'opt_out_id']));
   const unmatched: Row[] = [];
   for (const [school, pupils] of bySchool)
     for (const p of pupils) {
       if (matched.get(school)?.has(p.upn)) continue;
       const optOut = optOutFor({ schoolId: school, ...p }, optOuts);
-      unmatched.push({ school_id: school, upn: p.upn, first_name: p.firstName, last_name: p.lastName, date_of_birth: p.dateOfBirth, year_group: p.yearGroup, class: p.className, upload_id: p.uploadId, row: p.row, opted_out: Boolean(optOut), opt_out_kind: optOut?.kind ?? null, opt_out_id: optOut?.id ?? null });
+      unmatched.push({ school_id: school, upn: p.upn, first_name: p.firstName, last_name: p.lastName, date_of_birth: p.dateOfBirth, upload_id: p.uploadId, row: p.row, opted_out: Boolean(optOut), opt_out_kind: optOut?.kind ?? null, opt_out_id: optOut?.id ?? null });
     }
-  files.push(tsvFile(`${UPN_ROOT}/upn_unmatched.tsv`, unmatched, ['school_id', 'upn', 'first_name', 'last_name', 'date_of_birth', 'year_group', 'class', 'upload_id', 'row', 'opted_out', 'opt_out_kind', 'opt_out_id']));
+  files.push(tsvFile(`${UPN_ROOT}/upn_unmatched.tsv`, unmatched, ['school_id', 'upn', 'first_name', 'last_name', 'date_of_birth', 'upload_id', 'row', 'opted_out', 'opt_out_kind', 'opt_out_id']));
 
   // Every opt-out the team logged, with the website record and the school's pupil it names, if any.
   const optOutTable: Row[] = optOuts
@@ -230,10 +228,10 @@ uploads.tsv            one row per file: which school, who sent it and when,
                        form): the team reads that file itself, and why_not_read says why
 <school>/              each file exactly as the school sent it (CSV, Excel, Word,
                        PDF or text), and beside it <date>_<id>_pupils.tsv: what
-                       was read from it: UPN, names, date of birth, gender,
-                       ethnicity, school, year group, form tutor, class, address,
-                       postcode, school email, FSM (Y/N) and SEN (N/S/E/K), each
-                       when the file had it (the class-list template's columns)
+                       was read from it: UPN, first, middle and last names and
+                       date of birth (27 October 2026: nothing else is asked for
+                       or read; other columns a school sends stay only in the
+                       file as sent)
 upn_matches.tsv        each family's record on the website (participant_id is
                        the label in ../donations/) with the UPN it matches:
                          name-and-dob     first name, last name and date of birth agree
@@ -255,9 +253,8 @@ upn_unmatched.tsv      pupils on a school's lists with no record on the website
                        email, or through the school): see ../identifying/opt_outs.tsv.
                        Opted out means no workshop and no data at all, including
                        linking. An opted-out pupil keeps only a minimal record
-                       (26 October 2026): names, school, year group, class and
-                       UPN, with the opt-out; date of birth, gender, ethnicity,
-                       address, postcode, email, FSM and SEN are blanked
+                       (26 October 2026): names, school and UPN, with the
+                       opt-out; the date of birth is blanked
                        (opted_out in each pupils.tsv), and a file that names an
                        opted-out pupil is removed once read (stored_as says so).
                        A file read by hand is kept: the team removes the

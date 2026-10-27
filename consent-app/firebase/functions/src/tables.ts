@@ -5,9 +5,8 @@ import JSZip from 'jszip';
  * a CSV or Excel (.xlsx, every sheet) file as their management information
  * system exports it, a Word document (its tables, or its lines), a PDF (its
  * text, laid out back into rows), or plain text (19 October 2026). The
- * study's class-list template is read in full (UPN, names, date of birth,
- * gender, ethnicity, school, year group, form tutor, class, address,
- * postcode, school email, FSM, SEN); other columns are left alone. Dates are
+ * study asks only for the UPN, the legal names and the date of birth (27
+ * October 2026); every other column is listed as not read and left alone. Dates are
  * read the UK way (day first), and Excel's own dates too. A file with no
  * headings is read line by line, from the UPN on each line.
  */
@@ -318,25 +317,12 @@ export type PupilField =
   | 'middleName'
   | 'lastName'
   | 'fullName'
-  | 'dateOfBirth'
-  | 'gender'
-  | 'ethnicity'
-  | 'schoolName'
-  | 'yearGroup'
-  | 'formTutor'
-  | 'className'
-  | 'address1'
-  | 'address2'
-  | 'address3'
-  | 'address4'
-  | 'postcode'
-  | 'email'
-  | 'fsm'
-  | 'sen';
+  | 'dateOfBirth';
+
 
 /**
- * Column headings the study recognises, most specific first (legal names before preferred ones); one ending in * is a
- * prefix, for headings that carry their own key, such as the template's "SEN (N = no SEN; S = statement; …)".
+ * Column headings the study reads, most specific first (legal names before preferred ones). Anything else a school
+ * sends (year group, class, address, ethnicity and so on) is listed as not read (27 October 2026).
  */
 const HEADINGS: Record<PupilField, string[]> = {
   upn: ['upn', 'uniquepupilnumber', 'pupilupn', 'upnnumber', 'pupilnumber'],
@@ -345,20 +331,6 @@ const HEADINGS: Record<PupilField, string[]> = {
   lastName: ['legalsurname', 'legallastname', 'surname', 'lastname', 'familyname', 'preferredsurname', 'preferredlastname', 'chosensurname'],
   fullName: ['name', 'fullname', 'pupilname', 'studentname', 'pupil', 'student', 'legalname'],
   dateOfBirth: ['dob', 'dateofbirth', 'birthdate', 'dateofbirthddmmyyyy', 'birthday', 'dobddmmyyyy'],
-  gender: ['gender', 'sex', 'legalsex', 'genderidentity'],
-  ethnicity: ['ethnicity', 'ethnicgroup', 'ethnicorigin', 'ethnicitycode', 'ethnicitydescription', 'ethnicity*'],
-  schoolName: ['schoolname', 'school', 'establishment', 'establishmentname', 'academy', 'academyname'],
-  yearGroup: ['yeargroup', 'ncyear', 'ncyearactual', 'nationalcurriculumyear', 'year', 'yeargrp', 'yr', 'curriculumyear'],
-  formTutor: ['formtutor', 'tutor', 'tutorname', 'formteacher', 'classteacher'],
-  className: ['class', 'classname', 'form', 'formgroup', 'tutorgroup', 'reggroup', 'registrationgroup', 'reg', 'set', 'teachinggroup'],
-  address1: ['addressline1', 'address1', 'addressl1', 'address', 'homeaddress', 'street'],
-  address2: ['addressline2', 'address2', 'addressl2'],
-  address3: ['addressline3', 'address3', 'addressl3', 'town', 'towncity', 'city'],
-  address4: ['addressline4', 'address4', 'addressl4', 'county'],
-  postcode: ['postcode', 'postalcode', 'homepostcode', 'addresspostcode'],
-  email: ['schoolemail', 'pupilemail', 'studentemail', 'email', 'emailaddress', 'schoolemailaddress'],
-  fsm: ['fsm', 'freeschoolmeals', 'fsmeligible', 'fsm*', 'freeschoolmeals*'],
-  sen: ['sen', 'senstatus', 'senprovision', 'sencode', 'specialeducationalneeds', 'senn*', 'senstatus*', 'specialeducationalneeds*'],
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -405,21 +377,8 @@ export interface Pupil {
   lastName: string;
   /** YYYY-MM-DD, or null when the file has none or it could not be read. */
   dateOfBirth: string | null;
-  yearGroup: string;
-  className: string;
-  /** The rest of the class-list template, when the file has it ('' when not). */
+  /** When the file has one ('' when not). */
   middleName?: string;
-  gender?: string;
-  ethnicity?: string;
-  schoolName?: string;
-  formTutor?: string;
-  address?: string;
-  postcode?: string;
-  email?: string;
-  /** Free school meals: Y or N as the template asks, or what the file said. */
-  fsm?: string;
-  /** SEN: N, S, E or K as the template asks, or what the file said. */
-  sen?: string;
 }
 
 export interface PupilList {
@@ -433,25 +392,6 @@ export interface PupilList {
   valid: number;
   /** True when the file had no headings and each line was read from its UPN: the names especially need checking. */
   noHeadings?: boolean;
-}
-
-/** Free school meals as the template asks: Y or N (yes, true, 1 and the like too); anything else as written. */
-export function readFsm(s: string): string {
-  const v = s.trim().toLowerCase();
-  if (['y', 'yes', 'true', '1', 'eligible', 'fsm'].includes(v)) return 'Y';
-  if (['n', 'no', 'false', '0', 'not eligible', 'none'].includes(v)) return 'N';
-  return s.trim();
-}
-
-/** SEN as the template asks: N (no SEN), S (statement), E (EHC plan) or K (SEN support); the words for them too. */
-export function readSen(s: string): string {
-  const v = s.trim().toLowerCase();
-  if (!v) return '';
-  if (['n', 'no', 'none', 'no sen', 'nil'].includes(v)) return 'N';
-  if (v === 's' || v.startsWith('statement')) return 'S';
-  if (v === 'e' || v.includes('ehc')) return 'E';
-  if (v === 'k' || v.includes('sen support') || v === 'support') return 'K';
-  return s.trim();
 }
 
 /** The pupils in a table: finds the heading row, the study's columns, and checks each row. */
@@ -512,25 +452,13 @@ export function pupilsFrom(table: Table): PupilList {
     if (!firstName || !lastName) problems.push({ row, message: 'A name is missing.' });
     if (dobText && !dateOfBirth) problems.push({ row, message: `The date of birth “${dobText}” could not be read; please write it as 14/03/2012.` });
     if (upn && UPN.test(upn) && !seen.has(upn)) seen.set(upn, row);
-    const address = [cell(r, at.address1), cell(r, at.address2), cell(r, at.address3), cell(r, at.address4)].filter(Boolean).join(', ');
     pupils.push({
       row,
       upn,
       firstName,
       lastName,
       dateOfBirth,
-      yearGroup: cell(r, at.yearGroup),
-      className: cell(r, at.className),
       middleName: cell(r, at.middleName),
-      gender: cell(r, at.gender),
-      ethnicity: cell(r, at.ethnicity),
-      schoolName: cell(r, at.schoolName),
-      formTutor: cell(r, at.formTutor),
-      address,
-      postcode: cell(r, at.postcode).toUpperCase(),
-      email: cell(r, at.email),
-      fsm: readFsm(cell(r, at.fsm)),
-      sen: readSen(cell(r, at.sen)),
     });
   });
   if (!pupils.length) throw new TableError('The file has headings but no pupils under them.');
@@ -579,7 +507,7 @@ export function pupilsFromLines(table: Table): PupilList | null {
     else seen.set(upn, row);
     if (!firstName || !lastName) problems.push({ row, message: 'A name is missing.' });
     if (dateText && !dateOfBirth) problems.push({ row, message: `The date of birth “${dateText}” could not be read; please write it as 14/03/2012.` });
-    pupils.push({ row, upn, firstName, lastName, dateOfBirth, yearGroup: '', className: '' });
+    pupils.push({ row, upn, firstName, lastName, dateOfBirth });
   }
   const none = Object.fromEntries((Object.keys(HEADINGS) as PupilField[]).map((f) => [f, null])) as Record<PupilField, string | null>;
   return { columns: { ...none, upn: '(read from each line)', firstName: '(read from each line)', lastName: '(read from each line)', dateOfBirth: pupils.some((x) => x.dateOfBirth) ? '(read from each line)' : null }, pupils, problems, ignored: [], valid: seen.size, noHeadings: true };

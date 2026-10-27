@@ -143,12 +143,6 @@ export function validateSchoolUploadPayload(input: unknown): string[] {
   return problems;
 }
 
-/** A pupil's class in words: "8K (Year 8)", "8K", or "Year 8". */
-export function classOf(p: { yearGroup: string; className: string }): string {
-  const year = p.yearGroup ? (/^\d{1,2}$/.test(p.yearGroup) ? `Year ${p.yearGroup}` : p.yearGroup) : '';
-  return p.className ? (year ? `${p.className} (${year})` : p.className) : year;
-}
-
 /** What the page shows before sending: the columns found, the first rows, the problems. */
 export function previewOf(list: PupilList) {
   return {
@@ -156,8 +150,7 @@ export function previewOf(list: PupilList) {
     ignored: list.ignored,
     pupils: list.pupils.length,
     valid: list.valid,
-    sample: list.pupils.slice(0, 8).map((x) => ({ row: x.row, upn: x.upn, firstName: x.firstName, lastName: x.lastName, dateOfBirth: x.dateOfBirth, yearGroup: x.yearGroup, className: x.className || x.formTutor || '' })),
-    classes: Array.from(new Set(list.pupils.map((x) => classOf({ yearGroup: x.yearGroup, className: x.className || x.formTutor || '' })).filter(Boolean))).sort(),
+    sample: list.pupils.slice(0, 8).map((x) => ({ row: x.row, upn: x.upn, firstName: x.firstName, lastName: x.lastName, dateOfBirth: x.dateOfBirth })),
     noHeadings: Boolean(list.noHeadings),
     problems: list.problems.slice(0, 50),
     problemCount: list.problems.length,
@@ -240,17 +233,6 @@ export const schoolUpload = onCall({ ...callOptions }, async (request) => {
         middleName: x.middleName ?? '',
         lastName: x.lastName,
         dateOfBirth: x.dateOfBirth,
-        gender: x.gender ?? '',
-        ethnicity: x.ethnicity ?? '',
-        schoolName: x.schoolName ?? '',
-        yearGroup: x.yearGroup,
-        formTutor: x.formTutor ?? '',
-        className: x.className,
-        address: x.address ?? '',
-        postcode: x.postcode ?? '',
-        email: x.email ?? '',
-        fsm: x.fsm ?? '',
-        sen: x.sen ?? '',
       })),
       pupilCount: list?.pupils.length ?? 0,
       validUpns: list?.valid ?? 0,
@@ -263,7 +245,7 @@ export const schoolUpload = onCall({ ...callOptions }, async (request) => {
       createdAt: FieldValue.serverTimestamp(),
     });
   const summary = list && preview
-    ? `${list.pupils.length} pupils (${list.valid} with a usable UPN${list.problems.length ? `; ${list.problems.length} row${list.problems.length === 1 ? '' : 's'} to check` : ''})${preview.classes.length ? ` in ${preview.classes.join(', ')}` : ''}`
+    ? `${list.pupils.length} pupils (${list.valid} with a usable UPN${list.problems.length ? `; ${list.problems.length} row${list.problems.length === 1 ? '' : 's'} to check` : ''})`
     : 'a file the website could not read automatically, so the research team will read it by hand';
   const team = await sendTeamMail({
     subject: `MyPhone/MyBrain: ${school.name} sent its UPN list`,

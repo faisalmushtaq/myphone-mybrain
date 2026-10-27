@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import JSZip from 'jszip';
 import { hashPassword, newSchoolPassword, normalisePassword, passwordMatches, previewOf, validateSchoolUploadPayload } from './schoolUpload.js';
-import { columnIndex, decodeText, excelDate, fileKind, parseCsv, parseXlsx, pupilsFrom, readDate, readFsm, readSen, readTable, TableError } from './tables.js';
+import { columnIndex, decodeText, excelDate, fileKind, parseCsv, parseXlsx, pupilsFrom, readDate, readTable, TableError } from './tables.js';
 import { validateNewSlots } from './staff.js';
 
 const client = { userAgent: 'test', submittedAt: new Date().toISOString(), timezoneOffset: 0 };
@@ -64,12 +64,12 @@ test('a class list: the study’s columns found, legal names first, columns outs
   assert.equal(list.columns.firstName, 'Legal Forename');
   assert.equal(list.columns.lastName, 'Legal Surname');
   assert.equal(list.columns.dateOfBirth, 'DOB');
-  assert.equal(list.columns.yearGroup, 'Year');
-  assert.equal(list.columns.className, 'Reg Group');
-  assert.deepEqual(list.ignored, ['Preferred Forename']);
+  assert.ok(list.ignored.includes('Preferred Forename'));
+  assert.ok(list.ignored.includes('Year') && list.ignored.includes('Reg Group'), 'year group and class are no longer read');
   assert.equal(list.pupils.length, 5);
-  const { row, upn, firstName, lastName, dateOfBirth, yearGroup, className, sen } = list.pupils[0];
-  assert.deepEqual({ row, upn, firstName, lastName, dateOfBirth, yearGroup, className, sen }, { row: 3, upn: 'A123456789012', firstName: 'Jane', lastName: 'Smith', dateOfBirth: '2012-03-14', yearGroup: '9', className: '9X', sen: 'N' });
+  const { row, upn, firstName, lastName, dateOfBirth } = list.pupils[0];
+  assert.deepEqual({ row, upn, firstName, lastName, dateOfBirth }, { row: 3, upn: 'A123456789012', firstName: 'Jane', lastName: 'Smith', dateOfBirth: '2012-03-14' });
+  assert.deepEqual(Object.keys(list.pupils[0]).sort(), ['dateOfBirth', 'firstName', 'lastName', 'middleName', 'row', 'upn']);
   assert.equal(list.pupils[1].upn, 'A123456789013', 'spaces and lower case are tidied');
   assert.equal(list.valid, 2);
   const messages = list.problems.map((p) => `${p.row}: ${p.message}`);
@@ -78,7 +78,6 @@ test('a class list: the study’s columns found, legal names first, columns outs
   assert.ok(messages.some((m) => m.startsWith('7:') && m.includes('No UPN')), messages.join(' | '));
   assert.ok(messages.some((m) => m.startsWith('7:') && m.includes('A name is missing')), messages.join(' | '));
   const preview = previewOf(list);
-  assert.deepEqual(preview.classes, ['9X (Year 9)', '9Y (Year 9)']);
   assert.equal(preview.sample.length, 5);
 });
 
@@ -175,18 +174,15 @@ test('new lab times from the staff page: in the future, sensible lengths and pla
 
 const TEMPLATE_HEAD = 'UPN,First_Name,Middle_Name,Last_Name,Date_Of_Birth,Gender,Ethnicity,School_Name,Year_Group,Form_Tutor,Address_Line_1,Address_Line_2,Address_Line_3,Address_Line_4,Postcode,School_Email,FSM (Y or N),SEN (N = no SEN; S = statement; E = EHC plan; K = SEN support)';
 
-test('the class-list template: every column read, FSM and SEN as the template codes them', async () => {
-  const csv = `${TEMPLATE_HEAD}\nA123456789012,Jane,Ann,Smith,14/03/2012,F,WBRI,Dixons Unity Academy,8,Mr Khan,1 Long Lane,Flat 2,Leeds,West Yorkshire,ls6 1ab,j.smith@school.org.uk,Yes,EHC plan\nA123456789013,Amir,,Khan,01/07/2012,M,APKN,Dixons Unity Academy,8,Mr Khan,3 Elm Row,,Leeds,,LS2 9JT,a.khan@school.org.uk,N,K`;
+test('the class list: only the UPN, names and date of birth are read; any other column is listed as not read', async () => {
+  const csv = `${TEMPLATE_HEAD}\nA123456789012,Jane,Ann,Smith,14/03/2012,F,WBRI,Dixons Unity Academy,8,Mr Khan,1 Long Lane,Flat 2,Leeds,West Yorkshire,ls6 1ab,j.smith@school.org.uk,Yes,EHC plan`;
   const list = pupilsFrom(await readTable(Buffer.from(csv), 'AoW - Class List Request.csv'));
-  assert.equal(list.valid, 2);
-  assert.deepEqual(list.ignored, [], 'no template column is left unread');
-  const [a, b] = list.pupils;
-  assert.deepEqual(
-    { first: a.firstName, middle: a.middleName, last: a.lastName, dob: a.dateOfBirth, gender: a.gender, ethnicity: a.ethnicity, school: a.schoolName, year: a.yearGroup, tutor: a.formTutor, address: a.address, postcode: a.postcode, email: a.email, fsm: a.fsm, sen: a.sen },
-    { first: 'Jane', middle: 'Ann', last: 'Smith', dob: '2012-03-14', gender: 'F', ethnicity: 'WBRI', school: 'Dixons Unity Academy', year: '8', tutor: 'Mr Khan', address: '1 Long Lane, Flat 2, Leeds, West Yorkshire', postcode: 'LS6 1AB', email: 'j.smith@school.org.uk', fsm: 'Y', sen: 'E' },
-  );
-  assert.deepEqual([b.fsm, b.sen, b.address], ['N', 'K', '3 Elm Row, Leeds']);
-  assert.deepEqual([readFsm('true'), readFsm('0'), readFsm('?'), readSen('Statement'), readSen('SEN Support'), readSen('none')], ['Y', 'N', '?', 'S', 'K', 'N']);
+  assert.equal(list.valid, 1);
+  const [a] = list.pupils;
+  assert.deepEqual(a, { row: 2, upn: 'A123456789012', firstName: 'Jane', lastName: 'Smith', dateOfBirth: '2012-03-14', middleName: 'Ann' });
+  for (const col of ['Gender', 'Ethnicity', 'School_Name', 'Year_Group', 'Form_Tutor', 'Address_Line_1', 'Postcode', 'School_Email', 'FSM (Y or N)']) assert.ok(list.ignored.includes(col), col);
+  const pupilsText = JSON.stringify(list.pupils);
+  for (const v of ['WBRI', 'Long Lane', 'LS6', 'school.org.uk', 'EHC']) assert.ok(!pupilsText.includes(v), v);
 });
 
 test('Excel: every sheet read (one per class), each with its own headings', async () => {

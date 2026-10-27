@@ -10,8 +10,7 @@ interface Preview {
   ignored: string[];
   pupils: number;
   valid: number;
-  sample: { row: number; upn: string; firstName: string; lastName: string; dateOfBirth: string | null; yearGroup: string; className: string }[];
-  classes: string[];
+  sample: { row: number; upn: string; firstName: string; lastName: string; dateOfBirth: string | null }[];
   problems: { row: number; message: string }[];
   problemCount: number;
   /** No headings in the file: each line was read from its UPN, so the names especially need checking. */
@@ -27,8 +26,8 @@ interface PreviewResult {
 /** Up to 50 MB (19 October 2026). Up to 6 MB the file goes in the call itself; a larger one goes to Storage first. */
 const MAX_BYTES = 50 * 1024 * 1024;
 const INLINE_MAX_BYTES = 6 * 1024 * 1024;
-/** The study's class-list template (the team's own, 19 October 2026), as an empty CSV that opens in Excel. */
-const TEMPLATE = 'UPN,First_Name,Middle_Name,Last_Name,Date_Of_Birth,Gender,Ethnicity,School_Name,Year_Group,Form_Tutor,Address_Line_1,Address_Line_2,Address_Line_3,Address_Line_4,Postcode,School_Email,FSM (Y or N),SEN (N = no SEN; S = statement; E = EHC plan; K = SEN support)\n';
+/** The class-list template: only the UPN, legal names and date of birth (27 October 2026), as an empty CSV that opens in Excel. */
+const TEMPLATE = 'UPN,First_Name,Middle_Name,Last_Name,Date_Of_Birth\n';
 /** What the file chooser offers: spreadsheets, Word, PDF and text. Anything else can still be chosen and sent. */
 const ACCEPT = '.xlsx,.xls,.csv,.ods,.docx,.doc,.odt,.pdf,.txt,.rtf,text/csv,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword';
 const client = () => ({ userAgent: navigator.userAgent.slice(0, 200), submittedAt: new Date().toISOString(), timezoneOffset: new Date().getTimezoneOffset() });
@@ -73,20 +72,6 @@ const COLUMN_NAMES: [string, string][] = [
   ['lastName', 'Last name'],
   ['fullName', 'Name'],
   ['dateOfBirth', 'Date of birth'],
-  ['gender', 'Gender'],
-  ['ethnicity', 'Ethnicity'],
-  ['schoolName', 'School'],
-  ['yearGroup', 'Year group'],
-  ['formTutor', 'Form tutor'],
-  ['className', 'Class'],
-  ['address1', 'Address'],
-  ['address2', 'Address line 2'],
-  ['address3', 'Address line 3'],
-  ['address4', 'Address line 4'],
-  ['postcode', 'Postcode'],
-  ['email', 'School email'],
-  ['fsm', 'FSM'],
-  ['sen', 'SEN'],
 ];
 
 /**
@@ -271,17 +256,17 @@ export function SchoolUpload() {
         <h2 className="mpmb-h2" id="what-to-send">
           What to send
         </h2>
-        <p>One file listing the pupils in the classes taking part, as your management information system (SIMS, Arbor, Bromcom…) exports it. Excel is best; CSV, Word, PDF or a text file also work. The class-list template has every column we ask for:</p>
+        <p>One file listing the pupils in the classes taking part, as your management information system (SIMS, Arbor, Bromcom…) exports it. Excel is best; CSV, Word, PDF or a text file also work. We ask for four things for each pupil:</p>
         <ul className="mpmb-tools__columns">
           <li>
-            <strong>UPN</strong>, first, middle and last name (legal names), date of birth
+            <strong>UPN</strong>
           </li>
-          <li>Gender, ethnicity, school, year group and form tutor</li>
-          <li>Home address (up to four lines) and postcode, school email</li>
-          <li>Free school meals (Y or N) and SEN (N = no SEN, S = statement, E = EHC plan, K = SEN support)</li>
+          <li>First name, any middle names and last name (legal names)</li>
+          <li>Date of birth</li>
         </ul>
+        <p>Please leave out every other column, such as address, ethnicity, free school meals or SEN. We don’t need them, and any that are sent are not read.</p>
         <p className="mpmb-hint">
-          If you can’t include every column, send what you have: the UPN and the pupil’s names are what matter most. A list on several sheets of one workbook is fine.{' '}
+          If you can’t include the date of birth, send what you have: the UPN and the pupil’s names are what matter most. A list on several sheets of one workbook is fine.{' '}
           <Button variant="link" onClick={saveTemplate}>
             Download the empty template (opens in Excel)
           </Button>
@@ -292,7 +277,7 @@ export function SchoolUpload() {
           How your file is protected
         </h2>
         <ul>
-          <li>It is sent encrypted, straight to the University of Leeds’ storage for the study, held in the UK (London). It is never emailed and never public.</li>
+          <li>It is sent encrypted, straight to the study’s secure storage in London, and copied only to the research team’s restricted University of Leeds OneDrive. It is never emailed and never public.</li>
           <li>Only your school’s password opens this page, and only the research team can see the file. This page never shows it back.</li>
           <li>It is used only for the MyPhone/MyBrain study: to match the study’s records with the school’s.</li>
         </ul>
@@ -311,7 +296,7 @@ export function SchoolUpload() {
             Check what we read
           </h2>
           <p>
-            <strong>{preview.pupils} pupils</strong>, {preview.valid} with a UPN we can use{preview.classes.length ? `, in ${preview.classes.join(', ')}` : ''}.
+            <strong>{preview.pupils} pupils</strong>, {preview.valid} with a UPN we can use.
           </p>
           {preview.noHeadings && (
             <Callout tone="important">
@@ -331,7 +316,6 @@ export function SchoolUpload() {
                   <th scope="col">First name</th>
                   <th scope="col">Last name</th>
                   <th scope="col">Date of birth</th>
-                  <th scope="col">Class</th>
                 </tr>
               </thead>
               <tbody>
@@ -342,7 +326,6 @@ export function SchoolUpload() {
                     <td>{p.firstName || '–'}</td>
                     <td>{p.lastName || '–'}</td>
                     <td>{p.dateOfBirth ?? '–'}</td>
-                    <td>{[p.yearGroup, p.className].filter(Boolean).join(' ') || '–'}</td>
                   </tr>
                 ))}
               </tbody>
