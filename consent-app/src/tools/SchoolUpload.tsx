@@ -78,8 +78,8 @@ const COLUMN_NAMES: [string, string][] = [
  * A school's own upload page for the UPNs of the classes taking part
  * (myphonemybrain.com/schools/upload/?school=<slug>). The research team
  * gives each school the link and a password. The school chooses its file,
- * checks what was read from it, and sends it; the file goes to the
- * University of Leeds' secure storage, never anywhere public.
+ * checks what was read from it, and sends it; the file goes to
+ * the study's secure storage in London, never anywhere public.
  */
 export function SchoolUpload() {
   const school = schoolBySlug(new URLSearchParams(window.location.search).get('school'));
@@ -256,7 +256,7 @@ export function SchoolUpload() {
         <h2 className="mpmb-h2" id="what-to-send">
           What to send
         </h2>
-        <p>One file listing the pupils in the classes taking part, as your management information system (SIMS, Arbor, Bromcom…) exports it. Excel is best; CSV, Word, PDF or a text file also work. We ask for four things for each pupil:</p>
+        <p>One file listing the pupils in the classes taking part, as your management information system (SIMS, Arbor, Bromcom…) exports it. Excel is best; CSV, Word, PDF or a text file also work. We ask for three things for each pupil:</p>
         <ul className="mpmb-tools__columns">
           <li>
             <strong>UPN</strong>
@@ -360,7 +360,7 @@ export function SchoolUpload() {
         </section>
       )}
       <p className="mpmb-hint">
-        The file goes to the University of Leeds’ secure storage for the MyPhone/MyBrain study and is used only to match the study’s records with the school’s. {unlocked.uploads + sentCount ? `Files sent from this page so far: ${unlocked.uploads + sentCount}.` : ''} Questions: <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>.
+        The file goes to the MyPhone/MyBrain study’s secure storage in London and is used only to match the study’s records with the school’s. {unlocked.uploads + sentCount ? `Files sent from this page so far: ${unlocked.uploads + sentCount}.` : ''} Questions: <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>.
       </p>
     </div>
   );
