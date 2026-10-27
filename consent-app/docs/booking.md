@@ -88,7 +88,7 @@ send the same message twice: each is claimed in a transaction first.
 2. **The staff key.** In Cloud Shell:
    `bash consent-app/firebase/scripts/set-staff-key.sh myphone-mybrain`.
    It prints a long key once: put it in the team's password manager. Sign in
-   at <https://myphonemybrain.com/break/staff/>.
+   at <https://myphonemybrain.com/staff/>.
 3. **Lab times.** On the staff page, **Lab times → Add lab times**: a first
    and last date, the weekdays, the start times (for example `10:00, 14:00`),
    the length (120 minutes), places at once (1), and whether the times are
@@ -128,7 +128,7 @@ send the same message twice: each is claimed in a transaction first.
 
 ## The staff page
 
-<https://myphonemybrain.com/break/staff/> (not linked from anywhere, not
+<https://myphonemybrain.com/staff/> (not linked from anywhere, not
 indexed), behind the staff key, which stays in that browser tab until it is
 closed:
 

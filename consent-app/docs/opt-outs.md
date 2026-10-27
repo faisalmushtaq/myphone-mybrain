@@ -40,7 +40,7 @@ The website records nothing about this. `src/steps/OptOut.tsx` has the wording.
 ## When an email arrives
 
 Reply to confirm, then log it on the staff page
-(<https://myphonemybrain.com/break/staff/>) → **Opt-outs** → **Log an opt-out
+(<https://myphonemybrain.com/staff/>) → **Opt-outs** → **Log an opt-out
 email**: **what the parent asked for** (workshop and data, or data only), the young person's names and school (needed to find them), year group
 or class, date of birth if the email gives one, the parent's name, the day it
 arrived, and whether it came **after the workshop** (then the data already

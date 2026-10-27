@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-off: makes the staff key for the research team's page
-# (myphonemybrain.com/break/staff/), stores it in Secret Manager, lets the
+# (myphonemybrain.com/staff/), stores it in Secret Manager, lets the
 # functions read it, and prints it once. Share it only within the team, for
 # example in the team's password manager. Nothing goes into the repository or
 # GitHub. Run again to replace it (the old key stops working within ten
@@ -36,4 +36,4 @@ echo "The staff key (shown only now; copy it into the team's password manager):"
 echo
 echo "    $KEY"
 echo
-echo "Sign in at https://myphonemybrain.com/break/staff/ with it. It works within a few minutes; no redeploy is needed."
+echo "Sign in at https://myphonemybrain.com/staff/ with it. It works within a few minutes; no redeploy is needed."

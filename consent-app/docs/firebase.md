@@ -280,7 +280,7 @@ Run it again any time; it skips what is already done.
 11. **The break study's lab visits, texts and staff page.** Make the staff
     key once, in Cloud Shell:
     `bash consent-app/firebase/scripts/set-staff-key.sh <project-id>` (it
-    prints the key once), sign in at `/break/staff/` and add lab times. Text
+    prints the key once), sign in at `/staff/` and add lab times. Text
     reminders are optional: `set-sms-credentials.sh` stores the Twilio
     credentials, and the repository variable `MPMB_SMS_FROM` names the
     sender. See `docs/booking.md`; the schools' UPN uploads are in

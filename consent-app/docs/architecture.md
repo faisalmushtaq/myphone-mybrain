@@ -104,7 +104,7 @@ page opens ready for one participant from a personal link
 (`?code=MP…`), which the emails, the texts and the staff page use.
 
 A third bundle, `tools-app.js`, serves two pages that are not for
-participants: the research team's staff page (`/break/staff/`, behind a staff
+participants: the research team's staff page (`/staff/`, behind a staff
 key: lab times, bookings, participants and their links, the schools' upload
 passwords) and each school's upload page for its UPN lists
 (`/schools/upload/?school=<slug>`, behind a password per school; see
