@@ -25,8 +25,17 @@
   image: "olivia_jones.jpg"
   links: []
 
+- name: "Kate Hiley"
+  role: "Research Fellow"
+  bio: |
+    Kate uses school-based and community EEG to improve the accessibility and inclusivity of neuroscience research with young people.
+  image: "kate_hiley.jpg"
+  links:
+    - label: "ORCiD"
+      url: "https://orcid.org/0009-0000-1824-3850"
+
 - name: "Dr Jasper van den Bosch"
-  role: "Postdoctoral Researcher"
+  role: "Research Fellow"
   bio: |
     Jasper specialises in EEG signal processing and reproducibility, building the open-science data infrastructure that underpins the project's large-scale analyses.
   image: "jasper_van_den_bosch.jpg"
@@ -35,7 +44,7 @@
       url: "https://scholar.google.com/citations?user=XQ3-JHgAAAAJ"
 
 - name: "Dr Dominik Welke"
-  role: "Postdoctoral Researcher"
+  role: "Research Fellow"
   bio: |
     Dominik develops robust, scalable methods for multi-site neuroimaging studies, contributing to the computational and data-science foundations of the project.
   image: "dominik_welke.jpg"
@@ -49,15 +58,6 @@
     Layla develops and maintains the open-source software tools for EEG data processing and analysis that support reproducible, large-scale research across the project.
   image: "layla_kouara.jpg"
   links: []
-
-- name: "Kate Hiley"
-  role: "PhD Researcher"
-  bio: |
-    Kate uses school-based and community EEG to improve the accessibility and inclusivity of neuroscience research with young people.
-  image: "kate_hiley.jpg"
-  links:
-    - label: "ORCiD"
-      url: "https://orcid.org/0009-0000-1824-3850"
 
 - name: "Miftah Faizah"
   role: "PhD Researcher"
