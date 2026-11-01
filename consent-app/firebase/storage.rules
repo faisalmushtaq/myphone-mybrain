@@ -52,6 +52,12 @@ service firebase.storage {
       allow read, update: if false;
     }
 
+    // The staff portal's document copies (DBS, health forms…): the person uploads their own, within limits, if the portal has given them a role; nobody reads them directly (portalApi gives the owner or the project manager a five-minute link).
+    match /portal/docs/{uid}/{uploadId} {
+      allow create: if ownsPath(uid) && request.auth.token.portalRole in ['pm', 'researcher', 'ra'] && request.resource.size < 15 * 1024 * 1024 && request.resource.contentType in ['application/pdf', 'image/jpeg', 'image/png'] && uploadId.matches('^[0-9a-f-]{36}$');
+      allow read, update, delete: if false;
+    }
+
     match /donations/{participantId}/{file} {
       allow read: if hasRole('researcher') || hasRole('coordinator');
       allow write: if false;

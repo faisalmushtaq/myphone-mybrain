@@ -24,6 +24,7 @@ export { labStoryChat, labStoryVoice } from './storyChat.js';
 export { schoolUpload } from './schoolUpload.js';
 import { SCHOOL_QUARANTINE } from './schoolUpload.js';
 export { staffApi } from './staff.js';
+export { portalApi, portalHousekeeping } from './portal.js';
 export { purgeUsage, usage } from './usage.js';
 export { findAddresses } from './address.js';
 export { familyReminders } from './familyReminders.js';

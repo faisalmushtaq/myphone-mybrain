@@ -155,6 +155,9 @@ export function StaffApp() {
           <p className="mpmb-kicker">MyPhone/MyBrain research team</p>
           <h1 className="mpmb-h1">Staff page</h1>
           <p className="mpmb-lead">Lab times and bookings for the social media break study, participants’ links, and the schools’ upload passwords.</p>
+          <p>
+            Research assistants, school visits, documents and availability are in the <a href="/portal/">staff portal</a>, with your own sign-in.
+          </p>
         </header>
         {error && (
           <Callout tone="important" role="alert">
@@ -187,9 +190,14 @@ export function StaffApp() {
             </p>
           )}
         </div>
-        <Button variant="ghost" onClick={signOut}>
-          Sign out
-        </Button>
+        <div className="mpmb-actions">
+          <a className="mpmb-btn mpmb-btn--secondary" href="/portal/">
+            <span>Staff portal: visits and research assistants</span>
+          </a>
+          <Button variant="ghost" onClick={signOut}>
+            Sign out
+          </Button>
+        </div>
       </header>
       {overview && (!overview.ready.email || !overview.ready.sms) && (
         <Callout tone="info">

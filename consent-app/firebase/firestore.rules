@@ -144,6 +144,7 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // The staff portal (portal*): no direct access at all; portalApi checks every call against the caller's account.
     match /{document=**} {
       allow read, write: if false;
     }

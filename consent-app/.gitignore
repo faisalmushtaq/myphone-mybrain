@@ -11,6 +11,8 @@ firebase/.cache/
 firebase/emulator-data/
 dist-emulator/
 dist-emulator-finder/
+dist-portal-e2e/
+portal-shots/
 firebase/.site-variables.txt
 *.tsbuildinfo
 swarm-report.json

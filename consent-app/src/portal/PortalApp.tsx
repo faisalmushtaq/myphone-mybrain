@@ -1,0 +1,473 @@
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import type { User } from 'firebase/auth';
+import { Button } from '../components/ui/Button';
+import { Callout } from '../components/ui/Callout';
+import { TextField } from '../components/ui/Field';
+import { ask, completeLink, connection, leave, messageOf, pendingLink, refreshToken, sendLink, watchUser } from './api';
+import { AvailabilityView, Documents, MyVisits, Offers, RaHome, Training } from './RaViews';
+import { Audit, People, Person, Schools, Sessions, SettingsView, TeamHome, VisitView, Visits } from './TeamViews';
+import { ROLE_LABEL, stamp, type Me, type MySummary, type Notification, type Role } from './types';
+
+/**
+ * The staff portal (myphonemybrain.com/portal/): sign in with an email link,
+ * ask for an account, then one section per study. The schools study is the
+ * first built: research assistants' documents, training, availability and
+ * offers; the team's people, visits and staffing. See docs/portal.md.
+ */
+type Study = 'school' | 'lab' | 'online';
+
+function useHash(): [string, (h: string) => void] {
+  const [hash, setHash] = useState(() => window.location.hash || '#home');
+  useEffect(() => {
+    const on = () => {
+      setHash(window.location.hash || '#home');
+      window.scrollTo({ top: 0 });
+    };
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
+  const go = useCallback((h: string) => {
+    if (window.location.hash === h) setHash(h);
+    else window.location.hash = h;
+  }, []);
+  return [hash, go];
+}
+
+export function PortalApp() {
+  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [me, setMe] = useState<Me | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    document.title = 'Staff portal – MyPhone/MyBrain';
+    return watchUser(setUser);
+  }, []);
+
+  const loadMe = useCallback(async () => {
+    try {
+      await refreshToken();
+      setMe(await ask<Me>('me'));
+      setError(null);
+    } catch (e) {
+      setError(messageOf(e));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) void loadMe();
+    else setMe(null);
+  }, [user, loadMe]);
+
+  if (!connection()) {
+    return (
+      <Shell>
+        <Callout tone="warning" title="The portal is not connected in this build">
+          It needs the live Firebase backend.
+        </Callout>
+      </Shell>
+    );
+  }
+  if (user === undefined) return <Shell>Loading…</Shell>;
+  if (!user) return <SignIn />;
+  if (error)
+    return (
+      <Shell>
+        <Callout tone="warning" role="alert">
+          {error}
+        </Callout>
+        <Button variant="secondary" onClick={() => void leave()}>
+          Sign out
+        </Button>
+      </Shell>
+    );
+  if (!me) return <Shell>Loading…</Shell>;
+  if (!me.user || me.user.status === 'rejected') return <RequestAccess email={me.email} rejected={me.user?.status === 'rejected'} done={loadMe} />;
+  if (me.user.status === 'pending')
+    return (
+      <Shell>
+        <h1 className="mpmb-h1">Thank you, {me.user.name.split(' ')[0]}</h1>
+        <p className="mpmb-lead">Your account is waiting for the project manager to approve it. We will email {me.email} when it is ready.</p>
+        <div className="mpmb-actions">
+          <Button variant="secondary" onClick={() => void loadMe()}>
+            Check again
+          </Button>
+          <Button variant="ghost" onClick={() => void leave()}>
+            Sign out
+          </Button>
+        </div>
+      </Shell>
+    );
+  if (me.user.status === 'archived')
+    return (
+      <Shell>
+        <p className="mpmb-lead">This account is closed. If you think that is a mistake, please contact the project manager.</p>
+        <Button variant="ghost" onClick={() => void leave()}>
+          Sign out
+        </Button>
+      </Shell>
+    );
+  return <Portal me={me} reloadMe={loadMe} />;
+}
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mpmb-tools mpmb-portal">
+      <div className="container mpmb-portal__narrow">{children}</div>
+    </div>
+  );
+}
+
+/* ── Signing in ───────────────────────────────────────────────────────── */
+
+function SignIn() {
+  const link = pendingLink();
+  const [email, setEmail] = useState(link?.email ?? '');
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const finishing = Boolean(link);
+
+  useEffect(() => {
+    // Opened from the link on the same browser: finish straight away.
+    if (link?.email) {
+      setBusy(true);
+      void completeLink(link.email).catch((e) => {
+        setError(messageOf(e));
+        setBusy(false);
+      });
+    }
+  }, []);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      setError('Please enter your email address.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      if (finishing) await completeLink(email);
+      else {
+        await sendLink(email);
+        setSent(true);
+      }
+    } catch (err) {
+      setError(messageOf(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Shell>
+      <p className="mpmb-kicker">MyPhone/MyBrain</p>
+      <h1 className="mpmb-h1">Staff portal</h1>
+      {sent ? (
+        <Callout tone="success" title="Check your email" role="status">
+          <p>
+            We sent a sign-in link to <strong>{email}</strong>. Open it on this device to sign in. It works once, for an hour.
+          </p>
+          <Button variant="link" onClick={() => setSent(false)}>
+            Use a different email
+          </Button>
+        </Callout>
+      ) : (
+        <form onSubmit={(e) => void submit(e)} noValidate>
+          <p className="mpmb-lead">{finishing ? 'Confirm your email address to finish signing in.' : 'For the research team and research assistants. Enter your email and we will send you a link to sign in: no password needed.'}</p>
+          <TextField id="portal-email" label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} error={error ?? undefined} />
+          <Button type="submit" variant="primary" arrow loading={busy}>
+            {finishing ? 'Sign in' : 'Email me a sign-in link'}
+          </Button>
+          <p className="mpmb-hint">New here? Sign in the same way, then ask for an account.</p>
+        </form>
+      )}
+    </Shell>
+  );
+}
+
+function RequestAccess({ email, rejected, done }: { email: string; rejected: boolean; done: () => Promise<void> }) {
+  const [form, setForm] = useState({ name: '', phone: '', requested: 'ra' as 'ra' | 'team' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await ask('request-access', form);
+      await done();
+    } catch (err) {
+      setError(messageOf(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Shell>
+      <h1 className="mpmb-h1">Ask for an account</h1>
+      {rejected && <Callout tone="warning">Your earlier request was not approved. You can ask again.</Callout>}
+      <p className="mpmb-lead">Signed in as {email}. The project manager approves each account.</p>
+      <form onSubmit={(e) => void submit(e)}>
+        <TextField id="ra-name" label="Your full name" autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <TextField id="ra-phone" label="Mobile number" required={false} autoComplete="tel" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} hint="So the team can reach you on the day of a visit." />
+        <fieldset className="mpmb-field">
+          <legend className="mpmb-label">I am joining as</legend>
+          <label className="mpmb-portal__inline">
+            <input type="radio" name="requested" checked={form.requested === 'ra'} onChange={() => setForm({ ...form, requested: 'ra' })} /> A research assistant
+          </label>
+          <label className="mpmb-portal__inline">
+            <input type="radio" name="requested" checked={form.requested === 'team'} onChange={() => setForm({ ...form, requested: 'team' })} /> A member of the research team
+          </label>
+        </fieldset>
+        {error && (
+          <p className="mpmb-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="mpmb-actions">
+          <Button type="submit" variant="primary" loading={busy}>
+            Ask for an account
+          </Button>
+          <Button variant="ghost" onClick={() => void leave()}>
+            Sign out
+          </Button>
+        </div>
+      </form>
+    </Shell>
+  );
+}
+
+/* ── Signed in ────────────────────────────────────────────────────────── */
+
+interface NavItem {
+  hash: string;
+  label: string;
+}
+
+function navFor(role: Role): NavItem[] {
+  if (role === 'ra')
+    return [
+      { hash: '#home', label: 'Checklist' },
+      { hash: '#offers', label: 'Offers' },
+      { hash: '#my-visits', label: 'My visits' },
+      { hash: '#availability', label: 'Availability' },
+      { hash: '#documents', label: 'Documents' },
+      { hash: '#training', label: 'Training' },
+    ];
+  return [
+    { hash: '#home', label: 'Overview' },
+    { hash: '#visits', label: 'Visits' },
+    { hash: '#people', label: 'People' },
+    { hash: '#sessions', label: 'Training and pilots' },
+    { hash: '#schools', label: 'Schools' },
+    ...(role === 'pm' ? [{ hash: '#settings', label: 'Settings' }, { hash: '#audit', label: 'Audit log' }] : []),
+  ];
+}
+
+function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
+  const user = me.user!;
+  const role = user.role!;
+  const [hash, go] = useHash();
+  const [study, setStudy] = useState<Study>('school');
+  const [summary, setSummary] = useState<MySummary | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const loadSummary = useCallback(async () => {
+    try {
+      setSummary(await ask<MySummary>('my-summary'));
+      setSummaryError(null);
+    } catch (e) {
+      setSummaryError(messageOf(e));
+    }
+  }, []);
+  useEffect(() => {
+    if (role === 'ra') void loadSummary();
+  }, [role, loadSummary]);
+  const reload = async () => {
+    await Promise.all([loadSummary(), reloadMe()]);
+  };
+
+  const nav = navFor(role);
+  const [route, arg] = hash.slice(1).split('/');
+  const current = `#${route}`;
+
+  const content = () => {
+    if (route === 'notifications') return <Notifications go={go} reloadMe={reloadMe} />;
+    if (route === 'profile') return <Profile me={me} reload={reloadMe} />;
+    if (role === 'ra') {
+      if (!summary) return summaryError ? <Callout tone="warning">{summaryError}</Callout> : <p>Loading…</p>;
+      switch (route) {
+        case 'documents':
+          return <Documents summary={summary} reload={reload} />;
+        case 'availability':
+          return <AvailabilityView summary={summary} reload={reload} />;
+        case 'offers':
+          return <Offers summary={summary} reload={reload} />;
+        case 'my-visits':
+          return <MyVisits summary={summary} />;
+        case 'training':
+          return <Training summary={summary} />;
+        default:
+          return <RaHome summary={summary} go={go} />;
+      }
+    }
+    switch (route) {
+      case 'people':
+        return <People role={role} go={go} />;
+      case 'person':
+        return <Person uid={arg} role={role} go={go} />;
+      case 'visits':
+        return <Visits go={go} />;
+      case 'visit':
+        return <VisitView visitId={arg} go={go} />;
+      case 'sessions':
+        return <Sessions />;
+      case 'schools':
+        return <Schools />;
+      case 'settings':
+        return role === 'pm' ? <SettingsView /> : null;
+      case 'audit':
+        return role === 'pm' ? <Audit /> : null;
+      default:
+        return <TeamHome role={role} go={go} />;
+    }
+  };
+  const title = nav.find((n) => n.hash === current)?.label ?? (route === 'notifications' ? 'Notifications' : route === 'profile' ? 'Your details' : route === 'person' ? 'Person' : route === 'visit' ? 'Visit' : nav[0].label);
+
+  return (
+    <div className="mpmb-tools mpmb-portal">
+      <div className="container">
+        <header className="mpmb-tools__head mpmb-portal__head">
+          <div>
+            <p className="mpmb-kicker">MyPhone/MyBrain staff portal</p>
+            <p className="mpmb-portal__who">
+              {user.name} · {ROLE_LABEL[role]}
+            </p>
+          </div>
+          <div className="mpmb-actions">
+            <Button variant="ghost" onClick={() => go('#notifications')} aria-label={`Notifications, ${me.unread} unread`}>
+              🔔 {me.unread > 0 ? <span className="mpmb-portal__count">{me.unread}</span> : null}
+            </Button>
+            <Button variant="ghost" onClick={() => go('#profile')}>
+              Your details
+            </Button>
+            <Button variant="ghost" onClick={() => void leave()}>
+              Sign out
+            </Button>
+          </div>
+        </header>
+        <nav className="mpmb-portal__studies" aria-label="Studies">
+          {(
+            [
+              ['school', 'School study'],
+              ['lab', 'Lab study'],
+              ['online', 'Online study'],
+            ] as [Study, string][]
+          ).map(([id, label]) => (
+            <button key={id} type="button" className={`mpmb-portal__study${study === id ? ' is-current' : ''}`} aria-current={study === id ? 'page' : undefined} onClick={() => setStudy(id)}>
+              {label}
+            </button>
+          ))}
+        </nav>
+        {study === 'lab' && (
+          <Callout title="Lab study (social media break)">
+            <p>The lab study’s tools (times, bookings and participants) are on the staff page for now, behind the staff key. They will move here next.</p>
+            <a className="mpmb-btn mpmb-btn--secondary" href="/staff/">
+              <span>Open the staff page</span>
+            </a>
+          </Callout>
+        )}
+        {study === 'online' && <Callout title="Online study">Not live yet. Its section will appear here when it is.</Callout>}
+        {study === 'school' && (
+          <>
+            <nav className="mpmb-tools__tabs" aria-label="School study">
+              {nav.map((n) => (
+                <a key={n.hash} href={n.hash} className={`mpmb-tools__tab mpmb-portal__tab${current === n.hash || (n.hash === '#visits' && route === 'visit') || (n.hash === '#people' && route === 'person') ? ' is-current' : ''}`} aria-current={current === n.hash ? 'page' : undefined}>
+                  {n.label}
+                  {role === 'ra' && n.hash === '#offers' && summary && summary.assignments.some((a) => a.status === 'offered') ? <span className="mpmb-portal__count">{summary.assignments.filter((a) => a.status === 'offered').length}</span> : null}
+                </a>
+              ))}
+            </nav>
+            <h1 className="mpmb-h1 mpmb-portal__title">{title}</h1>
+            {content()}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Notifications({ go, reloadMe }: { go: (h: string) => void; reloadMe: () => Promise<void> }) {
+  const [items, setItems] = useState<Notification[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    void (async () => {
+      try {
+        setItems((await ask<{ notifications: Notification[] }>('notifications')).notifications);
+        await ask('mark-read');
+        await reloadMe();
+      } catch (e) {
+        setError(messageOf(e));
+      }
+    })();
+  }, [reloadMe]);
+  if (error) return <Callout tone="warning">{error}</Callout>;
+  if (!items) return <p>Loading…</p>;
+  if (!items.length) return <p>Nothing yet.</p>;
+  return (
+    <ul className="mpmb-tools__list">
+      {items.map((n) => (
+        <li key={n.id} className={`mpmb-tools__row mpmb-tools__row--stack${n.read ? '' : ' mpmb-portal__unread'}`}>
+          <a href={n.link} onClick={(e) => (e.preventDefault(), go(n.link))}>
+            <strong>{n.title}</strong>
+          </a>
+          <span>{n.body}</span>
+          <span className="mpmb-hint">{stamp(n.createdAt)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Profile({ me, reload }: { me: Me; reload: () => Promise<void> }) {
+  const u = me.user!;
+  const [form, setForm] = useState({ name: u.name, phone: u.phone, smsOptIn: u.smsOptIn });
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await ask('update-profile', form);
+      await reload();
+      setMessage('Saved.');
+    } catch (err) {
+      setError(messageOf(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="mpmb-portal__narrow" onSubmit={(e) => void save(e)}>
+      <p>Email: {u.email}</p>
+      <TextField id="p-name" label="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      <TextField id="p-phone" label="Mobile number" required={false} type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+      <label className="mpmb-portal__inline">
+        <input type="checkbox" checked={form.smsOptIn} disabled={!form.phone} onChange={(e) => setForm({ ...form, smsOptIn: e.target.checked })} /> Also text me when I am selected for a visit
+      </label>
+      {error && (
+        <p className="mpmb-error" role="alert">
+          {error}
+        </p>
+      )}
+      {message && <p role="status">{message}</p>}
+      <div className="mpmb-actions">
+        <Button type="submit" variant="primary" loading={busy}>
+          Save
+        </Button>
+      </div>
+    </form>
+  );
+}

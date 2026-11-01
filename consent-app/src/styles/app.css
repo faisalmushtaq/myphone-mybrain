@@ -4305,3 +4305,81 @@
   font-size: 1.1rem;
   line-height: 1.6;
 }
+
+/* ── The staff portal (/portal/) ─────────────────────────────────────── */
+.mpmb-portal { padding-top: 1.5rem; }
+.mpmb-portal__narrow { max-width: 38rem; }
+.mpmb-portal__head { border-bottom: 1px solid var(--mpb-line); padding-bottom: 0.75rem; }
+.mpmb-portal__who { margin: 0; font-weight: 700; color: var(--mpb-ink); }
+.mpmb-portal__title { margin: 0 0 1rem; font-size: clamp(1.5rem, 4vw, 2rem); }
+.mpmb-portal__studies { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0 0.5rem; }
+.mpmb-app .mpmb-portal__study {
+  min-height: 44px; padding: 0.4rem 1rem; border: 2px solid var(--mpb-teal); border-radius: 999px;
+  background: var(--mpb-white); color: var(--mpb-teal); font: inherit; font-weight: 700; cursor: pointer;
+}
+.mpmb-app .mpmb-portal__study.is-current { background: var(--mpb-teal); color: var(--mpb-white); }
+.mpmb-app .mpmb-portal__study:focus-visible, .mpmb-portal__day:focus-visible { outline: 3px solid var(--mpb-deep); outline-offset: 2px; }
+.mpmb-app a.mpmb-portal__tab { display: inline-flex; align-items: center; gap: 0.35rem; text-decoration: none; }
+.mpmb-portal__count {
+  display: inline-block; min-width: 1.4rem; padding: 0 0.35rem; border-radius: 999px;
+  background: var(--mpb-pink); color: var(--mpb-white); font-size: 0.8rem; font-weight: 700; line-height: 1.4rem; text-align: center;
+}
+.mpmb-portal__badge {
+  display: inline-block; margin: 0.1rem 0.25rem 0.1rem 0; padding: 0.05rem 0.55rem; border-radius: 999px;
+  font-size: 0.82rem; font-weight: 700; white-space: nowrap;
+}
+.mpmb-portal__badge--ok { background: #ddf3e4; color: #135c2c; }
+.mpmb-portal__badge--wait { background: var(--mpb-important-bg); color: #6b4d00; }
+.mpmb-portal__badge--todo { background: var(--mpb-error-bg); color: var(--mpb-pink); }
+.mpmb-portal__checklist { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.75rem; }
+.mpmb-portal__checklist li { display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.85rem; border: 1px solid var(--mpb-line); border-radius: 10px; background: var(--mpb-white); }
+.mpmb-portal__tick {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 1.8rem; height: 1.8rem;
+  border: 2px solid var(--mpb-border); border-radius: 50%; font-weight: 700; color: var(--mpb-white);
+}
+.mpmb-portal__checklist li.is-done .mpmb-portal__tick { background: var(--mpb-teal); border-color: var(--mpb-teal); }
+.mpmb-portal__doc, .mpmb-portal__offer { margin-bottom: 0.75rem; }
+.mpmb-portal__doc-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.mpmb-portal__doc-head .mpmb-h3 { margin: 0; }
+.mpmb-portal__check { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--mpb-line); }
+.mpmb-portal__inline { display: flex; gap: 0.5rem; align-items: flex-start; margin: 0.35rem 0; cursor: pointer; }
+.mpmb-portal__inline input { margin-top: 0.3rem; width: 1.15rem; height: 1.15rem; flex: 0 0 auto; }
+.mpmb-portal__calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.3rem; }
+.mpmb-portal__dow { text-align: center; font-size: 0.8rem; font-weight: 700; color: var(--mpb-muted); }
+.mpmb-app .mpmb-portal__day {
+  min-height: 3.6rem; padding: 0.25rem; border: 1px solid var(--mpb-line); border-radius: 8px; background: var(--mpb-white);
+  display: flex; flex-direction: column; align-items: flex-start; font: inherit; color: var(--mpb-ink); cursor: pointer; text-align: left;
+}
+.mpmb-app .mpmb-portal__day:disabled { opacity: 0.4; cursor: default; }
+.mpmb-portal__day.is-edited { box-shadow: inset 0 0 0 2px var(--mpb-blue); }
+.mpmb-portal__daynum { font-weight: 700; }
+.mpmb-portal__dayval { font-size: 0.7rem; line-height: 1.15; }
+.mpmb-portal__day--all { background: #ddf3e4 !important; }
+.mpmb-portal__day--am, .mpmb-portal__day--pm { background: var(--mpb-important-bg) !important; }
+.mpmb-portal__day--no { background: #eef0f0 !important; color: var(--mpb-muted) !important; }
+.mpmb-portal__chips { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.mpmb-portal__chip { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.85rem; border: 1px solid var(--mpb-line); }
+.mpmb-portal__stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0.75rem; }
+.mpmb-portal__stat { padding: 0.85rem; border-radius: 10px; background: var(--mpb-mist); color: var(--mpb-ink); }
+.mpmb-portal__statn { display: block; font-size: 1.8rem; font-weight: 700; color: var(--mpb-teal); }
+.mpmb-portal__candidate { flex-wrap: wrap; }
+.mpmb-portal__candidate.is-blocked { opacity: 0.85; }
+.mpmb-portal__candidate .mpmb-input { width: 100%; max-width: none; }
+.mpmb-portal__unread { border-left: 4px solid var(--mpb-pink); }
+.mpmb-portal__audit { font-size: 0.9rem; }
+@media (max-width: 30em) {
+  .mpmb-app .mpmb-portal__day { min-height: 3rem; }
+  .mpmb-portal__dayval { font-size: 0.6rem; }
+}
+/* In the portal, buttons sit in compact rows (no section rule above them), and the page keeps a gutter on phones. */
+.mpmb-portal > .container { box-sizing: border-box; width: 100%; max-width: 72rem; margin-inline: auto; padding-inline: 16px; }
+.mpmb-portal .mpmb-actions { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.75rem; padding-top: 0; border-top: 0; }
+.mpmb-portal__head .mpmb-actions { margin-top: 0; }
+.mpmb-portal__head .mpmb-btn { min-height: 40px; padding: 0.35rem 0.75rem; }
+.mpmb-portal .mpmb-tools__tabs { margin-top: 0.75rem; }
+@media (max-width: 30em) {
+  .mpmb-app .mpmb-portal .mpmb-tools__tab { padding: 0.45rem 0.6rem; font-size: 0.95rem; }
+}
+.mpmb-portal .mpmb-actions .mpmb-btn, .mpmb-portal .mpmb-tools__bar .mpmb-btn, .mpmb-portal__head .mpmb-btn { width: auto; }
+.mpmb-portal .mpmb-tools__section > .mpmb-btn--link { align-self: flex-start; }
+.mpmb-portal .mpmb-select { width: auto; max-width: 100%; }
