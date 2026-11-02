@@ -320,6 +320,8 @@ export const labStudy = {
   platforms: ['tiktok', 'youtube', 'instagram'] as const,
   /** Largest cleaned archive the site will take. */
   maxArchiveBytes: 60 * 1024 * 1024,
+  /** Largest download (before cleaning) this page reads on the participant's device (2 November 2026; the 60 MB above is for the cleaned file sent). */
+  maxDownloadBytes: 1024 * 1024 * 1024,
   /** Screenshots accepted before the break, and again after it. */
   maxScreenshots: 12,
   /** Screenshots accepted across all the check-ins during the break. */
