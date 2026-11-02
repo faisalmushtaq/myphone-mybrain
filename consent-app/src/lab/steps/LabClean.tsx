@@ -12,12 +12,13 @@ import { LabShell } from '../LabShell';
 import { PlatformChecklist } from '../PlatformChecklist';
 import { phaseHave } from '../reducer';
 import { useLab } from '../store';
-import { checkArchiveFile } from '../validation';
+import { canChooseFolder, cleanedTooLarge, DownloadError, readDownload, type ChosenFile } from '../download';
 
 type JSZipCtor = typeof JSZip;
 
 interface Working {
-  file: File;
+  /** What was chosen: a file name, "2 files" or a folder. */
+  label: string;
   zip: JSZip;
   platforms: Platform[];
   on: Set<CategoryId>;
@@ -40,6 +41,8 @@ export function LabClean() {
   const [nudges, setNudges] = useState(0);
   const zipCtor = useRef<JSZipCtor | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const folderRef = useRef<HTMLInputElement | null>(null);
+  const [folderOk] = useState(() => canChooseFolder());
   const ready = state.codeConfirmed && state.submission.consentStage === 'sent';
 
   const loadZip = async (): Promise<JSZipCtor> => {
@@ -47,33 +50,31 @@ export function LabClean() {
     return zipCtor.current;
   };
 
-  const onFile = async (file: File | undefined) => {
-    if (!file) return;
+  /** Reads what was chosen (one or more files, or a folder's files) on this device, keeping only what the cleaner needs. */
+  const onFiles = async (chosen: ChosenFile[]) => {
+    if (!chosen.length) return;
     setProblem(null);
     setWorking(null);
-    const bad = checkArchiveFile(file);
-    if (bad) {
-      setProblem(bad);
-      return;
-    }
     setBusy(true);
-    announce('Reading your file on this device.');
+    announce('Reading your download on this device.');
     try {
       const Zip = await loadZip();
-      const zip = await Zip.loadAsync(await file.arrayBuffer());
+      const { zip, label } = await readDownload(chosen, Zip);
       const platforms = await detectPlatforms(zip);
-      if (!platforms.length) throw new Error('No TikTok, YouTube or Instagram data was recognised in this file. Check you chose the ZIP you downloaded, and that it was requested in JSON format.');
+      if (!platforms.length) throw new Error('No TikTok, YouTube or Instagram data was recognised in this download. Check you chose the download itself, and that it was requested in JSON format. For Google Takeout, if your export came in several parts, choose them all together.');
       const on = new Set<CategoryId>(categories.filter((c) => platforms.includes(c.platform)).map((c) => c.id));
       const result = await cleanArchive(zip, on);
-      setWorking({ file, zip, platforms, on, result });
+      setWorking({ label, zip, platforms, on, result });
       announce(`Found ${platforms.map((p) => platformNames[p]).join(' and ')} data. Choose what to keep.`);
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : 'This file could not be read.');
+      setProblem(error instanceof DownloadError || error instanceof Error ? error.message : 'This download could not be read.');
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = '';
+      if (folderRef.current) folderRef.current.value = '';
     }
   };
+  const fromList = (list: FileList | null | undefined): ChosenFile[] => Array.from(list ?? []).map((f) => ({ file: f, name: f.name, path: f.webkitRelativePath || undefined }));
 
   // The tick changes at once; the cleaned result and counts follow when the re-clean finishes (a later toggle wins).
   const toggle = async (id: CategoryId, checked: boolean) => {
@@ -93,6 +94,11 @@ export function LabClean() {
     try {
       const Zip = await loadZip();
       const blob = (await buildCleanedZip(Zip, working.result.files, 'blob')) as Blob;
+      const tooLarge = cleanedTooLarge(blob.size, working.result.files);
+      if (tooLarge) {
+        setProblem(tooLarge);
+        return false;
+      }
       const id = clientId('zip');
       labFileStore.put(id, blob);
       dispatch({ type: 'add-archive', archive: { id, name: cleanedArchiveName(working.platforms), size: blob.size, platforms: working.platforms, categories: Array.from(working.on), kept: working.result.report.kept, status: 'ready', progress: 0, uploadId: null, error: null } });
@@ -121,7 +127,11 @@ export function LabClean() {
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setOver(false);
-    void onFile(e.dataTransfer.files[0]);
+    const items = Array.from(e.dataTransfer.items ?? []);
+    const entries = items.map((i) => (typeof i.webkitGetAsEntry === 'function' ? i.webkitGetAsEntry() : null));
+    // A dropped folder (a Mac often unzips downloads): its files, with their paths.
+    if (entries.some((x) => x?.isDirectory)) void filesOfEntries(entries.filter((x): x is FileSystemEntry => Boolean(x))).then(onFiles);
+    else void onFiles(fromList(e.dataTransfer.files));
   };
 
   if (!ready) {
@@ -139,7 +149,7 @@ export function LabClean() {
   const removedList = working ? Array.from(new Set(working.platforms.flatMap((p) => alwaysRemoved[p]))) : [];
 
   return (
-    <LabShell kicker="Choose what to share" title="Choose what to share from your data." intro={<p>Pick the ZIP you downloaded from TikTok, Google Takeout (YouTube) or Instagram. This page reads it on your own device and keeps only when you watched, liked or searched, the links (for YouTube also the video titles and channels), your search words and simple totals. It shows you what would be shared, and you untick anything you would rather keep private. Do this for each app you use, one file at a time.</p>} errors={errors}
+    <LabShell kicker="Choose what to share" title="Choose what to share from your data." intro={<p>Pick the file you downloaded from TikTok, Google Takeout (YouTube) or Instagram, usually a .zip. This page reads it on your own device and keeps only when you watched, liked or searched, the links (for YouTube also the video titles and channels), your search words and simple totals. It shows you what would be shared, and you untick anything you would rather keep private. Do this for each app you use, one file at a time.</p>} errors={errors}
       onContinue={async () => {
         // A file read and still open goes in with the choices shown, so pressing Next never loses it.
         const addedNow = working ? await add() : false;
@@ -187,13 +197,35 @@ export function LabClean() {
       {!working && (
         <div className={`mpmb-dropzone${over ? ' is-over' : ''}`} onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
           <label className="mpmb-dropzone__label" htmlFor="lab-zip">
-            <span className="mpmb-dropzone__title">{busy ? 'Reading your file…' : 'Choose a ZIP file'}</span>
-            <span className="mpmb-dropzone__sub">TikTok (JSON), YouTube (Google Takeout) or Instagram (JSON). It stays on this device.</span>
+            <span className="mpmb-dropzone__title">{busy ? 'Reading your download…' : 'Choose your download'}</span>
+            <span className="mpmb-dropzone__sub">The .zip from TikTok (JSON), Google Takeout (YouTube; a .tgz works too) or Instagram (JSON), up to 1 GB. If Google split it into parts, choose them all. It stays on this device.</span>
           </label>
-          <input ref={inputRef} id="lab-zip" type="file" accept=".zip,application/zip,application/x-zip-compressed" className="mpmb-sr-only" disabled={busy} onChange={(e: ChangeEvent<HTMLInputElement>) => void onFile(e.target.files?.[0])} />
-          <Button variant="secondary" onClick={() => inputRef.current?.click()} loading={busy}>
-            Choose file
-          </Button>
+          <input ref={inputRef} id="lab-zip" type="file" multiple className="mpmb-sr-only" disabled={busy} onChange={(e: ChangeEvent<HTMLInputElement>) => void onFiles(fromList(e.target.files))} />
+          <div className="mpmb-actions">
+            <Button variant="secondary" onClick={() => inputRef.current?.click()} loading={busy}>
+              Choose file
+            </Button>
+            {folderOk && (
+              <>
+                <input
+                  ref={(el) => {
+                    folderRef.current = el;
+                    el?.setAttribute('webkitdirectory', '');
+                  }}
+                  id="lab-folder"
+                  type="file"
+                  multiple
+                  className="mpmb-sr-only"
+                  disabled={busy}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => void onFiles(fromList(e.target.files))}
+                />
+                <Button variant="ghost" onClick={() => folderRef.current?.click()} disabled={busy}>
+                  My download is a folder (it was unzipped)
+                </Button>
+              </>
+            )}
+          </div>
+          {folderOk && <span className="mpmb-dropzone__sub">A Mac often opens a download straight into a folder. If that happened, choose the folder instead of a file.</span>}
         </div>
       )}
       {problem && (
@@ -205,7 +237,7 @@ export function LabClean() {
       {working && (
         <section className="mpmb-card" aria-labelledby="found-heading">
           <h2 className="mpmb-h3" id="found-heading">
-            Found: {working.platforms.map((p) => platformNames[p]).join(' and ')} data in {working.file.name}
+            Found: {working.platforms.map((p) => platformNames[p]).join(' and ')} data in {working.label}
           </h2>
           <p className="mpmb-hint">Ticked items will be shared. Untick anything you would rather not share; it is your choice and nothing is sent yet. Then press “Keep these choices”, and add the next app’s file or go on to check and send.</p>
           <div className="mpmb-fields">
@@ -254,4 +286,25 @@ export function LabClean() {
       <p className="mpmb-hint">Nothing has been sent. Your original download is untouched; only the cleaned version is prepared for sending.</p>
     </LabShell>
   );
+}
+
+/** The files in dropped folders, with their paths, as a folder chooser gives them. */
+async function filesOfEntries(entries: FileSystemEntry[]): Promise<ChosenFile[]> {
+  const out: ChosenFile[] = [];
+  const walk = async (entry: FileSystemEntry, path: string): Promise<void> => {
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve, reject) => (entry as FileSystemFileEntry).file(resolve, reject));
+      out.push({ file, name: file.name, path: `${path}${file.name}` });
+      return;
+    }
+    if (!entry.isDirectory) return;
+    const reader = (entry as FileSystemDirectoryEntry).createReader();
+    for (;;) {
+      const batch = await new Promise<FileSystemEntry[]>((resolve, reject) => reader.readEntries(resolve, reject));
+      if (!batch.length) break;
+      for (const child of batch) await walk(child, `${path}${entry.name}/`);
+    }
+  };
+  for (const e of entries) await walk(e, '');
+  return out;
 }

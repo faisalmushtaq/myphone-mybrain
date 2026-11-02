@@ -50,7 +50,7 @@ export const instagramSteps: GuideStep[] = [
   { title: 'Accounts Centre', text: 'Open Instagram, tap the menu at the top right of your profile to open Settings and activity, then tap Accounts Centre at the top.', image: instagram1, alt: 'Instagram Settings and activity with Accounts Centre at the top' },
   { title: 'Your information and permissions', text: 'In Accounts Centre, tap Your information and permissions.', image: instagram2, alt: 'Accounts Centre with Your information and permissions' },
   { title: 'Export your information', text: 'Tap Export your information.', image: instagram3, alt: 'Export your information option' },
-  { title: 'Create export', text: 'Tap Create export, choose Export to device and select your Instagram profile. To keep the file small, choose Customise information and leave out your photos, videos and messages: the study only reads what you liked, viewed, watched and searched. Set Format to JSON and Date range to All time, and confirm. Instagram tells you when the file is ready; save the ZIP and don’t unzip it.', image: instagram4, alt: 'Export your information page with Create export' },
+  { title: 'Create export', text: 'Tap Create export, choose Export to device and select your Instagram profile. To keep the file small, choose Customise information and leave out your photos, videos and messages: the study only reads what you liked, viewed, watched and searched. Set Format to JSON, Media quality to Low and Date range to All time, and confirm. Instagram tells you when the file is ready; save the ZIP and don’t unzip it. A large file is fine: this page reads it on your device and keeps only the small history files, up to 1 GB.', image: instagram4, alt: 'Export your information page with Create export' },
 ];
 export const phones: { id: LabPhone; name: string }[] = [
   { id: 'iphone', name: 'iPhone' },
@@ -58,9 +58,9 @@ export const phones: { id: LabPhone; name: string }[] = [
 ];
 export const youtubeSteps: GuideStep[] = [
   { title: 'Select YouTube only', text: 'Go to takeout.google.com in a web browser. Click Deselect all, then scroll down and tick only YouTube and YouTube Music. Click All YouTube data included, choose Deselect all, tick only history and subscriptions, and click OK: leaving out your videos keeps the file small. Click Multiple formats and change history from HTML to JSON, click OK, then Next step.', image: youtube1, alt: 'Google Takeout with YouTube selected' },
-  { title: 'Create the export', text: 'Set Transfer to “Send download link via email”, Frequency “Export once”, File type .zip. Click Create export.', image: youtube2, alt: 'Takeout export options' },
+  { title: 'Create the export', text: 'Set Transfer to “Send download link via email”, Frequency “Export once”, File type .zip and File size 2 GB. Click Create export.', image: youtube2, alt: 'Takeout export options' },
   { title: 'Open the email', text: 'Wait for Google’s email “Your Google data is ready to download”, then click Manage Google Takeout request.', image: youtube3, alt: 'Email from Google Takeout' },
-  { title: 'Download', text: 'On the export page, click Download and save the ZIP file.', image: youtube4, alt: 'Takeout download page' },
+  { title: 'Download', text: 'On the export page, click Download and save the ZIP file. If Google split it into parts, download them all and choose them together on this page. On a Mac, Safari may open the download into a folder by itself: that is fine, choose “My download is a folder” on this page.', image: youtube4, alt: 'Takeout download page' },
 ];
 export const apps: { id: LabPlatform; name: string; where: string; steps: GuideStep[] }[] = [
   { id: 'tiktok', name: 'TikTok', where: 'In the TikTok app on your phone.', steps: tiktokSteps },
