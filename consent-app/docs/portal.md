@@ -124,7 +124,7 @@ and this retention.
 2. **Authentication → Settings → Authorised domains**: make sure
    `myphonemybrain.com` is listed (it is for the participant pages).
 3. **The first project manager**, in Cloud Shell from the repository:
-   `npm --prefix consent-app/firebase/functions ci && node consent-app/firebase/scripts/set-portal-admin.mjs <project-id> <email> "Full name"`.
+   `npm --prefix consent-app/firebase/functions ci && node consent-app/firebase/scripts/set-portal-admin.mjs <project-id> <email> "Full name"`. The first two (Sarmad Ali and Faisal Mushtaq), and the service account permission for document links, are set by `consent-app/firebase/scripts/portal-first-admins.sh`, pasted into Cloud Shell (https://shell.cloud.google.com/?project=myphone-mybrain); it needs nothing from this repository.
    They then sign in at /portal/ with the emailed link. Run it again for
    another project manager, or approve them in the portal.
 4. **Deploy** as usual (push to main): the function `portalApi`, the daily
