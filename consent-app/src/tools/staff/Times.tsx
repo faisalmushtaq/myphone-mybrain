@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
-import { SelectField, TextField } from '../../components/ui/Field';
+import { TextField } from '../../components/ui/Field';
 import { labBooking } from '../../lab/booking';
 import { addDays, atUkTime, byDay, ukDateWords, ukHours, ukIsoDay } from '../../lab/calendar';
 import { messageOf, type StaffSlot } from '../api';
@@ -41,7 +41,12 @@ export function startsFor(from: string, to: string, days: boolean[], times: [num
   return out;
 }
 
-/** Adding lab times (one or a pattern of many), and opening, closing or removing them. */
+/**
+ * Adding lab times (one or a pattern of many), and opening, closing or removing them.
+ * Session 1 and session 2 times are kept apart (2 November 2026): the team adds and sees
+ * each session's times on its own, and participants are offered only the session's own.
+ * Times added before then for either visit still show under both, marked as such.
+ */
 export function Times({ staff }: { staff: Staff }) {
   const [from, setFrom] = useState(addDays(today(), 7));
   const [to, setTo] = useState('');
@@ -49,7 +54,7 @@ export function Times({ staff }: { staff: Staff }) {
   const [timesText, setTimesText] = useState('10:00, 13:00');
   const [minutes, setMinutes] = useState(String(labBooking.minutes));
   const [capacity, setCapacity] = useState('1');
-  const [visit, setVisit] = useState('');
+  const [session, setSession] = useState<1 | 2>(1);
   const [location, setLocation] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: 'success' | 'important'; text: string } | null>(null);
@@ -69,7 +74,14 @@ export function Times({ staff }: { staff: Staff }) {
       ? `${outOfHours.map(([h, m]) => hhmm(h * 60 + m)).join(', ')} ${outOfHours.length === 1 ? 'is' : 'are'} outside lab hours: visits run between ${hhmm(opens * 60)} and ${hhmm(closes * 60)}, so a ${length}-minute visit starts between ${hhmm(opens * 60)} and ${hhmm(closes * 60 - length)}.`
       : undefined;
   const starts = useMemo(() => (times && !outOfHours.length && from ? startsFor(from, to || from, days, times).filter((d) => d.getTime() > Date.now()) : []), [times, outOfHours.length, from, to, days]);
-  const slots = (staff.overview?.slots ?? []).filter((s) => new Date(s.end).getTime() > Date.now() - 86_400_000);
+  const allSlots = (staff.overview?.slots ?? []).filter((s) => new Date(s.end).getTime() > Date.now() - 86_400_000);
+  const slots = allSlots.filter((s) => !s.visit || s.visit === session);
+  const countFor = (n: 1 | 2) => allSlots.filter((s) => s.visit === n && s.status === 'open').length;
+  const chooseSession = (n: 1 | 2) => {
+    setSession(n);
+    setMessage(null);
+    setFrom(addDays(today(), n === 1 ? 7 : 7 + labBooking.visit2AfterDays.min));
+  };
 
   const run = async (label: string, fn: () => Promise<string>) => {
     setBusy(label);
@@ -89,8 +101,8 @@ export function Times({ staff }: { staff: Staff }) {
     run('add', async () => {
       if (timesError) throw new Error(timesError);
       if (!starts.length) throw new Error('Those dates and days give no times in the future.');
-      const r = await staff.ask<{ created: number; skipped: number }>('add-slots', { slots: starts.map((d) => ({ start: d.toISOString(), minutes: Number(minutes), capacity: Number(capacity), visit: visit === '1' ? 1 : visit === '2' ? 2 : null, location: location.trim() || null })) });
-      return `Added ${r.created} time${r.created === 1 ? '' : 's'}${r.skipped ? `; ${r.skipped} already existed` : ''}.`;
+      const r = await staff.ask<{ created: number; skipped: number }>('add-slots', { slots: starts.map((d) => ({ start: d.toISOString(), minutes: Number(minutes), capacity: Number(capacity), visit: session, location: location.trim() || null })) });
+      return `Added ${r.created} session ${session} time${r.created === 1 ? '' : 's'}${r.skipped ? `; ${r.skipped} already existed` : ''}.`;
     });
 
   const update = (s: StaffSlot, patch: Record<string, unknown>, label: string) => run(s.slotId, async () => (await staff.ask('update-slot', { slotId: s.slotId, ...patch }), label));
@@ -109,18 +121,29 @@ export function Times({ staff }: { staff: Staff }) {
           <p>{message.text}</p>
         </Callout>
       )}
+      <div className="mpmb-actions" role="group" aria-label="Which session">
+        {([1, 2] as const).map((n) => (
+          <Button key={n} variant={session === n ? 'primary' : 'secondary'} aria-pressed={session === n} onClick={() => chooseSession(n)}>
+            {`Session ${n} times (${countFor(n)} open)`}
+          </Button>
+        ))}
+      </div>
       <section className="mpmb-card" aria-labelledby="times-add">
         <h2 className="mpmb-h3" id="times-add">
-          Add lab times
+          Add session {session} times
         </h2>
-        <p className="mpmb-hint">Participants see open times from {labBooking.minNoticeHours} hours ahead. All times are UK times.</p>
+        <p className="mpmb-hint">
+          {session === 1
+            ? 'Session 1 is the first lab visit. '
+            : `Session 2 is the second lab visit, ${labBooking.visit2AfterDays.min} to ${labBooking.visit2AfterDays.max} days after each participant's first, so offer times across the weeks after your session 1 times. `}
+          Participants see open times from {labBooking.minNoticeHours} hours ahead. All times are UK times.
+        </p>
         <div className="mpmb-tools__grid">
           <TextField id="times-from" label="First date" type="date" value={from} min={today()} onChange={(e) => setFrom(e.target.value)} />
           <TextField id="times-to" label="Last date" required={false} type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} hint="Leave empty for one day." />
           <TextField id="times-times" label="Start times" value={timesText} onChange={(e) => setTimesText(e.target.value)} hint="For example 10:00, 13:00. Lab hours are 09:00 to 17:00." error={timesError} />
           <TextField id="times-minutes" label="Length (minutes)" type="number" min={15} max={600} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
           <TextField id="times-capacity" label="Places" type="number" min={1} max={20} value={capacity} onChange={(e) => setCapacity(e.target.value)} hint="People at once." />
-          <SelectField id="times-visit" label="For" value={visit} onChange={(e) => setVisit(e.target.value)} placeholder="Either visit" options={[{ value: '1', label: 'First visits only' }, { value: '2', label: 'Second visits only' }]} />
         </div>
         <fieldset className="mpmb-tools__days">
           <legend className="mpmb-label">On these days</legend>
@@ -138,16 +161,16 @@ export function Times({ staff }: { staff: Staff }) {
         )}
         <div className="mpmb-actions">
           <Button variant="primary" loading={busy === 'add'} onClick={() => void add()} disabled={!starts.length}>
-            {starts.length ? `Add ${starts.length} time${starts.length === 1 ? '' : 's'}` : 'Add times'}
+            {starts.length ? `Add ${starts.length} session ${session} time${starts.length === 1 ? '' : 's'}` : `Add session ${session} times`}
           </Button>
         </div>
       </section>
 
       <section aria-labelledby="times-list">
         <h2 className="mpmb-h2" id="times-list">
-          Times from today
+          Session {session} times from today
         </h2>
-        {!slots.length && <p className="mpmb-hint">No times yet. Add some above; participants can book as soon as they are added.</p>}
+        {!slots.length && <p className="mpmb-hint">No session {session} times yet. Add some above; participants can book as soon as they are added.</p>}
         {byDay(slots).map(({ day, slots: list }) => (
           <div key={day} className="mpmb-tools__day">
             <h3 className="mpmb-h3">{ukDateWords(day)}</h3>
@@ -155,7 +178,7 @@ export function Times({ staff }: { staff: Staff }) {
               {list.map((s) => (
                 <li key={s.slotId} className={`mpmb-tools__row${s.status === 'closed' ? ' is-closed' : ''}`}>
                   <span className="mpmb-tools__main">
-                    <strong>{ukHours(s.start, s.end)}</strong> · {s.visit ? `visit ${s.visit} only` : 'either visit'} · {s.booked} of {s.capacity} booked{s.status === 'closed' ? ' · closed' : ''}
+                    <strong>{ukHours(s.start, s.end)}</strong> · {s.visit ? `session ${s.visit}` : 'either session (added before 2 November)'} · {s.booked} of {s.capacity} booked{s.status === 'closed' ? ' · closed' : ''}
                     {s.location ? ` · ${s.location}` : ''}
                   </span>
                   <span className="mpmb-tools__actions">
