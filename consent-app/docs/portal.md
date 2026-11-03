@@ -389,7 +389,14 @@ says the device is gone) and each person's notification choices.
 
 The sign-in emails themselves come from Firebase Authentication
 (noreply@*project*.firebaseapp.com); their wording and sender can be changed
-under Authentication → Templates.
+under Authentication → Templates. They can be slow, and University mail
+sometimes puts them in Junk or Quarantine, which is why the sign-in page puts
+the password first, Google second and the email link last, and the "check
+your email" screens say where to look. **Optional fix for delivery**:
+Authentication → Templates → SMTP settings → send the sign-in, verification
+and password-reset emails through the study's Gmail (host smtp.gmail.com,
+port 465, security SSL, the account brainpopresearch@gmail.com and its app
+password).
 
 ## Testing
 

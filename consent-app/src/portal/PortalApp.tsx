@@ -126,6 +126,8 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 /* ── Signing in ───────────────────────────────────────────────────────── */
 
+const JUNK_HINT = 'If it doesn’t arrive within a few minutes, check Junk or Quarantine; it comes from noreply@myphone-mybrain.firebaseapp.com.';
+
 /** After making an account with a password: the address must be verified from the email before the portal opens. */
 function VerifyEmail({ email, done }: { email: string; done: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
@@ -157,6 +159,7 @@ function VerifyEmail({ email, done }: { email: string; done: () => Promise<void>
       <p className="mpmb-lead">
         We sent a link to <strong>{email}</strong>. Open it to confirm the address is yours, then come back here.
       </p>
+      <p className="mpmb-hint">{JUNK_HINT}</p>
       {message && (
         <Callout tone={message.tone} role="status">
           {message.text}
@@ -345,37 +348,50 @@ function SignIn() {
           <p>
             We sent a sign-in link to <strong>{email}</strong>. Open it on this device to sign in. It works once, for an hour.
           </p>
+          <p className="mpmb-hint">{JUNK_HINT}</p>
           <Button variant="link" onClick={() => setSent(false)}>
             Use a different email
           </Button>
         </Callout>
-      ) : (
+      ) : finishing ? (
         <form onSubmit={(e) => void submit(e)} noValidate>
-          <p className="mpmb-lead">{finishing ? 'Confirm your email address to finish signing in.' : 'For the research team and research assistants. Enter your email and we will send you a link to sign in: no password needed.'}</p>
+          <p className="mpmb-lead">Confirm your email address to finish signing in.</p>
           <TextField id="portal-email" label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} error={error ?? undefined} />
           <Button type="submit" variant="primary" arrow loading={busy}>
-            {finishing ? 'Sign in' : 'Email me a sign-in link'}
+            Sign in
           </Button>
-          {!finishing && (
-            <>
-              <p className="mpmb-hint">Or, if your email is a Google account (Gmail or Google Workspace):</p>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={busy}
-                onClick={() => {
-                  setError(null);
-                  void signInWithGoogle().catch((err) => setError(messageOf(err)));
-                }}
-              >
-                Sign in with Google
-              </Button>
-            </>
-          )}
-          <p className="mpmb-hint">New here? Sign in the same way, then ask for an account. Use the email address the team knows you by.</p>
         </form>
+      ) : (
+        <>
+          <p className="mpmb-lead">For the research team and research assistants.</p>
+          {/* 1. A password: the quickest (5 November 2026). */}
+          <PasswordSignIn initialEmail={email} />
+          {/* 2. Google. */}
+          <div className="mpmb-card">
+            <p className="mpmb-hint">Or, if your email is a Google account (Gmail or Google Workspace):</p>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => {
+                setError(null);
+                void signInWithGoogle().catch((err) => setError(messageOf(err)));
+              }}
+            >
+              Sign in with Google
+            </Button>
+          </div>
+          {/* 3. The email link: slowest, so last. */}
+          <form className="mpmb-card" onSubmit={(e) => void submit(e)} noValidate>
+            <p className="mpmb-hint">Or get a one-time link by email (can take a few minutes to arrive).</p>
+            <TextField id="portal-email" label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} error={error ?? undefined} />
+            <Button type="submit" variant="secondary" loading={busy}>
+              Email me a sign-in link
+            </Button>
+          </form>
+          <p className="mpmb-hint">New here? Create an account with a password above, or use Google or the email link, then ask for an account. Use the email address the team knows you by.</p>
+        </>
       )}
-      {!finishing && !sent && <PasswordSignIn initialEmail={email} />}
     </Shell>
   );
 }
