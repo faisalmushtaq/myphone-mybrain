@@ -94,6 +94,11 @@ import {
   type VisitInfo,
   type VisitStatus,
   copyFor,
+  addDaysIso,
+  availabilityGrid,
+  AVAILABILITY,
+  weekStartOf,
+  type Counts,
 } from './portalCore.js';
 
 /**
@@ -893,6 +898,47 @@ export const portalApi = onCall(callOptions, async (request) => {
         schools,
         attendanceDue: attendanceDue(withPlaces.filter(({ v }) => v.status !== 'cancelled').map(({ v, assignments }) => ({ visitId: v.visitId, days: v.days, assignments })), marked, today).map((d) => ({ ...d, schoolName: schoolName(withPlaces.find((w) => w.v.visitId === d.visitId)!.v.schoolId) })),
       };
+    }
+    case 'availability-grid': {
+      // The week at a glance (5 November 2026): who is free each day, who is placed where, and what each day's visits still need.
+      const asked = text(data.weekStart, 10);
+      if (asked && !isIsoDate(asked)) throw bad('Choose a date for the week.');
+      const weekStart = weekStartOf(asked || today);
+      const weekEnd = addDaysIso(weekStart, 6);
+      const includeTeam = data.includeTeam === true;
+      const [settings, schools, usersSnap, docs, sessions, availSnap, visitsAll] = await Promise.all([
+        settingsFrom(db),
+        schoolsOf(db),
+        db.collection('portalUsers').where('status', '==', 'active').get(),
+        docsOf(db),
+        sessionsOf(db),
+        db.collection('portalAvailability').where('date', '>=', weekStart).where('date', '<=', weekEnd).get(),
+        visitsFrom(db, weekStart),
+      ]);
+      const weekVisits = visitsAll.filter((v) => v.date <= weekEnd);
+      const placesOf = await Promise.all(weekVisits.map((v) => assignmentsOf(db, v)));
+      const short = (s: School) => (s.id.length <= 6 ? s.id : s.name.split(/\s+/).filter((w) => /^[A-Z]/.test(w)).map((w) => w[0]).join('') || s.name.slice(0, 6));
+      const latest = latestDocs(docs);
+      const general = requirementsFor(settings, null);
+      const people = usersSnap.docs
+        .filter((d) => isRole(d.data().role) && (d.data().role === 'ra' || includeTeam))
+        .map((d) => {
+          const x = d.data();
+          return { uid: d.id, name: String(x.name ?? x.email ?? ''), role: x.role as Role, level: levelOf(x.level), capabilities: capabilitiesOf(x.capabilities), tagIds: tagsFor(x.tags, settings) };
+        });
+      const counts = new Map(people.map((p) => [p.uid, countsFor(p.uid, sessions)]));
+      const grid = availabilityGrid({
+        weekStart,
+        people,
+        availability: availSnap.docs.map((d) => ({ uid: String(d.data().uid), date: String(d.data().date), value: d.data().value as Availability, note: String(d.data().note ?? '') })).filter((a) => AVAILABILITY.includes(a.value)),
+        visits: weekVisits.map((v, i) => {
+          const school = schools.find((s) => s.id === v.schoolId);
+          return { visitId: v.visitId, schoolId: v.schoolId, schoolShort: school ? short(school) : v.schoolId, schoolName: school?.name ?? v.schoolId, status: v.status, days: v.days, roleNeeds: v.roleNeeds, assignments: placesOf[i] };
+        }),
+        notReady: (uid, date) => eligibilityFor(uid, latest, general, counts.get(uid) ?? { training: 0, pilots: 0 } as Counts, settings, date).reasons,
+      });
+      // Tags with their names, for the filters; team notes are never part of this.
+      return { ...grid, tags: settings.tags.filter((t) => !t.retired), today };
     }
     case 'save-visit': {
       const [schools, visitSettings] = await Promise.all([schoolsOf(db), settingsFrom(db)]);

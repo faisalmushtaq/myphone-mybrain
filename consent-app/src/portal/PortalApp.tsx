@@ -10,6 +10,7 @@ import { Reports } from './Reports';
 import { Audit, People, Person, Schools, Sessions, SettingsView, TeamHome, Visits } from './TeamViews';
 import { VisitView } from './VisitView';
 import { ROLE_LABEL, stamp, type Me, type MySummary, type Notification, type Role } from './types';
+import { AvailabilityGrid } from './AvailabilityGrid';
 
 /**
  * The staff portal (myphonemybrain.com/portal/): sign in with an email link,
@@ -261,6 +262,7 @@ function navFor(role: Role): NavItem[] {
   return [
     { hash: '#home', label: 'Overview' },
     { hash: '#visits', label: 'Visits' },
+    { hash: '#grid', label: 'Availability' },
     { hash: '#people', label: 'People' },
     { hash: '#sessions', label: 'Training and pilots' },
     { hash: '#schools', label: 'Schools' },
@@ -329,6 +331,8 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
         return <Person uid={arg} role={role} go={go} />;
       case 'visits':
         return <Visits go={go} />;
+      case 'grid':
+        return <AvailabilityGrid go={go} />;
       case 'visit':
         return <VisitView visitId={arg} role={role === 'pm' ? 'pm' : 'researcher'} go={go} />;
       case 'sessions':

@@ -23,6 +23,7 @@ export const isTeam = (role: Role | null | undefined) => role === 'pm' || role =
 
 /** Who may do what. Anything not listed needs the project manager. */
 const TEAM_ACTIONS = new Set([
+  'availability-grid',
   'visit-ics',
   'visits-ics',
   'people',
@@ -1502,4 +1503,147 @@ export function firstDaysAt(places: Assignment[]): Map<string, string> {
 /** Who is confirmed each day, with their jobs and time notes: what the team was told, and what a later change is measured against. */
 export function teamSnapshot(days: { date: string; people: { uid: string; role: DayRole; note?: string }[] }[]): Record<string, string[]> {
   return Object.fromEntries(days.map((d) => [d.date, d.people.map((p) => `${p.uid}:${p.role}:${p.note ?? ''}`).sort()]));
+}
+
+/* ── The week at a glance (5 November 2026) ────────────────────────────── */
+
+/** The Monday of the week a date falls in. */
+export function weekStartOf(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return addDaysIso(iso, -((d.getUTCDay() + 6) % 7));
+}
+
+/** The seven dates of the week starting on a Monday. */
+export const weekDates = (monday: string) => Array.from({ length: 7 }, (_, i) => addDaysIso(monday, i));
+
+export interface GridPerson {
+  uid: string;
+  name: string;
+  role: Role;
+  level: Level | null;
+  capabilities: DayRole[];
+  tagIds: string[];
+}
+
+export interface GridVisit {
+  visitId: string;
+  schoolId: string;
+  schoolShort: string;
+  schoolName: string;
+  status: VisitStatus;
+  days: VisitDay[];
+  roleNeeds: RoleNeeds;
+  assignments: Assignment[];
+}
+
+export interface GridPlace {
+  visitId: string;
+  school: string;
+  role: DayRole;
+  status: 'offered' | 'confirmed';
+  timeNote: string | null;
+}
+
+export interface GridCell {
+  date: string;
+  value: Availability | null;
+  note: string;
+  places: GridPlace[];
+  /** Why they could not be booked that day (documents, training), empty when they could. */
+  notReady: string[];
+}
+
+export interface GridDayVisit {
+  visitId: string;
+  schoolShort: string;
+  schoolName: string;
+  status: VisitStatus;
+  start: string;
+  end: string;
+  need: RoleNeeds;
+  confirmed: RoleNeeds;
+  offered: RoleNeeds;
+  /** Fewer confirmed than needed for a job, on a visit being staffed. */
+  short: boolean;
+}
+
+export interface GridDay {
+  date: string;
+  visits: GridDayVisit[];
+  /** People free all day, the morning or the afternoon. */
+  available: number;
+  availableEeg: number;
+  availableCopro: number;
+  maybe: number;
+  noAnswer: number;
+  short: boolean;
+}
+
+export interface GridRow {
+  person: GridPerson;
+  cells: GridCell[];
+  /** Days this week free all day, morning or afternoon. */
+  availableDays: number;
+}
+
+const FREE = new Set<Availability>(['all', 'am', 'pm']);
+const STAFFED = new Set<VisitStatus>(['staffing', 'locked']);
+
+/**
+ * The week at a glance for the team: each person's answer for each day, the
+ * places they hold, whether they could be booked, and for each day the visits
+ * running with what each job needs against who is confirmed. Cancelled visits
+ * are left out; research assistants are counted in the day's totals, the team
+ * is not.
+ */
+export function availabilityGrid(args: {
+  weekStart: string;
+  people: GridPerson[];
+  availability: { uid: string; date: string; value: Availability; note?: string }[];
+  visits: GridVisit[];
+  notReady: (uid: string, date: string) => string[];
+}): { weekStart: string; dates: string[]; days: GridDay[]; rows: GridRow[] } {
+  const dates = weekDates(args.weekStart);
+  const answer = new Map(args.availability.map((a) => [`${a.uid}|${a.date}`, a]));
+  const visits = args.visits.filter((v) => v.status !== 'cancelled');
+  const rows: GridRow[] = args.people.map((person) => {
+    const cells = dates.map((date) => {
+      const a = answer.get(`${person.uid}|${date}`);
+      const places: GridPlace[] = [];
+      for (const v of visits) {
+        if (!v.days.some((d) => d.on && d.date === date)) continue;
+        for (const s of v.assignments) {
+          if (s.uid !== person.uid || !s.dates.includes(date) || (s.status !== 'offered' && s.status !== 'confirmed')) continue;
+          places.push({ visitId: v.visitId, school: v.schoolShort, role: s.role, status: s.status, timeNote: s.timeNotes?.[date] ?? null });
+        }
+      }
+      return { date, value: a?.value ?? null, note: a?.note ?? '', places, notReady: person.role === 'ra' ? args.notReady(person.uid, date) : [] };
+    });
+    return { person, cells, availableDays: cells.filter((c) => c.value && FREE.has(c.value)).length };
+  });
+  const ras = rows.filter((r) => r.person.role === 'ra');
+  const days: GridDay[] = dates.map((date, i) => {
+    const dayVisits: GridDayVisit[] = visits.flatMap((v) => {
+      const day = v.days.find((d) => d.on && d.date === date);
+      if (!day) return [];
+      const need = needsOn(day, v.roleNeeds);
+      const count = (role: DayRole, status: AssignmentStatus) => v.assignments.filter((s) => s.role === role && s.status === status && s.dates.includes(date)).length;
+      const confirmed = { eeg: count('eeg', 'confirmed'), copro: count('copro', 'confirmed') };
+      const offered = { eeg: count('eeg', 'offered'), copro: count('copro', 'offered') };
+      const short = STAFFED.has(v.status) && (confirmed.eeg < need.eeg || confirmed.copro < need.copro);
+      return [{ visitId: v.visitId, schoolShort: v.schoolShort, schoolName: v.schoolName, status: v.status, start: day.start, end: day.end, need, confirmed, offered, short }];
+    });
+    const free = ras.filter((r) => r.cells[i].value && FREE.has(r.cells[i].value!));
+    return {
+      date,
+      visits: dayVisits,
+      available: free.length,
+      availableEeg: free.filter((r) => r.person.capabilities.includes('eeg')).length,
+      availableCopro: free.filter((r) => r.person.capabilities.includes('copro')).length,
+      maybe: ras.filter((r) => r.cells[i].value === 'maybe').length,
+      noAnswer: ras.filter((r) => !r.cells[i].value).length,
+      short: dayVisits.some((v) => v.short),
+    };
+  });
+  return { weekStart: args.weekStart, dates, days, rows };
 }

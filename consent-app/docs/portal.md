@@ -122,6 +122,26 @@ and everyone else that there are new dates; their answers stay as
 availability for staffing. Cancelling it tells everyone who answered that
 the dates won't go ahead.
 
+**The week at a glance (5 November 2026).** The **Availability** tab (project
+manager and research team) is a grid: one row per active research assistant
+(the research team too, if ticked), one column per day of the week (Monday to
+Friday; the weekend on request), with Previous / This week / Next week and a
+"Go to the week of" date. Each cell says, in words as well as colour, what the
+person said for that day (All day, Morning, Afternoon, Maybe, Can't, No
+answer; answers to provisional dates count), any place they hold that day
+("GSAL · EEG", "(offered)" until they confirm, with time notes such as "(until
+1:00 pm)"), their own note, and a ⚠ when they could not be booked that day
+(the reason on hover or tap: a document out of date, training or pilots
+short). Each day's header lists the visits running (school, provisional or
+draft, confirmed against needed for each job, highlighted when short on a
+visit being staffed; tap one to open it) and how many research assistants are
+free, how many of those can do EEG and co-production, and how many said maybe.
+Filters: status tag, level, job, ready only, available only; sorted by name,
+level or most available. On a phone it shows one day at a time (a toggle).
+"Download this week (CSV)" saves what is shown. It comes from one call
+(`availability-grid`), reading only that week's answers; team notes are never
+part of it, and research assistants cannot call it.
+
 **Staffing a visit.** The visit page shows **each day**: for EEG and for
 co-production, how many are needed and how many are confirmed, with offers
 still waiting shown apart, and who is on that day. It lists every active

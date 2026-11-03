@@ -540,6 +540,31 @@ async function inner() {
     const teamIcs = (await call(teamToken, 'visit-ics', { visitId: twoDay })).result.ics;
     ok('the team calendar lists who is on each day by job', /EEG \(6 of 6\): /.test(teamIcs) && /Co-production \(2 of 2\): /.test(teamIcs));
 
+    /* ── The week at a glance (5 November 2026) ── */
+    const grid = (await call(teamToken, 'availability-grid', { weekStart: d1 })).result;
+    const gi = grid?.dates?.indexOf(d1) ?? -1;
+    const gCell = grid?.rows?.find((r) => r.person.uid === crewUids[0])?.cells?.[gi];
+    const gDay = grid?.days?.[gi];
+    ok('the week grid starts on a Monday and shows seven days', grid?.dates?.length === 7 && new Date(`${grid.weekStart}T00:00:00Z`).getUTCDay() === 1, JSON.stringify(grid?.dates));
+    ok('the grid shows each person’s answer and their confirmed place that day', gCell?.value === 'all' && gCell.places.some((p) => p.visitId === twoDay && p.status === 'confirmed' && p.role === 'eeg'), JSON.stringify(gCell));
+    ok('each day’s header shows the visit with confirmed against needed for each job', gDay?.visits.some((v) => v.visitId === twoDay && v.confirmed.eeg === 6 && v.need.eeg === 6 && v.confirmed.copro === 2 && !v.short) && gDay.available >= 8, JSON.stringify(gDay));
+    ok('the grid never carries team notes', !/Very calm|nervous pupils|levelReason|No Friday/.test(JSON.stringify(grid ?? {})));
+    ok('research assistants cannot load the grid', (await call(crewToken, 'availability-grid', { weekStart: d1 })).error?.status === 'PERMISSION_DENIED');
+    await team.goto(`${BASE}#grid`);
+    await team.locator('#grid-jump').fill(d1);
+    await team.getByRole('table').waitFor();
+    await team.getByRole('button', { name: /Amira Khan/ }).first().waitFor();
+    await shot(team, 'availability-grid-desktop');
+    await tm.goto(`${BASE}#grid`);
+    await tm.locator('#grid-jump').fill(d1);
+    await tm.getByRole('table').waitFor();
+    await shot(tm, 'availability-grid-mobile');
+    await tm.getByLabel('One day at a time').uncheck();
+    await shot(tm, 'availability-grid-mobile-week');
+    // Back to the visit for the steps that follow.
+    await team.goto(`${BASE}#visit/${twoDay}`);
+    await team.getByRole('heading', { name: 'Choose who to ask' }).waitFor();
+
     // What the team keeps never reaches research assistants.
     const crewSummary = JSON.stringify((await call(crewToken, 'my-summary')).result ?? {});
     const samSummary = JSON.stringify((await call(raToken, 'my-summary')).result ?? {});

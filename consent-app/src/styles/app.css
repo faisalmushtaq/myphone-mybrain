@@ -4422,3 +4422,43 @@
 .mpmb-portal__email { white-space: pre-wrap; word-break: break-word; font-family: inherit; font-size: 0.95rem; background: var(--mpb-surface-2, rgba(127, 127, 127, 0.08)); border: 1px solid var(--mpb-line); border-radius: 8px; padding: 0.75rem 1rem; max-height: 28rem; overflow: auto; }
 .mpmb-portal__password { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.4rem; letter-spacing: 0.06em; }
 .mpmb-portal__times { flex-wrap: wrap; }
+
+/* Staff portal: the week at a glance (5 November 2026). Colour always comes with words. */
+.mpmb-portal__gridbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem; }
+.mpmb-portal__gridbar .mpmb-field { margin: 0; min-width: 12rem; }
+.mpmb-portal__gridfilters { margin: 0.75rem 0 1rem; border: 1px solid var(--mpb-line); border-radius: 10px; padding: 0.5rem 0.85rem; background: var(--mpb-white); }
+.mpmb-portal__gridfilters summary { cursor: pointer; font-weight: 700; color: var(--mpb-teal); }
+.mpmb-portal__gridtoggles { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; }
+.mpmb-portal__gridwrap { overflow-x: auto; border: 1px solid var(--mpb-line); border-radius: 10px; background: var(--mpb-white); -webkit-overflow-scrolling: touch; }
+.mpmb-portal__grid { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 0.85rem; }
+.mpmb-portal__grid th, .mpmb-portal__grid td { border-bottom: 1px solid var(--mpb-line); border-right: 1px solid var(--mpb-line); padding: 0.35rem 0.45rem; vertical-align: top; text-align: left; }
+.mpmb-portal__grid thead th { background: var(--mpb-mist, #eef4f4); min-width: 8.5rem; font-weight: 600; color: var(--mpb-ink); position: sticky; top: 0; z-index: 1; }
+.mpmb-portal__grid thead th.is-short { box-shadow: inset 0 -3px 0 var(--mpb-pink); }
+.mpmb-portal__grid thead th.is-today .mpmb-portal__griddate { color: var(--mpb-teal); text-decoration: underline; }
+.mpmb-portal__grid .is-weekend { background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(0, 0, 0, 0.03) 6px 12px); }
+.mpmb-portal__gridname { position: sticky; left: 0; z-index: 2; background: var(--mpb-white); min-width: 9.5rem; max-width: 12rem; }
+.mpmb-portal__grid thead .mpmb-portal__gridname { z-index: 3; background: var(--mpb-mist, #eef4f4); }
+.mpmb-portal__griddate { display: block; font-weight: 700; margin-bottom: 0.2rem; }
+.mpmb-app .mpmb-portal__gridvisit { display: block; width: 100%; text-align: left; margin: 0 0 0.25rem; padding: 0.2rem 0.35rem; border: 1px solid var(--mpb-line); border-radius: 6px; background: var(--mpb-white); font: inherit; font-size: 0.78rem; cursor: pointer; color: var(--mpb-ink); }
+.mpmb-app .mpmb-portal__gridvisit span { display: block; }
+.mpmb-app .mpmb-portal__gridvisit.is-short { border-color: var(--mpb-pink); background: var(--mpb-error-bg); }
+.mpmb-app .mpmb-portal__gridvisit:focus-visible, .mpmb-app .mpmb-portal__gridperson:focus-visible { outline: 3px solid var(--mpb-deep); outline-offset: 1px; }
+.mpmb-portal__gridoffered { color: var(--mpb-muted); }
+.mpmb-portal__gridtotals { display: block; font-size: 0.75rem; color: var(--mpb-muted); font-weight: 400; }
+.mpmb-app .mpmb-portal__gridperson { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--mpb-teal); text-align: left; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.mpmb-portal__gridmeta { display: flex; flex-wrap: wrap; gap: 0.2rem; margin-top: 0.15rem; }
+.mpmb-portal__gridlevel, .mpmb-portal__gridjob { font-size: 0.7rem; padding: 0 0.3rem; border-radius: 4px; background: var(--mpb-mist, #eef4f4); color: var(--mpb-ink); font-weight: 700; }
+.mpmb-portal__gridjob--eeg { background: #e3ecfb; color: #1d3f7a; }
+.mpmb-portal__gridjob--copro { background: #f3e6f7; color: #5b2470; }
+.mpmb-portal__gridcell { min-width: 8.5rem; }
+.mpmb-portal__gridstate { display: inline-block; font-weight: 700; padding: 0 0.3rem; border-radius: 4px; }
+.mpmb-portal__gridcell.is-all .mpmb-portal__gridstate { background: #ddf3e4; color: #135c2c; }
+.mpmb-portal__gridcell.is-am .mpmb-portal__gridstate, .mpmb-portal__gridcell.is-pm .mpmb-portal__gridstate { background: #e8f4dc; color: #3d5a14; }
+.mpmb-portal__gridcell.is-maybe .mpmb-portal__gridstate { background: var(--mpb-important-bg); color: #6b4d00; }
+.mpmb-portal__gridcell.is-no .mpmb-portal__gridstate { background: var(--mpb-error-bg); color: var(--mpb-pink); }
+.mpmb-portal__gridcell.is-none .mpmb-portal__gridstate { color: var(--mpb-muted); font-weight: 400; }
+.mpmb-portal__gridcell.is-placed { box-shadow: inset 3px 0 0 var(--mpb-teal); }
+.mpmb-portal__gridplace { display: block; margin-top: 0.2rem; font-size: 0.78rem; font-weight: 700; color: var(--mpb-teal); }
+.mpmb-portal__gridplace.is-offered { font-weight: 400; font-style: italic; color: var(--mpb-ink); }
+.mpmb-portal__gridwarn { margin-left: 0.3rem; color: #8a5a00; cursor: help; }
+.mpmb-portal__gridnote { display: block; font-size: 0.75rem; color: var(--mpb-muted); }
