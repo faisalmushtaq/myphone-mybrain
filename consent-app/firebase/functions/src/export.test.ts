@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Timestamp } from 'firebase-admin/firestore';
 import { createHash } from 'node:crypto';
-import { ageAt, agreementTables, behTable, buildExport, COLLECTIONS, exportBucketName, participantsKey, participantsTable, phenotypeDictionary, phenotypeTable, plain, screenshotFile, sessionsOf, subjectLabel, toTsv, withoutSecrets, type Snapshot } from './export.js';
+import { ageAt, agreementTables, behTable, buildExport, COLLECTIONS, exportBucketName, myselfCandidates, participantsKey, participantsTable, phenotypeDictionary, phenotypeTable, plain, screenshotFile, sessionsOf, subjectLabel, toTsv, withoutSecrets, type Snapshot } from './export.js';
+import { myselfId } from './myselfId.js';
 import { USAGE_DAILY_COLUMNS, usageExport } from './exportUsage.js';
 import { copyState, md5Of, needsWrite, planCopies, staleObjects, stampFor, unpackDue } from './exportWrite.js';
 
@@ -50,7 +51,7 @@ test('participants.tsv holds only consenting participants, de-identified, with a
   ];
   const rows = participantsTable(snap);
   assert.equal(rows.length, 1);
-  assert.deepEqual(rows[0], { participant_id: 'sub-00001', age: 13, year_group: 'Year 8', site: 'BRD-001', route: 'young', consented_on: '2026-10-01', consent_version: '0.5-draft', self_consent: false, phone_source: null, assent_status: 'completed', questions_status: 'not-started', more_questions_status: 'not-asked', no_phone_questions_status: 'not-asked', sessions_n: 2, screenshots_n: 3, platform: 'android', added_later_on: null, young_link_opened_on: null, screen_time_off_on: null, reminders_sent: 0, opted_out: false, opt_out_kind: null });
+  assert.deepEqual(rows[0], { participant_id: 'sub-00001', myself_id: myselfId('Kai', 'Patel', '2013-03-14'), age: 13, year_group: 'Year 8', site: 'BRD-001', route: 'young', consented_on: '2026-10-01', consent_version: '0.5-draft', self_consent: false, phone_source: null, assent_status: 'completed', questions_status: 'not-started', more_questions_status: 'not-asked', no_phone_questions_status: 'not-asked', sessions_n: 2, screenshots_n: 3, platform: 'android', added_later_on: null, young_link_opened_on: null, screen_time_off_on: null, reminders_sent: 0, opted_out: false, opt_out_kind: null });
   assert.ok(!JSON.stringify(rows).includes('Patel'));
   const sessions = sessionsOf(snap);
   assert.deepEqual(sessions.map((s) => [s.session, s.donation.id]), [['ses-01', 'd1'], ['ses-02', 'd2']], 'sessions are numbered in time order');
@@ -65,6 +66,24 @@ test('participants.tsv holds only consenting participants, de-identified, with a
   );
   assert.ok(!JSON.stringify(rows).includes('Long Lane') && !JSON.stringify(rows).includes('72000014'), 'the address and UPRN stay out of the research dataset');
   assert.equal(key[1].participant_id, null, 'declined families have no label');
+  assert.match(String(key[0].myself_id), /^P[0-9A-Z]{10}$/);
+  assert.equal(key[0].myself_id, rows[0].myself_id);
+});
+
+test('myself_candidate_ids.tsv lists the IDs a young person would have under the usual slips, with the class-list name', () => {
+  const snap = empty();
+  snap.participants = [{ id: 'p1', data: { firstName: 'Tom', lastName: 'Smith-Jones', dateOfBirth: '2012-05-04', schoolId: 'GSAL' } }];
+  snap.labels = new Map([['p1', 'sub-00001']]);
+  const rows = myselfCandidates(snap, [{ firestore_id: 'p1', school_first_name: 'Thomas', school_last_name: 'Smith-Jones' }]);
+  const has = (kind: string, f: string, l: string, d: string) => rows.some((r) => r.kind === kind && r.myself_id === myselfId(f, l, d) && r.participant_id === 'sub-00001' && r.school_id === 'GSAL');
+  assert.ok(has('nickname', 'thomas', 'Smith-Jones', '2012-05-04'));
+  assert.ok(has('dob-day-month-swapped', 'Tom', 'Smith-Jones', '2012-04-05'));
+  assert.ok(has('surname-part', 'Tom', 'Jones', '2012-05-04'));
+  assert.ok(has('names-swapped', 'Smith-Jones', 'Tom', '2012-05-04'));
+  assert.ok(!rows.some((r) => r.myself_id === myselfId('Tom', 'Smith-Jones', '2012-05-04')), 'never the exact ID');
+  // Thomas is already there as a nickname, so the class-list name adds nothing new here; a different legal name does.
+  const other = myselfCandidates(snap, [{ firestore_id: 'p1', school_first_name: 'Tomasz', school_last_name: 'Smith-Jones' }]);
+  assert.ok(other.some((r) => r.kind === 'class-list-name' && r.myself_id === myselfId('Tomasz', 'Smith-Jones', '2012-05-04')));
 });
 
 test('the phenotype file keeps the latest answers per participant and its dictionary carries the wording', () => {

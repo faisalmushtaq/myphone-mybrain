@@ -5,6 +5,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { labExport, type Derivation } from './exportLab.js';
 import { optOutFor, optOutsOf, upnExport } from './exportUpn.js';
+import { myselfId, variantIds } from './myselfId.js';
 import { redactOptedOutPupils } from './schoolRedact.js';
 import { usageExport } from './exportUsage.js';
 import { COPY_LIMIT, needsWrite, planCopies, staleObjects, stampFor, copyState, UNPACK_LIMIT, unpackDue, type CopyJob, type ObjectInfo, type UnpackFailure } from './exportWrite.js';
@@ -256,6 +257,7 @@ export function participantsTable(snap: Snapshot): Row[] {
       const agreedOn = consent?.data.confirmedDate ?? (typeof assent?.data.completedAt === 'string' ? assent.data.completedAt.slice(0, 10) : null);
       return {
         participant_id: snap.labels.get(p.id),
+        myself_id: myselfId(p.data.firstName, p.data.lastName, p.data.dateOfBirth),
         age: ageAt(p.data.dateOfBirth, agreedOn ?? consent?.data.completedAt),
         year_group: p.data.yearGroup,
         site: p.data.schoolId,
@@ -291,7 +293,7 @@ function dayOf(value: unknown): string | null {
 }
 
 /** The columns of participants.tsv, in order. */
-export const PARTICIPANT_COLUMNS = ['participant_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'no_phone_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'added_later_on', 'young_link_opened_on', 'screen_time_off_on', 'reminders_sent', 'opted_out', 'opt_out_kind'];
+export const PARTICIPANT_COLUMNS = ['participant_id', 'myself_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'no_phone_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'added_later_on', 'young_link_opened_on', 'screen_time_off_on', 'reminders_sent', 'opted_out', 'opt_out_kind'];
 
 export function phenotypeTable(snap: Snapshot, form: ServedQuestionForm = parentQuestionsForm): Row[] {
   const ids = form.questions.map((q) => q.id);
@@ -388,12 +390,35 @@ export function behTable(s: Session): Row[] {
 
 /* ── identifying/ tables ───────────────────────────────────────────────── */
 
+/** The columns of myself_candidate_ids.tsv, in order. */
+export const MYSELF_CANDIDATE_COLUMNS = ['participant_id', 'firestore_id', 'school_id', 'kind', 'first_name', 'last_name', 'date_of_birth', 'myself_id'];
+
+/**
+ * The MySelf IDs each young person might have under the usual slips (a
+ * nickname, day and month swapped, names the wrong way round, part of a
+ * double-barrelled name, the school's legal name): one row a variant, for the
+ * matcher (consent-app/scripts/match-myself.mjs). The exact ID is in
+ * participants_key.tsv. matchRows are the UPN matches, for the legal name.
+ */
+export function myselfCandidates(snap: Snapshot, matchRows: Row[] = []): Row[] {
+  const school = new Map(matchRows.filter((r) => r.school_first_name).map((r) => [String(r.firestore_id), r]));
+  const rows: Row[] = [];
+  for (const { id, data: d } of snap.participants) {
+    const m = school.get(id);
+    for (const v of variantIds({ firstName: d.firstName, lastName: d.lastName, dob: d.dateOfBirth, schoolFirstName: m?.school_first_name, schoolLastName: m?.school_last_name })) {
+      rows.push({ participant_id: snap.labels.get(id) ?? null, firestore_id: id, school_id: d.schoolId ?? null, kind: v.kind, first_name: v.firstName, last_name: v.lastName, date_of_birth: v.dob, myself_id: v.id });
+    }
+  }
+  return rows.sort((a, b) => String(a.participant_id ?? 'zzz').localeCompare(String(b.participant_id ?? 'zzz')) || String(a.firestore_id).localeCompare(String(b.firestore_id)));
+}
+
 export function participantsKey(snap: Snapshot): Row[] {
   const optOuts = optOutsOf(snap.optOuts ?? []);
   return snap.participants
     .map(({ id, data: d }) => ({
       participant_id: snap.labels.get(id) ?? null,
       firestore_id: id,
+      myself_id: myselfId(d.firstName, d.lastName, d.dateOfBirth),
       reference_code: d.referenceCode,
       kind: d.kind,
       self_consent: Boolean(d.selfConsent),
@@ -527,6 +552,7 @@ export function datasetDescription(exportedAt: string): Record<string, unknown> 
 export function participantsDictionary(): Record<string, unknown> {
   return {
     participant_id: { Description: 'Participant label, assigned in order of consent. The key from labels to names is kept outside this dataset, in identifying/participants_key.tsv.' },
+    myself_id: { Description: 'The young person’s MySelf participant ID (P and ten characters), worked out from the first name, last name and date of birth the parent or carer gave, exactly as the MySelf school survey works out its own; joins this table to MySelf’s research data where the names and date agree. A pseudonym: anyone holding a name and date of birth can recompute it. Empty when a name or the date is missing. Matches under other spellings are made by the coordinators (identifying/myself_candidate_ids.tsv) and are not shown here.' },
     age: { Description: 'Age in whole years on the date of the record (the parent’s confirmed date, or the young person’s agreement when they decided alone)', Units: 'years' },
     year_group: { Description: 'School year group at consent (England)' },
     site: { Description: 'School identifier from the study’s school list; "other" when the school was typed in (the name is in identifying/)' },
@@ -687,7 +713,13 @@ participants_key.tsv       the key from participant labels (sub-00001...) to
                            contact details (with the address's UPRN when it was
                            picked with the address finder), whether the young
                            person decided alone (16 or over), and whether they
-                           are opted out
+                           are opted out; myself_id is their MySelf survey ID
+                           worked out from the name and date of birth given
+myself_candidate_ids.tsv   the MySelf IDs each young person would have under a
+                           nickname, day and month swapped, names swapped, part
+                           of a double-barrelled name, or the school's legal
+                           name; read by consent-app/scripts/match-myself.mjs
+                           (see consent-app/docs/myself-linkage.md)
 consents.tsv               every parent permission record; an amendment is a
                            new row and supersedes points at the one before
 consent_statements.tsv     one row per statement per permission record
@@ -891,6 +923,7 @@ export function buildExport(c: Collections, labels: Map<string, string>, exporte
     jsonl(`${B}/sourcedata/raw/donations.jsonl`, researchDocs(c.donations, labels)),
     text(`${I}/README.md`, IDENTIFYING_README, 'text/markdown; charset=utf-8'),
     tsv(`${I}/participants_key.tsv`, participantsKey(snap)),
+    tsv(`${I}/myself_candidate_ids.tsv`, myselfCandidates(snap, upn.matchRows), MYSELF_CANDIDATE_COLUMNS),
     tsv(`${I}/submissions.tsv`, submissionsTable(snap)),
     tsv(`${I}/enquiries.tsv`, enquiriesTable(c.enquiries)),
     tsv(`${I}/rejected_uploads.tsv`, rejectedUploadsTable(snap, sessions), REJECTED_COLUMNS),

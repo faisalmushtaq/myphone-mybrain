@@ -1,3 +1,4 @@
+import { myselfId } from './myselfId.js';
 import { textFile, tsvFile, type Doc, type OutFile, type Row } from './export.js';
 
 /**
@@ -130,7 +131,7 @@ export function pupilsBySchool(uploads: Doc[]): Map<string, SchoolPupil[]> {
   return new Map(Array.from(out, ([k, v]) => [k, Array.from(v.values())]));
 }
 
-export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<string, string>, optOutDocs: Doc[] = []): { files: OutFile[]; copies: Map<string, string>; hashes: Map<string, string>; counts: Record<string, number>; optOutTable: Row[] } {
+export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<string, string>, optOutDocs: Doc[] = []): { files: OutFile[]; copies: Map<string, string>; hashes: Map<string, string>; counts: Record<string, number>; optOutTable: Row[]; matchRows: Row[] } {
   const optOuts = optOutsOf(optOutDocs);
   const files: OutFile[] = [textFile(`${UPN_ROOT}/README.md`, UPN_README, 'text/markdown; charset=utf-8')];
   const copies = new Map<string, string>();
@@ -149,8 +150,8 @@ export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<strin
     files.push(
       tsvFile(
         `${base}_pupils.tsv`,
-        ((d.pupils ?? []) as Record<string, unknown>[]).map((p) => ({ row: p.row, upn: p.upn, first_name: p.firstName, middle_name: p.middleName ?? null, last_name: p.lastName, date_of_birth: p.dateOfBirth, opted_out: p.optedOut === true, opt_out_kind: p.optOutKind ?? null })),
-        ['row', 'upn', 'first_name', 'middle_name', 'last_name', 'date_of_birth', 'opted_out', 'opt_out_kind'],
+        ((d.pupils ?? []) as Record<string, unknown>[]).map((p) => ({ row: p.row, upn: p.upn, first_name: p.firstName, middle_name: p.middleName ?? null, last_name: p.lastName, date_of_birth: p.dateOfBirth, myself_id: myselfId(p.firstName, p.lastName, p.dateOfBirth), opted_out: p.optedOut === true, opt_out_kind: p.optOutKind ?? null })),
+        ['row', 'upn', 'first_name', 'middle_name', 'last_name', 'date_of_birth', 'myself_id', 'opted_out', 'opt_out_kind'],
       ),
     );
     uploadRows.push({ upload_id: u.id, school_id: d.schoolId, school_name: d.schoolName, received_at: d.receivedAt, file_name: d.fileName, stored_as: typeof d.path === 'string' && d.path ? original.slice(UPN_ROOT.length + 1) : 'removed: it named an opted-out pupil (what was read from it is kept, redacted)', pupils_n: d.pupilCount, valid_upns_n: d.validUpns, problems_n: Array.isArray(d.problems) ? d.problems.length : 0, uploader_name: d.uploader?.name, uploader_role: d.uploader?.role, uploader_email: d.uploader?.email, note: d.note, sha256: d.sha256, read_by_hand: d.needsManualReading === true, why_not_read: d.unreadableReason ?? null, file_kind: d.fileKind ?? null });
@@ -213,7 +214,7 @@ export function upnExport(uploads: Doc[], participants: Doc[], labels: Map<strin
       };
     })
     .sort((a, b) => String(a.received_on).localeCompare(String(b.received_on)) || String(a.opt_out_id).localeCompare(String(b.opt_out_id)));
-  return { files, copies, hashes, optOutTable, counts: { upnUploads: uploads.length, upnPupils: Array.from(bySchool.values()).reduce((n, p) => n + p.length, 0), upnMatched: matchRows.filter((r) => r.upn).length, optOuts: optOuts.filter((o) => o.status === 'active').length } };
+  return { files, copies, hashes, optOutTable, matchRows, counts: { upnUploads: uploads.length, upnPupils: Array.from(bySchool.values()).reduce((n, p) => n + p.length, 0), upnMatched: matchRows.filter((r) => r.upn).length, optOuts: optOuts.filter((o) => o.status === 'active').length } };
 }
 
 const UPN_README = `The UPN lists schools sent through their upload page
@@ -231,7 +232,9 @@ uploads.tsv            one row per file: which school, who sent it and when,
                        was read from it: UPN, first, middle and last names and
                        date of birth (27 October 2026: nothing else is asked for
                        or read; other columns a school sends stay only in the
-                       file as sent)
+                       file as sent); myself_id is the pupil's MySelf survey
+                       ID worked out from the legal name and date of birth
+                       (see the consent-app's docs/myself-linkage.md)
 upn_matches.tsv        each family's record on the website (participant_id is
                        the label in ../donations/) with the UPN it matches:
                          name-and-dob     first name, last name and date of birth agree

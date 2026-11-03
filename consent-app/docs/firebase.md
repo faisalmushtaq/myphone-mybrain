@@ -371,7 +371,10 @@ schools/                                  the young people's study
                                           without device details
   identifying/                            coordinators only
     participants_key.tsv                  the key from sub-labels to names, dates of birth,
-                                          school, parent or guardian and contact details
+                                          school, parent or guardian and contact details,
+                                          and the MySelf survey ID (docs/myself-linkage.md)
+    myself_candidate_ids.tsv              the MySelf IDs each young person would have under a
+                                          nickname, swapped date and so on, for the matcher
     consents.tsv, consent_statements.tsv, assents.tsv, assent_statements.tsv,
     submissions.tsv, enquiries.tsv, opt_outs.tsv, raw/*.jsonl
     rejected_uploads.tsv                  every screenshot the checks refused, with why (never the image)
