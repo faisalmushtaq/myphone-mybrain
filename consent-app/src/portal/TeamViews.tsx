@@ -627,7 +627,7 @@ export function Visits({ go }: { go: (hash: string) => void }) {
     <Loading error={error}>
       <div className="mpmb-tools__section">
         <section>
-          <h2 className="mpmb-h2">Visits</h2>
+          <h2 className="mpmb-h2">Upcoming and recent</h2>
           {!value ? <p>Loading…</p> : !value.visits.length ? <p>None yet.</p> : <VisitTable visits={value.visits} go={go} />}
           <div className="mpmb-actions">
             <Button variant="secondary" onClick={() => void downloadIcs('visits-ics').catch((e) => setDlError(messageOf(e)))}>
