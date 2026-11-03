@@ -72,7 +72,7 @@ for_schools:
     - "Before testing begins, we ask staff whether any pupils have disabilities or medical conditions we should know about."
     - "Pupils with a known history of epilepsy or seizures do not take part in the EEG recording, but can join the rest of the workshop."
     - "Pupils should come with clean, dry hair, without gel, oil or spray; long hair can be tied back. Hair never needs to be cut or shaved."
-    - "Head coverings (such as a hijab, turban, patka or cap) need to come off for the EEG recording, as the headset sits directly on the head. We have a private room for this, and pupils who would rather keep theirs on join the rest of the workshop and skip the recording."
+    - "Head coverings (such as a hijab, turban, patka or cap) need to come off for the EEG recording, as the headset sits directly on the head. We have a private room for this. Pupils who would rather keep theirs on can still do the computer task without the headset, if they would like to, and join the rest of the workshop."
 
   school_gets:
     - "A two-hour neuroscience workshop for each group, run by our team with our equipment."
@@ -102,7 +102,7 @@ for_young_people:
     - "This will include learning to use and wearing a lightweight EEG headset, which records activity from your brain. This is completely safe and causes no pain."
     - "While you have the EEG on your head, you will be asked to sit quietly for a short time and complete games on a laptop."
     - "Researchers will help you with the equipment."
-    - "The headset sits directly on your head, so head coverings (like a hijab, turban, patka or cap) need to come off for the recording. You can do this in a private room. If you would rather keep yours on, you can still join everything else and just skip the recording."
+    - "The headset sits directly on your head, so head coverings (like a hijab, turban, patka or cap) need to come off for the recording. You can do this in a private room. If you would rather keep yours on, you can still do the computer task without the headset, if you want to, and join everything else."
     - "EEG does not hurt. It does not put anything into your brain. It cannot read your thoughts."
   data_promise_heading: "We promise you that we will:"
   data_promise:

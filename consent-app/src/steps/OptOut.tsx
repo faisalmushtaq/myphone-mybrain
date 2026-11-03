@@ -81,7 +81,7 @@ export function OptOut() {
             <p>Either way, nothing about your child is linked with health or school records for the study.</p>
             <Callout tone="info">
               <p>
-                <strong>Does your child wear a head covering?</strong> The headset sits directly on the head, so head coverings (such as a hijab, turban, patka or cap) need to be taken off for the brain recording. We have a private room for anyone who would like to take theirs off there. If your child would rather keep their head covering on, they can still join the rest of the workshop with their class and simply skip the brain recording. You don’t need to opt out for this.
+                <strong>Does your child wear a head covering?</strong> The headset sits directly on the head, so head coverings (such as a hijab, turban, patka or cap) need to be taken off for the brain recording. We have a private room for anyone who would like to take theirs off there. If your child would rather keep their head covering on, they can still do the computer task without the headset, if they would like to, and join the rest of the workshop with their class. You don’t need to opt out for this.
               </p>
             </Callout>
             <Callout tone="info">
