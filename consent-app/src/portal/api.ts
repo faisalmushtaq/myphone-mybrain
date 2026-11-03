@@ -1,5 +1,5 @@
 import { FirebaseError, getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
-import { connectAuthEmulator, getAuth, isSignInWithEmailLink, onAuthStateChanged, sendSignInLinkToEmail, signInWithEmailLink, signOut, type Auth, type User } from 'firebase/auth';
+import { connectAuthEmulator, getAuth, getRedirectResult, GoogleAuthProvider, isSignInWithEmailLink, onAuthStateChanged, sendSignInLinkToEmail, signInWithEmailLink, signInWithPopup, signInWithRedirect, signOut, type Auth, type User } from 'firebase/auth';
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, getStorage, ref, uploadBytesResumable, type FirebaseStorage } from 'firebase/storage';
 import { backendName } from '../api';
@@ -80,6 +80,38 @@ export function watchUser(callback: (user: User | null) => void): () => void {
     return () => undefined;
   }
   return onAuthStateChanged(c.auth, callback);
+}
+
+/** Signs in with a Google account (enabled 4 November 2026). A popup in a browser; a redirect in the Home Screen app, where popups are blocked. */
+export async function signInWithGoogle(): Promise<void> {
+  const c = connection();
+  if (!c) throw new PortalError('The portal is not connected in this build.', 'server');
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  const standalone = typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true);
+  try {
+    if (standalone) await signInWithRedirect(c.auth, provider);
+    else await signInWithPopup(c.auth, provider);
+  } catch (error) {
+    const code = (error as { code?: string }).code ?? '';
+    if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+      await signInWithRedirect(c.auth, provider);
+      return;
+    }
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return;
+    throw mapError(error);
+  }
+}
+
+/** Finishes a Google sign-in that came back by redirect; nothing to do otherwise. */
+export async function finishGoogleRedirect(): Promise<void> {
+  const c = connection();
+  if (!c) return;
+  try {
+    await getRedirectResult(c.auth);
+  } catch (error) {
+    throw mapError(error);
+  }
 }
 
 /** Emails a one-time sign-in link that brings them back to this page. */

@@ -333,7 +333,7 @@ says the device is gone) and each person's notification choices.
 ## Setting it up (once)
 
 1. **Firebase console → Authentication → Sign-in method → Email/Password →
-   enable "Email link (passwordless sign-in)".**
+   enable "Email link (passwordless sign-in)".** Google sign-in is also enabled (4 November 2026): the sign-in page offers "Sign in with Google" for Google accounts; the account is matched by email, as with the link.
 2. **Authentication → Settings → Authorised domains**: make sure
    `myphonemybrain.com` is listed (it is for the participant pages).
 3. **The first project manager**, in Cloud Shell from the repository:

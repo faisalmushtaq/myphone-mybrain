@@ -3,7 +3,7 @@ import type { User } from 'firebase/auth';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { TextField } from '../components/ui/Field';
-import { ask, completeLink, connection, leave, messageOf, pendingLink, refreshToken, sendLink, watchUser } from './api';
+import { ask, completeLink, connection, finishGoogleRedirect, leave, messageOf, pendingLink, refreshToken, sendLink, signInWithGoogle, watchUser } from './api';
 import { disablePush, enablePush, isAndroid, isIos, isStandalone, pushState, registerPortalWorker, type PushState } from './push';
 import { AvailabilityView, Documents, MyVisits, Offers, RaHome, Training } from './RaViews';
 import { Reports } from './Reports';
@@ -142,6 +142,10 @@ function SignIn() {
     }
   }, []);
 
+  useEffect(() => {
+    void finishGoogleRedirect().catch((err) => setError(messageOf(err)));
+  }, []);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
@@ -183,7 +187,23 @@ function SignIn() {
           <Button type="submit" variant="primary" arrow loading={busy}>
             {finishing ? 'Sign in' : 'Email me a sign-in link'}
           </Button>
-          <p className="mpmb-hint">New here? Sign in the same way, then ask for an account.</p>
+          {!finishing && (
+            <>
+              <p className="mpmb-hint">Or, if your email is a Google account (Gmail or Google Workspace):</p>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => {
+                  setError(null);
+                  void signInWithGoogle().catch((err) => setError(messageOf(err)));
+                }}
+              >
+                Sign in with Google
+              </Button>
+            </>
+          )}
+          <p className="mpmb-hint">New here? Sign in the same way, then ask for an account. Use the email address the team knows you by.</p>
         </form>
       )}
     </Shell>
