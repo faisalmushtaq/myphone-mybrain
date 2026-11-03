@@ -41,14 +41,10 @@ export function foldLine(line: string): string {
   return parts.join('\r\n ');
 }
 
-export function icsFor(e: IcsEvent, now = new Date()): string {
+/** The VEVENT lines for one event. */
+function eventLines(e: IcsEvent, now: Date): string[] {
   const cancelled = e.status === 'cancelled';
-  const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//MyPhone MyBrain//Lab visits//EN',
-    'CALSCALE:GREGORIAN',
-    `METHOD:${cancelled ? 'CANCEL' : 'PUBLISH'}`,
+  return [
     'BEGIN:VEVENT',
     `UID:${e.uid}`,
     `SEQUENCE:${e.sequence ?? (cancelled ? 1 : 0)}`,
@@ -62,7 +58,20 @@ export function icsFor(e: IcsEvent, now = new Date()): string {
     `STATUS:${cancelled ? 'CANCELLED' : 'CONFIRMED'}`,
     ...(cancelled ? [] : ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${escapeText(e.summary)}`, 'TRIGGER:-P1D', 'END:VALARM']),
     'END:VEVENT',
-    'END:VCALENDAR',
   ];
+}
+
+/**
+ * One calendar file holding several events (a school visit over several days,
+ * or every visit coming up). All the events must be of the same kind: all
+ * confirmed (PUBLISH) or all cancelled (CANCEL), as a file has one method.
+ */
+export function icsForMany(events: IcsEvent[], now = new Date(), name = 'Lab visits'): string {
+  const cancelled = events.length > 0 && events.every((e) => e.status === 'cancelled');
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//MyPhone MyBrain//${name}//EN`, 'CALSCALE:GREGORIAN', `METHOD:${cancelled ? 'CANCEL' : 'PUBLISH'}`, ...events.flatMap((e) => eventLines(e, now)), 'END:VCALENDAR'];
   return `${lines.map(foldLine).join('\r\n')}\r\n`;
+}
+
+export function icsFor(e: IcsEvent, now = new Date()): string {
+  return icsForMany([e], now);
 }

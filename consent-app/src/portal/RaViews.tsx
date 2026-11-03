@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { ACCEPT, ask, messageOf, uploadDocument } from './api';
-import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, DOC_STATE_LABEL, longDate, shortDate, todayIso, type Availability, type DocRow, type MySummary, type Visit } from './types';
+import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, dayLines, daysOn, DOC_STATE_LABEL, longDate, todayIso, visitWhen, type Availability, type Contact, type DocRow, type MySummary, type Visit } from './types';
 
 /** A badge for a document's state, coloured by how much it needs doing. */
 export function StateBadge({ state }: { state: DocRow['state'] }) {
@@ -62,23 +62,45 @@ export function RaHome({ summary, go }: { summary: MySummary; go: (hash: string)
         <h2 className="mpmb-h2" id="next-visits">
           Your next visits
         </h2>
-        {upcoming.length ? <VisitList visits={upcoming} /> : <p>None confirmed yet.</p>}
+        {upcoming.length ? <VisitList visits={upcoming} contact={summary.settings.withdrawalContact} /> : <p>None confirmed yet.</p>}
       </section>
     </div>
   );
 }
 
-function VisitList({ visits }: { visits: Omit<Visit, 'status'>[] }) {
+/** Where and when: the place, then each day it runs. */
+function VisitDetails({ v }: { v: Pick<Visit, 'days' | 'location' | 'notes'> }) {
+  return (
+    <>
+      <span>Where: {v.location}</span>
+      {dayLines(v).map((l) => (
+        <span key={l}>{l}</span>
+      ))}
+      {v.notes && <span className="mpmb-hint">{v.notes}</span>}
+    </>
+  );
+}
+
+/** Confirmed places are not cancelled in the portal: the research assistant emails the project manager, who removes them. */
+function WithdrawNote({ v, contact }: { v: Pick<Visit, 'schoolName' | 'days'>; contact: Contact }) {
+  const subject = `Withdrawing from ${v.schoolName}, ${visitWhen(v)}`;
+  const body = `Hello ${contact.name.replace(/^Dr\s+/, '')},\n\nI need to withdraw from the MyPhone/MyBrain school visit to ${v.schoolName} (${dayLines(v).join('; ')}).\n\nReason: \n\nThank you,\n`;
+  return (
+    <span className="mpmb-hint mpmb-portal__withdraw">
+      To withdraw, email {contact.name} at{' '}
+      <a href={`mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}>{contact.email}</a>. Confirmed places can’t be cancelled here.
+    </span>
+  );
+}
+
+function VisitList({ visits, contact }: { visits: Omit<Visit, 'status'>[]; contact: Contact }) {
   return (
     <ul className="mpmb-tools__list">
       {visits.map((v) => (
         <li key={v.visitId} className="mpmb-tools__row mpmb-tools__row--stack">
           <strong>{v.schoolName}</strong>
-          <span>
-            {longDate(v.date)}, {v.start} to {v.end}
-          </span>
-          {v.meetingPoint && <span>Meeting point: {v.meetingPoint}</span>}
-          {v.notes && <span className="mpmb-hint">{v.notes}</span>}
+          <VisitDetails v={v} />
+          <WithdrawNote v={v} contact={contact} />
         </li>
       ))}
     </ul>
@@ -350,16 +372,10 @@ export function Offers({ summary, reload }: { summary: MySummary; reload: () => 
         {offers.map((v) => (
           <div key={v.visitId} className="mpmb-card mpmb-portal__offer">
             <h3 className="mpmb-h3">{v.schoolName}</h3>
-            <p>
-              <strong>{longDate(v.date)}</strong>, {v.start} to {v.end}
-              {v.meetingPoint && (
-                <>
-                  <br />
-                  Meeting point: {v.meetingPoint}
-                </>
-              )}
+            <p className="mpmb-tools__row--stack mpmb-portal__details">
+              <VisitDetails v={v} />
             </p>
-            {v.notes && <p className="mpmb-hint">{v.notes}</p>}
+            {daysOn(v).length > 1 && <p className="mpmb-hint">Confirming books you for every day listed.</p>}
             <label className="mpmb-label" htmlFor={`note-${v.visitId}`}>
               A note for the team <span className="mpmb-label__tag">(optional)</span>
             </label>
@@ -393,7 +409,7 @@ export function Offers({ summary, reload }: { summary: MySummary; reload: () => 
                   <span>
                     <strong>{v.schoolName}</strong>
                     <br />
-                    {shortDate(v.date)}, {v.start} to {v.end}
+                    {visitWhen(v)} · {v.location}
                   </span>
                   <Button variant={v.interested ? 'secondary' : 'ghost'} onClick={() => void interest(v.visitId, !v.interested)} aria-pressed={v.interested}>
                     {v.interested ? 'Interested ✓' : 'I’m interested'}
@@ -416,11 +432,12 @@ export function MyVisits({ summary }: { summary: MySummary }) {
         {rows.map((v) => (
           <li key={v.visitId} className="mpmb-tools__row mpmb-tools__row--stack">
             <strong>{v.schoolName}</strong>
-            <span>
-              {longDate(v.date)}, {v.start} to {v.end}
+            <VisitDetails v={v} />
+            <span className="mpmb-hint">
+              {ASSIGNMENT_LABEL[v.status]}
+              {v.status === 'removed' && v.removedReason ? `: ${v.removedReason}` : ''}
             </span>
-            {v.meetingPoint && <span>Meeting point: {v.meetingPoint}</span>}
-            <span className="mpmb-hint">{ASSIGNMENT_LABEL[v.status]}</span>
+            {v.status === 'confirmed' && <WithdrawNote v={v} contact={summary.settings.withdrawalContact} />}
           </li>
         ))}
       </ul>

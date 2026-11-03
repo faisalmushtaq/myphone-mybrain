@@ -4,7 +4,7 @@ import { Callout } from '../components/ui/Callout';
 import { SelectField, TextField } from '../components/ui/Field';
 import { ask, messageOf } from './api';
 import { StateBadge } from './RaViews';
-import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, longDate, ROLE_LABEL, shortDate, stamp, todayIso, VISIT_STATUS_LABEL, type AssignmentStatus, type Availability, type Counts, type DocRow, type DocType, type PortalUser, type Role, type School, type Settings, type Visit, type VisitStatus } from './types';
+import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, dayLines, longDate, ROLE_LABEL, saveFile, shortDate, stamp, todayIso, VISIT_STATUS_LABEL, visitWhen, type AssignmentStatus, type Availability, type Counts, type DocRow, type DocType, type PortalUser, type Role, type School, type Settings, type Visit, type VisitDay, type VisitStatus } from './types';
 
 /** Loads with an action, shows loading and errors, and offers a reload. */
 function useLoad<T>(action: string, data: Record<string, unknown> = {}) {
@@ -123,8 +123,9 @@ function VisitTable({ visits, go }: { visits: VisitRow[]; go: (hash: string) => 
           <span>
             <strong>{v.schoolName}</strong>
             <br />
-            {shortDate(v.date)}, {v.start}–{v.end} · {v.confirmed} of {v.needed} confirmed{v.offered ? `, ${v.offered} waiting` : ''}
+            {visitWhen(v)} · {v.location}
             <br />
+            {v.confirmed} of {v.needed} confirmed{v.offered ? `, ${v.offered} waiting` : ''}{' '}
             <span className={`mpmb-portal__badge mpmb-portal__badge--${v.status === 'locked' ? 'ok' : v.status === 'staffing' ? 'wait' : 'todo'}`}>{VISIT_STATUS_LABEL[v.status]}</span>
           </span>
           <Button variant="secondary" onClick={() => go(`#visit/${v.visitId}`)}>
@@ -480,19 +481,91 @@ function DocCheck({ doc, pm, reload }: { doc: DocRow; pm: boolean; reload: () =>
 
 /* ── Visits ───────────────────────────────────────────────────────────── */
 
-export function Visits({ go }: { go: (hash: string) => void }) {
-  const { value, error, load } = useLoad<{ visits: VisitRow[]; schools: School[] }>('visits');
-  const [form, setForm] = useState({ schoolId: '', date: '', start: '08:30', end: '15:00', needed: '4', meetingPoint: '', notes: '' });
+/** Downloads a calendar file the server builds: one visit, or every visit coming up. */
+async function downloadIcs(action: 'visit-ics' | 'visits-ics', data: Record<string, unknown> = {}) {
+  const r = await ask<{ filename: string; ics: string }>(action, data);
+  saveFile(r.filename, r.ics);
+}
+
+const addDays = (iso: string, n: number) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const isWeekend = (iso: string) => [0, 6].includes(new Date(`${iso}T00:00:00Z`).getUTCDay());
+
+interface VisitFormValue {
+  schoolId: string;
+  startDate: string;
+  endDate: string;
+  start: string;
+  end: string;
+  location: string;
+  needed: string;
+  notes: string;
+  /** Days changed from the usual: switched on or off, or other times. */
+  overrides: Record<string, { on?: boolean; start?: string; end?: string }>;
+}
+
+/** Every day of the period, with the usual times, weekends off, and any day changed. */
+function formDays(f: VisitFormValue): VisitDay[] {
+  if (!f.startDate) return [];
+  const last = f.endDate && f.endDate >= f.startDate ? f.endDate : f.startDate;
+  const out: VisitDay[] = [];
+  for (let d = f.startDate, n = 0; d <= last && n < 62; d = addDays(d, 1), n += 1) {
+    const o = f.overrides[d] ?? {};
+    out.push({ date: d, on: o.on ?? !isWeekend(d), start: o.start || f.start, end: o.end || f.end });
+  }
+  return out;
+}
+
+export function emptyVisitForm(): VisitFormValue {
+  return { schoolId: '', startDate: '', endDate: '', start: '08:30', end: '15:00', location: '', needed: '4', notes: '', overrides: {} };
+}
+
+export function visitFormFrom(v: Visit): VisitFormValue {
+  const overrides: VisitFormValue['overrides'] = {};
+  for (const d of v.days) {
+    const o: { on?: boolean; start?: string; end?: string } = {};
+    if (d.on === isWeekend(d.date)) o.on = d.on;
+    if (d.start !== v.start) o.start = d.start;
+    if (d.end !== v.end) o.end = d.end;
+    if (Object.keys(o).length) overrides[d.date] = o;
+  }
+  return { schoolId: v.schoolId, startDate: v.startDate, endDate: v.endDate, start: v.start, end: v.end, location: v.location, needed: String(v.needed), notes: v.notes, overrides };
+}
+
+/**
+ * Adding or changing a visit: the school, the first and last dates, the usual
+ * times and where; then every day of the period listed, each switched on or
+ * off (weekends off to start with) and with its own times if they differ.
+ */
+function VisitForm({ schools, initial, visitId, onSaved, submitLabel, idPrefix = 'v' }: { schools: School[]; initial: VisitFormValue; visitId?: string; onSaved: (visitId: string) => void | Promise<void>; submitLabel: string; idPrefix?: string }) {
+  const [form, setForm] = useState<VisitFormValue>(initial);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const add = async (e: FormEvent) => {
+  const days = formDays(form);
+  const on = days.filter((d) => d.on);
+  const schoolName = schools.find((s) => s.id === form.schoolId)?.name ?? '';
+  const setDay = (date: string, patch: { on?: boolean; start?: string; end?: string }) => setForm({ ...form, overrides: { ...form.overrides, [date]: { ...form.overrides[date], ...patch } } });
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setFormError(null);
     try {
-      const { visitId } = await ask<{ visitId: string }>('save-visit', { ...form, needed: Number(form.needed) });
-      await load();
-      go(`#visit/${visitId}`);
+      const { visitId: id } = await ask<{ visitId: string }>('save-visit', {
+        visitId,
+        schoolId: form.schoolId,
+        startDate: form.startDate,
+        endDate: form.endDate || form.startDate,
+        start: form.start,
+        end: form.end,
+        location: form.location,
+        needed: Number(form.needed),
+        notes: form.notes,
+        days: days.map((d) => ({ date: d.date, on: d.on, start: d.start, end: d.end })),
+      });
+      await onSaved(id);
     } catch (err) {
       setFormError(messageOf(err));
     } finally {
@@ -500,28 +573,83 @@ export function Visits({ go }: { go: (hash: string) => void }) {
     }
   };
   return (
+    <form className="mpmb-card" onSubmit={(e) => void submit(e)}>
+      <div className="mpmb-tools__grid">
+        <SelectField id={`${idPrefix}-school`} label="School" options={schools.filter((s) => s.active || s.id === form.schoolId).map((s) => ({ value: s.id, label: s.name }))} value={form.schoolId} onChange={(e) => setForm({ ...form, schoolId: e.target.value })} />
+        <TextField id={`${idPrefix}-location`} label="Where" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} hint={schoolName ? `${schoolName}: the address, room or meeting point (for example "Main reception, Alwoodley Gates, LS17 8GS").` : 'The address, room or meeting point.'} />
+        <TextField id={`${idPrefix}-from`} label="First date" type="date" min={visitId ? undefined : todayIso()} value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value, endDate: form.endDate && form.endDate >= e.target.value ? form.endDate : e.target.value })} />
+        <TextField id={`${idPrefix}-to`} label="Last date" type="date" min={form.startDate || todayIso()} value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} hint="The same as the first date for a one-day visit." />
+        <TextField id={`${idPrefix}-start`} label="Usual start" type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} />
+        <TextField id={`${idPrefix}-end`} label="Usual end" type="time" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} />
+        <TextField id={`${idPrefix}-needed`} label="Research assistants needed" type="number" min={1} max={30} value={form.needed} onChange={(e) => setForm({ ...form, needed: e.target.value })} />
+      </div>
+      {days.length > 0 && (
+        <fieldset className="mpmb-portal__days">
+          <legend className="mpmb-label">
+            The days ({on.length} of {days.length} on)
+          </legend>
+          <p className="mpmb-hint">Weekends start switched off. Switch any day on or off, and change a day’s times if they differ from the usual.</p>
+          <ul className="mpmb-tools__list">
+            {days.map((d) => (
+              <li key={d.date} className={`mpmb-tools__row mpmb-portal__vday${d.on ? '' : ' is-off'}`}>
+                <label className="mpmb-portal__inline">
+                  <input type="checkbox" checked={d.on} onChange={(e) => setDay(d.date, { on: e.target.checked })} aria-label={`${longDate(d.date)}: the visit runs`} />
+                  <span>
+                    <strong>{shortDate(d.date)}</strong>
+                    {!d.on && <span className="mpmb-hint"> · off</span>}
+                  </span>
+                </label>
+                {d.on && (
+                  <span className="mpmb-portal__times">
+                    <input className="mpmb-input" type="time" aria-label={`${longDate(d.date)}: start`} value={d.start} onChange={(e) => setDay(d.date, { start: e.target.value })} />
+                    <span aria-hidden="true">to</span>
+                    <input className="mpmb-input" type="time" aria-label={`${longDate(d.date)}: end`} value={d.end} onChange={(e) => setDay(d.date, { end: e.target.value })} />
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </fieldset>
+      )}
+      <TextField id={`${idPrefix}-notes`} label="Notes for the research assistants" required={false} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+      <ErrorLine error={formError} />
+      <Button type="submit" variant="primary" loading={busy}>
+        {submitLabel}
+      </Button>
+    </form>
+  );
+}
+
+export function Visits({ go }: { go: (hash: string) => void }) {
+  const { value, error, load } = useLoad<{ visits: VisitRow[]; schools: School[] }>('visits');
+  const [dlError, setDlError] = useState<string | null>(null);
+  return (
     <Loading error={error}>
       <div className="mpmb-tools__section">
         <section>
           <h2 className="mpmb-h2">Visits</h2>
           {!value ? <p>Loading…</p> : !value.visits.length ? <p>None yet.</p> : <VisitTable visits={value.visits} go={go} />}
-        </section>
-        <form className="mpmb-card" onSubmit={(e) => void add(e)}>
-          <h2 className="mpmb-h2">Add a visit</h2>
-          <div className="mpmb-tools__grid">
-            <SelectField id="v-school" label="School" options={(value?.schools ?? []).filter((s) => s.active).map((s) => ({ value: s.id, label: s.name }))} value={form.schoolId} onChange={(e) => setForm({ ...form, schoolId: e.target.value })} />
-            <TextField id="v-date" label="Date" type="date" min={todayIso()} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-            <TextField id="v-start" label="Start" type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} />
-            <TextField id="v-end" label="End" type="time" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} />
-            <TextField id="v-needed" label="Research assistants needed" type="number" min={1} max={30} value={form.needed} onChange={(e) => setForm({ ...form, needed: e.target.value })} />
-            <TextField id="v-meet" label="Meeting point" required={false} value={form.meetingPoint} onChange={(e) => setForm({ ...form, meetingPoint: e.target.value })} />
+          <div className="mpmb-actions">
+            <Button variant="secondary" onClick={() => void downloadIcs('visits-ics').catch((e) => setDlError(messageOf(e)))}>
+              Add all upcoming visits to my calendar (.ics)
+            </Button>
           </div>
-          <TextField id="v-notes" label="Notes for the research assistants" required={false} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          <ErrorLine error={formError} />
-          <Button type="submit" variant="primary" loading={busy}>
-            Add the visit
-          </Button>
-        </form>
+          <ErrorLine error={dlError} />
+        </section>
+        <section>
+          <h2 className="mpmb-h2">Add a visit</h2>
+          {value && (
+            <VisitForm
+              schools={value.schools}
+              initial={emptyVisitForm()}
+              submitLabel="Add the visit"
+              onSaved={async (visitId) => {
+                await load();
+                go(`#visit/${visitId}`);
+              }}
+            />
+          )}
+        </section>
       </div>
     </Loading>
   );
@@ -531,9 +659,10 @@ interface Candidate {
   uid: string;
   name: string;
   email: string;
-  availability: Availability | null;
+  perDay: { date: string; value: Availability | null; covers: 'yes' | 'no' | 'unknown' }[];
+  coverage: 'all' | 'some' | 'none' | 'unknown';
+  availableDates: string[];
   availabilityNote: string;
-  covers: 'yes' | 'no' | 'unknown';
   interested: boolean;
   counts: Counts;
   eligible: boolean;
@@ -541,17 +670,29 @@ interface Candidate {
   assignment: { status: AssignmentStatus; override: { reason: string; byName: string } | null; note: string } | null;
 }
 
+const COVERAGE: Record<Candidate['coverage'], { label: (c: Candidate) => string; tone: string }> = {
+  all: { label: (c) => (c.perDay.length === 1 ? AVAILABILITY_LABEL[c.perDay[0].value ?? 'all'] : 'Available every day'), tone: 'ok' },
+  some: { label: (c) => `Available ${c.availableDates.length} of ${c.perDay.length} days`, tone: 'wait' },
+  none: { label: () => 'Not available', tone: 'todo' },
+  unknown: { label: () => 'No availability given', tone: 'wait' },
+};
+
 export function VisitView({ visitId, go }: { visitId: string; go: (hash: string) => void }) {
-  const { value, error, load } = useLoad<{ visit: Visit & { requiredDocs: string[] }; candidates: Candidate[]; placesLeft: number; mayOverride: boolean }>('visit', { visitId });
+  const { value, error, load } = useLoad<{ visit: Visit & { requiredDocs: string[] }; candidates: Candidate[]; placesLeft: number; mayOverride: boolean; mayRemove: boolean }>('visit', { visitId });
+  const schools = useLoad<{ schools: School[] }>('schools');
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [removing, setRemoving] = useState<{ uid: string; name: string } | null>(null);
+  const [reason, setReason] = useState('');
   if (!value) return <Loading error={error}>Loading…</Loading>;
   const v = value.visit;
-  const placed = value.candidates.filter((c) => c.assignment && c.assignment.status !== 'withdrawn');
-  const free = value.candidates.filter((c) => !c.assignment || c.assignment.status === 'declined' || c.assignment.status === 'withdrawn');
+  const placed = value.candidates.filter((c) => c.assignment && c.assignment.status !== 'withdrawn' && c.assignment.status !== 'removed');
+  const free = value.candidates.filter((c) => !c.assignment || c.assignment.status === 'declined' || c.assignment.status === 'withdrawn' || c.assignment.status === 'removed');
+  const confirmedCount = placed.filter((c) => c.assignment!.status === 'confirmed').length;
   const toggle = (uid: string) => {
     const next = new Set(chosen);
     if (next.has(uid)) next.delete(uid);
@@ -574,13 +715,27 @@ export function VisitView({ visitId, go }: { visitId: string; go: (hash: string)
       setBusy(false);
     }
   };
-  const run = async (action: string, data: Record<string, unknown>) => {
+  const run = async (action: string, data: Record<string, unknown>, done?: string) => {
     setActionError(null);
+    setMessage(null);
     try {
       await ask(action, { visitId, ...data });
+      if (done) setMessage(done);
       await load();
+      return true;
     } catch (e) {
       setActionError(messageOf(e));
+      return false;
+    }
+  };
+  const remove = async () => {
+    if (!removing) return;
+    setBusy(true);
+    const ok = await run('remove-confirmed', { uid: removing.uid, reason }, `${removing.name} removed. They have been notified and emailed, and the place is open again.`);
+    setBusy(false);
+    if (ok) {
+      setRemoving(null);
+      setReason('');
     }
   };
   return (
@@ -591,14 +746,18 @@ export function VisitView({ visitId, go }: { visitId: string; go: (hash: string)
       <div>
         <h2 className="mpmb-h2">{v.schoolName}</h2>
         <p>
-          <strong>{longDate(v.date)}</strong>, {v.start} to {v.end}
-          {v.meetingPoint ? ` · ${v.meetingPoint}` : ''}
+          <strong>Where:</strong> {v.location}
         </p>
+        <ul className="mpmb-portal__daylist">
+          {dayLines(v).map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+        </ul>
         <p>
           {v.needed} needed · {value.placesLeft} place{value.placesLeft === 1 ? '' : 's'} left ·{' '}
           <span className={`mpmb-portal__badge mpmb-portal__badge--${v.status === 'locked' ? 'ok' : 'wait'}`}>{VISIT_STATUS_LABEL[v.status]}</span>
         </p>
-        <p className="mpmb-hint">Needs: {v.requiredDocs.join(', ')}.</p>
+        <p className="mpmb-hint">Needs: {v.requiredDocs.join(', ')}. Documents must be in date on every day.</p>
         <div className="mpmb-actions">
           <select className="mpmb-select" aria-label="Visit status" value={v.status} onChange={(e) => void run('set-visit-status', { status: e.target.value as VisitStatus })}>
             {(Object.keys(VISIT_STATUS_LABEL) as VisitStatus[]).map((s) => (
@@ -607,8 +766,31 @@ export function VisitView({ visitId, go }: { visitId: string; go: (hash: string)
               </option>
             ))}
           </select>
+          <Button variant="secondary" onClick={() => void downloadIcs('visit-ics', { visitId }).catch((e) => setActionError(messageOf(e)))}>
+            Add to my calendar (.ics)
+          </Button>
+          <Button variant="ghost" onClick={() => setEditing(!editing)} aria-expanded={editing}>
+            {editing ? 'Close' : 'Change dates, times or place'}
+          </Button>
         </div>
       </div>
+      {editing && schools.value && (
+        <section aria-label="Change the visit">
+          {confirmedCount > 0 && <p className="mpmb-hint">{confirmedCount} confirmed: they will be notified and emailed an updated calendar invitation if the days, times or place change.</p>}
+          <VisitForm
+            schools={schools.value.schools}
+            initial={visitFormFrom(v)}
+            visitId={visitId}
+            idPrefix="ve"
+            submitLabel="Save the changes"
+            onSaved={async () => {
+              setEditing(false);
+              setMessage(confirmedCount ? 'Saved. Anyone confirmed has been told of any change.' : 'Saved.');
+              await load();
+            }}
+          />
+        </section>
+      )}
       <ErrorLine error={actionError} />
       {message && (
         <Callout tone="success" role="status">
@@ -628,28 +810,63 @@ export function VisitView({ visitId, go }: { visitId: string; go: (hash: string)
                   {c.assignment!.override ? ` · booked without being ready: ${c.assignment!.override.reason}` : ''}
                   {c.assignment!.note ? ` · “${c.assignment!.note}”` : ''}
                 </span>
-                {(c.assignment!.status === 'offered' || c.assignment!.status === 'confirmed') && (
-                  <Button variant="ghost" onClick={() => window.confirm(`Withdraw ${c.name}'s place?`) && void run('withdraw-offer', { uid: c.uid })}>
-                    Withdraw
+                {c.assignment!.status === 'offered' && (
+                  <Button variant="ghost" onClick={() => window.confirm(`Withdraw the offer to ${c.name}?`) && void run('withdraw-offer', { uid: c.uid }, `Offer to ${c.name} withdrawn.`)}>
+                    Withdraw offer
                   </Button>
                 )}
+                {c.assignment!.status === 'confirmed' &&
+                  (value.mayRemove ? (
+                    <Button variant="ghost" onClick={() => (setRemoving({ uid: c.uid, name: c.name }), setReason(''))}>
+                      Remove…
+                    </Button>
+                  ) : (
+                    <span className="mpmb-hint">Only the project manager can remove</span>
+                  ))}
               </li>
             ))}
           </ul>
         )}
+        {removing && (
+          <div className="mpmb-card mpmb-portal__dialog" role="dialog" aria-modal="false" aria-labelledby="remove-h">
+            <h3 className="mpmb-h3" id="remove-h">
+              Remove {removing.name} from this visit?
+            </h3>
+            <p>They have confirmed. They will get a notification and an email with the reason, their calendar entry is cancelled, and the place opens again.</p>
+            <TextField id="remove-reason" label="Reason (recorded and sent to them)" value={reason} onChange={(e) => setReason(e.target.value)} hint="For example: emailed on 3 November to withdraw, unwell." />
+            <div className="mpmb-actions">
+              <Button variant="primary" loading={busy} disabled={!reason.trim()} onClick={() => void remove()}>
+                Remove {removing.name}
+              </Button>
+              <Button variant="secondary" onClick={() => setRemoving(null)}>
+                Keep them
+              </Button>
+            </div>
+          </div>
+        )}
       </section>
       <section>
         <h3 className="mpmb-h3">Choose who to ask</h3>
-        <p className="mpmb-hint">Ready and available first. Tick people, then lock them in: each one gets a notification and an email asking them to confirm.</p>
+        <p className="mpmb-hint">Ready and available first. Each person’s availability is shown day by day. Tick people, then lock them in: each one gets a notification and an email asking them to confirm, for every day of the visit.</p>
         <ul className="mpmb-tools__list">
           {free.map((c) => (
             <li key={c.uid} className={`mpmb-tools__row mpmb-portal__candidate${c.eligible ? '' : ' is-blocked'}`}>
               <label className="mpmb-portal__inline">
                 <input type="checkbox" checked={chosen.has(c.uid)} disabled={!c.eligible && !value.mayOverride} onChange={() => toggle(c.uid)} />
                 <span>
-                  <strong>{c.name}</strong> <span className={`mpmb-portal__badge mpmb-portal__badge--${c.covers === 'yes' ? 'ok' : c.covers === 'no' ? 'todo' : 'wait'}`}>{c.availability ? AVAILABILITY_LABEL[c.availability] : 'No availability given'}</span>
+                  <strong>{c.name}</strong> <span className={`mpmb-portal__badge mpmb-portal__badge--${COVERAGE[c.coverage].tone}`}>{COVERAGE[c.coverage].label(c)}</span>
                   {c.interested && <span className="mpmb-portal__badge mpmb-portal__badge--ok">Interested</span>}
                   {c.assignment?.status === 'declined' && <span className="mpmb-portal__badge mpmb-portal__badge--todo">Declined before</span>}
+                  {c.assignment?.status === 'removed' && <span className="mpmb-portal__badge mpmb-portal__badge--todo">Removed before</span>}
+                  {c.perDay.length > 1 && (
+                    <span className="mpmb-portal__perday">
+                      {c.perDay.map((d) => (
+                        <span key={d.date} className={`mpmb-portal__dayChip mpmb-portal__dayChip--${d.covers}`} title={d.value ? AVAILABILITY_LABEL[d.value] : 'Not given'}>
+                          {shortDate(d.date)}: {d.covers === 'yes' ? '✓' : d.covers === 'no' ? '✗' : '?'}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                   <br />
                   <span className="mpmb-hint">
                     Training {c.counts.training} · Pilots {c.counts.pilots}
@@ -863,6 +1080,14 @@ export function SettingsView() {
         <TextField id="st-soon" label="Warn this many days before expiry" type="number" min={0} value={form.expiringSoonDays} onChange={num('expiringSoonDays')} />
         <TextField id="st-dbs" label="Years a DBS counts without the Update Service" type="number" min={1} value={form.dbsValidYears} onChange={num('dbsValidYears')} />
       </div>
+      <section>
+        <h2 className="mpmb-h2">Withdrawing from a confirmed visit</h2>
+        <p className="mpmb-hint">Research assistants cannot cancel a visit they have confirmed. They are asked to email this person, who removes them in the portal.</p>
+        <div className="mpmb-tools__grid">
+          <TextField id="st-wname" label="Name" value={form.withdrawalContact.name} onChange={(e) => setForm({ ...form, withdrawalContact: { ...form.withdrawalContact, name: e.target.value } })} />
+          <TextField id="st-wemail" label="Email" type="email" value={form.withdrawalContact.email} onChange={(e) => setForm({ ...form, withdrawalContact: { ...form.withdrawalContact, email: e.target.value } })} />
+        </div>
+      </section>
       <section>
         <h2 className="mpmb-h2">Documents everyone needs</h2>
         {form.docTypes.map((t, i) => (

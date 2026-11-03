@@ -4,7 +4,7 @@ export type UserStatus = 'pending' | 'active' | 'rejected' | 'archived';
 export type DocState = 'missing' | 'uploaded' | 'verified' | 'rejected' | 'expiring-soon' | 'expired';
 export type Availability = 'all' | 'am' | 'pm' | 'no';
 export type VisitStatus = 'draft' | 'staffing' | 'locked' | 'done' | 'cancelled';
-export type AssignmentStatus = 'offered' | 'confirmed' | 'declined' | 'withdrawn';
+export type AssignmentStatus = 'offered' | 'confirmed' | 'declined' | 'withdrawn' | 'removed';
 
 export interface PortalUser {
   uid: string;
@@ -50,28 +50,48 @@ export interface Counts {
   pilots: number;
 }
 
+/** One day of a visit: whether it runs, and its times. */
+export interface VisitDay {
+  date: string;
+  start: string;
+  end: string;
+  on: boolean;
+}
+
 export interface Visit {
   visitId: string;
   schoolId: string;
   schoolName: string;
-  date: string;
+  /** The period entered, and the usual times. */
+  startDate: string;
+  endDate: string;
   start: string;
   end: string;
-  meetingPoint: string;
+  days: VisitDay[];
+  /** The first and last days it runs. */
+  date: string;
+  lastDate: string;
+  /** An address, a room or a meeting point. */
+  location: string;
   needed: number;
   notes: string;
   status: VisitStatus;
 }
 
+export interface Contact {
+  name: string;
+  email: string;
+}
+
 export interface MySummary {
   user: PortalUser;
-  settings: { minTraining: number; minPilots: number };
+  settings: { minTraining: number; minPilots: number; withdrawalContact: Contact };
   documents: DocRow[];
   counts: Counts;
   sessions: { id: string; kind: 'training' | 'pilot'; date: string; title: string }[];
   availability: { date: string; value: Availability; note: string }[];
   /** Visits offered to or taken by this person: status is their place's, visitStatus the visit's. */
-  assignments: (Omit<Visit, 'status'> & { status: AssignmentStatus; visitStatus: VisitStatus })[];
+  assignments: (Omit<Visit, 'status'> & { status: AssignmentStatus; visitStatus: VisitStatus; removedReason: string })[];
 }
 
 export interface Notification {
@@ -106,6 +126,7 @@ export interface Settings {
   expiringSoonDays: number;
   dbsValidYears: number;
   docTypes: DocType[];
+  withdrawalContact: Contact;
 }
 
 export const DOC_STATE_LABEL: Record<DocState, string> = {
@@ -120,7 +141,7 @@ export const DOC_STATE_LABEL: Record<DocState, string> = {
 export const AVAILABILITY_LABEL: Record<Availability, string> = { all: 'All day', am: 'Morning', pm: 'Afternoon', no: 'Not available' };
 export const ROLE_LABEL: Record<Role, string> = { pm: 'Project manager', researcher: 'Research team', ra: 'Research assistant' };
 export const VISIT_STATUS_LABEL: Record<VisitStatus, string> = { draft: 'Draft', staffing: 'Staffing', locked: 'Fully staffed', done: 'Done', cancelled: 'Cancelled' };
-export const ASSIGNMENT_LABEL: Record<AssignmentStatus, string> = { offered: 'Offered: waiting for an answer', confirmed: 'Confirmed', declined: 'Declined', withdrawn: 'Withdrawn' };
+export const ASSIGNMENT_LABEL: Record<AssignmentStatus, string> = { offered: 'Offered: waiting for an answer', confirmed: 'Confirmed', declined: 'Declined', withdrawn: 'Withdrawn', removed: 'Removed by the project manager' };
 
 /** "Friday 20 November 2026". */
 export function longDate(iso: string): string {
@@ -136,4 +157,30 @@ export function stamp(isoTime: string | null): string {
 }
 export function todayIso(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+
+/** The days a visit runs. */
+export const daysOn = (v: Pick<Visit, 'days'>) => v.days.filter((d) => d.on);
+
+/** "Fri 20 Nov, 08:30–15:00", or "Fri 20 Nov to Tue 24 Nov (2 days)". */
+export function visitWhen(v: Pick<Visit, 'days'>): string {
+  const on = daysOn(v);
+  if (!on.length) return 'No days chosen';
+  if (on.length === 1) return `${shortDate(on[0].date)}, ${on[0].start}–${on[0].end}`;
+  return `${shortDate(on[0].date)} to ${shortDate(on.at(-1)!.date)} (${on.length} days)`;
+}
+
+/** Each day it runs, with its times: "Friday 20 November 2026, 08:30 to 15:00". */
+export const dayLines = (v: Pick<Visit, 'days'>) => daysOn(v).map((d) => `${longDate(d.date)}, ${d.start} to ${d.end}`);
+
+/** Saves text as a file (a calendar file, say) from the browser. */
+export function saveFile(filename: string, content: string, type = 'text/calendar;charset=utf-8') {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

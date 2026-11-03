@@ -4383,3 +4383,18 @@
 .mpmb-portal .mpmb-actions .mpmb-btn, .mpmb-portal .mpmb-tools__bar .mpmb-btn, .mpmb-portal__head .mpmb-btn { width: auto; }
 .mpmb-portal .mpmb-tools__section > .mpmb-btn--link { align-self: flex-start; }
 .mpmb-portal .mpmb-select { width: auto; max-width: 100%; }
+
+/* Visits over several days (3 November 2026): the day list in the form, per-day availability, removing someone, withdrawing by email. */
+.mpmb-portal__days { border: 1px solid var(--mpb-line); border-radius: 10px; padding: 0.75rem; margin: 0.75rem 0; }
+.mpmb-portal__vday { align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.mpmb-portal__vday.is-off { opacity: 0.6; }
+.mpmb-portal__times { display: inline-flex; align-items: center; gap: 0.4rem; }
+.mpmb-portal__times .mpmb-input { width: 7.5rem; min-width: 0; }
+.mpmb-portal__daylist { margin: 0.25rem 0 0.75rem; padding-left: 1.2rem; }
+.mpmb-portal__perday { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+.mpmb-portal__dayChip { font-size: 0.78rem; padding: 0.1rem 0.45rem; border-radius: 999px; border: 1px solid var(--mpb-line); background: var(--mpb-white); }
+.mpmb-portal__dayChip--yes { background: #ddf3e4; color: #135c2c; border-color: #b9e3c6; }
+.mpmb-portal__dayChip--no { background: var(--mpb-error-bg); color: var(--mpb-pink); }
+.mpmb-portal__dialog { border: 2px solid var(--mpb-pink); margin-top: 0.75rem; }
+.mpmb-portal__withdraw { display: block; margin-top: 0.35rem; }
+.mpmb-portal__details { display: flex; flex-direction: column; gap: 0.15rem; }

@@ -23,6 +23,8 @@ export const isTeam = (role: Role | null | undefined) => role === 'pm' || role =
 
 /** Who may do what. Anything not listed needs the project manager. */
 const TEAM_ACTIONS = new Set([
+  'visit-ics',
+  'visits-ics',
   'people',
   'person',
   'schools',
@@ -37,7 +39,7 @@ const TEAM_ACTIONS = new Set([
   'offer',
   'withdraw-offer',
 ]);
-const PM_ACTIONS = new Set(['requests', 'approve', 'reject', 'set-role', 'archive', 'restore', 'verify-document', 'settings', 'save-settings', 'audit', 'override']);
+const PM_ACTIONS = new Set(['requests', 'approve', 'reject', 'set-role', 'archive', 'restore', 'verify-document', 'settings', 'save-settings', 'audit', 'override', 'remove-confirmed']);
 /** Every active user, for themselves. */
 const SELF_ACTIONS = new Set(['me', 'my-summary', 'update-profile', 'notifications', 'mark-read', 'register-document', 'document-url', 'set-availability', 'open-visits', 'set-interest', 'respond-offer']);
 /** Anyone signed in with a checked email, active or not: asking for an account, and seeing where the request stands. */
@@ -76,6 +78,8 @@ export interface Settings {
   dbsValidYears: number;
   /** Required of everyone, at every school. */
   docTypes: DocType[];
+  /** Who a research assistant emails to withdraw from a visit they have confirmed (they cannot withdraw in the portal). */
+  withdrawalContact: { name: string; email: string };
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -89,7 +93,16 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: 'health', label: 'Health form', hint: 'The completed occupational health form.' },
     { id: 'safeguarding', label: 'Safeguarding training certificate', hint: 'Your certificate for the University safeguarding training.', expires: true },
   ],
+  withdrawalContact: { name: 'Dr Sarmad Ali', email: 'S.A.Ali1@leeds.ac.uk' },
 };
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+function contactOf(v: unknown): { name: string; email: string } {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  const name = text(o.name, 120);
+  const email = text(o.email, 200);
+  return name && EMAIL_RE.test(email) ? { name, email } : DEFAULT_SETTINGS.withdrawalContact;
+}
 
 const int = (v: unknown, min: number, max: number, fallback: number) => {
   const n = Number(v);
@@ -119,6 +132,7 @@ export function settingsOf(v: unknown): Settings {
     expiringSoonDays: int(o.expiringSoonDays, 0, 365, DEFAULT_SETTINGS.expiringSoonDays),
     dbsValidYears: int(o.dbsValidYears, 1, 10, DEFAULT_SETTINGS.dbsValidYears),
     docTypes: unique.length ? unique : DEFAULT_SETTINGS.docTypes,
+    withdrawalContact: contactOf(o.withdrawalContact),
   };
 }
 
@@ -296,34 +310,129 @@ export function validateAvailability(input: unknown, today: string): { days: { d
 export type VisitStatus = 'draft' | 'staffing' | 'locked' | 'done' | 'cancelled';
 export const VISIT_STATUSES: VisitStatus[] = ['draft', 'staffing', 'locked', 'done', 'cancelled'];
 
-export interface VisitInput {
-  schoolId: string;
+/** One day of a visit: its date, its times, and whether the visit runs that day. */
+export interface VisitDay {
   date: string;
   start: string;
   end: string;
-  meetingPoint: string;
+  on: boolean;
+}
+
+export interface VisitInput {
+  schoolId: string;
+  /** The first and last dates of the period the admin entered. */
+  startDate: string;
+  endDate: string;
+  /** The usual times; a day can have its own. */
+  start: string;
+  end: string;
+  /** Every day of the period, in order, with whether the visit runs and its times. */
+  days: VisitDay[];
+  /** Where the team meets: an address, a room or a meeting point (the school's name is added in front). */
+  location: string;
   needed: number;
   notes: string;
+}
+
+export const MAX_VISIT_DAYS = 62;
+const weekend = (iso: string) => {
+  const d = new Date(`${iso}T00:00:00Z`).getUTCDay();
+  return d === 0 || d === 6;
+};
+
+/** The days of a period: weekdays on and weekends off unless said otherwise, at the usual times unless a day has its own. */
+export function periodDays(startDate: string, endDate: string, start: string, end: string, overrides: { date: string; on?: boolean; start?: string; end?: string }[] = []): VisitDay[] {
+  const out: VisitDay[] = [];
+  for (let d = startDate, n = 0; d <= endDate && n < MAX_VISIT_DAYS; d = addDaysIso(d, 1), n += 1) {
+    const o = overrides.find((x) => x.date === d);
+    out.push({ date: d, on: typeof o?.on === 'boolean' ? o.on : !weekend(d), start: o?.start && TIME.test(o.start) ? o.start : start, end: o?.end && TIME.test(o.end) ? o.end : end });
+  }
+  return out;
 }
 
 export function validateVisit(input: unknown, schoolIds: string[], today: string): { visit: VisitInput | null; problems: string[] } {
   const o = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
   const problems: string[] = [];
   if (typeof o.schoolId !== 'string' || !schoolIds.includes(o.schoolId)) problems.push('Choose the school.');
-  if (!isIsoDate(o.date)) problems.push('Give the date.');
-  else if (o.date < today) problems.push('The date is in the past.');
-  if (typeof o.start !== 'string' || !TIME.test(o.start)) problems.push('Give the start time (for example 08:30).');
-  if (typeof o.end !== 'string' || !TIME.test(o.end)) problems.push('Give the end time (for example 15:00).');
-  else if (typeof o.start === 'string' && o.end <= o.start) problems.push('The end time is before the start.');
+  // A visit saved before 3 November 2026 has one date: the same as a period of one day.
+  const startDate = (o.startDate ?? o.date) as unknown;
+  const endDate = (o.endDate ?? o.startDate ?? o.date) as unknown;
+  if (!isIsoDate(startDate)) problems.push('Give the first date.');
+  if (!isIsoDate(endDate)) problems.push('Give the last date.');
+  else if (isIsoDate(startDate) && endDate < startDate) problems.push('The last date is before the first.');
+  else if (isIsoDate(startDate) && addDaysIso(startDate, MAX_VISIT_DAYS - 1) < endDate) problems.push(`A visit can cover at most ${MAX_VISIT_DAYS} days.`);
+  else if (endDate < today) problems.push('The dates are in the past.');
+  if (typeof o.start !== 'string' || !TIME.test(o.start)) problems.push('Give the usual start time (for example 08:30).');
+  if (typeof o.end !== 'string' || !TIME.test(o.end)) problems.push('Give the usual end time (for example 15:00).');
+  else if (typeof o.start === 'string' && TIME.test(o.start) && o.end <= o.start) problems.push('The usual end time is before the start.');
+  const location = text(o.location ?? o.meetingPoint, 200);
+  if (!location) problems.push('Say where: an address, a room or a meeting point.');
   const needed = Number(o.needed);
   if (!Number.isInteger(needed) || needed < 1 || needed > 30) problems.push('Say how many research assistants are needed (1 to 30).');
   if (problems.length) return { visit: null, problems };
-  return { visit: { schoolId: o.schoolId as string, date: o.date as string, start: o.start as string, end: o.end as string, meetingPoint: text(o.meetingPoint, 200), needed, notes: text(o.notes, 1000) }, problems };
+  const overrides = (Array.isArray(o.days) ? o.days : []).filter((d): d is Record<string, unknown> => !!d && typeof d === 'object').map((d) => ({ date: String(d.date ?? ''), on: typeof d.on === 'boolean' ? d.on : undefined, start: typeof d.start === 'string' ? d.start : undefined, end: typeof d.end === 'string' ? d.end : undefined }));
+  for (const d of overrides) {
+    if ((d.start && !TIME.test(d.start)) || (d.end && !TIME.test(d.end))) problems.push(`${d.date}: give times like 08:30.`);
+  }
+  const days = periodDays(startDate as string, endDate as string, o.start as string, o.end as string, overrides);
+  for (const d of days) if (d.on && d.end <= d.start) problems.push(`${d.date}: the end time is before the start.`);
+  if (!days.some((d) => d.on)) problems.push('Choose at least one day the visit runs.');
+  if (problems.length) return { visit: null, problems };
+  return { visit: { schoolId: o.schoolId as string, startDate: startDate as string, endDate: endDate as string, start: o.start as string, end: o.end as string, days, location, needed, notes: text(o.notes, 1000) }, problems };
+}
+
+export interface StoredVisit {
+  startDate: string;
+  endDate: string;
+  start: string;
+  end: string;
+  days: VisitDay[];
+  location: string;
+}
+
+/** A stored visit in today's shape: one saved before 3 November 2026 (a single date and a meeting point) becomes a period of one day. */
+export function normaliseVisit(x: Record<string, unknown>): StoredVisit {
+  const start = typeof x.start === 'string' && TIME.test(x.start) ? x.start : '08:30';
+  const end = typeof x.end === 'string' && TIME.test(x.end) ? x.end : '15:00';
+  const raw = Array.isArray(x.days) ? (x.days as Record<string, unknown>[]) : [];
+  const days: VisitDay[] = raw.length
+    ? raw.filter((d) => isIsoDate(d?.date)).map((d) => ({ date: String(d.date), on: d.on !== false, start: typeof d.start === 'string' && TIME.test(d.start) ? d.start : start, end: typeof d.end === 'string' && TIME.test(d.end) ? d.end : end }))
+    : isIsoDate(x.date)
+      ? [{ date: x.date, on: true, start, end }]
+      : [];
+  days.sort((a, b) => a.date.localeCompare(b.date));
+  const location = text(x.location, 200) || text(x.meetingPoint, 200);
+  return { startDate: days[0]?.date ?? String(x.date ?? ''), endDate: days.at(-1)?.date ?? String(x.date ?? ''), start, end, days, location };
+}
+
+/** The days a visit runs. */
+export const includedDays = (days: VisitDay[]) => days.filter((d) => d.on);
+
+/** Whether the visit's days or place changed in a way the people confirmed need to hear about. */
+export function scheduleChanged(before: StoredVisit, after: StoredVisit): { changed: boolean; removedDays: VisitDay[] } {
+  const key = (d: VisitDay) => `${d.date} ${d.start}-${d.end}`;
+  const was = includedDays(before.days);
+  const now = includedDays(after.days);
+  const changed = before.location !== after.location || was.map(key).join('|') !== now.map(key).join('|');
+  return { changed, removedDays: was.filter((d) => !now.some((n) => n.date === d.date)) };
+}
+
+export type Coverage = 'all' | 'some' | 'none' | 'unknown';
+
+/** Someone's availability across a visit's days: day by day, and in a word. */
+export function coverageFor(days: VisitDay[], availability: Map<string, Availability>): { perDay: { date: string; value: Availability | null; covers: 'yes' | 'no' | 'unknown' }[]; coverage: Coverage; availableDates: string[] } {
+  const perDay = includedDays(days).map((d) => {
+    const value = availability.get(d.date) ?? null;
+    return { date: d.date, value, covers: covers(value ?? undefined, d.start, d.end) };
+  });
+  const yes = perDay.filter((d) => d.covers === 'yes').map((d) => d.date);
+  const coverage: Coverage = !perDay.length ? 'unknown' : yes.length === perDay.length ? 'all' : yes.length ? 'some' : perDay.every((d) => d.covers === 'unknown') ? 'unknown' : 'none';
+  return { perDay, coverage, availableDates: yes };
 }
 
 /* ── Offers ───────────────────────────────────────────────────────────── */
 
-export type AssignmentStatus = 'offered' | 'confirmed' | 'declined' | 'withdrawn';
+export type AssignmentStatus = 'offered' | 'confirmed' | 'declined' | 'withdrawn' | 'removed';
 
 export interface Assignment {
   uid: string;
@@ -385,8 +494,25 @@ export function planOffers(chosen: string[], args: { needed: number; assignments
 /** An answer to an offer: only an open offer can be confirmed or declined, by the person it was made to. */
 export function respond(current: AssignmentStatus | undefined, response: unknown): { next: AssignmentStatus | null; problem: string | null } {
   if (response !== 'confirm' && response !== 'decline') return { next: null, problem: 'Say confirm or decline.' };
+  if (current === 'confirmed') return { next: null, problem: 'You have confirmed this visit, so it cannot be cancelled here. To withdraw, email the project manager.' };
   if (current !== 'offered') return { next: null, problem: current ? `This place is already ${current}.` : 'There is no offer for you on this visit.' };
   return { next: response === 'confirm' ? 'confirmed' : 'declined', problem: null };
+}
+
+/**
+ * Taking someone off a visit. An offer not yet answered can be withdrawn by the
+ * research team; a confirmed place only by the project manager, with a reason.
+ */
+export function removalProblem(current: AssignmentStatus | undefined, action: 'withdraw-offer' | 'remove-confirmed', role: Role, reason: string): string | null {
+  if (action === 'withdraw-offer') {
+    if (current === 'offered') return null;
+    if (current === 'confirmed') return 'They have confirmed: only the project manager can remove them, with a reason.';
+    return 'There is no open offer to withdraw.';
+  }
+  if (role !== 'pm') return 'Only the project manager can remove someone who has confirmed.';
+  if (current !== 'confirmed') return 'They have not confirmed this visit.';
+  if (!reason.trim()) return 'Give the reason for removing them (it is recorded and sent to them).';
+  return null;
 }
 
 /** The visit's status after its places change: locked once every place is confirmed, back to staffing when one opens up. */
@@ -426,50 +552,83 @@ export function niceDate(iso: string): string {
 
 export interface VisitInfo {
   schoolName: string;
-  date: string;
-  start: string;
-  end: string;
-  meetingPoint: string;
+  /** The days the visit runs. */
+  days: VisitDay[];
+  location: string;
 }
 
+/** "Friday 20 November 2026, 08:30 to 15:00", one line per day. */
+export function whenLines(days: VisitDay[]): string[] {
+  return includedDays(days).map((d) => `${niceDate(d.date)}, ${d.start} to ${d.end}`);
+}
+
+/** "on Friday 20 November 2026", or "from Friday 20 to Tuesday 24 November 2026 (3 days)". */
+export function whenShort(days: VisitDay[]): string {
+  const on = includedDays(days);
+  if (!on.length) return '';
+  if (on.length === 1) return `on ${niceDate(on[0].date)}`;
+  return `from ${niceDate(on[0].date)} to ${niceDate(on.at(-1)!.date)} (${on.length} days)`;
+}
+
+export const placeOf = (v: VisitInfo) => [v.schoolName, v.location].filter(Boolean).join(', ');
+
 export function offerMessage(name: string, v: VisitInfo, link: string): { title: string; body: string; subject: string; email: string } {
-  const when = `${niceDate(v.date)}, ${v.start} to ${v.end}`;
-  const title = `You've been selected: ${v.schoolName}`;
-  const body = `${when}. Please confirm or decline in the portal.`;
+  const lines = whenLines(v.days);
   return {
-    title,
-    body,
-    subject: `MyPhone/MyBrain: you're selected for ${v.schoolName} on ${niceDate(v.date)}`,
+    title: `You've been selected: ${v.schoolName}`,
+    body: `${lines.length === 1 ? lines[0] : `${lines.length} days, ${whenShort(v.days)}`}. ${v.location}. Please confirm or decline in the portal.`,
+    subject: `MyPhone/MyBrain: you're selected for ${v.schoolName} ${whenShort(v.days)}`,
+    email: [`Hello ${name},`, '', `You've been selected to help at a MyPhone/MyBrain school visit:`, '', v.schoolName, `Where: ${v.location}`, ...(lines.length > 1 ? ['On these days:'] : []), ...lines, '', `Please confirm or decline as soon as you can: ${link}`, '', 'Once you confirm, you are booked for every day listed.', '', 'The MyPhone/MyBrain team, University of Leeds'].join('\n'),
+  };
+}
+
+export function confirmationMessage(name: string, v: VisitInfo, link: string, contact: { name: string; email: string } = DEFAULT_SETTINGS.withdrawalContact): { subject: string; email: string } {
+  const lines = whenLines(v.days);
+  return {
+    subject: `MyPhone/MyBrain: confirmed for ${v.schoolName} ${whenShort(v.days)}`,
     email: [
       `Hello ${name},`,
       '',
-      `You've been selected to help at a MyPhone/MyBrain school visit:`,
+      `Thank you: you're confirmed for this MyPhone/MyBrain school visit.`,
       '',
-      `${v.schoolName}`,
-      when,
-      ...(v.meetingPoint ? [`Meeting point: ${v.meetingPoint}`] : []),
+      v.schoolName,
+      `Where: ${v.location}`,
+      ...(lines.length > 1 ? ['On these days:'] : []),
+      ...lines,
       '',
-      `Please confirm or decline as soon as you can: ${link}`,
+      `The calendar invitation is attached${lines.length > 1 ? ', with every day' : ''}. Please bring your University ID card.`,
+      `If you can no longer do it, email ${contact.name} at ${contact.email} as soon as you can: places cannot be cancelled in the portal once confirmed.`,
+      '',
+      `Your visits: ${link}`,
       '',
       'The MyPhone/MyBrain team, University of Leeds',
     ].join('\n'),
   };
 }
 
-export function confirmationMessage(name: string, v: VisitInfo, link: string): { subject: string; email: string } {
-  const when = `${niceDate(v.date)}, ${v.start} to ${v.end}`;
+export function removalMessage(name: string, v: VisitInfo, reason: string, link: string): { subject: string; email: string } {
   return {
-    subject: `MyPhone/MyBrain: confirmed for ${v.schoolName} on ${niceDate(v.date)}`,
+    subject: `MyPhone/MyBrain: you're no longer booked for ${v.schoolName} ${whenShort(v.days)}`,
+    email: [`Hello ${name},`, '', `The project manager has taken you off this school visit:`, '', v.schoolName, `Where: ${v.location}`, ...whenLines(v.days), '', `Reason: ${reason}`, '', 'A calendar update is attached to remove it from your calendar.', '', `Your visits: ${link}`, '', 'The MyPhone/MyBrain team, University of Leeds'].join('\n'),
+  };
+}
+
+export function changeMessage(name: string, v: VisitInfo, removedDays: VisitDay[], link: string): { subject: string; email: string } {
+  const lines = whenLines(v.days);
+  return {
+    subject: `MyPhone/MyBrain: ${v.schoolName} visit changed`,
     email: [
       `Hello ${name},`,
       '',
-      `Thank you: you're confirmed for this MyPhone/MyBrain school visit.`,
+      `The details of a school visit you're confirmed for have changed. Here they are now:`,
       '',
-      `${v.schoolName}`,
-      when,
-      ...(v.meetingPoint ? [`Meeting point: ${v.meetingPoint}`] : []),
+      v.schoolName,
+      `Where: ${v.location}`,
+      ...(lines.length > 1 ? ['On these days:'] : []),
+      ...lines,
+      ...(removedDays.length ? ['', `No longer needed: ${removedDays.map((d) => niceDate(d.date)).join(', ')}.`] : []),
       '',
-      'The calendar invitation is attached. Please bring your University ID card. If anything changes, tell the team in the portal as soon as you can.',
+      'An updated calendar invitation is attached. If you can no longer do it, email the project manager as soon as you can.',
       '',
       `Your visits: ${link}`,
       '',

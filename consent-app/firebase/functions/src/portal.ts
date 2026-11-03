@@ -5,34 +5,42 @@ import { logger } from 'firebase-functions/v2';
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { schools as siteSchools } from './forms.js';
-import { icsFor } from './ics.js';
+import { icsForMany, type IcsEvent } from './ics.js';
 import { SITE } from './links.js';
 import { sendMail, type Attachment, type MailOutcome } from './mail.js';
 import { sendSms, ukMobile } from './sms.js';
 import {
+  changeMessage,
   confirmationMessage,
+  coverageFor,
   copiesToDelete,
   countsFor,
-  covers,
   docState,
   docTypeOf,
   eligibilityFor,
+  includedDays,
   expiryWarnings,
   isIsoDate,
   isRole,
   latestDocs,
   mayDo,
+  normaliseVisit,
   offerMessage,
   planOffers,
   placesLeft,
+  placeOf,
+  removalMessage,
+  removalProblem,
   requirementsFor,
   respond,
+  scheduleChanged,
   settingsOf,
   TIME,
   ukToday,
   validUntil,
   validateAvailability,
   validateVisit,
+  whenShort,
   VISIT_STATUSES,
   visitStatusAfter,
   type AssignmentStatus,
@@ -43,6 +51,7 @@ import {
   type Role,
   type Settings,
   type UserStatus,
+  type VisitDay,
   type VisitInfo,
   type VisitStatus,
 } from './portalCore.js';
@@ -73,6 +82,7 @@ import {
  */
 
 const REGION = 'europe-west2';
+const COVER_ORDER = { all: 0, some: 1, unknown: 2, none: 3 } as const;
 const callOptions = { region: REGION, memory: '512MiB' as const, timeoutSeconds: 120, enforceAppCheck: process.env.MPMB_ENFORCE_APP_CHECK === 'true' };
 export const PORTAL_URL = `${SITE}/portal/`;
 export const DOC_ROOT = 'portal/docs';
@@ -228,9 +238,49 @@ async function sessionsOf(db: Firestore) {
   });
 }
 
+/** A visit as the portal shows it. One saved before 3 November 2026 (one date, a meeting point) reads as a period of one day. */
 function visitOf(id: string, x: DocumentData) {
-  return { visitId: id, schoolId: String(x.schoolId), date: String(x.date), start: String(x.start), end: String(x.end), meetingPoint: String(x.meetingPoint ?? ''), needed: Number(x.needed ?? 1), notes: String(x.notes ?? ''), status: (VISIT_STATUSES.includes(x.status) ? x.status : 'draft') as VisitStatus };
+  const n = normaliseVisit(x);
+  const on = includedDays(n.days);
+  return {
+    visitId: id,
+    schoolId: String(x.schoolId),
+    ...n,
+    /** The first and last days the visit runs: for sorting and for what is "coming up". */
+    date: on[0]?.date ?? n.startDate,
+    lastDate: on.at(-1)?.date ?? n.endDate,
+    needed: Number(x.needed ?? 1),
+    notes: String(x.notes ?? ''),
+    status: (VISIT_STATUSES.includes(x.status) ? x.status : 'draft') as VisitStatus,
+    version: Number(x.version ?? 0),
+  };
 }
+type PortalVisit = ReturnType<typeof visitOf>;
+
+/** Visits still running on or after a day (a visit over several days counts until its last). */
+async function visitsFrom(db: Firestore, from: string): Promise<PortalVisit[]> {
+  return (await db.collection('portalVisits').get()).docs.map((d) => visitOf(d.id, d.data())).filter((v) => v.lastDate >= from);
+}
+
+function infoOf(v: PortalVisit, schools: School[]): VisitInfo {
+  return { schoolName: schools.find((s) => s.id === v.schoolId)?.name ?? v.schoolId, days: v.days, location: v.location };
+}
+
+/** Calendar events for a visit's days: one per day it runs. `who` makes them personal (a research assistant's) or the team's. */
+function visitEvents(v: PortalVisit, info: VisitInfo, who: string, opts: { description: string; cancelled?: boolean; days?: VisitDay[]; url: string }): IcsEvent[] {
+  return includedDays(opts.days ?? v.days).map((d) => ({
+    uid: `portal-${v.visitId}-${d.date}-${who}@myphonemybrain.com`,
+    start: ukDateTime(d.date, d.start),
+    end: ukDateTime(d.date, d.end),
+    summary: `MyPhone/MyBrain school visit: ${info.schoolName}`,
+    location: placeOf(info),
+    description: opts.description,
+    url: opts.url,
+    sequence: v.version + (opts.cancelled ? 1 : 0),
+    ...(opts.cancelled ? { status: 'cancelled' as const } : {}),
+  }));
+}
+const icsAttachment = (ics: string, filename = 'school-visit.ics'): Attachment => ({ filename, content: ics, contentType: `text/calendar; charset=utf-8; method=${ics.includes('METHOD:CANCEL') ? 'CANCEL' : 'PUBLISH'}` });
 
 async function assignmentsOf(db: Firestore, visitId: string) {
   return (await db.collection('portalAssignments').where('visitId', '==', visitId).get()).docs.map((d) => {
@@ -334,9 +384,9 @@ export const portalApi = onCall(callOptions, async (request) => {
         sessionsOf(db),
         db.collection('portalAvailability').where('uid', '==', me.uid).where('date', '>=', today).get(),
         db.collection('portalAssignments').where('uid', '==', me.uid).get(),
-        db.collection('portalVisits').where('date', '>=', today).get(),
+        visitsFrom(db, today),
       ]);
-      const visits = new Map(visitsSnap.docs.map((d) => [d.id, visitOf(d.id, d.data())]));
+      const visits = new Map(visitsSnap.map((v) => [v.visitId, v]));
       const counts = countsFor(me.uid, sessions);
       const mine = sessions.filter((s) => s.attendees.includes(me.uid)).map((s) => ({ id: s.id, kind: s.kind, date: s.date, title: s.title }));
       const assignments = assignSnap.docs
@@ -344,13 +394,13 @@ export const portalApi = onCall(callOptions, async (request) => {
         .filter((a) => visits.has(a.visitId) && a.status !== 'withdrawn')
         .map((a) => {
           const v = visits.get(a.visitId)!;
-          return { ...v, schoolName: schools.find((s) => s.id === v.schoolId)?.name ?? v.schoolId, visitStatus: v.status, status: a.status as AssignmentStatus };
+          return { ...v, schoolName: schools.find((s) => s.id === v.schoolId)?.name ?? v.schoolId, visitStatus: v.status, status: a.status as AssignmentStatus, removedReason: a.status === 'removed' ? String(a.removedReason ?? '') : '' };
         })
         .sort((a, b) => a.date.localeCompare(b.date));
       const user = (await db.collection('portalUsers').doc(me.uid).get()).data()!;
       return {
         user: userRow(me.uid, user),
-        settings: { minTraining: settings.minTraining, minPilots: settings.minPilots },
+        settings: { minTraining: settings.minTraining, minPilots: settings.minPilots, withdrawalContact: settings.withdrawalContact },
         documents: docSummary(me.uid, docs, settings, schools, today, true),
         counts,
         sessions: mine,
@@ -421,10 +471,9 @@ export const portalApi = onCall(callOptions, async (request) => {
       return { saved: days.length };
     }
     case 'open-visits': {
-      const [schools, visitsSnap, interestSnap] = await Promise.all([schoolsOf(db), db.collection('portalVisits').where('date', '>=', today).get(), db.collection('portalInterest').where('uid', '==', me.uid).get()]);
+      const [schools, visitsSnap, interestSnap] = await Promise.all([schoolsOf(db), visitsFrom(db, today), db.collection('portalInterest').where('uid', '==', me.uid).get()]);
       const interested = new Set(interestSnap.docs.map((d) => d.data().visitId));
-      const visits = visitsSnap.docs
-        .map((d) => visitOf(d.id, d.data()))
+      const visits = visitsSnap
         .filter((v) => v.status === 'staffing' || v.status === 'draft' || v.status === 'locked')
         .map((v) => ({ ...v, schoolName: schools.find((s) => s.id === v.schoolId)?.name ?? v.schoolId, interested: interested.has(v.visitId) }))
         .sort((a, b) => a.date.localeCompare(b.date));
@@ -445,7 +494,13 @@ export const portalApi = onCall(callOptions, async (request) => {
         const [a, v] = await Promise.all([tx.get(ref), tx.get(visitRef)]);
         if (!v.exists) throw bad('That visit is not there.');
         const { next, problem } = respond(a.exists ? (a.data()!.status as AssignmentStatus) : undefined, data.response);
-        if (problem || !next) throw bad(problem ?? 'Say confirm or decline.');
+        if (problem || !next) {
+          if (a.exists && a.data()!.status === 'confirmed') {
+            const contact = (await settingsFrom(db)).withdrawalContact;
+            throw refused(`You have confirmed this visit, so it cannot be cancelled here. To withdraw, email ${contact.name} at ${contact.email}.`);
+          }
+          throw bad(problem ?? 'Say confirm or decline.');
+        }
         tx.update(ref, { status: next, respondedAt: FieldValue.serverTimestamp(), note: text(data.note, 300) });
         return { next, visit: visitOf(v.id, v.data()!) };
       });
@@ -453,21 +508,21 @@ export const portalApi = onCall(callOptions, async (request) => {
       const status = visitStatusAfter(result.visit.status, result.visit.needed, assignments);
       if (status !== result.visit.status) await visitRef.update({ status, updatedAt: FieldValue.serverTimestamp() });
       const schools = await schoolsOf(db);
-      const info: VisitInfo = { schoolName: schools.find((s) => s.id === result.visit.schoolId)?.name ?? result.visit.schoolId, date: result.visit.date, start: result.visit.start, end: result.visit.end, meetingPoint: result.visit.meetingPoint };
+      const info = infoOf(result.visit, schools);
+      const when = whenShort(info.days);
       const who = me.name || me.email;
       await audit(db, me, result.next === 'confirmed' ? 'confirm-offer' : 'decline-offer', visitId, { note: text(data.note, 300) });
       if (result.next === 'confirmed') {
-        const m = confirmationMessage(me.name.split(' ')[0] || 'there', info, `${PORTAL_URL}#my-visits`);
-        const start = ukDateTime(info.date, info.start);
-        const end = ukDateTime(info.date, info.end);
-        const ics = icsFor({ uid: `portal-${visitId}-${me.uid}@myphonemybrain.com`, start, end, summary: `MyPhone/MyBrain school visit: ${info.schoolName}`, location: [info.schoolName, info.meetingPoint].filter(Boolean).join(', '), description: `MyPhone/MyBrain school visit. Meeting point: ${info.meetingPoint || 'to be confirmed'}.`, url: `${PORTAL_URL}#my-visits` });
-        await mail(db, me.email, m.subject, m.email, 'confirmation', [{ filename: 'school-visit.ics', content: ics, contentType: 'text/calendar; charset=utf-8; method=PUBLISH' }]);
-        await notify(db, [me.uid], { title: `Confirmed: ${info.schoolName}`, body: `${info.date}, ${info.start} to ${info.end}. A confirmation email with a calendar invitation is on its way.`, link: '#my-visits' });
-        await tellTeam(db, { title: `${who} confirmed`, body: `${info.schoolName} on ${info.date}.`, link: `#visit/${visitId}` });
+        const settings = await settingsFrom(db);
+        const m = confirmationMessage(me.name.split(' ')[0] || 'there', info, `${PORTAL_URL}#my-visits`, settings.withdrawalContact);
+        const ics = icsForMany(visitEvents(result.visit, info, me.uid, { description: `MyPhone/MyBrain school visit at ${placeOf(info)}. To withdraw, email ${settings.withdrawalContact.name} at ${settings.withdrawalContact.email}.`, url: `${PORTAL_URL}#my-visits` }), new Date(), 'School visits');
+        await mail(db, me.email, m.subject, m.email, 'confirmation', [icsAttachment(ics)]);
+        await notify(db, [me.uid], { title: `Confirmed: ${info.schoolName}`, body: `${when}. ${info.location}. A confirmation email with a calendar invitation is on its way.`, link: '#my-visits' });
+        await tellTeam(db, { title: `${who} confirmed`, body: `${info.schoolName} ${when}.`, link: `#visit/${visitId}` });
       } else {
-        await tellTeam(db, { title: `${who} declined`, body: `${info.schoolName} on ${info.date}: a place is open again.${text(data.note, 300) ? ` “${text(data.note, 300)}”` : ''}`, link: `#visit/${visitId}` }, ['pm', 'researcher'], {
-          subject: `MyPhone/MyBrain portal: ${who} declined ${info.schoolName} on ${info.date}`,
-          body: `${who} declined the place on the visit to ${info.schoolName} on ${info.date}, so a place is open again.\n\nChoose someone else in the portal: ${PORTAL_URL}#visit/${visitId}`,
+        await tellTeam(db, { title: `${who} declined`, body: `${info.schoolName} ${when}: a place is open again.${text(data.note, 300) ? ` “${text(data.note, 300)}”` : ''}`, link: `#visit/${visitId}` }, ['pm', 'researcher'], {
+          subject: `MyPhone/MyBrain portal: ${who} declined ${info.schoolName} ${when}`,
+          body: `${who} declined the place on the visit to ${info.schoolName} ${when}, so a place is open again.\n\nChoose someone else in the portal: ${PORTAL_URL}#visit/${visitId}`,
           kind: 'declined',
         });
       }
@@ -539,11 +594,10 @@ export const portalApi = onCall(callOptions, async (request) => {
       return { ok: true };
     }
     case 'visits': {
-      const [schools, snap] = await Promise.all([schoolsOf(db), db.collection('portalVisits').where('date', '>=', text(data.from, 10) || addMonthsBack(today)).get()]);
+      const [schools, snap] = await Promise.all([schoolsOf(db), visitsFrom(db, text(data.from, 10) || addMonthsBack(today))]);
       const all = (await db.collection('portalAssignments').get()).docs.map((d) => d.data());
       return {
-        visits: snap.docs
-          .map((d) => visitOf(d.id, d.data()))
+        visits: snap
           .map((v) => {
             const mine = all.filter((a) => a.visitId === v.visitId);
             return { ...v, schoolName: schools.find((s) => s.id === v.schoolId)?.name ?? v.schoolId, confirmed: mine.filter((a) => a.status === 'confirmed').length, offered: mine.filter((a) => a.status === 'offered').length };
@@ -557,8 +611,30 @@ export const portalApi = onCall(callOptions, async (request) => {
       const { visit, problems } = validateVisit(data, schools.filter((s) => s.active).map((s) => s.id), today);
       if (!visit) throw bad(problems.join(' '));
       const ref = data.visitId ? db.collection('portalVisits').doc(idOf(data.visitId, 'visit')) : db.collection('portalVisits').doc();
-      await ref.set({ ...visit, ...(data.visitId ? {} : { status: 'draft', createdBy: me.uid, createdAt: FieldValue.serverTimestamp() }), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-      await audit(db, me, data.visitId ? 'update-visit' : 'add-visit', ref.id, { ...visit });
+      const beforeSnap = data.visitId ? await ref.get() : null;
+      if (data.visitId && !beforeSnap?.exists) throw bad('That visit is not there.');
+      const before = beforeSnap ? visitOf(ref.id, beforeSnap.data()!) : null;
+      const on = includedDays(visit.days);
+      const change = before ? scheduleChanged(before, { ...visit }) : { changed: false, removedDays: [] as VisitDay[] };
+      const version = (before?.version ?? 0) + (change.changed ? 1 : 0);
+      // The first and last days it runs are kept too, for sorting; meetingPoint was the place before 3 November 2026.
+      await ref.set({ ...visit, date: on[0].date, lastDate: on.at(-1)!.date, meetingPoint: FieldValue.delete(), version, ...(data.visitId ? {} : { status: 'draft', createdBy: me.uid, createdAt: FieldValue.serverTimestamp() }), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await audit(db, me, data.visitId ? 'update-visit' : 'add-visit', ref.id, { schoolId: visit.schoolId, days: on.map((d) => `${d.date} ${d.start}-${d.end}`), location: visit.location, needed: visit.needed });
+      if (before && change.changed) {
+        // The people confirmed hear about the new days, times or place, with an updated calendar invitation.
+        const after = visitOf(ref.id, (await ref.get()).data()!);
+        const confirmed = (await assignmentsOf(db, ref.id)).filter((a) => a.status === 'confirmed');
+        const info = infoOf(after, schools);
+        for (const a of confirmed) {
+          const u = (await db.collection('portalUsers').doc(a.uid).get()).data() ?? {};
+          const m = changeMessage(String(u.name ?? '').split(' ')[0] || 'there', info, change.removedDays, `${PORTAL_URL}#my-visits`);
+          const attachments = [icsAttachment(icsForMany(visitEvents(after, info, a.uid, { description: `MyPhone/MyBrain school visit at ${placeOf(info)} (updated).`, url: `${PORTAL_URL}#my-visits` }), new Date(), 'School visits'))];
+          if (change.removedDays.length) attachments.push(icsAttachment(icsForMany(visitEvents(after, info, a.uid, { description: 'No longer needed.', cancelled: true, days: change.removedDays, url: `${PORTAL_URL}#my-visits` }), new Date(), 'School visits'), 'school-visit-removed-days.ics'));
+          await notify(db, [a.uid], { title: `Changed: ${info.schoolName}`, body: `${whenShort(info.days)}. ${info.location}. An updated calendar invitation is in your email.`, link: '#my-visits' });
+          if (u.email) await mail(db, String(u.email), m.subject, m.email, 'visit-changed', attachments);
+        }
+        if (confirmed.length) await audit(db, me, 'visit-change-sent', ref.id, { to: confirmed.map((a) => a.uid) });
+      }
       return { visitId: ref.id };
     }
     case 'set-visit-status': {
@@ -584,25 +660,35 @@ export const portalApi = onCall(callOptions, async (request) => {
         db.collection('portalUsers').where('status', '==', 'active').get(),
         docsOf(db),
         sessionsOf(db),
-        db.collection('portalAvailability').where('date', '==', v.date).get(),
+        db.collection('portalAvailability').where('date', '>=', v.date).where('date', '<=', v.lastDate).get(),
         db.collection('portalInterest').where('visitId', '==', visitId).get(),
         assignmentsOf(db, visitId),
       ]);
       const school = schools.find((s) => s.id === v.schoolId) ?? null;
       const requirements = requirementsFor(settings, school);
       const latest = latestDocs(docs);
-      const avail = new Map(availSnap.docs.map((d) => [String(d.data().uid), d.data() as { value: Availability; note?: string }]));
+      // Each person's availability on each day the visit runs.
+      const availOf = new Map<string, Map<string, Availability>>();
+      const notesOf = new Map<string, string[]>();
+      for (const d of availSnap.docs) {
+        const x = d.data();
+        const uid = String(x.uid);
+        if (!availOf.has(uid)) availOf.set(uid, new Map());
+        availOf.get(uid)!.set(String(x.date), x.value as Availability);
+        if (x.note) notesOf.set(uid, [...(notesOf.get(uid) ?? []), `${x.date}: ${x.note}`]);
+      }
       const interested = new Set(interestSnap.docs.map((d) => String(d.data().uid)));
       const candidates = usersSnap.docs
         .filter((d) => d.data().role === 'ra')
         .map((d) => {
           const counts = countsFor(d.id, sessions);
-          const e = eligibilityFor(d.id, latest, requirements, counts, settings, v.date);
-          const day = avail.get(d.id);
-          return { uid: d.id, name: String(d.data().name ?? ''), email: String(d.data().email ?? ''), availability: day?.value ?? null, availabilityNote: day?.note ?? '', covers: covers(day?.value, v.start, v.end), interested: interested.has(d.id), counts, eligible: e.eligible, reasons: e.reasons, assignment: assignments.find((a) => a.uid === d.id) ?? null };
+          // Documents must be in date on every day it runs: the last day decides.
+          const e = eligibilityFor(d.id, latest, requirements, counts, settings, v.lastDate);
+          const cover = coverageFor(v.days, availOf.get(d.id) ?? new Map());
+          return { uid: d.id, name: String(d.data().name ?? ''), email: String(d.data().email ?? ''), perDay: cover.perDay, coverage: cover.coverage, availableDates: cover.availableDates, availabilityNote: (notesOf.get(d.id) ?? []).join(' · '), interested: interested.has(d.id), counts, eligible: e.eligible, reasons: e.reasons, assignment: assignments.find((a) => a.uid === d.id) ?? null };
         })
-        .sort((a, b) => Number(b.eligible) - Number(a.eligible) || (a.covers === 'yes' ? 0 : 1) - (b.covers === 'yes' ? 0 : 1) || Number(b.interested) - Number(a.interested) || a.name.localeCompare(b.name));
-      return { visit: { ...v, schoolName: school?.name ?? v.schoolId, requiredDocs: requirements.map((r) => r.type.label) }, candidates, placesLeft: placesLeft(v.needed, assignments), mayOverride: me.role === 'pm' };
+        .sort((a, b) => Number(b.eligible) - Number(a.eligible) || COVER_ORDER[a.coverage] - COVER_ORDER[b.coverage] || b.availableDates.length - a.availableDates.length || Number(b.interested) - Number(a.interested) || a.name.localeCompare(b.name));
+      return { visit: { ...v, schoolName: school?.name ?? v.schoolId, requiredDocs: requirements.map((r) => r.type.label) }, candidates, placesLeft: placesLeft(v.needed, assignments), mayOverride: me.role === 'pm', mayRemove: me.role === 'pm' };
     }
     case 'offer': {
       const visitId = idOf(data.visitId, 'visit');
@@ -615,12 +701,12 @@ export const portalApi = onCall(callOptions, async (request) => {
       const ras = usersSnap.docs.filter((d) => d.data().role === 'ra');
       const requirements = requirementsFor(settings, school);
       const latest = latestDocs(docs);
-      const eligible = new Map<string, Eligibility>(ras.map((d) => [d.id, eligibilityFor(d.id, latest, requirements, countsFor(d.id, sessions), settings, v.date)]));
+      const eligible = new Map<string, Eligibility>(ras.map((d) => [d.id, eligibilityFor(d.id, latest, requirements, countsFor(d.id, sessions), settings, v.lastDate)]));
       const overrides = (data.overrides && typeof data.overrides === 'object' ? data.overrides : {}) as Record<string, string>;
       const chosen = (Array.isArray(data.uids) ? data.uids : []).filter((u): u is string => typeof u === 'string');
       const plan = planOffers(chosen, { needed: v.needed, assignments, active: new Set(ras.map((d) => d.id)), eligible, overrides, mayOverride: me.role === 'pm', visitStatus: v.status });
       if (plan.problems.length) throw bad(plan.problems.join(' '));
-      const info: VisitInfo = { schoolName: school?.name ?? v.schoolId, date: v.date, start: v.start, end: v.end, meetingPoint: v.meetingPoint };
+      const info: VisitInfo = { schoolName: school?.name ?? v.schoolId, days: v.days, location: v.location };
       const batch = db.batch();
       for (const uid of plan.offer) {
         const reason = !eligible.get(uid)?.eligible ? text(overrides[uid], 300) : '';
@@ -634,24 +720,66 @@ export const portalApi = onCall(callOptions, async (request) => {
         const m = offerMessage(String(u.name ?? '').split(' ')[0] || 'there', info, `${PORTAL_URL}#offers`);
         await notify(db, [uid], { title: m.title, body: m.body, link: '#offers' });
         await mail(db, String(u.email), m.subject, m.email, 'offer');
-        await text_(db, u, `MyPhone/MyBrain: you're selected for ${info.schoolName} on ${info.date}, ${info.start}. Please confirm in the portal: ${PORTAL_URL}`, 'offer');
+        await text_(db, u, `MyPhone/MyBrain: you're selected for ${info.schoolName} ${whenShort(info.days)}. Please confirm in the portal: ${PORTAL_URL}`, 'offer');
         const reason = !eligible.get(uid)?.eligible ? text(overrides[uid], 300) : '';
         await audit(db, me, reason ? 'offer-override' : 'offer', visitId, { uid, ...(reason ? { reason, reasons: eligible.get(uid)?.reasons ?? [] } : {}) });
       }
       return { offered: plan.offer.length };
     }
-    case 'withdraw-offer': {
+    case 'withdraw-offer':
+    case 'remove-confirmed': {
+      // An offer not yet answered: the research team can withdraw it. A confirmed place: only the project manager, with a reason (research assistants email them to withdraw).
       const visitId = idOf(data.visitId, 'visit');
       const uid = idOf(data.uid, 'person');
+      const reason = text(data.reason, 500);
       const ref = db.collection('portalAssignments').doc(`${visitId}_${uid}`);
-      const a = await ref.get();
-      if (!a.exists || a.data()!.status === 'withdrawn' || a.data()!.status === 'declined') throw bad('There is no open place to withdraw.');
-      await ref.update({ status: 'withdrawn', respondedAt: FieldValue.serverTimestamp() });
-      const v = visitOf(visitId, (await db.collection('portalVisits').doc(visitId).get()).data()!);
-      await db.collection('portalVisits').doc(visitId).update({ status: visitStatusAfter(v.status, v.needed, await assignmentsOf(db, visitId)) });
-      await notify(db, [uid], { title: 'A school visit place was withdrawn', body: `Your place on ${v.date} is no longer needed. Sorry for the change.`, link: '#my-visits' });
-      await audit(db, me, 'withdraw-offer', visitId, { uid });
-      return { ok: true };
+      const visitRef = db.collection('portalVisits').doc(visitId);
+      const [a, vSnap] = await Promise.all([ref.get(), visitRef.get()]);
+      if (!vSnap.exists) throw bad('That visit is not there.');
+      const problem = removalProblem(a.exists ? (a.data()!.status as AssignmentStatus) : undefined, action as 'withdraw-offer' | 'remove-confirmed', me.role!, reason);
+      if (problem) throw (problem.startsWith('Only') || problem.startsWith('They have confirmed') ? refused(problem) : bad(problem));
+      const removing = action === 'remove-confirmed';
+      await ref.update({ status: removing ? 'removed' : 'withdrawn', respondedAt: FieldValue.serverTimestamp(), ...(removing ? { removedReason: reason, removedBy: me.uid, removedByName: me.name, removedAt: FieldValue.serverTimestamp() } : {}) });
+      const v = visitOf(visitId, vSnap.data()!);
+      const status = visitStatusAfter(v.status, v.needed, await assignmentsOf(db, visitId));
+      await visitRef.update({ status, updatedAt: FieldValue.serverTimestamp() });
+      const schools = await schoolsOf(db);
+      const info = infoOf(v, schools);
+      const when = whenShort(info.days);
+      const u = (await db.collection('portalUsers').doc(uid).get()).data() ?? {};
+      const theirName = String(u.name ?? '') || 'Someone';
+      if (removing) {
+        const m = removalMessage(theirName.split(' ')[0] || 'there', info, reason, `${PORTAL_URL}#my-visits`);
+        await notify(db, [uid], { title: `No longer booked: ${info.schoolName}`, body: `${when}. Reason: ${reason}`, link: '#my-visits' });
+        if (u.email) await mail(db, String(u.email), m.subject, m.email, 'removed', [icsAttachment(icsForMany(visitEvents(v, info, uid, { description: `Removed: ${reason}`, cancelled: true, url: `${PORTAL_URL}#my-visits` }), new Date(), 'School visits'))]);
+        await tellTeam(db, { title: `${theirName} removed from ${info.schoolName}`, body: `${when}: a place is open again. Reason: ${reason}`, link: `#visit/${visitId}` });
+        await audit(db, me, 'remove-confirmed', visitId, { uid, reason });
+      } else {
+        await notify(db, [uid], { title: 'A school visit offer was withdrawn', body: `${info.schoolName} ${when}: the place is no longer needed. Sorry for the change.`, link: '#my-visits' });
+        await audit(db, me, 'withdraw-offer', visitId, { uid });
+      }
+      return { ok: true, visitStatus: status };
+    }
+    case 'visit-ics':
+    case 'visits-ics': {
+      // Calendar files for the team: one visit, or every visit coming up, one event per day, with the place and who is confirmed.
+      const schools = await schoolsOf(db);
+      const visits = action === 'visit-ics' ? [await (async () => {
+        const snap = await db.collection('portalVisits').doc(idOf(data.visitId, 'visit')).get();
+        if (!snap.exists) throw bad('That visit is not there.');
+        return visitOf(snap.id, snap.data()!);
+      })()] : (await visitsFrom(db, today)).filter((v) => v.status !== 'cancelled' && v.status !== 'done');
+      const names = new Map((await db.collection('portalUsers').get()).docs.map((d) => [d.id, String(d.data().name ?? d.data().email ?? '')]));
+      const events: IcsEvent[] = [];
+      for (const v of visits) {
+        const info = infoOf(v, schools);
+        const confirmed = (await assignmentsOf(db, v.visitId)).filter((a) => a.status === 'confirmed').map((a) => names.get(a.uid) ?? a.uid);
+        const description = [`MyPhone/MyBrain school visit at ${placeOf(info)}.`, `Research assistants confirmed (${confirmed.length} of ${v.needed}): ${confirmed.join(', ') || 'none yet'}.`, ...(v.notes ? [v.notes] : [])].join('\n');
+        events.push(...visitEvents(v, info, 'team', { description, url: `${PORTAL_URL}#visit/${v.visitId}` }));
+      }
+      const first = visits[0];
+      const filename = action === 'visit-ics' && first ? `visit-${(schools.find((s) => s.id === first.schoolId)?.name ?? first.schoolId).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${first.date}.ics` : 'school-visits.ics';
+      return { filename, ics: icsForMany(events, new Date(), 'School visits'), events: events.length };
     }
 
     /* ── The project manager ── */
