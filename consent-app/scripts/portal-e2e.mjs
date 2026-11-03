@@ -117,13 +117,19 @@ async function inner() {
     return r.json();
   };
 
-  // A visit date a little ahead, on a weekday.
+  // A visit a little ahead: Monday to Thursday, with the Tuesday off and the Wednesday shorter.
   const visitDate = (() => {
     const d = new Date();
     d.setUTCDate(d.getUTCDate() + 10);
-    while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1);
+    while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() + 1);
     return d.toISOString().slice(0, 10);
   })();
+  const plus = (iso, n) => {
+    const d = new Date(`${iso}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  const [mon, tue, wed, thu] = [0, 1, 2, 3].map((n) => plus(visitDate, n));
   const longDate = (iso) => new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
   const pdf = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n');
 
@@ -268,22 +274,67 @@ async function inner() {
     await shot(team, 'desktop-06-team-people');
     ok('the assistant shows as ready once documents, training and pilots are done', true);
 
+    team.on('dialog', (d) => void d.accept());
+    pm.on('dialog', (d) => void d.accept());
     await team.goto(`${BASE}#visits`);
     await team.locator('#v-school').selectOption('GSAL');
-    await team.locator('#v-date').fill(visitDate);
+    await team.locator('#v-location').fill('Main reception, Alwoodley Gates');
+    await team.locator('#v-from').fill(mon);
+    await team.locator('#v-to').fill(thu);
     await team.locator('#v-needed').fill('1');
-    await team.locator('#v-meet').fill('Main reception');
+    await team.getByLabel(`${longDate(tue)}: the visit runs`).uncheck();
+    await team.getByLabel(`${longDate(wed)}: start`).fill('09:00');
+    await team.getByLabel(`${longDate(wed)}: end`).fill('12:00');
+    await shot(team, 'desktop-13-team-visit-form');
     await team.getByRole('button', { name: 'Add the visit' }).click();
     await team.getByRole('heading', { name: 'Choose who to ask' }).waitFor();
-    await team.locator('li', { hasText: 'Sam Reed' }).getByText('All day').waitFor();
+    const visit = (await db.collection('portalVisits').get()).docs[0];
+    const vd = visit.data();
+    ok('a visit over a period: the Tuesday off, the Wednesday with its own times, the place kept', vd.days.length === 4 && vd.days.filter((d) => d.on).map((d) => d.date).join() === [mon, wed, thu].join() && vd.days.find((d) => d.date === wed).start === '09:00' && vd.location === 'Main reception, Alwoodley Gates' && vd.date === mon && vd.lastDate === thu, JSON.stringify(vd.days));
+
+    /* ── Provisional dates: asking who could do them ── */
+    await team.locator('select[aria-label="Visit status"]').selectOption('provisional');
+    await team.getByText('Status changed.').waitFor();
+    const raMail = async () => (await db.collection('portalMail').where('to', '==', RA).get()).docs.map((d) => d.data());
+    const pushes = async () => (await db.collection('portalPushLog').where('uid', '==', raUid).get()).docs.map((d) => d.data());
+    ok('putting dates out as provisional emails and pushes every research assistant', (await raMail()).some((m) => m.kind === 'dates-provisional' && /not yet confirmed/.test(m.subject)) && (await pushes()).some((p) => /^Possible school dates \(not yet confirmed\): The Grammar School at Leeds/.test(p.body)), JSON.stringify(await pushes()));
+    ok('the push carries only the school and the dates', (await pushes()).every((p) => !/Sam|Reed|sam\.reed/.test(JSON.stringify(p))));
+    const provOffer = await call(teamToken, 'offer', { visitId: visit.id, uids: [raUid] });
+    ok('no offers while the dates are provisional', /provisional/.test(provOffer.error?.message ?? ''), JSON.stringify(provOffer.error ?? {}));
+    await ra.goto(`${BASE}#offers`);
+    await ra.getByText('Provisional — not confirmed').waitFor();
+    await ra.getByRole('radiogroup', { name: `${longDate(mon)}: could you do it?` }).getByRole('radio', { name: 'Can do' }).click();
+    await ra.getByRole('radiogroup', { name: `${longDate(wed)}: could you do it?` }).getByRole('radio', { name: 'Maybe' }).click();
+    await ra.getByRole('radiogroup', { name: `${longDate(thu)}: could you do it?` }).getByRole('radio', { name: 'Can’t do' }).click();
+    await shot(ra, 'mobile-11-ra-provisional');
+    await ra.getByRole('button', { name: 'Send my answers' }).click();
+    await ra.getByText('Thank you: sent.').waitFor();
+    const answers = (await db.collection('portalCanvass').doc(`${visit.id}_${raUid}`).get()).data()?.answers ?? {};
+    const availThu = (await db.collection('portalAvailability').doc(`${raUid}_${thu}`).get()).data();
+    ok('answers kept day by day, and as availability', answers[mon] === 'yes' && answers[wed] === 'maybe' && answers[thu] === 'no' && availThu?.value === 'no' && availThu?.visitId === visit.id, JSON.stringify(answers));
+    await team.reload();
+    await team.getByRole('heading', { name: 'Who could do these provisional dates' }).waitFor();
+    await shot(team, 'desktop-14-team-canvass');
+    const canvass = (await call(teamToken, 'visit', { visitId: visit.id })).result?.canvass ?? [];
+    ok('the team sees, per day, who can, might and can’t', canvass.length === 3 && canvass[0].yes.includes('Sam Reed') && canvass[1].maybe.includes('Sam Reed') && canvass[2].no.includes('Sam Reed'), JSON.stringify(canvass));
+    await team.locator('select[aria-label="Visit status"]').selectOption('staffing');
+    await team.getByText('Status changed.').waitFor();
+    ok('confirming the dates tells those who said they could', (await raMail()).some((m) => m.kind === 'dates-confirmed') && (await pushes()).some((p) => /^School dates confirmed/.test(p.body)));
+
+    /* ── Staffing over several days ── */
+    await team.reload();
+    await team.locator('li', { hasText: 'Sam Reed' }).getByText(/Available 1 of 3 days/).waitFor();
     await shot(team, 'desktop-07-team-staffing');
+    const visitView = (await call(teamToken, 'visit', { visitId: visit.id })).result;
+    const sam = visitView?.candidates?.find((c) => c.uid === raUid);
+    ok('availability shown day by day across the visit', sam?.coverage === 'some' && sam.perDay.map((d) => d.covers).join() === 'yes,unknown,no', JSON.stringify(sam?.perDay));
     await team.getByLabel(/Sam Reed/).check();
     await team.getByRole('button', { name: /Lock in and notify/ }).click();
     await team.getByText('Offered to 1').waitFor();
     await shot(team, 'desktop-08-team-offered');
-    const visit = (await db.collection('portalVisits').get()).docs[0];
     const assignment = await db.collection('portalAssignments').doc(`${visit.id}_${raUid}`).get();
-    ok('the place is offered', assignment.data()?.status === 'offered' && visit.data().status === 'staffing');
+    ok('the place is offered', assignment.data()?.status === 'offered' && (await db.collection('portalVisits').doc(visit.id).get()).data().status === 'staffing');
+    ok('the offer is pushed too', (await pushes()).some((p) => /^You've been selected/.test(p.title)));
 
     /* ── The assistant confirms ── */
     await ra.goto(`${BASE}#home`);
@@ -296,7 +347,7 @@ async function inner() {
     await ra.getByRole('button', { name: 'Confirm I can do it' }).click();
     await ra.getByText('Waiting for your answer').waitFor();
     await ra.goto(`${BASE}#my-visits`);
-    await ra.getByText('Confirmed').first().waitFor();
+    await ra.getByText('To withdraw, email').first().waitFor();
     await shot(ra, 'mobile-08-ra-my-visits');
     await ra.goto(`${BASE}#notifications`);
     await ra.getByText(/Confirmed: The Grammar School at Leeds/).waitFor();
@@ -304,6 +355,29 @@ async function inner() {
     const after = await db.collection('portalAssignments').doc(`${visit.id}_${raUid}`).get();
     const visitAfter = await db.collection('portalVisits').doc(visit.id).get();
     ok('confirmed, and the visit is fully staffed', after.data()?.status === 'confirmed' && visitAfter.data()?.status === 'locked');
+    const confirmMail = (await raMail()).find((m) => m.kind === 'confirmation');
+    ok('the confirmation email is sent, with every day in its subject', /from .* to .*\(3 days\)/.test(confirmMail?.subject ?? ''), confirmMail?.subject ?? '');
+    const cancel = await call(raToken, 'respond-offer', { visitId: visit.id, response: 'decline' });
+    ok('a research assistant cannot cancel a confirmed place', cancel.error?.status === 'PERMISSION_DENIED' && /email Dr Sarmad Ali/.test(cancel.error.message), JSON.stringify(cancel.error ?? {}));
+    const teamRemove = await call(teamToken, 'remove-confirmed', { visitId: visit.id, uid: raUid, reason: 'test' });
+    ok('the research team cannot remove a confirmed place', teamRemove.error?.status === 'PERMISSION_DENIED');
+    const teamWithdraw = await call(teamToken, 'withdraw-offer', { visitId: visit.id, uid: raUid });
+    ok('nor withdraw it as an offer', teamWithdraw.error?.status === 'PERMISSION_DENIED', JSON.stringify(teamWithdraw.error ?? {}));
+
+    /* ── Calendars ── */
+    const ics = (await call(teamToken, 'visit-ics', { visitId: visit.id })).result;
+    const events = (ics?.ics ?? '').split('BEGIN:VEVENT').length - 1;
+    ok('the visit’s calendar file has one event per day it runs, with the place and who is confirmed', events === 3 && /LOCATION:The Grammar School at Leeds\\, Main reception\\, Alwoodley Gates/.test(ics.ics) && /Sam Reed/.test(ics.ics), `${events} events`);
+    const all = (await call(teamToken, 'visits-ics')).result;
+    ok('a calendar file of every visit coming up', (all?.ics ?? '').split('BEGIN:VEVENT').length - 1 === 3);
+    const raIcs = await call(raToken, 'visit-ics', { visitId: visit.id });
+    ok('research assistants cannot download the team calendar', raIcs.error?.status === 'PERMISSION_DENIED');
+
+    /* ── A change after confirming: the person confirmed is told ── */
+    const cur = (await call(teamToken, 'visit', { visitId: visit.id })).result.visit;
+    const changed = await call(teamToken, 'save-visit', { visitId: visit.id, schoolId: cur.schoolId, startDate: cur.startDate, endDate: cur.endDate, start: cur.start, end: cur.end, needed: cur.needed, notes: cur.notes, location: 'Sports hall', days: cur.days });
+    ok('a change of place is saved', Boolean(changed.result?.visitId), JSON.stringify(changed.error ?? {}));
+    ok('the person confirmed is emailed and pushed the change', (await raMail()).some((m) => m.kind === 'visit-changed') && (await pushes()).some((p) => /^Visit changed/.test(p.title)));
 
     const mail = (await db.collection('portalMail').get()).docs.map((d) => d.data());
     const kinds = (to) => mail.filter((m) => m.to === to).map((m) => m.kind);
@@ -312,7 +386,7 @@ async function inner() {
     const notes = (await db.collection('portalNotifications').get()).docs.map((d) => d.data());
     ok('the team is told about the confirmation', notes.some((n) => n.uid === users[TEAM].uid && /confirmed/.test(n.title)));
     const auditActions = (await db.collection('portalAudit').get()).docs.map((d) => d.data().action);
-    ok('the audit log has every step', ['request-access', 'approve', 'upload-document', 'verify-document', 'save-session', 'add-visit', 'offer', 'confirm-offer', 'open-document'].every((a) => auditActions.includes(a)), [...new Set(auditActions)].join(', '));
+    ok('the audit log has every step', ['request-access', 'approve', 'upload-document', 'verify-document', 'save-session', 'add-visit', 'offer', 'confirm-offer', 'open-document', 'canvass-answer', 'announce-provisional', 'announce-confirmed'].every((a) => auditActions.includes(a)), [...new Set(auditActions)].join(', '));
     await pm.goto(`${BASE}#audit`);
     await pm.getByText('confirm-offer').first().waitFor();
     await shot(pm, 'desktop-09-pm-audit');
@@ -323,6 +397,18 @@ async function inner() {
     // A second offer on a full visit is refused.
     const full = await call(teamToken, 'offer', { visitId: visit.id, uids: [raUid] });
     ok('no offers beyond the places on a visit', Boolean(full.error));
+
+    /* ── The project manager removes them (they emailed to withdraw) ── */
+    await pm.getByRole('button', { name: 'Remove…' }).click();
+    await pm.locator('#remove-reason').fill('Emailed to withdraw: unwell');
+    await shot(pm, 'desktop-15-pm-remove');
+    await pm.getByRole('button', { name: 'Remove Sam Reed' }).click();
+    await pm.getByText('Sam Reed removed.').waitFor();
+    const removed = (await db.collection('portalAssignments').doc(`${visit.id}_${raUid}`).get()).data();
+    ok('the project manager removes a confirmed place, with the reason', removed?.status === 'removed' && removed.removedReason === 'Emailed to withdraw: unwell');
+    ok('the place opens again', (await db.collection('portalVisits').doc(visit.id).get()).data().status === 'staffing');
+    ok('the person removed is notified, emailed and pushed', (await raMail()).some((m) => m.kind === 'removed') && (await pushes()).some((p) => /^No longer booked/.test(p.title)) && (await db.collection('portalNotifications').where('uid', '==', raUid).get()).docs.some((d) => /No longer booked/.test(d.data().title)));
+    ok('removing is in the audit log', (await db.collection('portalAudit').where('action', '==', 'remove-confirmed').get()).size === 1);
 
     /* ── Mobile versions of team screens, desktop of the assistant's ── */
     const teamMobile = await browser.newContext(mobile);
@@ -339,6 +425,19 @@ async function inner() {
     await shot(rd, 'desktop-11-ra-checklist');
     await rd.getByRole('button', { name: 'Lab study' }).click();
     await shot(rd, 'desktop-12-lab-placeholder');
+    await ra.goto(`${BASE}#home`);
+    await ra.getByRole('heading', { name: 'Save the portal to your Home Screen' }).waitFor();
+    await ra.getByRole('heading', { name: 'Save the portal to your Home Screen' }).scrollIntoViewIfNeeded();
+    await shot(ra, 'mobile-12-ra-home-screen-help');
+    await raCtx.grantPermissions(['notifications'], { origin: `http://127.0.0.1:${PORT}` });
+    await ra.goto(`${BASE}#profile`);
+    await ra.getByRole('heading', { name: 'Notifications on this device' }).waitFor();
+    await ra.locator('.mpmb-portal__push [role=status]').filter({ hasNotText: 'Checking…' }).waitFor();
+    await ra.getByLabel('Email me').uncheck();
+    await ra.getByRole('button', { name: 'Save' }).click();
+    await ra.getByText('Saved.').waitFor();
+    await shot(ra, 'mobile-13-ra-notifications-settings');
+    ok('each person chooses how they hear about new dates', (await db.collection('portalUsers').doc(raUid).get()).data().notifyPrefs?.newDatesEmail === false);
 
     /* ── Retention ── */
     const archived = await call(pmToken, 'archive', { uid: raUid });

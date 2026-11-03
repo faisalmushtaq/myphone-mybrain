@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { TextField } from '../components/ui/Field';
 import { ask, completeLink, connection, leave, messageOf, pendingLink, refreshToken, sendLink, watchUser } from './api';
+import { disablePush, enablePush, isAndroid, isIos, isStandalone, pushState, registerPortalWorker, type PushState } from './push';
 import { AvailabilityView, Documents, MyVisits, Offers, RaHome, Training } from './RaViews';
 import { Audit, People, Person, Schools, Sessions, SettingsView, TeamHome, VisitView, Visits } from './TeamViews';
 import { ROLE_LABEL, stamp, type Me, type MySummary, type Notification, type Role } from './types';
@@ -283,6 +284,8 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
   useEffect(() => {
     if (role === 'ra') void loadSummary();
   }, [role, loadSummary]);
+  // The service worker opens the portal when a notification is tapped.
+  useEffect(() => registerPortalWorker(), []);
   const reload = async () => {
     await Promise.all([loadSummary(), reloadMe()]);
   };
@@ -308,7 +311,12 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
         case 'training':
           return <Training summary={summary} />;
         default:
-          return <RaHome summary={summary} go={go} />;
+          return (
+            <>
+              <RaHome summary={summary} go={go} />
+              <HomeScreenHelp />
+            </>
+          );
       }
     }
     switch (route) {
@@ -431,7 +439,7 @@ function Notifications({ go, reloadMe }: { go: (h: string) => void; reloadMe: ()
 
 function Profile({ me, reload }: { me: Me; reload: () => Promise<void> }) {
   const u = me.user!;
-  const [form, setForm] = useState({ name: u.name, phone: u.phone, smsOptIn: u.smsOptIn });
+  const [form, setForm] = useState({ name: u.name, phone: u.phone, smsOptIn: u.smsOptIn, notifyPrefs: u.notifyPrefs ?? { newDatesPush: true, newDatesEmail: true } });
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -457,6 +465,16 @@ function Profile({ me, reload }: { me: Me; reload: () => Promise<void> }) {
       <label className="mpmb-portal__inline">
         <input type="checkbox" checked={form.smsOptIn} disabled={!form.phone} onChange={(e) => setForm({ ...form, smsOptIn: e.target.checked })} /> Also text me when I am selected for a visit
       </label>
+      <fieldset className="mpmb-portal__prefs">
+        <legend className="mpmb-label">When new school dates are put out</legend>
+        <label className="mpmb-portal__inline">
+          <input type="checkbox" checked={form.notifyPrefs.newDatesPush} onChange={(e) => setForm({ ...form, notifyPrefs: { ...form.notifyPrefs, newDatesPush: e.target.checked } })} /> Send a notification to my devices
+        </label>
+        <label className="mpmb-portal__inline">
+          <input type="checkbox" checked={form.notifyPrefs.newDatesEmail} onChange={(e) => setForm({ ...form, notifyPrefs: { ...form.notifyPrefs, newDatesEmail: e.target.checked } })} /> Email me
+        </label>
+        <p className="mpmb-hint">Offers, changes to visits you’re booked on, and dates you’ve answered about always come by notification and email.</p>
+      </fieldset>
       {error && (
         <p className="mpmb-error" role="alert">
           {error}
@@ -468,6 +486,111 @@ function Profile({ me, reload }: { me: Me; reload: () => Promise<void> }) {
           Save
         </Button>
       </div>
+      <PushSettings />
+      <HomeScreenHelp always />
     </form>
+  );
+}
+
+/** Notifications on this device: on or off, with a test, and why when they can't be. */
+function PushSettings() {
+  const [state, setState] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    void pushState()
+      .then(setState)
+      .catch(() => setState('unsupported'));
+  }, []);
+  const act = async (fn: () => Promise<PushState | void>, done?: string) => {
+    setBusy(true);
+    setNote(null);
+    try {
+      const r = await fn();
+      if (r) setState(r);
+      if (done) setNote(done);
+    } catch (e) {
+      setNote(messageOf(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const words: Record<PushState, string> = {
+    on: 'Notifications are on for this device.',
+    off: 'Notifications are off for this device.',
+    denied: 'Notifications are blocked for this site in your settings. Allow them in the settings for this app or browser, then come back here.',
+    'not-set-up': 'Notifications are not switched on for the portal yet. You will still get emails.',
+    'needs-home-screen': 'On an iPhone or iPad, notifications only work from the portal saved to your Home Screen (see below). Open it from there, then turn them on.',
+    unsupported: 'This browser can’t show notifications from the portal. You will still get emails.',
+  };
+  return (
+    <section className="mpmb-card mpmb-portal__push" aria-labelledby="push-h">
+      <h2 className="mpmb-h3" id="push-h">
+        Notifications on this device
+      </h2>
+      <p role="status">{state ? words[state] : 'Checking…'}</p>
+      <div className="mpmb-actions">
+        {state === 'off' && (
+          <Button type="button" variant="primary" loading={busy} onClick={() => void act(enablePush)}>
+            Turn on notifications
+          </Button>
+        )}
+        {state === 'on' && (
+          <>
+            <Button type="button" variant="secondary" loading={busy} onClick={() => void act(async () => void (await ask<{ sent: number }>('push-test')), 'Test sent: it should appear in a few seconds.')}>
+              Send a test notification
+            </Button>
+            <Button type="button" variant="ghost" loading={busy} onClick={() => void act(disablePush)}>
+              Turn off on this device
+            </Button>
+          </>
+        )}
+      </div>
+      {note && <p className="mpmb-hint">{note}</p>}
+    </section>
+  );
+}
+
+/**
+ * How to save the portal to the Home Screen, so it opens like an app and
+ * (on iPhone) can show notifications. Shown when the portal is open in a
+ * browser tab; `always` shows it in "Your details" even then.
+ */
+export function HomeScreenHelp({ always = false }: { always?: boolean }) {
+  if (isStandalone()) return always ? <p className="mpmb-hint">You’re using the portal from your Home Screen.</p> : null;
+  const ios = isIos();
+  const android = isAndroid();
+  return (
+    <section className="mpmb-card mpmb-portal__homescreen" aria-labelledby="home-h">
+      <h2 className="mpmb-h3" id="home-h">
+        Save the portal to your Home Screen
+      </h2>
+      <p>It then opens like an app, and can tell you about new school dates and offers straight away.</p>
+      {(ios || !android) && (
+        <>
+          <h3 className="mpmb-label">iPhone or iPad</h3>
+          <ol className="mpmb-list">
+            <li>Open this page in Safari.</li>
+            <li>
+              Tap the Share button <span aria-hidden="true">(the square with an arrow)</span>, then <strong>Add to Home Screen</strong>, then <strong>Add</strong>.
+            </li>
+            <li>Open the portal from the new icon, sign in, and go to Your details → Turn on notifications.</li>
+          </ol>
+          <p className="mpmb-hint">Notifications need iOS 16.4 or later, and only work from the Home Screen icon.</p>
+        </>
+      )}
+      {(android || !ios) && (
+        <>
+          <h3 className="mpmb-label">Android</h3>
+          <ol className="mpmb-list">
+            <li>Open this page in Chrome.</li>
+            <li>
+              Tap the menu <span aria-hidden="true">(⋮)</span>, then <strong>Add to Home screen</strong> or <strong>Install app</strong>.
+            </li>
+            <li>Then go to Your details → Turn on notifications.</li>
+          </ol>
+        </>
+      )}
+    </section>
   );
 }

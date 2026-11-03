@@ -4389,7 +4389,7 @@
 .mpmb-portal__vday { align-items: center; flex-wrap: wrap; gap: 0.5rem; }
 .mpmb-portal__vday.is-off { opacity: 0.6; }
 .mpmb-portal__times { display: inline-flex; align-items: center; gap: 0.4rem; }
-.mpmb-portal__times .mpmb-input { width: 7.5rem; min-width: 0; }
+.mpmb-portal__times .mpmb-input { width: 9.5rem; min-width: 0; }
 .mpmb-portal__daylist { margin: 0.25rem 0 0.75rem; padding-left: 1.2rem; }
 .mpmb-portal__perday { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
 .mpmb-portal__dayChip { font-size: 0.78rem; padding: 0.1rem 0.45rem; border-radius: 999px; border: 1px solid var(--mpb-line); background: var(--mpb-white); }
@@ -4398,3 +4398,19 @@
 .mpmb-portal__dialog { border: 2px solid var(--mpb-pink); margin-top: 0.75rem; }
 .mpmb-portal__withdraw { display: block; margin-top: 0.35rem; }
 .mpmb-portal__details { display: flex; flex-direction: column; gap: 0.15rem; }
+
+/* Provisional dates, notifications and the Home Screen help (3 November 2026). */
+.mpmb-portal__provisional { border-left: 4px solid #e0a800; }
+.mpmb-portal__answer { align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.mpmb-portal__choices { display: inline-flex; flex-wrap: wrap; gap: 0.35rem; }
+.mpmb-app .mpmb-portal__choice { border: 1px solid var(--mpb-line); background: var(--mpb-white); color: var(--mpb-ink); border-radius: 999px; padding: 0.4rem 0.8rem; font: inherit; font-weight: 600; cursor: pointer; min-height: 2.5rem; }
+.mpmb-app .mpmb-portal__choice:focus-visible { outline: 3px solid var(--mpb-deep); outline-offset: 2px; }
+.mpmb-app .mpmb-portal__choice--yes.is-on { background: #ddf3e4; border-color: #2f8a4c; color: #135c2c; }
+.mpmb-app .mpmb-portal__choice--maybe.is-on { background: var(--mpb-important-bg); border-color: #c79100; color: #6b4d00; }
+.mpmb-app .mpmb-portal__choice--no.is-on { background: var(--mpb-error-bg); border-color: var(--mpb-pink); color: var(--mpb-pink); }
+.mpmb-portal__canvass { overflow-x: auto; }
+.mpmb-portal__table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.mpmb-portal__table th, .mpmb-portal__table td { text-align: left; vertical-align: top; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--mpb-line); }
+.mpmb-portal__table thead th { font-size: 0.85rem; color: var(--mpb-muted); }
+.mpmb-portal__prefs { border: 0; padding: 0; margin: 1rem 0; display: flex; flex-direction: column; align-items: flex-start; }
+.mpmb-portal__push, .mpmb-portal__homescreen { margin-top: 1rem; }

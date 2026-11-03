@@ -2,8 +2,9 @@
 export type Role = 'pm' | 'researcher' | 'ra';
 export type UserStatus = 'pending' | 'active' | 'rejected' | 'archived';
 export type DocState = 'missing' | 'uploaded' | 'verified' | 'rejected' | 'expiring-soon' | 'expired';
-export type Availability = 'all' | 'am' | 'pm' | 'no';
-export type VisitStatus = 'draft' | 'staffing' | 'locked' | 'done' | 'cancelled';
+export type Availability = 'all' | 'am' | 'pm' | 'no' | 'maybe';
+export type VisitStatus = 'draft' | 'provisional' | 'staffing' | 'locked' | 'done' | 'cancelled';
+export type CanvassAnswer = 'yes' | 'maybe' | 'no';
 export type AssignmentStatus = 'offered' | 'confirmed' | 'declined' | 'withdrawn' | 'removed';
 
 export interface PortalUser {
@@ -15,6 +16,8 @@ export interface PortalUser {
   requested: 'ra' | 'team';
   status: UserStatus;
   smsOptIn: boolean;
+  /** Push and email when new dates are announced. */
+  notifyPrefs: { newDatesPush: boolean; newDatesEmail: boolean };
   createdAt: string | null;
   archivedAt: string | null;
 }
@@ -138,9 +141,10 @@ export const DOC_STATE_LABEL: Record<DocState, string> = {
   expired: 'Out of date',
 };
 
-export const AVAILABILITY_LABEL: Record<Availability, string> = { all: 'All day', am: 'Morning', pm: 'Afternoon', no: 'Not available' };
+export const AVAILABILITY_LABEL: Record<Availability, string> = { all: 'All day', am: 'Morning', pm: 'Afternoon', no: 'Not available', maybe: 'Maybe' };
+export const CANVASS_LABEL: Record<CanvassAnswer, string> = { yes: 'Can do', maybe: 'Maybe', no: 'Can’t do' };
 export const ROLE_LABEL: Record<Role, string> = { pm: 'Project manager', researcher: 'Research team', ra: 'Research assistant' };
-export const VISIT_STATUS_LABEL: Record<VisitStatus, string> = { draft: 'Draft', staffing: 'Staffing', locked: 'Fully staffed', done: 'Done', cancelled: 'Cancelled' };
+export const VISIT_STATUS_LABEL: Record<VisitStatus, string> = { draft: 'Draft', provisional: 'Provisional (asking who could do it)', staffing: 'Staffing', locked: 'Fully staffed', done: 'Done', cancelled: 'Cancelled' };
 export const ASSIGNMENT_LABEL: Record<AssignmentStatus, string> = { offered: 'Offered: waiting for an answer', confirmed: 'Confirmed', declined: 'Declined', withdrawn: 'Withdrawn', removed: 'Removed by the project manager' };
 
 /** "Friday 20 November 2026". */

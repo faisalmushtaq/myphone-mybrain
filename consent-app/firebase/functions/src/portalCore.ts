@@ -41,7 +41,7 @@ const TEAM_ACTIONS = new Set([
 ]);
 const PM_ACTIONS = new Set(['requests', 'approve', 'reject', 'set-role', 'archive', 'restore', 'verify-document', 'settings', 'save-settings', 'audit', 'override', 'remove-confirmed']);
 /** Every active user, for themselves. */
-const SELF_ACTIONS = new Set(['me', 'my-summary', 'update-profile', 'notifications', 'mark-read', 'register-document', 'document-url', 'set-availability', 'open-visits', 'set-interest', 'respond-offer']);
+const SELF_ACTIONS = new Set(['me', 'my-summary', 'update-profile', 'notifications', 'mark-read', 'register-document', 'document-url', 'set-availability', 'open-visits', 'set-interest', 'respond-offer', 'canvass-answer', 'push-key', 'push-subscribe', 'push-unsubscribe', 'push-test']);
 /** Anyone signed in with a checked email, active or not: asking for an account, and seeing where the request stands. */
 const OPEN_ACTIONS = new Set(['me', 'request-access']);
 
@@ -268,15 +268,17 @@ export function countsFor(uid: string, sessions: { kind: string; attendees: stri
 
 /* ── Availability ─────────────────────────────────────────────────────── */
 
-export type Availability = 'all' | 'am' | 'pm' | 'no';
-export const AVAILABILITY: Availability[] = ['all', 'am', 'pm', 'no'];
-export const AVAILABILITY_LABEL: Record<Availability, string> = { all: 'Available all day', am: 'Morning only', pm: 'Afternoon only', no: 'Not available' };
+/** 'maybe' comes from an answer to provisional dates (3 November 2026). */
+export type Availability = 'all' | 'am' | 'pm' | 'no' | 'maybe';
+export const AVAILABILITY: Availability[] = ['all', 'am', 'pm', 'no', 'maybe'];
+export const AVAILABILITY_LABEL: Record<Availability, string> = { all: 'Available all day', am: 'Morning only', pm: 'Afternoon only', no: 'Not available', maybe: 'Maybe' };
 
 /** Whether someone's day covers a visit's times (morning ends at 12:30, afternoon starts at 12:00). */
 export function covers(day: Availability | undefined, start: string, end: string): 'yes' | 'no' | 'unknown' {
   if (!day) return 'unknown';
   if (day === 'all') return 'yes';
   if (day === 'no') return 'no';
+  if (day === 'maybe') return 'unknown';
   if (day === 'am') return end <= '12:30' ? 'yes' : 'no';
   return start >= '12:00' ? 'yes' : 'no';
 }
@@ -307,8 +309,9 @@ export function validateAvailability(input: unknown, today: string): { days: { d
 
 /* ── Visits ───────────────────────────────────────────────────────────── */
 
-export type VisitStatus = 'draft' | 'staffing' | 'locked' | 'done' | 'cancelled';
-export const VISIT_STATUSES: VisitStatus[] = ['draft', 'staffing', 'locked', 'done', 'cancelled'];
+/** provisional (3 November 2026): dates not yet agreed with the school, put out to ask who could do them; no offers until they move on to staffing. */
+export type VisitStatus = 'draft' | 'provisional' | 'staffing' | 'locked' | 'done' | 'cancelled';
+export const VISIT_STATUSES: VisitStatus[] = ['draft', 'provisional', 'staffing', 'locked', 'done', 'cancelled'];
 
 /** One day of a visit: its date, its times, and whether the visit runs that day. */
 export interface VisitDay {
@@ -459,6 +462,7 @@ export interface OfferPlan {
 export function planOffers(chosen: string[], args: { needed: number; assignments: Assignment[]; active: Set<string>; eligible: Map<string, Eligibility>; overrides: Record<string, string>; mayOverride: boolean; visitStatus: VisitStatus }): OfferPlan {
   const problems: string[] = [];
   if (args.visitStatus === 'cancelled' || args.visitStatus === 'done') return { offer: [], problems: ['This visit is closed.'] };
+  if (args.visitStatus === 'provisional') return { offer: [], problems: ['These dates are provisional: confirm them with the school and move the visit on to staffing before offering places.'] };
   const unique = [...new Set(chosen)];
   if (!unique.length) return { offer: [], problems: ['Choose who to offer the visit to.'] };
   const left = placesLeft(args.needed, args.assignments);
@@ -517,6 +521,7 @@ export function removalProblem(current: AssignmentStatus | undefined, action: 'w
 
 /** The visit's status after its places change: locked once every place is confirmed, back to staffing when one opens up. */
 export function visitStatusAfter(status: VisitStatus, needed: number, assignments: Assignment[]): VisitStatus {
+  if (status === 'provisional') return status;
   if (status === 'cancelled' || status === 'done' || status === 'draft') return status === 'draft' && assignments.some((a) => a.status === 'offered' || a.status === 'confirmed') ? 'staffing' : status;
   const confirmed = assignments.filter((a) => a.status === 'confirmed').length;
   return confirmed >= needed ? 'locked' : 'staffing';
@@ -634,5 +639,119 @@ export function changeMessage(name: string, v: VisitInfo, removedDays: VisitDay[
       '',
       'The MyPhone/MyBrain team, University of Leeds',
     ].join('\n'),
+  };
+}
+
+/* ── Provisional dates: asking who could do them (3 November 2026) ──── */
+
+export type CanvassAnswer = 'yes' | 'maybe' | 'no';
+export const CANVASS_ANSWERS: CanvassAnswer[] = ['yes', 'maybe', 'no'];
+export const CANVASS_LABEL: Record<CanvassAnswer, string> = { yes: 'Can do', maybe: 'Maybe', no: 'Can’t do' };
+/** How an answer is kept as the person's availability for that day. */
+export const CANVASS_AVAILABILITY: Record<CanvassAnswer, Availability> = { yes: 'all', maybe: 'maybe', no: 'no' };
+
+/** A research assistant's answers for a provisional visit: one per day it runs, can do, maybe or can't do. */
+export function validateCanvass(input: unknown, days: VisitDay[], status: VisitStatus): { answers: Record<string, CanvassAnswer>; problems: string[] } {
+  if (status !== 'provisional') return { answers: {}, problems: ['These dates are no longer provisional.'] };
+  const on = new Set(includedDays(days).map((d) => d.date));
+  const o = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+  const answers: Record<string, CanvassAnswer> = {};
+  const problems: string[] = [];
+  for (const [date, a] of Object.entries(o)) {
+    if (!on.has(date)) problems.push(`${date} is not one of the visit's days.`);
+    else if (!CANVASS_ANSWERS.includes(a as CanvassAnswer)) problems.push(`${date}: answer can do, maybe or can't do.`);
+    else answers[date] = a as CanvassAnswer;
+  }
+  if (!problems.length && !Object.keys(answers).length) problems.push('Answer for at least one day.');
+  return { answers, problems };
+}
+
+export interface CanvassRow {
+  uid: string;
+  name: string;
+  answers: Record<string, CanvassAnswer>;
+}
+
+/** Per day of a provisional visit: who can, who might, who can't, and who hasn't answered. */
+export function canvassSummary(days: VisitDay[], rows: CanvassRow[], everyone: { uid: string; name: string }[]) {
+  return includedDays(days).map((d) => {
+    const by = (a: CanvassAnswer) => rows.filter((r) => r.answers[d.date] === a).map((r) => r.name).sort();
+    const answered = new Set(rows.filter((r) => r.answers[d.date]).map((r) => r.uid));
+    return { date: d.date, start: d.start, end: d.end, yes: by('yes'), maybe: by('maybe'), no: by('no'), noAnswer: everyone.filter((p) => !answered.has(p.uid)).map((p) => p.name).sort() };
+  });
+}
+
+/** Answers that still stand after the dates change: only for days that run, at the same times as before. */
+export function answersAfterChange(answers: Record<string, CanvassAnswer>, before: VisitDay[], after: VisitDay[]): Record<string, CanvassAnswer> {
+  const was = new Map(includedDays(before).map((d) => [d.date, `${d.start}-${d.end}`]));
+  const out: Record<string, CanvassAnswer> = {};
+  for (const d of includedDays(after)) if (answers[d.date] && was.get(d.date) === `${d.start}-${d.end}`) out[d.date] = answers[d.date];
+  return out;
+}
+
+/* ── Announcing dates ─────────────────────────────────────────────────── */
+
+export type Announcement = 'provisional' | 'new-dates' | 'confirmed' | 'cancelled-provisional' | 'provisional-changed' | 'days-added';
+
+/**
+ * What, if anything, research assistants hear when a visit is saved or its
+ * status changes: dates put out as provisional; dates published (straight
+ * from draft, or confirmed after being provisional); provisional dates
+ * cancelled or changed; days added to a visit already open.
+ */
+export function announcementFor(before: { status: VisitStatus; days: VisitDay[] } | null, after: { status: VisitStatus; days: VisitDay[] }): { kind: Announcement; days: VisitDay[] } | null {
+  const was = before?.status ?? 'draft';
+  const open = (s: VisitStatus) => s === 'staffing' || s === 'locked';
+  if (after.status === 'provisional' && was !== 'provisional') return { kind: 'provisional', days: includedDays(after.days) };
+  if (after.status === 'cancelled' && was === 'provisional') return { kind: 'cancelled-provisional', days: includedDays(before!.days) };
+  if (open(after.status) && was === 'provisional') return { kind: 'confirmed', days: includedDays(after.days) };
+  if (open(after.status) && was === 'draft') return { kind: 'new-dates', days: includedDays(after.days) };
+  if (before && after.status === 'provisional' && was === 'provisional' && scheduleChanged({ startDate: '', endDate: '', start: '', end: '', location: '', days: before.days }, { startDate: '', endDate: '', start: '', end: '', location: '', days: after.days }).changed) return { kind: 'provisional-changed', days: includedDays(after.days) };
+  if (before && open(after.status) && open(was)) {
+    const had = new Set(includedDays(before.days).map((d) => d.date));
+    const added = includedDays(after.days).filter((d) => !had.has(d.date));
+    if (added.length) return { kind: 'days-added', days: added };
+  }
+  return null;
+}
+
+export interface NotifyPrefs {
+  /** Push and email when new dates are announced (offers, changes and removals always come). */
+  newDatesPush: boolean;
+  newDatesEmail: boolean;
+}
+export function notifyPrefsOf(v: unknown): NotifyPrefs {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  return { newDatesPush: o.newDatesPush !== false, newDatesEmail: o.newDatesEmail !== false };
+}
+
+const shortDay = (iso: string) => new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
+/** "Fri 20 Nov, Tue 24 Nov", or the first and last of a long run. */
+export function datesShort(days: VisitDay[]): string {
+  const on = includedDays(days);
+  if (on.length <= 3) return on.map((d) => shortDay(d.date)).join(', ');
+  return `${shortDay(on[0].date)} to ${shortDay(on.at(-1)!.date)} (${on.length} days)`;
+}
+
+/**
+ * The words for an announcement: the push (only the school and the dates,
+ * nothing personal), the in-portal note and the email.
+ */
+export function announcementMessage(kind: Announcement, schoolName: string, days: VisitDay[], location: string, link: string, name = 'there') {
+  const dates = datesShort(days);
+  const lines = whenLines(days);
+  const t: Record<Announcement, { push: string; title: string; body: string; subject: string; lead: string; ask: string }> = {
+    provisional: { push: `Possible school dates (not yet confirmed): ${schoolName}, ${dates}. Tell us if you could do them.`, title: `Possible dates: ${schoolName}`, body: `Not yet confirmed: ${dates}. Tell us if you could do them.`, subject: `MyPhone/MyBrain: possible school dates (not yet confirmed), ${schoolName}`, lead: 'These school visit dates are provisional: they are not yet confirmed with the school. Could you do them?', ask: 'Tell us day by day (can do, maybe, can’t do)' },
+    'new-dates': { push: `New school dates: ${schoolName}, ${dates}. Mark your availability.`, title: `New dates: ${schoolName}`, body: `${dates}. Mark your availability.`, subject: `MyPhone/MyBrain: new school dates, ${schoolName}`, lead: 'New school visit dates are out:', ask: 'Mark your availability' },
+    confirmed: { push: `School dates confirmed: ${schoolName}, ${dates}.`, title: `Dates confirmed: ${schoolName}`, body: `${dates} are now confirmed. The team will offer places soon.`, subject: `MyPhone/MyBrain: school dates confirmed, ${schoolName}`, lead: 'The school has confirmed these visit dates. The team will now offer places; if you said you could do them, keep an eye out for an offer.', ask: 'Check your availability' },
+    'cancelled-provisional': { push: `Possible school dates won't go ahead: ${schoolName}, ${dates}.`, title: `Not going ahead: ${schoolName}`, body: `The possible dates ${dates} won't go ahead. Thank you for answering.`, subject: `MyPhone/MyBrain: possible dates at ${schoolName} won't go ahead`, lead: 'The possible school visit dates you answered about will not go ahead. Thank you for letting us know if you could do them.', ask: 'See other dates' },
+    'provisional-changed': { push: `Possible school dates changed: ${schoolName}, ${dates}. Please check again.`, title: `Possible dates changed: ${schoolName}`, body: `Now ${dates}. Please check your answers again.`, subject: `MyPhone/MyBrain: possible school dates changed, ${schoolName}`, lead: 'The provisional dates you answered about have changed. Please check your answers again (answers for days that changed have been cleared):', ask: 'Check your answers' },
+    'days-added': { push: `New school dates: ${schoolName}, ${dates}. Mark your availability.`, title: `New dates: ${schoolName}`, body: `${dates} added. Mark your availability.`, subject: `MyPhone/MyBrain: new school dates, ${schoolName}`, lead: 'More days have been added to a school visit:', ask: 'Mark your availability' },
+  };
+  const w = t[kind];
+  return {
+    push: { title: w.title, body: w.push },
+    note: { title: w.title, body: w.body, link: link.slice(link.indexOf('#')) },
+    email: { subject: w.subject, body: [`Hello ${name},`, '', w.lead, '', schoolName, ...(location ? [`Where: ${location}`] : []), ...lines, '', `${w.ask}: ${link}`, '', 'You can turn off emails and notifications about new dates in your details in the portal.', '', 'The MyPhone/MyBrain team, University of Leeds'].join('\n') },
   };
 }

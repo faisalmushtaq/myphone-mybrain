@@ -655,6 +655,58 @@ export function Visits({ go }: { go: (hash: string) => void }) {
   );
 }
 
+interface CanvassDay {
+  date: string;
+  start: string;
+  end: string;
+  yes: string[];
+  maybe: string[];
+  no: string[];
+  noAnswer: string[];
+}
+
+/** For provisional dates: day by day, who could do it, who might, who can't, and who hasn't answered. */
+function CanvassSummary({ days, provisional }: { days: CanvassDay[]; provisional: boolean }) {
+  return (
+    <section aria-labelledby="canvass-h" className="mpmb-card mpmb-portal__canvass">
+      <h3 className="mpmb-h3" id="canvass-h">
+        {provisional ? 'Who could do these provisional dates' : 'Answers given while the dates were provisional'}
+      </h3>
+      {provisional && <p className="mpmb-hint">Research assistants were asked day by day. Move the visit on to Staffing once the school confirms: those who said they can do it are told, and you can then offer places.</p>}
+      <table className="mpmb-portal__table">
+        <thead>
+          <tr>
+            <th scope="col">Day</th>
+            <th scope="col">Can do</th>
+            <th scope="col">Maybe</th>
+            <th scope="col">Can’t do</th>
+            <th scope="col">No answer</th>
+          </tr>
+        </thead>
+        <tbody>
+          {days.map((d) => (
+            <tr key={d.date}>
+              <th scope="row">
+                {shortDate(d.date)}
+                <br />
+                <span className="mpmb-hint">
+                  {d.start}–{d.end}
+                </span>
+              </th>
+              {([d.yes, d.maybe, d.no, d.noAnswer] as string[][]).map((names, i) => (
+                <td key={i}>
+                  <strong>{names.length}</strong>
+                  {names.length > 0 && <span className="mpmb-hint"> · {names.join(', ')}</span>}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 interface Candidate {
   uid: string;
   name: string;
@@ -678,7 +730,7 @@ const COVERAGE: Record<Candidate['coverage'], { label: (c: Candidate) => string;
 };
 
 export function VisitView({ visitId, go }: { visitId: string; go: (hash: string) => void }) {
-  const { value, error, load } = useLoad<{ visit: Visit & { requiredDocs: string[] }; candidates: Candidate[]; placesLeft: number; mayOverride: boolean; mayRemove: boolean }>('visit', { visitId });
+  const { value, error, load } = useLoad<{ visit: Visit & { requiredDocs: string[] }; candidates: Candidate[]; canvass: CanvassDay[] | null; placesLeft: number; mayOverride: boolean; mayRemove: boolean }>('visit', { visitId });
   const schools = useLoad<{ schools: School[] }>('schools');
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, string>>({});
@@ -759,7 +811,12 @@ export function VisitView({ visitId, go }: { visitId: string; go: (hash: string)
         </p>
         <p className="mpmb-hint">Needs: {v.requiredDocs.join(', ')}. Documents must be in date on every day.</p>
         <div className="mpmb-actions">
-          <select className="mpmb-select" aria-label="Visit status" value={v.status} onChange={(e) => void run('set-visit-status', { status: e.target.value as VisitStatus })}>
+          <select className="mpmb-select" aria-label="Visit status" value={v.status} onChange={(e) => {
+              const next = e.target.value as VisitStatus;
+              const note = next === 'provisional' ? 'Every research assistant is told about these possible dates (push and email, as they choose).' : (next === 'staffing' && v.status === 'provisional') ? 'Those who said they could do it are told the dates are confirmed; everyone else hears about new dates.' : (next === 'staffing' && v.status === 'draft') ? 'Every research assistant is told about the new dates.' : (next === 'cancelled' && v.status === 'provisional') ? 'Everyone who answered is told the dates won’t go ahead.' : '';
+              if (note && !window.confirm(`${VISIT_STATUS_LABEL[next]}: ${note} Go ahead?`)) return;
+              void run('set-visit-status', { status: next }, note ? `Status changed. ${note}` : undefined);
+            }}>
             {(Object.keys(VISIT_STATUS_LABEL) as VisitStatus[]).map((s) => (
               <option key={s} value={s}>
                 {VISIT_STATUS_LABEL[s]}
@@ -797,6 +854,7 @@ export function VisitView({ visitId, go }: { visitId: string; go: (hash: string)
           {message}
         </Callout>
       )}
+      {value.canvass && <CanvassSummary days={value.canvass} provisional={v.status === 'provisional'} />}
       <section>
         <h3 className="mpmb-h3">Placed</h3>
         {!placed.length ? (
@@ -879,8 +937,13 @@ export function VisitView({ visitId, go }: { visitId: string; go: (hash: string)
             </li>
           ))}
         </ul>
+        {v.status === 'provisional' && (
+          <Callout tone="important" title="Provisional dates">
+            <p>Places can’t be offered until the dates are confirmed. Once the school confirms, set the status to Staffing.</p>
+          </Callout>
+        )}
         <div className="mpmb-actions">
-          <Button variant="primary" loading={busy} disabled={!chosen.size} onClick={() => void offer()}>
+          <Button variant="primary" loading={busy} disabled={!chosen.size || v.status === 'provisional'} onClick={() => void offer()}>
             Lock in and notify {chosen.size ? `(${chosen.size})` : ''}
           </Button>
         </div>

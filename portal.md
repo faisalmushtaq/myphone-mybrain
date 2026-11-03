@@ -5,6 +5,8 @@ description: "For the MyPhone/MyBrain research team and research assistants."
 permalink: /portal/
 noindex: true
 usage: false
+webmanifest: /portal/manifest.webmanifest
+app_title: MPMB staff
 ---
 
 <div id="mpmb-tools" class="mpmb-app-mount" data-tool="portal">

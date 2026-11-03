@@ -62,7 +62,7 @@ not accepted, runs out soon, out of date. A DBS without the Update Service
 counts for three years from issue unless a recheck date is recorded (a
 setting).
 
-**Ready for a visit** means, on the visit's own date: every required
+**Ready for a visit** means, on every day the visit runs (so in date on its last day): every required
 document (the school's too) checked and in date, at least the set number of
 training sessions (default 2) and pilots (default 1). The team sees the
 reasons for anyone who is not ready.
@@ -74,22 +74,95 @@ date, title, who attended); each person's counts follow.
 day, morning (until 12:30), afternoon (from 12:00), not available, or blank;
 they can also mark interest in upcoming visits.
 
-**Staffing a visit.** A visit has a school, date, times, meeting point,
-number needed, notes and a status (draft, staffing, fully staffed, done,
-cancelled). Its page lists every active research assistant, ready and
-available first, with their availability that day and whether they asked
-for it. The team ticks people and presses **Lock in and notify**: each gets
-an *offer* (notification, email, and a text if they opted in), and
-confirms or declines in the portal. Confirming sends a confirmation email
-with a calendar invitation (.ics) and tells the team; declining tells the
-team (with an email) and frees the place. A visit is *fully staffed* once
-every place is confirmed. The team can withdraw a place, and offer it to
-someone else. No more places can be offered than the visit needs.
+**Visits over several days (3 November 2026).** The team enters a visit as a
+period: school, **where** (required: the address, room or meeting point; the
+school's name is put in front), first and last date, usual start and end
+times, number needed and notes. Every day of the period is listed, weekends
+switched off to start with; any day can be switched on or off and given its
+own times. A one-day visit has the same first and last date. Visits saved
+before then (one date and a meeting point) read as a period of one day.
+Selection is for the whole visit: a confirmed research assistant is booked
+for every day it runs.
+
+**Statuses.** Draft (the team's own), **Provisional** (dates not yet agreed
+with the school, put out to ask who could do them), Staffing, Fully staffed,
+Done, Cancelled.
+
+**Provisional dates.** Setting a visit to Provisional tells every active
+research assistant (in the portal, and by push and email as they choose):
+"Possible school dates (not yet confirmed): {school}, {dates}. Tell us if
+you could do them." They see it on the Offers tab, marked *Provisional — not
+confirmed*, and answer day by day: can do, maybe or can't do. Each answer
+is also kept as their availability for that day (all day, maybe, not
+available), linked to the visit. The visit page shows the team, per day, how
+many and who can, might, can't, and haven't answered. No places can be
+offered while dates are provisional. Changing the days or times while
+provisional tells everyone who answered and clears their answers for days
+that changed. Moving it on to **Staffing** tells those who said they could
+(or might) do it that the dates are confirmed (always by push and email),
+and everyone else that there are new dates; their answers stay as
+availability for staffing. Cancelling it tells everyone who answered that
+the dates won't go ahead.
+
+**Staffing a visit.** The visit page lists every active research assistant,
+ready and available first, with their availability **day by day** across the
+visit (available every day, some days, not available, or not given) and
+whether they asked for it. The team ticks people and presses **Lock in and
+notify**: each gets an *offer* (notification, push, email, and a text if they
+opted in) for every day, and confirms or declines in the portal. Confirming
+sends a confirmation email with a calendar invitation holding every day
+(.ics) and tells the team; declining tells the team (with an email) and frees
+the place. An offer still unanswered after two days gets one reminder
+(portal, push and email). A visit is *fully staffed* once every place is
+confirmed; no more places can be offered than it needs.
+
+**Once confirmed, research assistants can't cancel in the portal.** Their
+visit shows "To withdraw, email {name} at {email}" with a ready-made email;
+the contact is a setting (default Dr Sarmad Ali, S.A.Ali1@leeds.ac.uk). Only
+the **project manager** can then remove them, giving a reason: they are
+notified, pushed (without the reason) and emailed (with it, and a calendar
+cancellation), the team is told, the place opens again, and it is in the
+audit log. The research team can still withdraw an offer that hasn't been
+answered.
+
+**Changes after confirming.** If the days, times or place of a visit change,
+everyone confirmed is notified, pushed and emailed the new details with an
+updated calendar invitation (and a cancellation for days no longer needed).
+Days added to a visit that is already open are announced to every research
+assistant as new dates.
+
+**Calendars.** The team can download a calendar file (.ics) for one visit
+(Add to my calendar) or for every visit coming up (on the Visits tab): one
+event per day it runs, with the place, who is confirmed, and the notes.
 
 **Notifications.** An in-portal list (the bell, with the unread count),
 plus email for: account requests (to the project manager), approval,
-offers, confirmations, declines (to the team), and documents running out.
-Every email and text is recorded in `portalMail` with whether it went.
+offers, reminders, confirmations, declines (to the team), changes, removals,
+new and provisional dates, and documents running out. Every email and text
+is recorded in `portalMail` with whether it went.
+
+**Push notifications (3 November 2026).** The portal can be saved to the
+Home Screen (it has a web app manifest, `/portal/manifest.webmanifest`, and a
+service worker, `/portal/sw.js`, which only shows notifications and opens
+the portal at the right screen; it caches nothing). Research assistants see
+how to do this on their checklist and in Your details:
+
+- **iPhone/iPad**: Safari → Share → Add to Home Screen. Notifications only
+  work from the Home Screen icon, on iOS 16.4 or later.
+- **Android**: Chrome → menu → Add to Home screen / Install app.
+  Notifications also work in the browser.
+- **Computers**: notifications work in the browser.
+
+Each person turns notifications on per device in Your details (the browser
+asks permission only then), and can send themselves a test. They are sent
+for new and provisional dates (and those dates confirmed, changed or
+cancelled), offers and reminders, changes to a confirmed visit, removal,
+documents checked or not accepted, and the account being approved. A push
+carries only the school and the dates, never anything personal. Each
+person can switch push and email off for *new dates* in Your details;
+offers, changes, removals and dates they have answered about always come.
+Subscriptions are kept in `portalPushSubs/{uid}/subs/{id}` and deleted when
+the push service says they are gone (404 or 410).
 
 **Audit log.** Every request, approval, role change, archive, upload,
 check, opening of a copy, session, visit, offer, override, answer and
@@ -117,6 +190,12 @@ within the warning window (default 30 days). DBS certificates and health
 forms are criminal-record and health data: the DPIA should list the portal
 and this retention.
 
+Also kept (3 November 2026): answers to provisional dates
+(`portalCanvass`, with the person's availability for those days), push
+subscriptions per device (`portalPushSubs`; just the push service's address
+and keys, removed when the person turns notifications off or the service
+says the device is gone) and each person's notification choices.
+
 ## Setting it up (once)
 
 1. **Firebase console → Authentication → Sign-in method → Email/Password →
@@ -127,7 +206,13 @@ and this retention.
    `npm --prefix consent-app/firebase/functions ci && node consent-app/firebase/scripts/set-portal-admin.mjs <project-id> <email> "Full name"`. The first two (Sarmad Ali and Faisal Mushtaq), and the service account permission for document links, are set by `consent-app/firebase/scripts/portal-first-admins.sh`, pasted into Cloud Shell (https://shell.cloud.google.com/?project=myphone-mybrain); it needs nothing from this repository.
    They then sign in at /portal/ with the emailed link. Run it again for
    another project manager, or approve them in the portal.
-4. **Deploy** as usual (push to main): the function `portalApi`, the daily
+4. **Push notifications** (optional; without them emails still go):
+   in Cloud Shell, `bash consent-app/firebase/scripts/set-push-keys.sh myphone-mybrain`.
+   It makes the VAPID keys, stores the private one in Secret Manager
+   (`mpmb-push-private-key`) and prints the public one: set it as the GitHub
+   repository variable **`MPMB_PUSH_PUBLIC_KEY`** (Settings → Secrets and
+   variables → Actions → Variables). The next deploy switches push on.
+5. **Deploy** as usual (push to main): the function `portalApi`, the daily
    `portalHousekeeping`, the new Firestore indexes and the rules go with it.
    Emails use the study's mailbox settings (docs/firebase.md); texts are
    only sent to people who ask for them.
@@ -141,8 +226,14 @@ under Authentication → Templates.
 `node scripts/portal-e2e.mjs` runs the whole journey against the emulators:
 a project manager, a researcher and a research assistant sign in by email
 link; approval; upload and check; training and pilots; availability; a
-visit; staffing; lock-in; confirmation; the emails, notifications and audit
+visit over several days (a day off, a day with its own times); provisional
+dates, the answers and the team's summary, then confirming them; staffing
+with availability day by day; lock-in; confirmation; the assistant unable to
+cancel and the team unable to remove; calendar files; a change of place; the
+project manager removing them; notification choices; the emails, notifications and audit
 log; what each role must not be able to do (the team opening copies,
 assistants seeing others, direct reads of records and files, anonymous
 sessions); and retention. Screenshots go to `portal-shots/`.
-Unit tests: `firebase/functions/src/portalCore.test.ts`.
+In the emulator no push is sent: each is written to `portalPushLog`, which
+the test checks. Unit tests: `firebase/functions/src/portalCore.test.ts` and
+`push.test.ts`.

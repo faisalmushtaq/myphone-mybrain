@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { ACCEPT, ask, messageOf, uploadDocument } from './api';
-import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, dayLines, daysOn, DOC_STATE_LABEL, longDate, todayIso, visitWhen, type Availability, type Contact, type DocRow, type MySummary, type Visit } from './types';
+import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, CANVASS_LABEL, dayLines, daysOn, DOC_STATE_LABEL, longDate, todayIso, visitWhen, type Availability, type CanvassAnswer, type Contact, type DocRow, type MySummary, type Visit } from './types';
 
 /** A badge for a document's state, coloured by how much it needs doing. */
 export function StateBadge({ state }: { state: DocRow['state'] }) {
@@ -328,11 +328,11 @@ export function AvailabilityView({ summary, reload }: { summary: MySummary; relo
 
 export function Offers({ summary, reload }: { summary: MySummary; reload: () => Promise<void> }) {
   const offers = summary.assignments.filter((a) => a.status === 'offered');
-  const [open, setOpen] = useState<(Visit & { interested: boolean })[] | null>(null);
+  const [open, setOpen] = useState<OpenVisit[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
-  const loadOpen = async () => setOpen((await ask<{ visits: (Visit & { interested: boolean })[] }>('open-visits')).visits);
+  const loadOpen = async () => setOpen((await ask<{ visits: OpenVisit[] }>('open-visits')).visits);
   useEffect(() => {
     void loadOpen().catch((e) => setError(messageOf(e)));
   }, []);
@@ -357,8 +357,20 @@ export function Offers({ summary, reload }: { summary: MySummary; reload: () => 
     }
   };
   const mine = new Set(summary.assignments.map((a) => a.visitId));
+  const provisional = (open ?? []).filter((v) => v.status === 'provisional');
   return (
     <div className="mpmb-tools__section">
+      {provisional.length > 0 && (
+        <section aria-labelledby="possible-h">
+          <h2 className="mpmb-h2" id="possible-h">
+            Possible dates: could you do them?
+          </h2>
+          <p className="mpmb-hint">These dates are not yet confirmed with the school. Tell us, day by day, whether you could do them. Your answers also count as your availability for those days.</p>
+          {provisional.map((v) => (
+            <ProvisionalCard key={v.visitId} v={v} onSaved={loadOpen} onError={setError} />
+          ))}
+        </section>
+      )}
       {error && (
         <Callout tone="warning" role="alert">
           {error}
@@ -398,12 +410,12 @@ export function Offers({ summary, reload }: { summary: MySummary; reload: () => 
         <p className="mpmb-hint">Let the team know which visits you would like. They choose from people who are available and ready.</p>
         {open === null ? (
           <p>Loading…</p>
-        ) : !open.filter((v) => !mine.has(v.visitId)).length ? (
+        ) : !open.filter((v) => !mine.has(v.visitId) && v.status !== 'provisional').length ? (
           <p>Nothing else coming up yet.</p>
         ) : (
           <ul className="mpmb-tools__list">
             {open
-              .filter((v) => !mine.has(v.visitId))
+              .filter((v) => !mine.has(v.visitId) && v.status !== 'provisional')
               .map((v) => (
                 <li key={v.visitId} className="mpmb-tools__row">
                   <span>
@@ -419,6 +431,62 @@ export function Offers({ summary, reload }: { summary: MySummary; reload: () => 
           </ul>
         )}
       </section>
+    </div>
+  );
+}
+
+type OpenVisit = Visit & { interested: boolean; myAnswers: Record<string, CanvassAnswer> };
+
+/** One provisional visit: clearly marked as not confirmed, with can do / maybe / can't do for each day. */
+function ProvisionalCard({ v, onSaved, onError }: { v: OpenVisit; onSaved: () => Promise<void>; onError: (e: string | null) => void }) {
+  const [answers, setAnswers] = useState<Record<string, CanvassAnswer>>(v.myAnswers);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const days = daysOn(v);
+  const save = async () => {
+    setBusy(true);
+    onError(null);
+    try {
+      await ask('canvass-answer', { visitId: v.visitId, answers });
+      setSaved(true);
+      await onSaved();
+    } catch (e) {
+      onError(messageOf(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="mpmb-card mpmb-portal__offer mpmb-portal__provisional">
+      <p className="mpmb-portal__badge mpmb-portal__badge--wait">Provisional — not confirmed</p>
+      <h3 className="mpmb-h3">{v.schoolName}</h3>
+      <p>Where: {v.location}</p>
+      <ul className="mpmb-tools__list">
+        {days.map((d) => (
+          <li key={d.date} className="mpmb-tools__row mpmb-portal__answer">
+            <span>
+              <strong>{longDate(d.date)}</strong>
+              <br />
+              <span className="mpmb-hint">
+                {d.start} to {d.end}
+              </span>
+            </span>
+            <span className="mpmb-portal__choices" role="radiogroup" aria-label={`${longDate(d.date)}: could you do it?`}>
+              {(['yes', 'maybe', 'no'] as CanvassAnswer[]).map((a) => (
+                <button key={a} type="button" role="radio" aria-checked={answers[d.date] === a} className={`mpmb-portal__choice mpmb-portal__choice--${a}${answers[d.date] === a ? ' is-on' : ''}`} onClick={() => (setAnswers({ ...answers, [d.date]: a }), setSaved(false))}>
+                  {CANVASS_LABEL[a]}
+                </button>
+              ))}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="mpmb-actions">
+        <Button variant="primary" loading={busy} disabled={!Object.keys(answers).length} onClick={() => void save()}>
+          Send my answers
+        </Button>
+        {saved && <span role="status">Thank you: sent.</span>}
+      </div>
     </div>
   );
 }

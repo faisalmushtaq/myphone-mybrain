@@ -24,6 +24,12 @@
   <link rel="icon" href="{{ '/favicon.ico' | relative_url }}" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="{{ '/assets/images/logo/favicon-32.png' | relative_url }}">
   <link rel="apple-touch-icon" href="{{ '/assets/images/logo/apple-touch-icon.png' | relative_url }}">
+  {% if page.webmanifest %}<link rel="manifest" href="{{ page.webmanifest | relative_url }}">
+  <meta name="theme-color" content="#00676b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="{{ page.app_title | default: 'MyPhone/MyBrain' }}">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">{% endif %}
   <meta name="theme-color" content="#006b73">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
