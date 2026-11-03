@@ -605,8 +605,15 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
             </p>
           </div>
           <div className="mpmb-actions">
-            <Button variant="ghost" onClick={() => go('#notifications')} aria-label={`Notifications, ${me.unread} unread`}>
-              🔔 {me.unread > 0 ? <span className="mpmb-portal__count">{me.unread}</span> : null}
+            <Button variant="ghost" onClick={() => go('#notifications')} aria-label={me.unread > 0 ? `Notifications, ${me.unread} unread` : 'Notifications'}>
+              <span className="mpmb-portal__notify">
+                Notifications
+                {me.unread > 0 ? (
+                  <span className="mpmb-portal__count" aria-hidden="true">
+                    {me.unread}
+                  </span>
+                ) : null}
+              </span>
             </Button>
             <Button variant="ghost" onClick={() => go('#profile')}>
               Your details
@@ -674,18 +681,25 @@ function Notifications({ go, reloadMe }: { go: (h: string) => void; reloadMe: ()
   if (error) return <Callout tone="warning">{error}</Callout>;
   if (!items) return <p>Loading…</p>;
   if (!items.length) return <p>Nothing yet.</p>;
+  const unread = items.filter((n) => !n.read).length;
   return (
-    <ul className="mpmb-tools__list">
-      {items.map((n) => (
-        <li key={n.id} className={`mpmb-tools__row mpmb-tools__row--stack${n.read ? '' : ' mpmb-portal__unread'}`}>
-          <a href={n.link} onClick={(e) => (e.preventDefault(), go(n.link))}>
-            <strong>{n.title}</strong>
-          </a>
-          <span>{n.body}</span>
-          <span className="mpmb-hint">{stamp(n.createdAt)}</span>
-        </li>
-      ))}
-    </ul>
+    <>
+      <div className="mpmb-portal__notes-bar">
+        <p className="mpmb-hint">{unread ? `${unread} new since you last looked. Opening this page marks them all as read.` : 'Everything here has been read.'}</p>
+      </div>
+      <ul className="mpmb-portal__notes" role="list">
+        {items.map((n) => (
+          <li key={n.id} className={`mpmb-portal__note${n.read ? '' : ' is-unread'}`}>
+            <a className="mpmb-portal__note-title" href={n.link} onClick={(e) => (e.preventDefault(), go(n.link))}>
+              {n.read ? null : <span className="mpmb-sr-only">New: </span>}
+              {n.title}
+            </a>
+            <span>{n.body}</span>
+            <span className="mpmb-portal__note-when">{stamp(n.createdAt)}</span>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -829,7 +843,7 @@ export function HomeScreenHelp({ always = false }: { always?: boolean }) {
             <li>
               Tap the Share button <span aria-hidden="true">(the square with an arrow)</span>, then <strong>Add to Home Screen</strong>, then <strong>Add</strong>.
             </li>
-            <li>Open the portal from the new icon, sign in, and go to Your details → Turn on notifications.</li>
+            <li>Open the portal from the new icon, sign in, and go to Your details and choose Turn on notifications.</li>
           </ol>
           <p className="mpmb-hint">Notifications need iOS 16.4 or later, and only work from the Home Screen icon.</p>
         </>
@@ -840,9 +854,9 @@ export function HomeScreenHelp({ always = false }: { always?: boolean }) {
           <ol className="mpmb-list">
             <li>Open this page in Chrome.</li>
             <li>
-              Tap the menu <span aria-hidden="true">(⋮)</span>, then <strong>Add to Home screen</strong> or <strong>Install app</strong>.
+              Tap the menu (the three dots at the top right), then <strong>Add to Home screen</strong> or <strong>Install app</strong>.
             </li>
-            <li>Then go to Your details → Turn on notifications.</li>
+            <li>Then go to Your details and choose Turn on notifications.</li>
           </ol>
         </>
       )}

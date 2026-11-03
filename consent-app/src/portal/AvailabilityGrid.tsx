@@ -210,7 +210,7 @@ export function AvailabilityGrid({ go }: { go: (hash: string) => void }) {
               </div>
             )}
             <p className="mpmb-hint">
-              {rows.length} {rows.length === 1 ? 'person' : 'people'}. Totals count research assistants. ⚠ means they could not be booked that day: hover or tap it for why.
+              {rows.length} {rows.length === 1 ? 'person' : 'people'}. Totals count research assistants. “Not ready” means they could not be booked that day: hover or tap it for why.
             </p>
             <div className="mpmb-portal__gridwrap">
               <table className="mpmb-portal__grid">
@@ -270,9 +270,10 @@ export function AvailabilityGrid({ go }: { go: (hash: string) => void }) {
                               </span>
                             ))}
                             {c.notReady.length > 0 && (
-                              <span className="mpmb-portal__gridwarn" title={c.notReady.join('; ')}>
-                                ⚠ <span className="mpmb-sr-only">Not ready: {c.notReady.join('; ')}</span>
-                              </span>
+                              <details className="mpmb-portal__flagwrap">
+                                <summary className="mpmb-portal__flag" title={c.notReady.join('; ')}>Not ready</summary>
+                                <span className="mpmb-portal__flagwhy">{c.notReady.join('; ')}</span>
+                              </details>
                             )}
                             {c.note && <span className="mpmb-portal__gridnote">{c.note}</span>}
                           </td>

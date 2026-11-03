@@ -4468,3 +4468,92 @@
 .mpmb-portal__claim--waiting { background: #fff4cf; color: #6b4e00; }
 .mpmb-portal__claim--confirmed { background: #dcf3e6; color: #135c34; }
 .mpmb-portal__claim--declined { background: #fde3e7; color: #8a1630; }
+
+/* ── Staff portal: one steady rhythm (4 November 2026) ─────────────────────
+   The app resets margins, so stacked parts touched (a button flush under its
+   field, cards against each other, text against borders). Every stacked part
+   of a portal page, form, card, section or callout now gets the same gap,
+   headings get room above them, and lists and notices get inner padding. */
+.mpmb-app .mpmb-portal__narrow > * + *,
+.mpmb-app .mpmb-portal form > * + *,
+.mpmb-app .mpmb-portal .mpmb-card > * + *,
+.mpmb-app .mpmb-portal section > * + *,
+.mpmb-app .mpmb-portal .mpmb-callout__body > * + * {
+  margin-top: 1rem;
+}
+/* Grids and rows lay out their own items with gaps: no stacking margin inside them. */
+.mpmb-app .mpmb-portal :is(.mpmb-portal__stats, .mpmb-portal__chips, .mpmb-portal__calendar, .mpmb-portal__checklist, .mpmb-portal__notes, .mpmb-tools__list, .mpmb-actions, .mpmb-portal__studies, .mpmb-tools__tabs) > * + * {
+  margin-top: 0;
+}
+/* Lists start at the left edge, in line with the headings above them. */
+/* Stronger than the tools' bulleted-list rule (.mpmb-tools ul:not(.mpmb-tools__list)), which indented these. */
+.mpmb-app .mpmb-portal ul:is(.mpmb-portal__checklist, .mpmb-portal__notes, .mpmb-tools__list, .mpmb-portal__chips, .mpmb-portal__stats) {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+.mpmb-app .mpmb-portal ul:is(.mpmb-portal__checklist, .mpmb-portal__notes, .mpmb-portal__chips, .mpmb-portal__stats) > li { margin-bottom: 0; }
+/* A button or a row of buttons after a field or a hint: a clear gap, never flush. */
+.mpmb-app .mpmb-portal :is(.mpmb-field, .mpmb-hint, .mpmb-portal__inline, fieldset, p) + :is(.mpmb-btn, .mpmb-actions),
+.mpmb-app .mpmb-portal :is(.mpmb-field, .mpmb-hint) + .mpmb-btn--link {
+  margin-top: 1.25rem;
+}
+.mpmb-app .mpmb-portal .mpmb-actions { margin-top: 1.25rem; gap: 0.6rem; }
+.mpmb-app .mpmb-portal .mpmb-portal__head .mpmb-actions { margin-top: 0; }
+.mpmb-app .mpmb-portal p { margin-bottom: 0; }
+/* Headings: room above, a little below; none at the very top of a block. */
+.mpmb-app .mpmb-portal .mpmb-h2 { margin: 2rem 0 0.75rem; }
+.mpmb-app .mpmb-portal .mpmb-h3 { margin: 1.5rem 0 0.5rem; }
+.mpmb-app .mpmb-portal :is(.mpmb-h1, .mpmb-h2, .mpmb-h3):first-child { margin-top: 0; }
+.mpmb-app .mpmb-portal .mpmb-h1 { margin: 0 0 1rem; }
+/* Cards and callouts: text never meets the border. */
+.mpmb-app .mpmb-portal .mpmb-card { padding: 1.25rem 1.25rem 1.4rem; }
+.mpmb-app .mpmb-portal .mpmb-card + .mpmb-card { margin-top: 1.25rem; }
+.mpmb-app .mpmb-portal .mpmb-callout { margin-top: 1rem; }
+.mpmb-app .mpmb-portal .mpmb-callout:first-child { margin-top: 0; }
+/* Header and tabs: breathing room. */
+.mpmb-portal__head { gap: 1rem; padding-bottom: 1rem; }
+.mpmb-portal__studies { margin: 1.25rem 0 0.75rem; }
+.mpmb-app .mpmb-portal .mpmb-tools__tabs { margin: 0.5rem 0 1.5rem; }
+.mpmb-app .mpmb-portal .mpmb-tools__row { padding: 0.85rem 1rem; gap: 0.35rem 0.75rem; }
+.mpmb-app .mpmb-portal .mpmb-tools__list { display: grid; gap: 0.5rem; }
+
+/* The notifications button: the word and a count, in the site's own pill. */
+.mpmb-portal__notify { display: inline-flex; align-items: center; gap: 0.5rem; }
+.mpmb-portal__icon { width: 1.1rem; height: 1.1rem; flex: 0 0 auto; }
+.mpmb-portal__count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.5rem; height: 1.5rem; padding: 0 0.45rem; border-radius: 999px;
+  background: var(--mpb-pink); color: var(--mpb-white); font-size: 0.8rem; font-weight: 700; line-height: 1;
+}
+
+/* Notifications: padded items; unread ones with a teal edge and a bold title; the time on its own line. */
+.mpmb-portal__notes { display: grid; gap: 0.6rem; }
+.mpmb-portal__note {
+  display: grid; gap: 0.35rem;
+  padding: 1rem 1.15rem; border: 1px solid var(--mpb-line); border-radius: 10px; background: var(--mpb-white);
+}
+.mpmb-portal__note.is-unread { border-left: 4px solid var(--mpb-teal); padding-left: calc(1.15rem - 3px); background: #f4fafb; }
+.mpmb-app .mpmb-portal__note-title { font-weight: 600; text-decoration: none; color: var(--mpb-ink); }
+.mpmb-portal__note.is-unread .mpmb-portal__note-title { font-weight: 700; color: var(--mpb-teal); }
+.mpmb-app .mpmb-portal__note-title:hover { text-decoration: underline; }
+.mpmb-portal__note-when { font-size: 0.85rem; color: var(--mpb-muted); }
+.mpmb-portal__notes-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+
+/* Small labels in place of glyphs: done, not ready, can or cannot that day. */
+.mpmb-portal__flag {
+  display: inline-block; padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700;
+  background: var(--mpb-error-bg); color: var(--mpb-pink); border: 1px solid #f1c4d2; white-space: nowrap; cursor: help;
+}
+.mpmb-portal__mark { font-size: 0.75rem; font-weight: 700; margin-left: 0.25rem; }
+.mpmb-portal__mark--yes { color: #135c2c; }
+.mpmb-portal__mark--no { color: var(--mpb-pink); }
+.mpmb-portal__mark--maybe { color: #6b4d00; }
+.mpmb-portal__flagwrap { display: block; margin-top: 0.3rem; }
+.mpmb-portal__flagwrap > summary { list-style: none; }
+.mpmb-portal__flagwrap > summary::-webkit-details-marker { display: none; }
+.mpmb-portal__flagwhy { display: block; margin-top: 0.3rem; font-size: 0.78rem; color: var(--mpb-pink); }
+@media (max-width: 30rem) {
+  .mpmb-app .mpmb-portal__head .mpmb-btn { padding: 0.3rem 0.6rem; font-size: 0.9rem; }
+  .mpmb-portal__head .mpmb-actions { gap: 0.4rem; }
+}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Icon } from '../components/ui/Icon';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { ACCEPT, ask, messageOf, uploadDocument } from './api';
@@ -49,7 +50,7 @@ export function RaHome({ summary, go }: { summary: MySummary; go: (hash: string)
           {items.map((i) => (
             <li key={i.title} className={i.done ? 'is-done' : ''}>
               <span className="mpmb-portal__tick" aria-hidden="true">
-                {i.done ? '✓' : ''}
+                {i.done ? <Icon name="check" size={18} /> : null}
               </span>
               <span>
                 <strong>{i.title}</strong>
@@ -447,7 +448,7 @@ export function Offers({ summary, reload }: { summary: MySummary; reload: () => 
                     {visitWhen(v)} · {v.location}
                   </span>
                   <Button variant={v.interested ? 'secondary' : 'ghost'} onClick={() => void interest(v.visitId, !v.interested)} aria-pressed={v.interested}>
-                    {v.interested ? 'Interested ✓' : 'I’m interested'}
+                    {v.interested ? 'Interested (tap to undo)' : 'I’m interested'}
                   </Button>
                 </li>
               ))}

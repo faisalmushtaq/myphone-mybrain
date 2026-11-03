@@ -401,7 +401,7 @@ export function VisitView({ visitId, role, go }: { visitId: string; role: 'pm' |
                       {on.length > 1 &&
                         c.perDay.map((d) => (
                           <label key={d.date} className={`mpmb-portal__dayChip mpmb-portal__dayChip--${d.covers}`} title={d.value ? AVAILABILITY_LABEL[d.value] : 'Not given'}>
-                            <input type="checkbox" checked={p.dates.includes(d.date)} onChange={(e) => pick(c, { dates: e.target.checked ? [...p.dates, d.date].sort() : p.dates.filter((x) => x !== d.date) })} /> {shortDate(d.date)} {d.covers === 'yes' ? '✓' : d.covers === 'no' ? '✗' : '?'}
+                            <input type="checkbox" checked={p.dates.includes(d.date)} onChange={(e) => pick(c, { dates: e.target.checked ? [...p.dates, d.date].sort() : p.dates.filter((x) => x !== d.date) })} /> {shortDate(d.date)} <span className={`mpmb-portal__mark mpmb-portal__mark--${d.covers === 'yes' ? 'yes' : d.covers === 'no' ? 'no' : 'maybe'}`}>{d.covers === 'yes' ? 'free' : d.covers === 'no' ? 'not free' : 'not sure'}</span>
                           </label>
                         ))}
                     </span>
