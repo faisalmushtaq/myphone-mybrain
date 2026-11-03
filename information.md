@@ -106,7 +106,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
           <li>No special preparation is needed.</li>
           <li>Clean, dry hair, without gel, oil, spray or other hair products, helps the sensors work.</li>
           <li>Long hair can be tied back so the headset sits comfortably.</li>
-          <li>Young people who wear religious head coverings can use a private space during the session if they need to.</li>
+          <li>The headset sits directly on the head, so head coverings (such as a hijab, turban, patka or cap) need to be taken off for the brain recording. We have a private room for anyone who would like to take theirs off there. If your child would rather keep their head covering on, they can still join the rest of the workshop with their class and simply skip the brain recording. If you would like to talk this through, tell the school or email us before the workshop.</li>
         </ul>
       </div>
     </div>
