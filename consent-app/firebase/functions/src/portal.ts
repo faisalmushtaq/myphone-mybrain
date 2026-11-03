@@ -8,7 +8,7 @@ import { schools as siteSchools } from './forms.js';
 import { icsForMany, type IcsEvent } from './ics.js';
 import { SITE } from './links.js';
 import { hashPassword, newSchoolPassword } from './schoolUpload.js';
-import { sendMail, type Attachment, type MailOutcome } from './mail.js';
+import { sendMail, type Attachment, type Mail, type MailOutcome } from './mail.js';
 import { pushConfigured, pushPublicKey, pushTo, subscriptionId, subscriptionOf } from './push.js';
 import { sendSms, ukMobile } from './sms.js';
 import {
@@ -93,6 +93,7 @@ import {
   type VisitDay,
   type VisitInfo,
   type VisitStatus,
+  copyFor,
 } from './portalCore.js';
 
 /**
@@ -199,11 +200,26 @@ async function notify(db: Firestore, uids: string[], note: Note, push?: { title:
   if (push) await pushTo(db, uids, { title: push.title, body: push.body, link: note.link, tag: note.link });
 }
 
-/** Sends an email and keeps a record of it (who, what, and whether it went). Never throws. */
-async function mail(db: Firestore, to: string, subject: string, body: string, kind: string, attachments?: Attachment[]): Promise<MailOutcome> {
-  const outcome = await sendMail({ to, subject, text: body, ...(attachments ? { attachments } : {}) });
-  await db.collection('portalMail').add({ channel: 'email', to, subject, kind, outcome, at: FieldValue.serverTimestamp() });
+/** The name portal emails come from; the address is always the study's configured sender (mail.ts). */
+const PORTAL_SENDER = 'MyPhone/MyBrain team';
+
+/**
+ * Sends a portal email from the study's account, copying in the "Always copy
+ * in" addresses (not twice, and not on an email only to them), and keeps a
+ * record of it. Never throws.
+ */
+async function send(db: Firestore, message: Omit<Mail, 'fromName'>, kind: string): Promise<MailOutcome> {
+  const { alwaysCopy } = await settingsFrom(db);
+  const copy = copyFor(alwaysCopy, message);
+  const cc = [...(message.cc ? [message.cc] : []), ...copy].join(', ') || undefined;
+  const outcome = await sendMail({ ...message, fromName: PORTAL_SENDER, cc });
+  await db.collection('portalMail').add({ channel: 'email', to: message.to, ...(cc ? { cc } : {}), ...(message.bcc ? { bcc: message.bcc } : {}), subject: message.subject, kind, outcome, at: FieldValue.serverTimestamp() });
   return outcome;
+}
+
+/** Sends an email to one person. Never throws. */
+function mail(db: Firestore, to: string, subject: string, body: string, kind: string, attachments?: Attachment[]): Promise<MailOutcome> {
+  return send(db, { to, subject, text: body, ...(attachments ? { attachments } : {}) }, kind);
 }
 
 async function text_(db: Firestore, user: DocumentData, body: string, kind: string) {
@@ -408,6 +424,8 @@ async function announce(db: Firestore, v: PortalVisit, schools: School[], kind: 
   const everyone = kind === 'cancelled-provisional' || kind === 'provisional-changed' ? users.filter((u) => direct.has(u.id)) : users;
   let pushed = 0;
   let emailed = 0;
+  // One email per kind, research assistants in blind copy (the "Always copy in" addresses are copied once, not per person).
+  const bulk = new Map<Announcement, string[]>();
   for (const u of everyone) {
     const x = u.data();
     const prefs = notifyPrefsOf(x.notifyPrefs);
@@ -418,9 +436,13 @@ async function announce(db: Firestore, v: PortalVisit, schools: School[], kind: 
     await notify(db, [u.id], m.note);
     if (always || prefs.newDatesPush) pushed += await pushTo(db, [u.id], { ...m.push, link: m.note.link, tag: `dates-${v.visitId}` });
     if ((always || prefs.newDatesEmail) && x.email) {
-      await mail(db, String(x.email), m.email.subject, m.email.body, `dates-${theirKind}`);
+      bulk.set(theirKind, [...(bulk.get(theirKind) ?? []), String(x.email)]);
       emailed += 1;
     }
+  }
+  for (const [theirKind, emails] of bulk) {
+    const m = announcementMessage(theirKind, info.schoolName, days, info.location, link, 'all');
+    await send(db, { to: 'undisclosed-recipients:;', bcc: emails.join(', '), subject: m.email.subject, text: m.email.body }, `dates-${theirKind}`);
   }
   await db.collection('portalAudit').add({ at: FieldValue.serverTimestamp(), by: 'system', byEmail: '', byName: 'Announcements', action: `announce-${kind}`, target: v.visitId, details: { people: everyone.length, pushed, emailed, days: days.map((d) => d.date) } });
   return { people: everyone.length, pushed, emailed };
@@ -946,7 +968,9 @@ export const portalApi = onCall(callOptions, async (request) => {
         db.collection('portalInterest').where('visitId', '==', visitId).get(),
         assignmentsOf(db, v),
       ]);
-      const [attendanceSnap, emailsSnap, teamSnap] = await Promise.all([db.collection('portalAttendance').where('visitId', '==', visitId).get(), db.collection('portalSchoolEmails').where('visitId', '==', visitId).get(), db.collection('portalTeamEmails').where('schoolId', '==', v.schoolId).get()]);
+      const [attendanceSnap, emailsSnap, teamSnap, rawPlaces] = await Promise.all([db.collection('portalAttendance').where('visitId', '==', visitId).get(), db.collection('portalSchoolEmails').where('visitId', '==', visitId).get(), db.collection('portalTeamEmails').where('schoolId', '==', v.schoolId).get(), db.collection('portalAssignments').where('visitId', '==', visitId).get()]);
+      // What the team sees beside a place: the person's note when answering, and why they were booked without being ready.
+      const placeExtras = new Map(rawPlaces.docs.map((d) => [String(d.data().uid), { note: String(d.data().note ?? ''), override: d.data().override ? { reason: String(d.data().override.reason ?? ''), byName: String(d.data().override.byName ?? '') } : null, removedReason: String(d.data().removedReason ?? '') }]));
       const school = schools.find((s) => s.id === v.schoolId) ?? null;
       const requirements = requirementsFor(settings, school);
       const latest = latestDocs(docs);
@@ -971,7 +995,7 @@ export const portalApi = onCall(callOptions, async (request) => {
           const extras = teamExtras(d.data(), settings);
           // The place that counts: an open or confirmed one, else the latest answer.
           const place = assignments.find((a) => a.uid === d.id && (a.status === 'offered' || a.status === 'confirmed')) ?? assignments.find((a) => a.uid === d.id) ?? null;
-          return { uid: d.id, name: String(d.data().name ?? ''), email: String(d.data().email ?? ''), ...extras, perDay: cover.perDay, coverage: cover.coverage, availableDates: cover.availableDates, availabilityNote: [extras.availabilityNote, ...(notesOf.get(d.id) ?? [])].filter(Boolean).join(' · '), interested: interested.has(d.id), counts, eligible: e.eligible, reasons: e.reasons, assignment: place };
+          return { uid: d.id, name: String(d.data().name ?? ''), email: String(d.data().email ?? ''), ...extras, perDay: cover.perDay, coverage: cover.coverage, availableDates: cover.availableDates, availabilityNote: [extras.availabilityNote, ...(notesOf.get(d.id) ?? [])].filter(Boolean).join(' · '), interested: interested.has(d.id), counts, eligible: e.eligible, reasons: e.reasons, assignment: place ? { ...place, ...(placeExtras.get(d.id) ?? { note: '', override: null, removedReason: '' }) } : null };
         })
         .sort((a, b) => Number(b.eligible) - Number(a.eligible) || COVER_ORDER[a.coverage] - COVER_ORDER[b.coverage] || (b.level ?? 0) - (a.level ?? 0) || b.availableDates.length - a.availableDates.length || Number(b.interested) - Number(a.interested) || a.name.localeCompare(b.name));
       const ras = usersSnap.docs.filter((d) => d.data().role === 'ra').map((d) => ({ uid: d.id, name: String(d.data().name ?? d.data().email ?? '') }));
@@ -1153,9 +1177,21 @@ export const portalApi = onCall(callOptions, async (request) => {
       const body = teamEmailBody(sections);
       const mode = data.mode === 'bcc' ? 'bcc' : 'individual';
       const outcomes: MailOutcome[] = [];
-      if (mode === 'bcc') outcomes.push(await sendMail({ to: me.email, bcc: recipients.map((r) => r.email).join(', '), replyTo: me.email, subject: sections.subject, text: body.text, html: body.html }));
-      else for (const r of recipients) outcomes.push(await sendMail({ to: r.email, replyTo: me.email, subject: sections.subject, text: body.text, html: body.html }));
-      await db.collection('portalMail').add({ channel: 'email', to: recipients.map((r) => r.email).join(', '), subject: sections.subject, kind: 'team-allocations', outcome: outcomes.every((o) => o === outcomes[0]) ? outcomes[0] : 'mixed', at: FieldValue.serverTimestamp() });
+      // One email with everyone in blind copy, or one each; either way the "Always copy in" addresses get one copy, not one per person.
+      if (mode === 'bcc') outcomes.push(await send(db, { to: me.email, bcc: recipients.map((r) => r.email).join(', '), replyTo: me.email, subject: sections.subject, text: body.text, html: body.html }, 'team-allocations'));
+      else {
+        const { alwaysCopy } = await settingsFrom(db);
+        for (const r of recipients) {
+          const outcome = await sendMail({ to: r.email, fromName: PORTAL_SENDER, replyTo: me.email, subject: sections.subject, text: body.text, html: body.html });
+          await db.collection('portalMail').add({ channel: 'email', to: r.email, subject: sections.subject, kind: 'team-allocations', outcome, at: FieldValue.serverTimestamp() });
+          outcomes.push(outcome);
+        }
+        const copy = copyFor(alwaysCopy, { to: recipients.map((r) => r.email) });
+        if (copy.length) {
+          const note = `(A copy: this email was sent individually to ${recipients.map((r) => r.name).join(', ')}.)\n\n`;
+          await send(db, { to: copy.join(', '), replyTo: me.email, subject: sections.subject, text: note + body.text, html: `<p><em>${note.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;')}</em></p>${body.html}` }, 'team-allocations-copy');
+        }
+      }
       await db.collection('portalTeamEmails').add({ schoolId, from, to, visitIds, snapshot, by: me.uid, byName: me.name, at: FieldValue.serverTimestamp(), recipients: recipients.map((r) => r.email), mode, update });
       const range = `${datesShort(days.map((d) => ({ date: d.date, on: true, start: '', end: '' })))}`;
       await notify(db, recipients.map((r) => (r as { uid?: string }).uid).filter((u): u is string => !!u), { title: `Team allocations: ${school.name}`, body: `Team allocations for ${school.name} ${range} have been sent. Check your email.`, link: '#my-visits' }, { title: `Team allocations: ${school.name}`, body: `Team allocations for ${school.name} ${range} have been sent.` });
@@ -1223,14 +1259,14 @@ export const portalApi = onCall(callOptions, async (request) => {
         ...(!m.people ? ['Nobody is confirmed for this visit yet.'] : []),
       ];
       if (action === 'school-email-preview') {
-        return { to: school.contactEmails, cc: [...new Set([me.email, settings.withdrawalContact.email.toLowerCase()])], subject: m.subject, body: m.body, intro, includeDbs, warnings, hasDbsPassword: access?.active === true, update, lastSent: last ? { at: iso(last.at), byName: String(last.byName ?? ''), to: last.to ?? [], includeDbs: last.includeDbs === true } : null };
+        const ccNow = [...new Set([me.email, settings.withdrawalContact.email.toLowerCase()])];
+        return { to: school.contactEmails, cc: [...ccNow, ...copyFor(settings.alwaysCopy, { to: school.contactEmails, cc: ccNow })], subject: m.subject, body: m.body, intro, includeDbs, warnings, hasDbsPassword: access?.active === true, update, lastSent: last ? { at: iso(last.at), byName: String(last.byName ?? ''), to: last.to ?? [], includeDbs: last.includeDbs === true } : null };
       }
       if (!school.contactEmails.length) throw bad('Add the school’s email address under Schools first.');
       if (!m.people) throw bad('Nobody is confirmed for this visit yet.');
       if (includeDbs && access?.active !== true) throw bad('The school has no DBS page password yet. Make one under Schools (project manager), or turn off DBS details.');
       const cc = [...new Set([me.email, settings.withdrawalContact.email.toLowerCase()])].join(', ');
-      const outcome = await sendMail({ to: school.contactEmails.join(', '), cc, replyTo: settings.withdrawalContact.email, subject: m.subject, text: m.body });
-      await db.collection('portalMail').add({ channel: 'email', to: school.contactEmails.join(', '), subject: m.subject, kind: 'school', outcome, at: FieldValue.serverTimestamp() });
+      const outcome = await send(db, { to: school.contactEmails.join(', '), cc, replyTo: me.email, subject: m.subject, text: m.body }, 'school');
       await db.collection('portalSchoolEmails').add({ visitId, schoolId: school.id, by: me.uid, byName: me.name, at: FieldValue.serverTimestamp(), to: school.contactEmails, cc, includeDbs, update, snapshot, outcome });
       if (data.saveIntro !== false) await db.collection('portalSchools').doc(school.id).set({ emailIntro: intro }, { merge: true });
       await audit(db, me, 'email-school', visitId, { schoolId: school.id, to: school.contactEmails, includeDbs, update, people: m.people });
@@ -1394,7 +1430,7 @@ export const portalApi = onCall(callOptions, async (request) => {
     case 'save-settings': {
       const settings = settingsOf(data.settings);
       await db.collection('portalSettings').doc('main').set({ ...settings, updatedBy: me.uid, updatedAt: FieldValue.serverTimestamp() });
-      await audit(db, me, 'save-settings', 'main', { minTraining: settings.minTraining, minPilots: settings.minPilots, retentionDays: settings.retentionDays, docTypes: settings.docTypes.map((t) => t.id), tags: settings.tags.map((t) => `${t.id}${t.retired ? ' (retired)' : ''}`), roleNeeds: settings.roleNeeds });
+      await audit(db, me, 'save-settings', 'main', { minTraining: settings.minTraining, minPilots: settings.minPilots, retentionDays: settings.retentionDays, docTypes: settings.docTypes.map((t) => t.id), tags: settings.tags.map((t) => `${t.id}${t.retired ? ' (retired)' : ''}`), roleNeeds: settings.roleNeeds, alwaysCopy: settings.alwaysCopy });
       return { settings };
     }
     case 'audit': {

@@ -6,6 +6,7 @@ import {
   attendanceProblem,
   buildReport,
   changedSince,
+  copyFor,
   confirmedSnapshot,
   coverageByDay,
   dbsPageRows,
@@ -308,4 +309,18 @@ test('team emails: names per day with time notes, jobs only if asked, first-day 
   assert.equal(timeNoteFrom('am'), 'morning only');
   assert.equal(timeNoteFrom('all'), null);
   assert.deepEqual(assignmentOf({ uid: 'a', status: 'confirmed', dates: [D1], timeNotes: { [D1]: 'until 1:00 pm', '2026-12-01': 'x' } }, twoDays).timeNotes, { [D1]: 'until 1:00 pm' });
+});
+
+test('always copy in: the two addresses by default, never twice, none on an email only to them', () => {
+  const always = settingsOf({}).alwaysCopy;
+  assert.deepEqual(always, ['brainpop@leeds.ac.uk', 'S.A.Ali1@leeds.ac.uk']);
+  assert.deepEqual(copyFor(always, { to: 'ra@example.com' }), always);
+  // Already on it (any case, To, CC or BCC): not copied again.
+  assert.deepEqual(copyFor(always, { to: 'school@example.org', cc: 's.a.ali1@leeds.ac.uk, me@leeds.ac.uk' }), ['brainpop@leeds.ac.uk']);
+  assert.deepEqual(copyFor(always, { to: 'undisclosed-recipients:;', bcc: 'a@x.com, b@y.com' }), always);
+  // A system email to Sarmad himself: no copy.
+  assert.deepEqual(copyFor(always, { to: 'S.A.Ali1@leeds.ac.uk' }), []);
+  // The project manager can change the list; bad addresses are dropped.
+  assert.deepEqual(settingsOf({ alwaysCopy: ['team@leeds.ac.uk', 'not an email', 'TEAM@leeds.ac.uk'] }).alwaysCopy, ['TEAM@leeds.ac.uk']);
+  assert.deepEqual(settingsOf({ alwaysCopy: [] }).alwaysCopy, []);
 });

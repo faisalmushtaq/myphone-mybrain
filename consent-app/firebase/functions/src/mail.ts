@@ -48,6 +48,8 @@ export interface Mail extends TeamMessage {
   bcc?: string;
   /** An HTML version beside the plain text. */
   html?: string;
+  /** The name shown beside the study's own address ("MyPhone/MyBrain team"); the address is always the configured sender. */
+  fromName?: string;
   attachments?: Attachment[];
 }
 
@@ -105,7 +107,8 @@ export async function sendMail(message: Mail, settings: MailSettings | null = se
       greetingTimeout: 10_000,
       socketTimeout: 20_000,
     });
-    await transport.sendMail({ from: settings.from, to: message.to, cc: message.cc, bcc: message.bcc, replyTo: message.replyTo, subject: message.subject, text: message.text, ...(message.html ? { html: message.html } : {}), attachments: message.attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })) });
+    const from = message.fromName ? `${message.fromName.replace(/[<>"\r\n]/g, '')} <${settings.user}>` : settings.from;
+    await transport.sendMail({ from, to: message.to, cc: message.cc, bcc: message.bcc, replyTo: message.replyTo, subject: message.subject, text: message.text, ...(message.html ? { html: message.html } : {}), attachments: message.attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })) });
     return 'sent';
   } catch (error) {
     logger.error('Mail: sending failed', { error: String((error as Error).message ?? error) });

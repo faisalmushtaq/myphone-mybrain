@@ -6,7 +6,9 @@ import { TextField } from '../components/ui/Field';
 import { ask, completeLink, connection, leave, messageOf, pendingLink, refreshToken, sendLink, watchUser } from './api';
 import { disablePush, enablePush, isAndroid, isIos, isStandalone, pushState, registerPortalWorker, type PushState } from './push';
 import { AvailabilityView, Documents, MyVisits, Offers, RaHome, Training } from './RaViews';
-import { Audit, People, Person, Schools, Sessions, SettingsView, TeamHome, VisitView, Visits } from './TeamViews';
+import { Reports } from './Reports';
+import { Audit, People, Person, Schools, Sessions, SettingsView, TeamHome, Visits } from './TeamViews';
+import { VisitView } from './VisitView';
 import { ROLE_LABEL, stamp, type Me, type MySummary, type Notification, type Role } from './types';
 
 /**
@@ -262,6 +264,7 @@ function navFor(role: Role): NavItem[] {
     { hash: '#people', label: 'People' },
     { hash: '#sessions', label: 'Training and pilots' },
     { hash: '#schools', label: 'Schools' },
+    { hash: '#reports', label: 'Reports' },
     ...(role === 'pm' ? [{ hash: '#settings', label: 'Settings' }, { hash: '#audit', label: 'Audit log' }] : []),
   ];
 }
@@ -327,11 +330,13 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
       case 'visits':
         return <Visits go={go} />;
       case 'visit':
-        return <VisitView visitId={arg} go={go} />;
+        return <VisitView visitId={arg} role={role === 'pm' ? 'pm' : 'researcher'} go={go} />;
       case 'sessions':
         return <Sessions />;
       case 'schools':
-        return <Schools />;
+        return <Schools role={role} />;
+      case 'reports':
+        return <Reports />;
       case 'settings':
         return role === 'pm' ? <SettingsView /> : null;
       case 'audit':

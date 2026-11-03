@@ -305,7 +305,7 @@ export class FirebaseConsentApi implements ConsentApi {
     return this.call<LabStoryVoiceRequest, LabStoryVoiceResponse>(session, 'labStoryVoice', request);
   }
 
-  callTool<Res>(session: SessionInfo, name: 'staffApi' | 'schoolUpload', payload: Record<string, unknown>): Promise<Res> {
+  callTool<Res>(session: SessionInfo, name: 'staffApi' | 'schoolUpload' | 'schoolDbs', payload: Record<string, unknown>): Promise<Res> {
     return this.call<Record<string, unknown>, Res>(session, name, payload);
   }
 

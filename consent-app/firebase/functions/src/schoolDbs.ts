@@ -83,7 +83,8 @@ export const schoolDbs = onCall({ region: REGION, memory: '512MiB', timeoutSecon
   const data = (request.data ?? {}) as Record<string, unknown>;
   const slug = typeof data.school === 'string' ? data.school.trim().toLowerCase() : '';
   if (!SLUG.test(slug)) throw new HttpsError('invalid-argument', 'This link does not name a school. Please use the link the research team sent you.');
-  const uid = request.auth?.uid ?? 'anon';
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Please try again.');
   const access = await checkDbsPassword(db, uid, slug, data.password);
   const page = await dbsPageFor(db, access.schoolId);
   const audit = (action: string, details: Record<string, unknown>) => db.collection('portalAudit').add({ at: FieldValue.serverTimestamp(), by: 'school', byEmail: '', byName: `${page.schoolName} (DBS page)`, action, target: access.schoolId, details });

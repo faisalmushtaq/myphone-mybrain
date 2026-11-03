@@ -53,13 +53,64 @@ export interface Counts {
   pilots: number;
 }
 
-/** One day of a visit: whether it runs, and its times. */
+/** The jobs on a visit day. */
+export type DayRole = 'eeg' | 'copro';
+export const DAY_ROLES: DayRole[] = ['eeg', 'copro'];
+export const DAY_ROLE_LABEL: Record<DayRole, string> = { eeg: 'EEG', copro: 'Co-production' };
+export interface RoleNeeds {
+  eeg: number;
+  copro: number;
+}
+
+/** A status the team gives someone (only "Ready" or "On hold" is ever shown to them). */
+export interface StatusTag {
+  id: string;
+  label: string;
+  retired?: boolean;
+}
+export type Level = 1 | 2 | 3 | 4;
+export const LEVEL_LABEL: Record<Level, string> = { 1: 'New', 2: 'Developing', 3: 'Experienced', 4: 'Lead' };
+
+/** What the team keeps about a person (never shown to research assistants). */
+export interface TeamExtras {
+  tags: StatusTag[];
+  level: Level | null;
+  levelReason: string;
+  capabilities: DayRole[];
+  availabilityNote: string;
+}
+
+/** How the team gets to the school. */
+export interface Travel {
+  arrival: string;
+  taxiFrom: string;
+  taxiTime: string;
+  direct: string;
+}
+
+/** One day of a visit: whether it runs, its times, and its own numbers and travel times if they differ. */
 export interface VisitDay {
   date: string;
   start: string;
   end: string;
   on: boolean;
+  eeg?: number;
+  copro?: number;
+  arrival?: string;
+  taxiTime?: string;
 }
+
+/** Each job's need on a day, and how many are offered and confirmed. */
+export interface DayCoverage {
+  date: string;
+  start: string;
+  end: string;
+  eeg: { need: number; offered: number; confirmed: number };
+  copro: { need: number; offered: number; confirmed: number };
+}
+
+export type AttendanceMark = 'attended' | 'absent' | 'late' | 'left-early';
+export const ATTENDANCE_LABEL: Record<AttendanceMark, string> = { attended: 'Attended', absent: 'Absent', late: 'Late', 'left-early': 'Left early' };
 
 export interface Visit {
   visitId: string;
@@ -76,7 +127,8 @@ export interface Visit {
   lastDate: string;
   /** An address, a room or a meeting point. */
   location: string;
-  needed: number;
+  roleNeeds: RoleNeeds;
+  travel: Travel;
   notes: string;
   status: VisitStatus;
 }
@@ -93,8 +145,11 @@ export interface MySummary {
   counts: Counts;
   sessions: { id: string; kind: 'training' | 'pilot'; date: string; title: string }[];
   availability: { date: string; value: Availability; note: string }[];
-  /** Visits offered to or taken by this person: status is their place's, visitStatus the visit's. */
-  assignments: (Omit<Visit, 'status'> & { status: AssignmentStatus; visitStatus: VisitStatus; removedReason: string })[];
+  /** "Ready" or "On hold", when the team has said so. */
+  standing: string | null;
+  daysAttended: number;
+  /** Visits offered to or taken by this person, with only their days: status is their place's, visitStatus the visit's. */
+  assignments: (Omit<Visit, 'status'> & { status: AssignmentStatus; visitStatus: VisitStatus; removedReason: string; role: DayRole; dates: string[]; timeNotes: Record<string, string> })[];
 }
 
 export interface Notification {
@@ -120,6 +175,12 @@ export interface School {
   area: string;
   requiredDocs: DocType[];
   active: boolean;
+  contactName?: string;
+  contactEmails?: string[];
+  includeDbs?: boolean;
+  dbsCopies?: boolean;
+  emailIntro?: string;
+  dbsAccess?: { active: boolean; setAt: string | null; lastViewedAt: string | null; link: string };
 }
 
 export interface Settings {
@@ -130,6 +191,10 @@ export interface Settings {
   dbsValidYears: number;
   docTypes: DocType[];
   withdrawalContact: Contact;
+  tags: StatusTag[];
+  roleNeeds: RoleNeeds;
+  /** Copied into every portal email to people outside the sender. */
+  alwaysCopy: string[];
 }
 
 export const DOC_STATE_LABEL: Record<DocState, string> = {
@@ -172,6 +237,17 @@ export function visitWhen(v: Pick<Visit, 'days'>): string {
   if (!on.length) return 'No days chosen';
   if (on.length === 1) return `${shortDate(on[0].date)}, ${on[0].start}–${on[0].end}`;
   return `${shortDate(on[0].date)} to ${shortDate(on.at(-1)!.date)} (${on.length} days)`;
+}
+
+/** "7:45 am" from "07:45". */
+export function clock(t: string): string {
+  const [h, m] = t.split(':').map(Number);
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
+}
+
+/** The travel on a day: the day's own times where it has them. */
+export function travelOn(d: VisitDay, t: Travel): Travel {
+  return { ...t, arrival: d.arrival || t.arrival, taxiTime: d.taxiTime || t.taxiTime };
 }
 
 /** Each day it runs, with its times: "Friday 20 November 2026, 08:30 to 15:00". */

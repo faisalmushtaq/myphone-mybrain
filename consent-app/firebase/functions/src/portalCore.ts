@@ -118,6 +118,8 @@ export interface Settings {
   tags: StatusTag[];
   /** People needed per day for each job, unless a visit or a day says otherwise. */
   roleNeeds: RoleNeeds;
+  /** "Always copy in": copied into every portal email to people outside the sender (5 November 2026). */
+  alwaysCopy: string[];
 }
 
 export const DEFAULT_TAGS: StatusTag[] = [
@@ -142,6 +144,7 @@ export const DEFAULT_SETTINGS: Settings = {
   withdrawalContact: { name: 'Dr Sarmad Ali', email: 'S.A.Ali1@leeds.ac.uk' },
   tags: DEFAULT_TAGS,
   roleNeeds: { eeg: 6, copro: 2 },
+  alwaysCopy: ['brainpop@leeds.ac.uk', 'S.A.Ali1@leeds.ac.uk'],
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -183,7 +186,23 @@ export function settingsOf(v: unknown): Settings {
     withdrawalContact: contactOf(o.withdrawalContact),
     tags: tagsSetting(o.tags),
     roleNeeds: roleNeedsOf(o.roleNeeds) ?? DEFAULT_SETTINGS.roleNeeds,
+    alwaysCopy: Array.isArray(o.alwaysCopy) ? [...new Map(o.alwaysCopy.map((e) => text(e, 200)).filter((e) => EMAIL_RE.test(e)).map((e) => [e.toLowerCase(), e])).values()].slice(0, 5) : DEFAULT_SETTINGS.alwaysCopy,
   };
+}
+
+/** Splits "a@x, b@y" (or a list) into addresses. */
+const addressesOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v : String(v ?? '').split(/[,;]/)).map((e) => e.trim()).filter(Boolean);
+
+/**
+ * Who to copy in on a portal email: the "Always copy in" addresses, less any
+ * already on it (To, CC or BCC, whatever the case). An email only to people
+ * on the list (a system email to Sarmad himself, say) gets no copy.
+ */
+export function copyFor(alwaysCopy: string[], mail: { to: string | string[]; cc?: string | string[]; bcc?: string | string[] }): string[] {
+  const on = new Set([...addressesOf(mail.to), ...addressesOf(mail.cc), ...addressesOf(mail.bcc)].map((e) => e.toLowerCase()));
+  const always = new Set(alwaysCopy.map((e) => e.toLowerCase()));
+  if (on.size && [...on].every((e) => always.has(e))) return [];
+  return [...new Map(alwaysCopy.filter((e) => !on.has(e.toLowerCase())).map((e) => [e.toLowerCase(), e])).values()];
 }
 
 function tagsSetting(v: unknown): StatusTag[] {

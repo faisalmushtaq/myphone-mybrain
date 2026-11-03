@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { ACCEPT, ask, messageOf, uploadDocument } from './api';
-import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, CANVASS_LABEL, dayLines, daysOn, DOC_STATE_LABEL, longDate, todayIso, visitWhen, type Availability, type CanvassAnswer, type Contact, type DocRow, type MySummary, type Visit } from './types';
+import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, CANVASS_LABEL, clock, DAY_ROLE_LABEL, dayLines, daysOn, DOC_STATE_LABEL, longDate, todayIso, travelOn, visitWhen, type Availability, type CanvassAnswer, type Contact, type DayRole, type DocRow, type MySummary, type Visit } from './types';
 
 /** A badge for a document's state, coloured by how much it needs doing. */
 export function StateBadge({ state }: { state: DocRow['state'] }) {
@@ -27,6 +27,11 @@ export function RaHome({ summary, go }: { summary: MySummary; go: (hash: string)
   ];
   return (
     <div className="mpmb-tools__section">
+      {(summary.standing || summary.daysAttended > 0) && (
+        <p>
+          {summary.standing && <span className={`mpmb-portal__badge mpmb-portal__badge--${summary.standing === 'Ready' ? 'ok' : 'todo'}`}>{summary.standing}</span>} {summary.daysAttended > 0 ? `You have helped on ${summary.daysAttended} school day${summary.daysAttended === 1 ? '' : 's'}. Thank you!` : ''}
+        </p>
+      )}
       {waiting.length > 0 && (
         <Callout tone="important" title={waiting.length === 1 ? 'You have been selected for a visit' : `You have been selected for ${waiting.length} visits`}>
           <p>Please confirm or decline as soon as you can.</p>
@@ -69,13 +74,30 @@ export function RaHome({ summary, go }: { summary: MySummary; go: (hash: string)
 }
 
 /** Where and when: the place, then each day it runs. */
-function VisitDetails({ v }: { v: Pick<Visit, 'days' | 'location' | 'notes'> }) {
+type Place = Pick<Visit, 'days' | 'location' | 'notes'> & Partial<Pick<Visit, 'travel'>> & { role?: DayRole; timeNotes?: Record<string, string> };
+
+/** Where and when: the place, your job, each of your days (with any note on your times), and how to get there. */
+function VisitDetails({ v }: { v: Place }) {
+  const on = daysOn(v);
   return (
     <>
+      {v.role && (
+        <span>
+          <strong>Your job: {DAY_ROLE_LABEL[v.role]}</strong>
+        </span>
+      )}
       <span>Where: {v.location}</span>
-      {dayLines(v).map((l) => (
-        <span key={l}>{l}</span>
-      ))}
+      {on.map((d) => {
+        const t = v.travel ? travelOn(d, v.travel) : null;
+        return (
+          <span key={d.date}>
+            {longDate(d.date)}, {d.start} to {d.end}
+            {v.timeNotes?.[d.date] ? ` (${v.timeNotes[d.date]})` : ''}
+            {t && (t.taxiTime || t.arrival) ? <span className="mpmb-hint"> · {[t.taxiTime ? `taxi from ${t.taxiFrom} at ${clock(t.taxiTime)}` : '', t.arrival ? `at the school by ${clock(t.arrival)}` : ''].filter(Boolean).join(', ')}</span> : null}
+          </span>
+        );
+      })}
+      {v.travel?.direct && <span className="mpmb-hint">{v.travel.direct}</span>}
       {v.notes && <span className="mpmb-hint">{v.notes}</span>}
     </>
   );
@@ -93,7 +115,7 @@ function WithdrawNote({ v, contact }: { v: Pick<Visit, 'schoolName' | 'days'>; c
   );
 }
 
-function VisitList({ visits, contact }: { visits: Omit<Visit, 'status'>[]; contact: Contact }) {
+function VisitList({ visits, contact }: { visits: (Omit<Visit, 'status'> & { role?: DayRole; timeNotes?: Record<string, string> })[]; contact: Contact }) {
   return (
     <ul className="mpmb-tools__list">
       {visits.map((v) => (
@@ -504,6 +526,7 @@ export function MyVisits({ summary }: { summary: MySummary }) {
             <span className="mpmb-hint">
               {ASSIGNMENT_LABEL[v.status]}
               {v.status === 'removed' && v.removedReason ? `: ${v.removedReason}` : ''}
+              {v.status === 'confirmed' && v.removedReason ? ` (some of your days were taken off: ${v.removedReason})` : ''}
             </span>
             {v.status === 'confirmed' && <WithdrawNote v={v} contact={summary.settings.withdrawalContact} />}
           </li>

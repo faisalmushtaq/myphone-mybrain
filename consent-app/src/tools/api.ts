@@ -10,7 +10,7 @@ import type { SessionInfo } from '../model/types';
  */
 let session: SessionInfo | null = null;
 
-export async function callTool<T>(name: 'staffApi' | 'schoolUpload', payload: Record<string, unknown>): Promise<T> {
+export async function callTool<T>(name: 'staffApi' | 'schoolUpload' | 'schoolDbs', payload: Record<string, unknown>): Promise<T> {
   session ??= await getApi().startSession();
   try {
     return await getApi().callTool<T>(session, name, payload);

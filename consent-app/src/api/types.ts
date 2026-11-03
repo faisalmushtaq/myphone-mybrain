@@ -540,7 +540,7 @@ export interface ConsentApi {
   labStoryChat(session: SessionInfo, request: LabStoryChatRequest): Promise<LabStoryChatResponse>;
   labStoryVoice(session: SessionInfo, request: LabStoryVoiceRequest): Promise<LabStoryVoiceResponse>;
   /** The staff page and the schools' upload page: one callable each, with an action (firebase/functions/src/staff.ts, schoolUpload.ts). */
-  callTool<Res>(session: SessionInfo, name: 'staffApi' | 'schoolUpload', payload: Record<string, unknown>): Promise<Res>;
+  callTool<Res>(session: SessionInfo, name: 'staffApi' | 'schoolUpload' | 'schoolDbs', payload: Record<string, unknown>): Promise<Res>;
   /** A school's class list too large to send in the call itself, put in Storage first (schoolquarantine/{uid}/{uploadId}); returns the uploadId. */
   uploadSchoolFile(session: SessionInfo, file: Blob, onProgress?: (fraction: number) => void): Promise<string>;
 }
