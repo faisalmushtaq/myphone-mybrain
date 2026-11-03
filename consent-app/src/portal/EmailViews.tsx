@@ -72,7 +72,7 @@ export function SchoolEmail({ visitId, update, pm, onSent, close }: { visitId: s
       ) : (
         <>
           <p className="mpmb-hint">
-            To {preview.to.join(', ') || 'nobody yet'} · Copy to {preview.cc.join(', ')} · Replies come to you. Sent from the study’s email account as “MyPhone/MyBrain team”.
+            To {preview.to.join(', ') || 'nobody yet'} · Copy to {preview.cc.join(', ')} · Replies go to brainpop@leeds.ac.uk. Sent from the study’s email account as “MyPhone/MyBrain team”.
           </p>
           {preview.lastSent && (
             <p className="mpmb-hint">
@@ -195,7 +195,7 @@ export function TeamEmail({ target, update, onSent, close }: { target: { visitId
       ) : (
         <>
           <p className="mpmb-hint">
-            {preview.schoolName} · To {preview.recipients.length} {preview.recipients.length === 1 ? 'person' : 'people'}: {preview.recipients.map((r) => r.name).join(', ') || 'nobody confirmed yet'}. Replies come to you.
+            {preview.schoolName} · To {preview.recipients.length} {preview.recipients.length === 1 ? 'person' : 'people'}: {preview.recipients.map((r) => r.name).join(', ') || 'nobody confirmed yet'}. Replies go to brainpop@leeds.ac.uk.
             {preview.lastSent ? ` Team last told ${stamp(preview.lastSent.at)} by ${preview.lastSent.byName}.` : ''}
           </p>
           {preview.changed && <Callout tone="important">Allocations have changed since the team was last told, so this goes as an update.</Callout>}

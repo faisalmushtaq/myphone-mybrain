@@ -99,6 +99,12 @@ import {
   AVAILABILITY,
   weekStartOf,
   type Counts,
+  claimFrom,
+  niceDate,
+  confirmTarget,
+  matchingSessions,
+  waitingFor,
+  type Claim,
 } from './portalCore.js';
 
 /**
@@ -324,6 +330,33 @@ async function sessionsOf(db: Firestore) {
   });
 }
 
+/** What research assistants logged themselves (4 November 2026); none counts until the team confirms it. */
+function claimOf(id: string, x: DocumentData): Claim & { createdAt: string | null; decidedAt: string | null; decidedByName: string } {
+  return {
+    id,
+    uid: String(x.uid ?? ''),
+    status: x.status === 'confirmed' || x.status === 'declined' ? x.status : 'waiting',
+    sessionId: typeof x.sessionId === 'string' && x.sessionId ? x.sessionId : null,
+    kind: x.kind === 'pilot' ? 'pilot' : 'training',
+    date: String(x.date ?? ''),
+    title: String(x.title ?? ''),
+    role: isDayRole(x.role) ? x.role : null,
+    notes: String(x.notes ?? ''),
+    ranBy: String(x.ranBy ?? ''),
+    reason: String(x.reason ?? ''),
+    createdAt: iso(x.createdAt),
+    decidedAt: iso(x.decidedAt),
+    decidedByName: String(x.decidedByName ?? ''),
+  };
+}
+
+async function claimsOf(db: Firestore, uid?: string) {
+  const q = uid ? db.collection('portalTrainingClaims').where('uid', '==', uid) : db.collection('portalTrainingClaims');
+  return (await q.get()).docs.map((d) => claimOf(d.id, d.data()));
+}
+
+const claimWords = (c: Pick<Claim, 'kind' | 'title' | 'date'>) => `${c.kind === 'pilot' ? 'pilot' : 'training'} “${c.title}” on ${niceDate(c.date)}`;
+
 /** A visit as the portal shows it. One saved before 3 November 2026 (one date, a meeting point) reads as a period of one day. */
 function visitOf(id: string, x: DocumentData) {
   const n = normaliseVisit(x);
@@ -513,9 +546,9 @@ export const portalApi = onCall(callOptions, async (request) => {
       const requested = data.requested === 'team' ? 'team' : 'ra';
       await ref.set({ email: me.email, name, phone, requested, role: null, status: 'pending', smsOptIn: false, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
       await audit(db, { ...me, name }, 'request-access', me.uid, { requested });
-      await tellTeam(db, { title: 'New account request', body: `${name} (${me.email}) asked for ${requested === 'team' ? 'a research team' : 'a research assistant'} account.`, link: '#people' }, ['pm'], {
+      await tellTeam(db, { title: 'New account request', body: `${name} (${me.email}) asked for ${requested === 'team' ? 'a staff member' : 'a research assistant'} account.`, link: '#people' }, ['pm'], {
         subject: 'MyPhone/MyBrain portal: a new account to approve',
-        body: `${name} (${me.email}) asked for ${requested === 'team' ? 'a research team' : 'a research assistant'} account.\n\nApprove or decline it in the portal: ${PORTAL_URL}#people`,
+        body: `${name} (${me.email}) asked for ${requested === 'team' ? 'a staff member' : 'a research assistant'} account.\n\nApprove or decline it in the portal: ${PORTAL_URL}#people`,
         kind: 'request',
       });
       return { user: userRow(me.uid, (await ref.get()).data()!) };
@@ -555,6 +588,7 @@ export const portalApi = onCall(callOptions, async (request) => {
       ]);
       const visits = new Map(visitsSnap.map((v) => [v.visitId, v]));
       const counts = countsFor(me.uid, sessions);
+      const waiting = waitingFor(me.uid, await claimsOf(db, me.uid));
       const mine = sessions.filter((s) => s.attendees.includes(me.uid)).map((s) => ({ id: s.id, kind: s.kind, date: s.date, title: s.title }));
       const assignments = assignSnap.docs
         .map((d) => d.data())
@@ -575,6 +609,7 @@ export const portalApi = onCall(callOptions, async (request) => {
         settings: { minTraining: settings.minTraining, minPilots: settings.minPilots, withdrawalContact: settings.withdrawalContact },
         documents: docSummary(me.uid, docs, settings, schools, today, true),
         counts,
+        waiting,
         sessions: mine,
         availability: avail.docs.map((d) => ({ date: d.data().date, value: d.data().value as Availability, note: String(d.data().note ?? '') })),
         assignments,
@@ -741,7 +776,7 @@ export const portalApi = onCall(callOptions, async (request) => {
 
     /* ── The research team ── */
     case 'people': {
-      const [settings, schools, usersSnap, docs, sessions, attendanceSnap] = await Promise.all([settingsFrom(db), schoolsOf(db), db.collection('portalUsers').get(), docsOf(db), sessionsOf(db), db.collection('portalAttendance').get()]);
+      const [settings, schools, usersSnap, docs, sessions, attendanceSnap, claims] = await Promise.all([settingsFrom(db), schoolsOf(db), db.collection('portalUsers').get(), docsOf(db), sessionsOf(db), db.collection('portalAttendance').get(), claimsOf(db)]);
       const attendedBy = new Map<string, number>();
       for (const d of attendanceSnap.docs) if (isAttendanceMark(d.data().mark) && d.data().mark !== 'absent') attendedBy.set(String(d.data().uid), (attendedBy.get(String(d.data().uid)) ?? 0) + 1);
       const pm = me.role === 'pm';
@@ -753,10 +788,10 @@ export const portalApi = onCall(callOptions, async (request) => {
           const counts = countsFor(u.uid, sessions);
           const general = eligibilityFor(u.uid, latestDocs(docs), requirementsFor(settings, null), counts, settings, today);
           const raw = usersSnap.docs.find((d) => d.id === u.uid)!.data();
-          return { ...u, ...teamExtras(raw, settings), counts, daysAttended: attendedBy.get(u.uid) ?? 0, documents: documents.map((r) => ({ typeId: r.typeId, label: r.label, state: r.state })), ready: general.eligible, reasons: general.reasons, toCheck: documents.filter((r) => r.state === 'uploaded').length };
+          return { ...u, ...teamExtras(raw, settings), counts, daysAttended: attendedBy.get(u.uid) ?? 0, documents: documents.map((r) => ({ typeId: r.typeId, label: r.label, state: r.state })), ready: general.eligible, reasons: general.reasons, toCheck: documents.filter((r) => r.state === 'uploaded').length, waiting: waitingFor(u.uid, claims) };
         })
         .sort((a, b) => a.name.localeCompare(b.name));
-      return { people, settings: { minTraining: settings.minTraining, minPilots: settings.minPilots, tags: settings.tags } };
+      return { people, claimsWaiting: claims.filter((c) => c.status === 'waiting').length, settings: { minTraining: settings.minTraining, minPilots: settings.minPilots, tags: settings.tags } };
     }
     case 'person': {
       const uid = idOf(data.uid, 'person');
@@ -774,6 +809,7 @@ export const portalApi = onCall(callOptions, async (request) => {
           .sort((a, b) => (b.at ?? '').localeCompare(a.at ?? '')),
         counts: countsFor(uid, sessions),
         sessions: sessions.filter((s) => s.attendees.includes(uid)).map((s) => ({ id: s.id, kind: s.kind, date: s.date, title: s.title })),
+        claims: (await claimsOf(db, uid)).sort((a, b) => b.date.localeCompare(a.date)),
         // The copies, and the certificate details, are the project manager's; the team sees where each document stands.
         documents: docSummary(uid, docs, settings, schools, today, pm),
         history: pm ? docs.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)).map((d) => ({ docId: d.id, typeId: d.typeId, schoolId: d.schoolId, status: d.status, uploadedAt: d.uploadedAt, fileName: d.fileName, hasCopy: Boolean(d.path && !d.deletedAt), note: d.note ?? null })) : [],
@@ -877,6 +913,104 @@ export const portalApi = onCall(callOptions, async (request) => {
       const id = idOf(data.id, 'session');
       await db.collection('portalSessions').doc(id).delete();
       await audit(db, me, 'delete-session', id);
+      return { ok: true };
+    }
+    case 'my-training': {
+      const [sessions, claims] = await Promise.all([sessionsOf(db), claimsOf(db, me.uid)]);
+      const claimed = new Set(claims.filter((c) => c.status === 'waiting' && c.sessionId).map((c) => c.sessionId));
+      return {
+        // Sessions the team recorded that they could say they attended: past, and not already theirs.
+        sessions: sessions.filter((s) => s.date <= today && !s.attendees.includes(me.uid) && !claimed.has(s.id)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60).map((s) => ({ id: s.id, kind: s.kind, date: s.date, title: s.title, role: s.role })),
+        claims: claims.sort((a, b) => b.date.localeCompare(a.date)).map(({ id, status, sessionId, kind, date, title, role, notes, ranBy, reason, createdAt, decidedAt }) => ({ id, status, sessionId, kind, date, title, role, notes, ranBy, reason, createdAt, decidedAt })),
+      };
+    }
+    case 'claim-session': {
+      const [sessions, claims] = await Promise.all([sessionsOf(db), claimsOf(db, me.uid)]);
+      const result = claimFrom(data, me.uid, today, sessions, claims);
+      if ('error' in result) throw bad(result.error);
+      const ref = await db.collection('portalTrainingClaims').add({ ...result.claim, status: 'waiting', reason: '', createdAt: FieldValue.serverTimestamp() });
+      await audit(db, me, 'claim-session', ref.id, { kind: result.claim.kind, date: result.claim.date, sessionId: result.claim.sessionId });
+      await tellTeam(db, { title: 'Training to confirm', body: `${me.name || me.email} logged ${claimWords(result.claim)}.`, link: '#sessions' });
+      return { id: ref.id };
+    }
+    case 'delete-claim': {
+      const id = idOf(data.id, 'entry');
+      const ref = db.collection('portalTrainingClaims').doc(id);
+      const snap = await ref.get();
+      if (!snap.exists || snap.data()!.uid !== me.uid) throw bad('That entry is not yours.');
+      if (snap.data()!.status !== 'waiting') throw bad('Only entries still waiting for the team can be deleted.');
+      await ref.delete();
+      await audit(db, me, 'delete-claim', id);
+      return { ok: true };
+    }
+    case 'training-claims': {
+      const [claims, sessions, usersSnap] = await Promise.all([claimsOf(db), sessionsOf(db), db.collection('portalUsers').get()]);
+      const names = new Map(usersSnap.docs.map((d) => [d.id, String(d.data().name ?? '')]));
+      const title = new Map(sessions.map((s) => [s.id, s]));
+      return {
+        waiting: claims
+          .filter((c) => c.status === 'waiting')
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .map((c) => ({ ...c, name: names.get(c.uid) ?? 'Someone archived', matches: c.sessionId ? [] : matchingSessions(c, sessions).map((id) => ({ id, title: title.get(id)!.title, attendees: title.get(id)!.attendees.length })) })),
+        recent: claims
+          .filter((c) => c.status !== 'waiting')
+          .sort((a, b) => (b.decidedAt ?? '').localeCompare(a.decidedAt ?? ''))
+          .slice(0, 20)
+          .map((c) => ({ ...c, name: names.get(c.uid) ?? 'Someone archived' })),
+      };
+    }
+    case 'confirm-claims': {
+      const items = (Array.isArray(data.items) ? data.items : []).slice(0, 100) as { id?: unknown; into?: unknown }[];
+      if (!items.length) throw bad('Choose the entries to confirm.');
+      const done: string[] = [];
+      const problems: string[] = [];
+      for (const item of items) {
+        const id = idOf(item.id, 'entry');
+        const ref = db.collection('portalTrainingClaims').doc(id);
+        try {
+          const outcome = await db.runTransaction(async (tx) => {
+            const snap = await tx.get(ref);
+            if (!snap.exists) throw bad('That entry is no longer in the portal.');
+            const c = claimOf(id, snap.data()!);
+            if (c.status !== 'waiting') throw bad('Already decided.');
+            const sessions = await sessionsOf(db);
+            const target = confirmTarget(c, item.into, sessions);
+            if (target.error) throw bad(target.error);
+            let sessionId = target.sessionId;
+            if (sessionId) tx.update(db.collection('portalSessions').doc(sessionId), { attendees: FieldValue.arrayUnion(c.uid), updatedBy: me.uid, updatedAt: FieldValue.serverTimestamp() });
+            else {
+              const sref = db.collection('portalSessions').doc();
+              sessionId = sref.id;
+              tx.set(sref, { kind: c.kind, role: c.role, date: c.date, title: c.title, notes: [c.ranBy ? `Run by ${c.ranBy}.` : '', c.notes].filter(Boolean).join(' '), attendees: [c.uid], fromClaim: id, createdBy: me.uid, createdAt: FieldValue.serverTimestamp(), updatedBy: me.uid, updatedAt: FieldValue.serverTimestamp() });
+            }
+            tx.update(ref, { status: 'confirmed', confirmedSessionId: sessionId, decidedBy: me.uid, decidedByName: me.name, decidedAt: FieldValue.serverTimestamp() });
+            return { c, sessionId };
+          });
+          await audit(db, me, 'confirm-claim', id, { uid: outcome.c.uid, sessionId: outcome.sessionId, merged: Boolean(outcome.c.sessionId || (item.into && item.into !== 'new')) });
+          await notify(db, [outcome.c.uid], { title: 'Training confirmed', body: `The team confirmed your ${claimWords(outcome.c)}.`, link: '#training' });
+          done.push(id);
+        } catch (error) {
+          problems.push(error instanceof HttpsError ? error.message : 'Could not be confirmed.');
+        }
+      }
+      if (!done.length && problems.length) throw bad(problems[0]);
+      return { confirmed: done.length, problems };
+    }
+    case 'decline-claim': {
+      const id = idOf(data.id, 'entry');
+      const reason = text(data.reason, 300);
+      if (reason.length < 3) throw bad('Say briefly why, so they know what to do.');
+      const ref = db.collection('portalTrainingClaims').doc(id);
+      const snap = await ref.get();
+      if (!snap.exists) throw bad('That entry is no longer in the portal.');
+      const c = claimOf(id, snap.data()!);
+      if (c.status !== 'waiting') throw bad('Already decided.');
+      await ref.update({ status: 'declined', reason, decidedBy: me.uid, decidedByName: me.name, decidedAt: FieldValue.serverTimestamp() });
+      await audit(db, me, 'decline-claim', id, { uid: c.uid, reason });
+      const what = claimWords(c);
+      await notify(db, [c.uid], { title: 'Training not confirmed', body: `The team could not confirm your ${what}: ${reason}`, link: '#training' }, { title: 'Training not confirmed', body: 'Open the portal to see why.' });
+      const user = (await db.collection('portalUsers').doc(c.uid).get()).data();
+      if (user?.email) await mail(db, String(user.email), 'MyPhone/MyBrain: training not confirmed', `Hello ${String(user.name ?? '').split(' ')[0] || 'there'},\n\nThe team could not confirm the ${what} you logged in the staff portal.\n\nWhy: ${reason}\n\nIf you think this is a mistake, reply to this email or log it again with more detail at ${SITE}/portal/#training.\n\nThe MyPhone/MyBrain team`, 'training-declined');
       return { ok: true };
     }
     case 'visits': {
@@ -1226,18 +1360,18 @@ export const portalApi = onCall(callOptions, async (request) => {
       const mode = data.mode === 'bcc' ? 'bcc' : 'individual';
       const outcomes: MailOutcome[] = [];
       // One email with everyone in blind copy, or one each; either way the "Always copy in" addresses get one copy, not one per person.
-      if (mode === 'bcc') outcomes.push(await send(db, { to: me.email, bcc: recipients.map((r) => r.email).join(', '), replyTo: me.email, subject: sections.subject, text: body.text, html: body.html }, 'team-allocations'));
+      if (mode === 'bcc') outcomes.push(await send(db, { to: me.email, bcc: recipients.map((r) => r.email).join(', '), subject: sections.subject, text: body.text, html: body.html }, 'team-allocations'));
       else {
         const { alwaysCopy } = await settingsFrom(db);
         for (const r of recipients) {
-          const outcome = await sendMail({ to: r.email, fromName: PORTAL_SENDER, replyTo: me.email, subject: sections.subject, text: body.text, html: body.html });
+          const outcome = await sendMail({ to: r.email, fromName: PORTAL_SENDER, subject: sections.subject, text: body.text, html: body.html });
           await db.collection('portalMail').add({ channel: 'email', to: r.email, subject: sections.subject, kind: 'team-allocations', outcome, at: FieldValue.serverTimestamp() });
           outcomes.push(outcome);
         }
         const copy = copyFor(alwaysCopy, { to: recipients.map((r) => r.email) });
         if (copy.length) {
           const note = `(A copy: this email was sent individually to ${recipients.map((r) => r.name).join(', ')}.)\n\n`;
-          await send(db, { to: copy.join(', '), replyTo: me.email, subject: sections.subject, text: note + body.text, html: `<p><em>${note.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;')}</em></p>${body.html}` }, 'team-allocations-copy');
+          await send(db, { to: copy.join(', '), subject: sections.subject, text: note + body.text, html: `<p><em>${note.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;')}</em></p>${body.html}` }, 'team-allocations-copy');
         }
       }
       await db.collection('portalTeamEmails').add({ schoolId, from, to, visitIds, snapshot, by: me.uid, byName: me.name, at: FieldValue.serverTimestamp(), recipients: recipients.map((r) => r.email), mode, update });
@@ -1314,7 +1448,7 @@ export const portalApi = onCall(callOptions, async (request) => {
       if (!m.people) throw bad('Nobody is confirmed for this visit yet.');
       if (includeDbs && access?.active !== true) throw bad('The school has no DBS page password yet. Make one under Schools (project manager), or turn off DBS details.');
       const cc = [...new Set([me.email, settings.withdrawalContact.email.toLowerCase()])].join(', ');
-      const outcome = await send(db, { to: school.contactEmails.join(', '), cc, replyTo: me.email, subject: m.subject, text: m.body }, 'school');
+      const outcome = await send(db, { to: school.contactEmails.join(', '), cc, subject: m.subject, text: m.body }, 'school');
       await db.collection('portalSchoolEmails').add({ visitId, schoolId: school.id, by: me.uid, byName: me.name, at: FieldValue.serverTimestamp(), to: school.contactEmails, cc, includeDbs, update, snapshot, outcome });
       if (data.saveIntro !== false) await db.collection('portalSchools').doc(school.id).set({ emailIntro: intro }, { merge: true });
       await audit(db, me, 'email-school', visitId, { schoolId: school.id, to: school.contactEmails, includeDbs, update, people: m.people });

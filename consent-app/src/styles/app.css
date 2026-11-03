@@ -4462,3 +4462,9 @@
 .mpmb-portal__gridplace.is-offered { font-weight: 400; font-style: italic; color: var(--mpb-ink); }
 .mpmb-portal__gridwarn { margin-left: 0.3rem; color: #8a5a00; cursor: help; }
 .mpmb-portal__gridnote { display: block; font-size: 0.75rem; color: var(--mpb-muted); }
+
+/* Training and pilots logged by research assistants (4 November 2026). */
+.mpmb-portal__claim { display: inline-block; padding: 0.05rem 0.45rem; border-radius: 999px; font-size: 0.85em; font-weight: 600; }
+.mpmb-portal__claim--waiting { background: #fff4cf; color: #6b4e00; }
+.mpmb-portal__claim--confirmed { background: #dcf3e6; color: #135c34; }
+.mpmb-portal__claim--declined { background: #fde3e7; color: #8a1630; }

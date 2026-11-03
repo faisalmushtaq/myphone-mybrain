@@ -1,5 +1,5 @@
 import { FirebaseError, getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
-import { connectAuthEmulator, getAuth, getRedirectResult, GoogleAuthProvider, isSignInWithEmailLink, onAuthStateChanged, sendSignInLinkToEmail, signInWithEmailLink, signInWithPopup, signInWithRedirect, signOut, type Auth, type User } from 'firebase/auth';
+import { connectAuthEmulator, createUserWithEmailAndPassword, EmailAuthProvider, getAuth, getRedirectResult, GoogleAuthProvider, isSignInWithEmailLink, linkWithCredential, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, sendSignInLinkToEmail, signInWithEmailAndPassword, signInWithEmailLink, signInWithPopup, signInWithRedirect, signOut, updatePassword, type Auth, type User } from 'firebase/auth';
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, getStorage, ref, uploadBytesResumable, type FirebaseStorage } from 'firebase/storage';
 import { backendName } from '../api';
@@ -61,6 +61,13 @@ function mapError(error: unknown): PortalError {
     if (code === 'permission-denied' || code === 'unauthorized') return new PortalError(message, 'refused');
     if (code === 'invalid-argument' || code === 'failed-precondition' || code === 'not-found') return new PortalError(message, 'invalid');
     if (code === 'invalid-email') return new PortalError('That email address does not look right.', 'invalid');
+    // Passwords (4 November 2026), in plain words.
+    if (code === 'weak-password') return new PortalError(`That password is too easy to guess. Use at least ${MIN_PASSWORD} characters.`, 'invalid');
+    if (code === 'wrong-password' || code === 'invalid-credential' || code === 'invalid-login-credentials' || code === 'user-not-found') return new PortalError('That email and password do not match. Check them, or use “Forgot your password?”.', 'invalid');
+    if (code === 'too-many-requests') return new PortalError('Too many tries. Wait a few minutes, or sign in with the email link instead.', 'invalid');
+    if (code === 'email-already-in-use' || code === 'credential-already-in-use' || code === 'provider-already-linked') return new PortalError('There is already an account with that email. Sign in with the email link or your password, or use “Forgot your password?”.', 'invalid');
+    if (code === 'requires-recent-login') return new PortalError('For your security, sign out, sign in again, then set your password.', 'invalid');
+    if (code === 'operation-not-allowed') return new PortalError('Password sign-in is not switched on yet. Use the email link for now.', 'server');
     if (code === 'invalid-action-code' || code === 'expired-action-code') return new PortalError('That sign-in link has expired or was already used. Ask for a new one.', 'invalid');
     if (['unavailable', 'deadline-exceeded', 'network-request-failed', 'retry-limit-exceeded'].includes(code)) return new PortalError('Could not reach the server. Check the connection and try again.', 'network');
     return new PortalError(message || 'Something went wrong. Please try again.', 'server');
@@ -113,6 +120,98 @@ export async function finishGoogleRedirect(): Promise<void> {
     throw mapError(error);
   }
 }
+
+/** Passwords need at least this many characters (4 November 2026). */
+export const MIN_PASSWORD = 10;
+
+const backHere = () => ({ url: `${window.location.origin}${window.location.pathname}${cleanSearch()}` });
+
+function checkPassword(password: string) {
+  if (password.length < MIN_PASSWORD) throw new PortalError(`Use at least ${MIN_PASSWORD} characters.`, 'invalid');
+}
+
+/** Signs in with an email and password. */
+export async function signInWithPassword(email: string, password: string): Promise<void> {
+  const c = connection();
+  if (!c) throw new PortalError('The portal is not connected in this build.', 'server');
+  try {
+    await signInWithEmailAndPassword(c.auth, email.trim(), password);
+  } catch (error) {
+    throw mapError(error);
+  }
+}
+
+/** A new account with a password; the address must then be verified from the email sent, before the portal opens. */
+export async function createPasswordAccount(email: string, password: string): Promise<void> {
+  const c = connection();
+  if (!c) throw new PortalError('The portal is not connected in this build.', 'server');
+  checkPassword(password);
+  try {
+    const { user } = await createUserWithEmailAndPassword(c.auth, email.trim(), password);
+    await sendEmailVerification(user, backHere());
+  } catch (error) {
+    throw mapError(error);
+  }
+}
+
+/** Sends the verification email again. */
+export async function resendVerification(): Promise<void> {
+  const c = connection();
+  if (!c?.auth.currentUser) return;
+  try {
+    await sendEmailVerification(c.auth.currentUser, backHere());
+  } catch (error) {
+    throw mapError(error);
+  }
+}
+
+/** Reloads the user, true once their address is verified (and the token says so). */
+export async function checkVerified(): Promise<boolean> {
+  const c = connection();
+  const user = c?.auth.currentUser;
+  if (!user) return false;
+  await user.reload();
+  if (user.emailVerified) await user.getIdToken(true);
+  return user.emailVerified;
+}
+
+/** Whether this user signed up with a password and has not verified the address yet. */
+export const needsVerifying = (user: User | null) => Boolean(user && !user.emailVerified && user.providerData.some((p) => p.providerId === 'password'));
+
+/** Emails a link to choose a new password. */
+export async function sendPasswordReset(email: string): Promise<void> {
+  const c = connection();
+  if (!c) throw new PortalError('The portal is not connected in this build.', 'server');
+  try {
+    await sendPasswordResetEmail(c.auth, email.trim(), backHere());
+  } catch (error) {
+    // Say the same whether or not there is an account, so the page gives nothing away.
+    const code = error instanceof FirebaseError ? error.code : '';
+    if (code === 'auth/user-not-found') return;
+    throw mapError(error);
+  }
+}
+
+/** Sets a password for whoever is signed in (by link or Google), or changes it. */
+export async function setOwnPassword(password: string): Promise<'set' | 'changed'> {
+  const c = connection();
+  const user = c?.auth.currentUser;
+  if (!user || !user.email) throw new PortalError('Please sign in again.', 'signed-out');
+  checkPassword(password);
+  try {
+    if (user.providerData.some((p) => p.providerId === 'password')) {
+      await updatePassword(user, password);
+      return 'changed';
+    }
+    await linkWithCredential(user, EmailAuthProvider.credential(user.email, password));
+    return 'set';
+  } catch (error) {
+    throw mapError(error);
+  }
+}
+
+/** Whether the signed-in user already has a password. */
+export const hasPassword = (user: User | null) => Boolean(user?.providerData.some((p) => p.providerId === 'password'));
 
 /** Emails a one-time sign-in link that brings them back to this page. */
 export async function sendLink(email: string): Promise<void> {

@@ -33,6 +33,9 @@ const TEAM_ACTIONS = new Set([
   'sessions',
   'save-session',
   'delete-session',
+  'training-claims',
+  'confirm-claims',
+  'decline-claim',
   'visits',
   'visit',
   'save-visit',
@@ -52,7 +55,7 @@ const TEAM_ACTIONS = new Set([
 ]);
 const PM_ACTIONS = new Set(['requests', 'approve', 'reject', 'set-role', 'archive', 'restore', 'verify-document', 'settings', 'save-settings', 'audit', 'override', 'remove-confirmed', 'save-doc-details', 'make-dbs-password', 'close-dbs-access']);
 /** Every active user, for themselves. */
-const SELF_ACTIONS = new Set(['me', 'my-summary', 'update-profile', 'notifications', 'mark-read', 'register-document', 'document-url', 'set-availability', 'open-visits', 'set-interest', 'respond-offer', 'canvass-answer', 'push-key', 'push-subscribe', 'push-unsubscribe', 'push-test']);
+const SELF_ACTIONS = new Set(['me', 'my-summary', 'my-training', 'claim-session', 'delete-claim', 'update-profile', 'notifications', 'mark-read', 'register-document', 'document-url', 'set-availability', 'open-visits', 'set-interest', 'respond-offer', 'canvass-answer', 'push-key', 'push-subscribe', 'push-unsubscribe', 'push-test']);
 /** Anyone signed in with a checked email, active or not: asking for an account, and seeing where the request stands. */
 const OPEN_ACTIONS = new Set(['me', 'request-access']);
 
@@ -1646,4 +1649,97 @@ export function availabilityGrid(args: {
     };
   });
   return { weekStart: args.weekStart, dates, days, rows };
+}
+
+/* ── Training and pilots the research assistants log themselves (4 November 2026) ── */
+
+export type ClaimStatus = 'waiting' | 'confirmed' | 'declined';
+export const CLAIM_STATUSES: readonly ClaimStatus[] = ['waiting', 'confirmed', 'declined'];
+
+/** A session someone says they attended: one the team recorded (sessionId) or a new one they describe. */
+export interface Claim {
+  id: string;
+  uid: string;
+  status: ClaimStatus;
+  sessionId: string | null;
+  kind: 'training' | 'pilot';
+  date: string;
+  title: string;
+  role: DayRole | null;
+  notes: string;
+  ranBy: string;
+  reason: string;
+}
+
+export interface SessionLite {
+  id: string;
+  kind: string;
+  date: string;
+  title: string;
+  attendees: string[];
+  role?: DayRole | null;
+}
+
+export type ClaimDraft = Omit<Claim, 'id' | 'status' | 'reason'>;
+
+const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+const titleKey = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/**
+ * Checks what someone logs and returns the entry to keep, always for the
+ * person signed in. Sessions in the future, sessions they are already
+ * recorded at and the same entry twice are refused.
+ */
+export function claimFrom(input: Record<string, unknown>, uid: string, today: string, sessions: SessionLite[], claims: Claim[]): { error: string } | { claim: ClaimDraft } {
+  const waiting = claims.filter((c) => c.uid === uid && c.status === 'waiting');
+  if (typeof input.sessionId === 'string' && input.sessionId) {
+    const s = sessions.find((x) => x.id === input.sessionId);
+    if (!s) return { error: 'That session is no longer in the portal.' };
+    if (s.date > today) return { error: 'That session has not happened yet.' };
+    if (s.attendees.includes(uid)) return { error: 'You are already recorded at that session.' };
+    if (waiting.some((c) => c.sessionId === s.id)) return { error: 'You have already said you were there: the team will confirm it.' };
+    return { claim: { uid, sessionId: s.id, kind: s.kind === 'pilot' ? 'pilot' : 'training', date: s.date, title: s.title, role: s.kind === 'training' && isDayRole(s.role) ? s.role : null, notes: clean(input.notes, 1000), ranBy: '' } };
+  }
+  const kind = input.kind === 'pilot' ? 'pilot' : input.kind === 'training' ? 'training' : null;
+  if (!kind) return { error: 'Say whether it was training or a pilot.' };
+  if (!isIsoDate(input.date)) return { error: 'Give the date.' };
+  if (input.date > today) return { error: 'The date cannot be in the future.' };
+  const title = clean(input.title, 120);
+  if (title.length < 2) return { error: 'Say what it was, for example “EEG set-up training”.' };
+  if (waiting.some((c) => !c.sessionId && c.kind === kind && c.date === input.date && titleKey(c.title) === titleKey(title))) return { error: 'You have already logged that: the team will confirm it.' };
+  return { claim: { uid, sessionId: null, kind, date: input.date, title, role: kind === 'training' && isDayRole(input.role) ? input.role : null, notes: clean(input.notes, 1000), ranBy: clean(input.ranBy, 120) } };
+}
+
+/** Entries still waiting for the team, by kind: they do not count until confirmed. */
+export function waitingFor(uid: string, claims: Pick<Claim, 'uid' | 'status' | 'kind'>[]): { training: number; pilots: number } {
+  let training = 0;
+  let pilots = 0;
+  for (const c of claims) if (c.uid === uid && c.status === 'waiting') c.kind === 'pilot' ? (pilots += 1) : (training += 1);
+  return { training, pilots };
+}
+
+/** Sessions the team already recorded that a new entry may be the same as: same kind and date, the closest title first. */
+export function matchingSessions(claim: Pick<Claim, 'kind' | 'date' | 'title'>, sessions: SessionLite[]): string[] {
+  const words = new Set(titleKey(claim.title).split(' ').filter((w) => w.length > 2));
+  const score = (s: SessionLite) => titleKey(s.title).split(' ').filter((w) => words.has(w)).length;
+  return sessions
+    .filter((s) => s.kind === claim.kind && s.date === claim.date)
+    .sort((a, b) => score(b) - score(a) || a.title.localeCompare(b.title))
+    .map((s) => s.id);
+}
+
+/**
+ * Where a confirmed entry goes: the session it names, the session the team
+ * chose to merge it into (same kind), or a new session. Null with a reason
+ * when the choice does not fit.
+ */
+export function confirmTarget(claim: Pick<Claim, 'sessionId' | 'kind'>, into: unknown, sessions: SessionLite[]): { sessionId: string | null; error?: string } {
+  if (claim.sessionId) {
+    return sessions.some((s) => s.id === claim.sessionId) ? { sessionId: claim.sessionId } : { sessionId: null, error: 'That session has been deleted: decline the entry, or ask them to log it again.' };
+  }
+  if (into === undefined || into === null || into === '' || into === 'new') return { sessionId: null };
+  const s = sessions.find((x) => x.id === into);
+  if (!s) return { sessionId: null, error: 'The session to add it to is no longer in the portal.' };
+  if (s.kind !== claim.kind) return { sessionId: null, error: 'Add a training entry to a training session, and a pilot to a pilot.' };
+  return { sessionId: s.id };
 }

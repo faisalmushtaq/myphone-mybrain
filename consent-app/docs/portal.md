@@ -8,14 +8,28 @@ here; the **online study** is a placeholder until it goes live.
 
 ## Signing in
 
-Email link, no passwords (Firebase Authentication, "Email link
-(passwordless sign-in)"). Someone types their email, gets a one-time link,
-and opens it on the same device. The portal uses its own Firebase app
+Three ways, all matched to the same account by email address:
+
+* **Email link** (Firebase Authentication, "Email link (passwordless
+  sign-in)"): someone types their email, gets a one-time link, and opens it
+  on the same device.
+* **Google** (4 November 2026), for Google accounts.
+* **A password** (4 November 2026): "Sign in with a password", with
+  "Forgot your password?" (a reset email that brings them back to /portal/).
+  Someone new can "Create an account with a password" (at least 10
+  characters); Firebase then emails them to verify the address, and the
+  portal stays closed ("Check your email to verify your address", with a
+  button to send it again) until they have, because the server only accepts
+  verified addresses. Anyone signed in by link or Google can set a password,
+  or change it, under Your details. Firebase's errors are put in plain words
+  (wrong password, too easy to guess, too many tries: wait, or use the link).
+
+ The portal uses its own Firebase app
 instance, so a portal sign-in never mixes with the anonymous sessions the
 participant pages use in the same browser.
 
 A new person signs in, then asks for an account (name, mobile, research
-assistant or research team). The account is **pending** until the project
+assistant or staff member). The account is **pending** until the project
 manager approves it and sets the role; the project manager gets a
 notification and an email for each request, and the person an email when
 approved. Accounts can later be **archived** (no sign-in; copies deleted
@@ -291,6 +305,27 @@ check, opening of a copy, session, visit, offer, override, answer and
 automatic deletion is in `portalAudit` (who, when, what), and on the Audit
 log tab for the project manager.
 
+## Training and pilots logged by research assistants (4 November 2026)
+
+Research assistants log their own training and pilots on their Training
+tab: "I was there" for a session the team already recorded, or "Add a
+session you attended" (training or pilot, a date that is not in the future,
+what it was, optionally the job it trained for, who ran it and a note). Each
+entry waits for the team (`portalTrainingClaims`) and **does not count**
+towards being ready for visits until the project manager or a research team
+member confirms it; the person and the team see "n waiting" beside the
+confirmed counts.
+
+The team confirms on Training and pilots ("To confirm", with a count on the
+overview), one at a time or by ticking several. A new session the assistant
+described is either added to a session already recorded on the same date and
+of the same kind (the closest title is suggested) or recorded as a new
+session. Declining needs a short reason; the person sees it in the portal,
+with a push and an email. Confirming tells them in the portal. An assistant
+can delete an entry while it is waiting, can only log for themselves, and
+never sees anyone else's. Every log, confirmation and decline is in the audit
+log.
+
 ## Data kept, and for how long
 
 | Collection | What |
@@ -332,8 +367,9 @@ says the device is gone) and each person's notification choices.
 
 ## Setting it up (once)
 
-1. **Firebase console → Authentication → Sign-in method → Email/Password →
-   enable "Email link (passwordless sign-in)".** Google sign-in is also enabled (4 November 2026): the sign-in page offers "Sign in with Google" for Google accounts; the account is matched by email, as with the link.
+1. **Firebase console → Authentication → Sign-in method → Email/Password:
+   switch on both the main "Email/Password" toggle (for passwords) and
+   "Email link (passwordless sign-in)".** Google sign-in is also enabled (4 November 2026): the sign-in page offers "Sign in with Google" for Google accounts; the account is matched by email, as with the link.
 2. **Authentication → Settings → Authorised domains**: make sure
    `myphonemybrain.com` is listed (it is for the participant pages).
 3. **The first project manager**, in Cloud Shell from the repository:

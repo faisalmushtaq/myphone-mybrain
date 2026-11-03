@@ -5,7 +5,7 @@ import { SelectField, TextField } from '../components/ui/Field';
 import { ask, messageOf } from './api';
 import { TeamEmailRange } from './Reports';
 import { StateBadge } from './RaViews';
-import { AVAILABILITY_LABEL, DAY_ROLE_LABEL, DAY_ROLES, LEVEL_LABEL, longDate, ROLE_LABEL, saveFile, shortDate, stamp, todayIso, VISIT_STATUS_LABEL, visitWhen, type Availability, type Counts, type DayRole, type DocRow, type DocType, type Level, type PortalUser, type Role, type School, type Settings, type StatusTag, type TeamExtras, type Visit, type VisitDay } from './types';
+import { AVAILABILITY_LABEL, DAY_ROLE_LABEL, DAY_ROLES, LEVEL_LABEL, longDate, ROLE_LABEL, saveFile, shortDate, stamp, todayIso, VISIT_STATUS_LABEL, visitWhen, type Availability, type Counts, type DayRole, type DocRow, type DocType, type Level, type PortalUser, type Role, type School, type Settings, type StatusTag, type TeamExtras, type TrainingClaim, type Visit, type VisitDay } from './types';
 
 /** Loads with an action, shows loading and errors, and offers a reload. */
 export function useLoad<T>(action: string, data: Record<string, unknown> = {}) {
@@ -53,6 +53,8 @@ interface PersonRow extends PortalUser, TeamExtras {
   ready: boolean;
   reasons: string[];
   toCheck: number;
+  /** Training and pilots they logged that the team has not confirmed yet. */
+  waiting?: { training: number; pilots: number };
 }
 
 /** A visit in a list, with person-days: each day's places for both jobs. */
@@ -81,7 +83,7 @@ export function levelLine(p: Pick<TeamExtras, 'level' | 'capabilities'>): string
 }
 
 export function TeamHome({ role, go }: { role: Role; go: (hash: string) => void }) {
-  const people = useLoad<{ people: PersonRow[] }>('people');
+  const people = useLoad<{ people: PersonRow[]; claimsWaiting?: number }>('people');
   const visits = useLoad<{ visits: VisitRow[]; attendanceDue: { visitId: string; date: string; unmarked: number; schoolName: string }[] }>('visits');
   const pending = (people.value?.people ?? []).filter((p) => p.status === 'pending');
   const toCheck = (people.value?.people ?? []).filter((p) => p.toCheck > 0);
@@ -95,7 +97,16 @@ export function TeamHome({ role, go }: { role: Role; go: (hash: string) => void 
         <Stat n={ras.filter((p) => p.ready).length} label="ready for visits" />
         <Stat n={upcoming.length} label="visits coming up" />
         {role === 'pm' && <Stat n={toCheck.reduce((n, p) => n + p.toCheck, 0)} label="documents to check" />}
+        <Stat n={people.value?.claimsWaiting ?? 0} label="training and pilots to confirm" />
       </div>
+      {(people.value?.claimsWaiting ?? 0) > 0 && (
+        <Callout tone="important" title={`${people.value?.claimsWaiting} training or pilot entr${people.value?.claimsWaiting === 1 ? 'y' : 'ies'} to confirm`}>
+          <p>Research assistants logged these themselves; they count once the team confirms them.</p>
+          <Button variant="primary" onClick={() => go('#sessions')}>
+            Confirm
+          </Button>
+        </Callout>
+      )}
       {role === 'pm' && pending.length > 0 && (
         <Callout tone="important" title={`${pending.length} account${pending.length === 1 ? '' : 's'} to approve`}>
           <Button variant="primary" onClick={() => go('#people')}>
@@ -212,7 +223,7 @@ export function People({ role, go }: { role: Role; go: (hash: string) => void })
                 <li key={p.uid} className="mpmb-tools__row mpmb-tools__row--stack">
                   <span>
                     <strong>{p.name}</strong> ({p.email}
-                    {p.phone ? `, ${p.phone}` : ''}) asked to join as {p.requested === 'team' ? 'research team' : 'a research assistant'}, {stamp(p.createdAt)}.
+                    {p.phone ? `, ${p.phone}` : ''}) asked to join as {p.requested === 'team' ? 'a staff member' : 'a research assistant'}, {stamp(p.createdAt)}.
                   </span>
                   <div className="mpmb-actions">
                     <select className="mpmb-select" aria-label={`Role for ${p.name}`} value={roles[p.uid] ?? (p.requested === 'team' ? 'researcher' : 'ra')} onChange={(e) => setRoles({ ...roles, [p.uid]: e.target.value as Role })}>
@@ -308,7 +319,8 @@ function PeopleList({ people, go }: { people: PersonRow[]; go: (hash: string) =>
             <br />
             {levelLine(p)}
             <br />
-            Training {p.counts.training} · Pilots {p.counts.pilots} · {p.documents.filter((d) => d.state === 'verified' || d.state === 'expiring-soon').length}/{p.documents.length} documents · {p.daysAttended} school day{p.daysAttended === 1 ? '' : 's'} attended
+            Training {p.counts.training} · Pilots {p.counts.pilots}
+            {p.waiting && p.waiting.training + p.waiting.pilots > 0 ? ` (${p.waiting.training + p.waiting.pilots} waiting)` : ''} · {p.documents.filter((d) => d.state === 'verified' || d.state === 'expiring-soon').length}/{p.documents.length} documents · {p.daysAttended} school day{p.daysAttended === 1 ? '' : 's'} attended
             {!p.ready && (
               <>
                 <br />
@@ -340,6 +352,7 @@ interface PersonDetail extends TeamExtras {
   notes: PersonNote[];
   counts: Counts;
   sessions: { id: string; kind: string; date: string; title: string }[];
+  claims?: TrainingClaim[];
   documents: DocRow[];
   history: { docId: string; typeId: string; schoolId: string | null; status: string; uploadedAt: string; fileName: string; hasCopy: boolean; note: string | null }[];
   availability: { date: string; value: Availability; note: string }[];
@@ -382,6 +395,19 @@ export function Person({ uid, role, go }: { uid: string; role: Role; go: (hash: 
         <p>
           Training {value.counts.training} · Pilots {value.counts.pilots} · School days attended {value.daysAttended}
         </p>
+        {(value.claims ?? []).some((c) => c.status === 'waiting') && (
+          <p className="mpmb-hint">
+            Logged by them, waiting for the team:{' '}
+            {(value.claims ?? [])
+              .filter((c) => c.status === 'waiting')
+              .map((c) => `${c.kind === 'pilot' ? 'pilot' : 'training'} “${c.title}” (${shortDate(c.date)})`)
+              .join('; ')}
+            .{' '}
+            <Button variant="link" onClick={() => go('#sessions')}>
+              Confirm them
+            </Button>
+          </p>
+        )}
         {value.availabilityNote && <p className="mpmb-hint">Availability: {value.availabilityNote}</p>}
       </div>
       <ErrorLine error={actionError} />
@@ -1034,6 +1060,7 @@ export function Sessions() {
   return (
     <Loading error={error}>
       <div className="mpmb-tools__section">
+        <ClaimsToConfirm onChange={load} />
         <form className="mpmb-card" onSubmit={(e) => void save(e)}>
           <h2 className="mpmb-h2">{form.id ? 'Change a session' : 'Record a training session or pilot'}</h2>
           <div className="mpmb-tools__grid">
@@ -1088,6 +1115,134 @@ export function Sessions() {
         </section>
       </div>
     </Loading>
+  );
+}
+
+type WaitingClaim = TrainingClaim & { uid: string; name: string; matches: { id: string; title: string; attendees: number }[] };
+
+/** What research assistants logged themselves, for the team to confirm or decline (4 November 2026). */
+function ClaimsToConfirm({ onChange }: { onChange: () => Promise<void> }) {
+  const { value, error, load } = useLoad<{ waiting: WaitingClaim[]; recent: (TrainingClaim & { name: string; decidedByName: string })[] }>('training-claims');
+  const [ticked, setTicked] = useState<Record<string, boolean>>({});
+  const [into, setInto] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
+  const waiting = value?.waiting ?? [];
+  const target = (c: WaitingClaim) => (c.sessionId ? undefined : (into[c.id] ?? c.matches[0]?.id ?? 'new'));
+  const confirm = async (list: WaitingClaim[]) => {
+    setBusy(list.length === 1 ? list[0].id : 'bulk');
+    setMessage(null);
+    try {
+      const r = await ask<{ confirmed: number; problems: string[] }>('confirm-claims', { items: list.map((c) => ({ id: c.id, into: target(c) })) });
+      setMessage({ tone: r.problems.length ? 'warning' : 'success', text: `Confirmed ${r.confirmed}.${r.problems.length ? ` Not confirmed: ${r.problems.join(' ')}` : ''}` });
+      setTicked({});
+      await Promise.all([load(), onChange()]);
+    } catch (e) {
+      setMessage({ tone: 'warning', text: messageOf(e) });
+    } finally {
+      setBusy(null);
+    }
+  };
+  const decline = async (c: WaitingClaim) => {
+    const reason = window.prompt(`Why can't you confirm ${c.name}'s ${c.kind === 'pilot' ? 'pilot' : 'training'} on ${shortDate(c.date)}? They will see this.`);
+    if (!reason) return;
+    setBusy(c.id);
+    setMessage(null);
+    try {
+      await ask('decline-claim', { id: c.id, reason });
+      setMessage({ tone: 'success', text: `Declined; ${c.name} has been told why.` });
+      await load();
+    } catch (e) {
+      setMessage({ tone: 'warning', text: messageOf(e) });
+    } finally {
+      setBusy(null);
+    }
+  };
+  const chosen = waiting.filter((c) => ticked[c.id]);
+  return (
+    <section className="mpmb-card" aria-labelledby="claims-heading">
+      <h2 className="mpmb-h2" id="claims-heading">
+        To confirm{waiting.length ? ` (${waiting.length})` : ''}
+      </h2>
+      <p className="mpmb-hint">Training and pilots research assistants logged themselves. They count towards visits only once confirmed.</p>
+      <ErrorLine error={error} />
+      {message && (
+        <Callout tone={message.tone} role="status">
+          {message.text}
+        </Callout>
+      )}
+      {!value ? (
+        <p>Loading…</p>
+      ) : !waiting.length ? (
+        <p>Nothing waiting.</p>
+      ) : (
+        <>
+          <ul className="mpmb-tools__list">
+            {waiting.map((c) => (
+              <li key={c.id} className="mpmb-tools__row">
+                <span>
+                  <label className="mpmb-portal__inline">
+                    <input type="checkbox" checked={!!ticked[c.id]} onChange={(e) => setTicked({ ...ticked, [c.id]: e.target.checked })} /> <strong>{c.name}</strong>
+                  </label>
+                  : {c.kind === 'pilot' ? 'Pilot' : 'Training'}
+                  {c.role ? ` (${DAY_ROLE_LABEL[c.role]})` : ''} · “{c.title}” · {shortDate(c.date)}
+                  {c.ranBy ? ` · run by ${c.ranBy}` : ''}
+                  {c.notes ? (
+                    <>
+                      <br />
+                      <span className="mpmb-hint">{c.notes}</span>
+                    </>
+                  ) : null}
+                  <br />
+                  {c.sessionId ? (
+                    <span className="mpmb-hint">Says they were at a session the team recorded.</span>
+                  ) : (
+                    <select className="mpmb-select" aria-label={`Where to record ${c.name}'s entry`} value={target(c)} onChange={(e) => setInto({ ...into, [c.id]: e.target.value })}>
+                      {c.matches.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          Add to “{m.title}” ({m.attendees} already there)
+                        </option>
+                      ))}
+                      <option value="new">Record as a new session</option>
+                    </select>
+                  )}
+                </span>
+                <span className="mpmb-actions">
+                  <Button variant="secondary" loading={busy === c.id} onClick={() => void confirm([c])}>
+                    Confirm
+                  </Button>
+                  <Button variant="ghost" disabled={busy === c.id} onClick={() => void decline(c)}>
+                    Decline
+                  </Button>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="mpmb-actions">
+            <Button variant="primary" disabled={!chosen.length} loading={busy === 'bulk'} onClick={() => void confirm(chosen)}>
+              Confirm the {chosen.length || ''} ticked
+            </Button>
+            <Button variant="ghost" onClick={() => setTicked(Object.fromEntries(waiting.map((c) => [c.id, true])))}>
+              Tick all
+            </Button>
+          </div>
+        </>
+      )}
+      {value && value.recent.length > 0 && (
+        <details>
+          <summary>Recently decided</summary>
+          <ul className="mpmb-tools__list">
+            {value.recent.map((c) => (
+              <li key={c.id} className="mpmb-tools__row">
+                <span>
+                  {c.name}: “{c.title}”, {shortDate(c.date)} · {c.status === 'confirmed' ? 'Confirmed' : `Declined (${c.reason})`} by {c.decidedByName || 'the team'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
   );
 }
 

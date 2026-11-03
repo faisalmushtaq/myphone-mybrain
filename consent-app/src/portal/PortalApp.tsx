@@ -3,7 +3,7 @@ import type { User } from 'firebase/auth';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { TextField } from '../components/ui/Field';
-import { ask, completeLink, connection, finishGoogleRedirect, leave, messageOf, pendingLink, refreshToken, sendLink, signInWithGoogle, watchUser } from './api';
+import { ask, checkVerified, completeLink, connection, createPasswordAccount, finishGoogleRedirect, leave, messageOf, MIN_PASSWORD, needsVerifying, pendingLink, refreshToken, resendVerification, sendLink, sendPasswordReset, setOwnPassword, signInWithGoogle, signInWithPassword, watchUser } from './api';
 import { disablePush, enablePush, isAndroid, isIos, isStandalone, pushState, registerPortalWorker, type PushState } from './push';
 import { AvailabilityView, Documents, MyVisits, Offers, RaHome, Training } from './RaViews';
 import { Reports } from './Reports';
@@ -41,6 +41,8 @@ export function PortalApp() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Bumped once a password account's address is verified, so the portal opens without a reload. */
+  const [verified, setVerified] = useState(0);
 
   useEffect(() => {
     document.title = 'Staff portal – MyPhone/MyBrain';
@@ -58,9 +60,9 @@ export function PortalApp() {
   }, []);
 
   useEffect(() => {
-    if (user) void loadMe();
+    if (user && !needsVerifying(user)) void loadMe();
     else setMe(null);
-  }, [user, loadMe]);
+  }, [user, loadMe, verified]);
 
   if (!connection()) {
     return (
@@ -73,6 +75,7 @@ export function PortalApp() {
   }
   if (user === undefined) return <Shell>Loading…</Shell>;
   if (!user) return <SignIn />;
+  if (needsVerifying(user)) return <VerifyEmail email={user.email ?? ''} done={async () => setVerified((n) => n + 1)} />;
   if (error)
     return (
       <Shell>
@@ -122,6 +125,172 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 /* ── Signing in ───────────────────────────────────────────────────────── */
+
+/** After making an account with a password: the address must be verified from the email before the portal opens. */
+function VerifyEmail({ email, done }: { email: string; done: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
+  const check = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      if (await checkVerified()) await done();
+      else setMessage({ tone: 'warning', text: 'Not verified yet. Open the link in the email we sent, then press this again.' });
+    } catch (e) {
+      setMessage({ tone: 'warning', text: messageOf(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const resend = async () => {
+    try {
+      await resendVerification();
+      setMessage({ tone: 'success', text: 'Sent again. It can take a minute or two.' });
+    } catch (e) {
+      setMessage({ tone: 'warning', text: messageOf(e) });
+    }
+  };
+  return (
+    <Shell>
+      <p className="mpmb-kicker">MyPhone/MyBrain</p>
+      <h1 className="mpmb-h1">Check your email to verify your address</h1>
+      <p className="mpmb-lead">
+        We sent a link to <strong>{email}</strong>. Open it to confirm the address is yours, then come back here.
+      </p>
+      {message && (
+        <Callout tone={message.tone} role="status">
+          {message.text}
+        </Callout>
+      )}
+      <div className="mpmb-actions">
+        <Button variant="primary" loading={busy} onClick={() => void check()}>
+          I have verified it
+        </Button>
+        <Button variant="secondary" onClick={() => void resend()}>
+          Send the email again
+        </Button>
+        <Button variant="ghost" onClick={() => void leave()}>
+          Sign out
+        </Button>
+      </div>
+    </Shell>
+  );
+}
+
+/** Signing in with a password, making an account with one, or resetting it (4 November 2026). */
+function PasswordSignIn({ initialEmail }: { initialEmail: string }) {
+  const [mode, setMode] = useState<'sign-in' | 'create' | 'reset'>('sign-in');
+  const [email, setEmail] = useState(initialEmail);
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const switchTo = (m: 'sign-in' | 'create' | 'reset') => {
+    setMode(m);
+    setError(null);
+  };
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      setError('Please enter your email address.');
+      return;
+    }
+    setBusy(true);
+    try {
+      if (mode === 'sign-in') await signInWithPassword(email, password);
+      else if (mode === 'create') await createPasswordAccount(email, password);
+      else {
+        await sendPasswordReset(email);
+        setNotice(`If ${email.trim()} has an account, we have sent it a link to choose a new password. Open it, then sign in here.`);
+        setMode('sign-in');
+      }
+    } catch (err) {
+      setError(messageOf(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="mpmb-card" onSubmit={(e) => void submit(e)} noValidate>
+      <h2 className="mpmb-h2">{mode === 'create' ? 'Create an account with a password' : mode === 'reset' ? 'Forgot your password?' : 'Sign in with a password'}</h2>
+      {notice && (
+        <Callout tone="success" role="status">
+          {notice}
+        </Callout>
+      )}
+      <TextField id="pw-email" label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      {mode !== 'reset' && (
+        <TextField id="pw-password" label="Password" type="password" autoComplete={mode === 'create' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} hint={mode === 'create' ? `At least ${MIN_PASSWORD} characters. We will email you to confirm your address.` : undefined} />
+      )}
+      {error && (
+        <p className="mpmb-error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="mpmb-actions">
+        <Button type="submit" variant="primary" loading={busy}>
+          {mode === 'create' ? 'Create the account' : mode === 'reset' ? 'Email me a reset link' : 'Sign in'}
+        </Button>
+      </div>
+      <p className="mpmb-hint">
+        {mode !== 'reset' && (
+          <Button variant="link" onClick={() => switchTo('reset')}>
+            Forgot your password?
+          </Button>
+        )}{' '}
+        {mode === 'sign-in' ? (
+          <Button variant="link" onClick={() => switchTo('create')}>
+            New here? Create an account with a password
+          </Button>
+        ) : (
+          <Button variant="link" onClick={() => switchTo('sign-in')}>
+            Back to signing in with a password
+          </Button>
+        )}
+      </p>
+    </form>
+  );
+}
+
+/** Your details: set a password (signed in by link or Google), or change it. */
+function PasswordSettings() {
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setMessage(null);
+    try {
+      await setOwnPassword(password);
+      setPassword('');
+      setMessage({ tone: 'success', text: 'Password saved. You can now sign in with it, as well as with the email link.' });
+    } catch (err) {
+      setMessage({ tone: 'warning', text: messageOf(err) });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="mpmb-card mpmb-portal__narrow" onSubmit={(e) => void save(e)}>
+      <h2 className="mpmb-h2">Set or change your password</h2>
+      <p className="mpmb-hint">Optional: a password lets you sign in without waiting for an email link. At least {MIN_PASSWORD} characters.</p>
+      <TextField id="set-password" label="New password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      {message && (
+        <Callout tone={message.tone} role="status">
+          {message.text}
+        </Callout>
+      )}
+      <div className="mpmb-actions">
+        <Button type="submit" variant="secondary" loading={busy} disabled={password.length < MIN_PASSWORD}>
+          Save password
+        </Button>
+      </div>
+    </form>
+  );
+}
 
 function SignIn() {
   const link = pendingLink();
@@ -206,6 +375,7 @@ function SignIn() {
           <p className="mpmb-hint">New here? Sign in the same way, then ask for an account. Use the email address the team knows you by.</p>
         </form>
       )}
+      {!finishing && !sent && <PasswordSignIn initialEmail={email} />}
     </Shell>
   );
 }
@@ -241,7 +411,7 @@ function RequestAccess({ email, rejected, done }: { email: string; rejected: boo
             <input type="radio" name="requested" checked={form.requested === 'ra'} onChange={() => setForm({ ...form, requested: 'ra' })} /> A research assistant
           </label>
           <label className="mpmb-portal__inline">
-            <input type="radio" name="requested" checked={form.requested === 'team'} onChange={() => setForm({ ...form, requested: 'team' })} /> A member of the research team
+            <input type="radio" name="requested" checked={form.requested === 'team'} onChange={() => setForm({ ...form, requested: 'team' })} /> A staff member
           </label>
         </fieldset>
         {error && (
@@ -334,7 +504,7 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
         case 'my-visits':
           return <MyVisits summary={summary} />;
         case 'training':
-          return <Training summary={summary} />;
+          return <Training summary={summary} reload={reload} />;
         default:
           return (
             <>
@@ -487,7 +657,8 @@ function Profile({ me, reload }: { me: Me; reload: () => Promise<void> }) {
     }
   };
   return (
-    <form className="mpmb-portal__narrow" onSubmit={(e) => void save(e)}>
+    <>
+      <form className="mpmb-portal__narrow" onSubmit={(e) => void save(e)}>
       <p>Email: {u.email}</p>
       <TextField id="p-name" label="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
       <TextField id="p-phone" label="Mobile number" required={false} type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -517,7 +688,9 @@ function Profile({ me, reload }: { me: Me; reload: () => Promise<void> }) {
       </div>
       <PushSettings />
       <HomeScreenHelp always />
-    </form>
+      </form>
+      <PasswordSettings />
+    </>
   );
 }
 

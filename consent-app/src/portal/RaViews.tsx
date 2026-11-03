@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { ACCEPT, ask, messageOf, uploadDocument } from './api';
-import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, CANVASS_LABEL, clock, DAY_ROLE_LABEL, dayLines, daysOn, DOC_STATE_LABEL, longDate, todayIso, travelOn, visitWhen, type Availability, type CanvassAnswer, type Contact, type DayRole, type DocRow, type MySummary, type Visit } from './types';
+import { SelectField, TextField } from '../components/ui/Field';
+import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, CANVASS_LABEL, clock, DAY_ROLE_LABEL, dayLines, daysOn, DOC_STATE_LABEL, longDate, todayIso, travelOn, visitWhen, type Availability, type CanvassAnswer, type Contact, type DayRole, type DocRow, type MySummary, type TrainingClaim, type Visit } from './types';
 
 /** A badge for a document's state, coloured by how much it needs doing. */
 export function StateBadge({ state }: { state: DocRow['state'] }) {
@@ -21,8 +22,8 @@ export function RaHome({ summary, go }: { summary: MySummary; go: (hash: string)
   const items = [
     { done: Boolean(summary.user.name && summary.user.phone), title: 'Your details', text: summary.user.phone ? `${summary.user.name}, ${summary.user.phone}` : 'Add a mobile number so the team can reach you on the day.', hash: '#profile' },
     { done: docsDone === general.length, title: 'Your documents', text: `${docsDone} of ${general.length} checked${general.some((d) => d.state === 'rejected' || d.state === 'expired') ? ': one needs uploading again' : general.some((d) => d.state === 'uploaded') ? ': waiting for the project manager to check' : ''}.`, hash: '#documents' },
-    { done: summary.counts.training >= minTraining, title: 'Training', text: `${summary.counts.training} of ${minTraining} sessions. The team records these after each one.`, hash: '#training', link: 'See your sessions' },
-    { done: summary.counts.pilots >= minPilots, title: 'Pilots', text: `${summary.counts.pilots} of ${minPilots}. The team records these after each one.`, hash: '#training', link: 'See your sessions' },
+    { done: summary.counts.training >= minTraining, title: 'Training', text: `${summary.counts.training} of ${minTraining} sessions confirmed${summary.waiting?.training ? `, ${summary.waiting.training} waiting for the team` : ''}. Log each one you attend.`, hash: '#training', link: 'Log training' },
+    { done: summary.counts.pilots >= minPilots, title: 'Pilots', text: `${summary.counts.pilots} of ${minPilots} confirmed${summary.waiting?.pilots ? `, ${summary.waiting.pilots} waiting for the team` : ''}. Log each one you do.`, hash: '#training', link: 'Log a pilot' },
     { done: summary.availability.length > 0, title: 'Your availability', text: summary.availability.length ? `${summary.availability.filter((a) => a.value !== 'no').length} days marked available ahead.` : 'Mark the days you can help at schools.', hash: '#availability' },
   ];
   return (
@@ -536,27 +537,156 @@ export function MyVisits({ summary }: { summary: MySummary }) {
   );
 }
 
-export function Training({ summary }: { summary: MySummary }) {
+const CLAIM_LABEL: Record<TrainingClaim['status'], string> = { waiting: 'Waiting for the team', confirmed: 'Confirmed', declined: 'Not confirmed' };
+
+/** Training and pilots: what counts, and logging the ones attended for the team to confirm (4 November 2026). */
+export function Training({ summary, reload }: { summary: MySummary; reload: () => Promise<void> }) {
+  const [data, setData] = useState<{ sessions: { id: string; kind: 'training' | 'pilot'; date: string; title: string; role: DayRole | null }[]; claims: TrainingClaim[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const blank = { kind: 'training' as 'training' | 'pilot', date: '', title: '', role: '' as DayRole | '', ranBy: '', notes: '' };
+  const [form, setForm] = useState(blank);
+  const load = async () => {
+    try {
+      setData(await ask('my-training'));
+    } catch (e) {
+      setError(messageOf(e));
+    }
+  };
+  useEffect(() => {
+    void load();
+  }, []);
+  const act = async (key: string, fn: () => Promise<unknown>, message: string) => {
+    setBusy(key);
+    setError(null);
+    setDone(null);
+    try {
+      await fn();
+      setDone(message);
+      await Promise.all([load(), reload()]);
+    } catch (e) {
+      setError(messageOf(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const w = summary.waiting ?? { training: 0, pilots: 0 };
+  const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
   return (
     <div className="mpmb-tools__section">
       <p className="mpmb-lead">
-        You have done {summary.counts.training} training session{summary.counts.training === 1 ? '' : 's'} (of {summary.settings.minTraining} needed) and {summary.counts.pilots} pilot{summary.counts.pilots === 1 ? '' : 's'} (of {summary.settings.minPilots}). The team records these after each session.
+        Confirmed: {plural(summary.counts.training, 'training session')} (of {summary.settings.minTraining} needed) and {plural(summary.counts.pilots, 'pilot')} (of {summary.settings.minPilots}).
+        {w.training + w.pilots > 0 ? ` Waiting for the team to confirm: ${[w.training ? plural(w.training, 'training session') : '', w.pilots ? plural(w.pilots, 'pilot') : ''].filter(Boolean).join(' and ')}.` : ''}
       </p>
-      <ul className="mpmb-tools__list">
-        {summary.sessions
-          .slice()
-          .sort((a, b) => b.date.localeCompare(a.date))
-          .map((s) => (
-            <li key={s.id} className="mpmb-tools__row">
-              <span>
-                <strong>{s.title}</strong>
-                <br />
-                {longDate(s.date)}
-              </span>
-              <span className="mpmb-hint">{s.kind === 'pilot' ? 'Pilot' : 'Training'}</span>
-            </li>
-          ))}
-      </ul>
+      <p className="mpmb-hint">Log each training session and pilot you attend. The team checks it, and it counts towards school visits once they confirm it.</p>
+      {done && (
+        <Callout tone="success" role="status">
+          {done}
+        </Callout>
+      )}
+      {error && (
+        <Callout tone="warning" role="alert">
+          {error}
+        </Callout>
+      )}
+      {data && data.sessions.length > 0 && (
+        <section className="mpmb-card">
+          <h2 className="mpmb-h2">Sessions the team recorded</h2>
+          <p className="mpmb-hint">Were you at one of these? Say so and the team will confirm it.</p>
+          <ul className="mpmb-tools__list">
+            {data.sessions.map((s) => (
+              <li key={s.id} className="mpmb-tools__row">
+                <span>
+                  <strong>{s.title}</strong>
+                  <br />
+                  {s.kind === 'pilot' ? 'Pilot' : 'Training'}
+                  {s.role ? ` (${DAY_ROLE_LABEL[s.role]})` : ''} · {longDate(s.date)}
+                </span>
+                <Button variant="secondary" loading={busy === s.id} onClick={() => void act(s.id, () => ask('claim-session', { sessionId: s.id }), `Logged: ${s.title}. The team will confirm it.`)}>
+                  I was there
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <form
+        className="mpmb-card"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void act('new', () => ask('claim-session', { ...form, role: form.role || null }), 'Logged. The team will confirm it.').then(() => setForm(blank));
+        }}
+      >
+        <h2 className="mpmb-h2">Add a session you attended</h2>
+        <p className="mpmb-hint">For one that is not in the list above.</p>
+        <div className="mpmb-tools__grid">
+          <SelectField id="claim-kind" label="What kind" options={[{ value: 'training', label: 'Training' }, { value: 'pilot', label: 'Pilot' }]} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as 'training' | 'pilot', role: e.target.value === 'pilot' ? '' : form.role })} />
+          <TextField id="claim-date" label="Date" type="date" max={todayIso()} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          <TextField id="claim-title" label="What it was" placeholder={form.kind === 'pilot' ? 'Pilot at GSAL' : 'EEG set-up training'} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          {form.kind === 'training' && <SelectField id="claim-role" label="Training for" required={false} placeholder="General, or both jobs" options={[{ value: 'eeg', label: DAY_ROLE_LABEL.eeg }, { value: 'copro', label: DAY_ROLE_LABEL.copro }]} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as DayRole | '' })} />}
+          <TextField id="claim-ranby" label="Who ran it" required={false} value={form.ranBy} onChange={(e) => setForm({ ...form, ranBy: e.target.value })} />
+        </div>
+        <TextField id="claim-notes" label="Anything else" required={false} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+        <div className="mpmb-actions">
+          <Button type="submit" variant="primary" loading={busy === 'new'}>
+            Log it
+          </Button>
+        </div>
+      </form>
+      <section>
+        <h2 className="mpmb-h2">What you logged</h2>
+        {!data ? (
+          <p>Loading…</p>
+        ) : !data.claims.length ? (
+          <p className="mpmb-hint">Nothing yet.</p>
+        ) : (
+          <ul className="mpmb-tools__list">
+            {data.claims.map((c) => (
+              <li key={c.id} className="mpmb-tools__row">
+                <span>
+                  <strong>{c.title}</strong>
+                  <br />
+                  {c.kind === 'pilot' ? 'Pilot' : 'Training'} · {longDate(c.date)} · <span className={`mpmb-portal__claim mpmb-portal__claim--${c.status}`}>{CLAIM_LABEL[c.status]}</span>
+                  {c.status === 'declined' && c.reason ? (
+                    <>
+                      <br />
+                      <span className="mpmb-hint">Why: {c.reason}</span>
+                    </>
+                  ) : null}
+                </span>
+                {c.status === 'waiting' && (
+                  <Button variant="ghost" loading={busy === c.id} onClick={() => window.confirm('Delete this entry?') && void act(c.id, () => ask('delete-claim', { id: c.id }), 'Deleted.')}>
+                    Delete
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section>
+        <h2 className="mpmb-h2">Confirmed sessions</h2>
+        {!summary.sessions.length ? (
+          <p className="mpmb-hint">None yet.</p>
+        ) : (
+          <ul className="mpmb-tools__list">
+            {summary.sessions
+              .slice()
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .map((s) => (
+                <li key={s.id} className="mpmb-tools__row">
+                  <span>
+                    <strong>{s.title}</strong>
+                    <br />
+                    {longDate(s.date)}
+                  </span>
+                  <span className="mpmb-hint">{s.kind === 'pilot' ? 'Pilot' : 'Training'}</span>
+                </li>
+              ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

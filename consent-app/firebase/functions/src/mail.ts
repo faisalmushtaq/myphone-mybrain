@@ -24,7 +24,15 @@ export interface MailSettings {
   to: string;
   /** Secret Manager secret holding the SMTP password. */
   secret: string;
+  /** Where replies go when an email does not say otherwise (4 November 2026): the team inbox, never the Gmail sender. */
+  replyTo: string;
 }
+
+/** Every email comes from the study's Gmail account; replies to it go to the team inbox (4 November 2026). */
+export const DEFAULT_REPLY_TO = 'brainpop@leeds.ac.uk';
+
+/** Who replies reach: the email's own Reply-To (only the team's notices of an enquiry or a class list, so the team can answer the sender), otherwise the team inbox. */
+export const replyToFor = (message: Pick<Mail, 'replyTo'>, settings: Pick<MailSettings, 'replyTo'>): string => message.replyTo?.trim() || settings.replyTo;
 
 export type MailOutcome = 'sent' | 'not-configured' | 'failed';
 
@@ -66,6 +74,7 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv = process.env): MailSetti
     from: `${env.MPMB_MAIL_FROM_NAME?.trim() || 'MyPhone/MyBrain'} <${user}>`,
     to,
     secret: env.MPMB_SMTP_SECRET?.trim() || 'mpmb-smtp-password',
+    replyTo: env.MPMB_REPLY_TO?.trim() || DEFAULT_REPLY_TO,
   };
 }
 
@@ -108,7 +117,7 @@ export async function sendMail(message: Mail, settings: MailSettings | null = se
       socketTimeout: 20_000,
     });
     const from = message.fromName ? `${message.fromName.replace(/[<>"\r\n]/g, '')} <${settings.user}>` : settings.from;
-    await transport.sendMail({ from, to: message.to, cc: message.cc, bcc: message.bcc, replyTo: message.replyTo, subject: message.subject, text: message.text, ...(message.html ? { html: message.html } : {}), attachments: message.attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })) });
+    await transport.sendMail({ from, to: message.to, cc: message.cc, bcc: message.bcc, replyTo: replyToFor(message, settings), subject: message.subject, text: message.text, ...(message.html ? { html: message.html } : {}), attachments: message.attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })) });
     return 'sent';
   } catch (error) {
     logger.error('Mail: sending failed', { error: String((error as Error).message ?? error) });

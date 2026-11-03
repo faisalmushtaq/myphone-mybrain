@@ -143,6 +143,8 @@ export interface MySummary {
   settings: { minTraining: number; minPilots: number; withdrawalContact: Contact };
   documents: DocRow[];
   counts: Counts;
+  /** Logged by the person and waiting for the team: not counted yet. */
+  waiting: { training: number; pilots: number };
   sessions: { id: string; kind: 'training' | 'pilot'; date: string; title: string }[];
   availability: { date: string; value: Availability; note: string }[];
   /** "Ready" or "On hold", when the team has said so. */
@@ -263,4 +265,20 @@ export function saveFile(filename: string, content: string, type = 'text/calenda
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Training or a pilot someone logged themselves (4 November 2026): it counts once the team confirms it. */
+export interface TrainingClaim {
+  id: string;
+  status: 'waiting' | 'confirmed' | 'declined';
+  sessionId: string | null;
+  kind: 'training' | 'pilot';
+  date: string;
+  title: string;
+  role: DayRole | null;
+  notes: string;
+  ranBy: string;
+  reason: string;
+  createdAt: string | null;
+  decidedAt: string | null;
 }

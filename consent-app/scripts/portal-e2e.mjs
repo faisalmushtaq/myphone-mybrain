@@ -159,7 +159,7 @@ async function inner() {
     await signIn(team, TEAM);
     await team.getByRole('heading', { name: 'Ask for an account' }).waitFor();
     await team.locator('#ra-name').fill('Robin Chen');
-    await team.getByLabel('A member of the research team').check();
+    await team.getByLabel('A staff member').check();
     await team.getByRole('button', { name: 'Ask for an account' }).click();
     await team.getByText('waiting for the project manager').waitFor();
 
@@ -263,7 +263,7 @@ async function inner() {
       await team.locator('#s-kind').selectOption(kind);
       await team.locator('#s-title').fill(title);
       await team.getByLabel('Sam Reed').check();
-      await team.getByRole('button', { name: 'Save' }).click();
+      await team.getByRole('button', { name: 'Save', exact: true }).click();
       await team.getByText(title).first().waitFor();
     };
     await record('training', 'EEG set-up training');
@@ -274,6 +274,52 @@ async function inner() {
     await team.locator('li', { hasText: 'Sam Reed' }).getByText('Documents and training done', { exact: true }).waitFor();
     await shot(team, 'desktop-06-team-people');
     ok('the assistant shows as ready once documents, training and pilots are done', true);
+
+    /* ── Research assistants log their own training and pilots; the team confirms (4 November 2026) ── */
+    const yesterday = plus(new Date().toISOString().slice(0, 10), -1);
+    const teamTok = await tokenFor(TEAM);
+    const raTok = await tokenFor(RA);
+    await call(teamTok, 'save-session', { kind: 'pilot', date: yesterday, title: 'GSAL pilot day', attendees: [] });
+    await db.collection('portalTrainingClaims').add({ uid: 'someone-else', status: 'waiting', sessionId: null, kind: 'training', date: yesterday, title: 'Not Sam’s', role: null, notes: '', ranBy: '', reason: '' });
+    const beforeClaims = (await call(raTok, "my-summary")).result;
+    await ra.goto(`${BASE}#training`);
+    await ra.getByRole('heading', { name: 'Sessions the team recorded' }).waitFor();
+    await ra.locator('li', { hasText: 'GSAL pilot day' }).getByRole('button', { name: 'I was there' }).click();
+    await ra.getByText('Logged: GSAL pilot day').waitFor();
+    await ra.locator('#claim-kind').selectOption('training');
+    await ra.locator('#claim-date').fill(yesterday);
+    await ra.locator('#claim-title').fill('Co-production workshop');
+    await ra.locator('#claim-ranby').fill('Sarmad Ali');
+    await ra.getByRole('button', { name: 'Log it' }).click();
+    await ra.locator('li', { hasText: 'Co-production workshop' }).getByText('Waiting for the team').waitFor();
+    await shot(ra, 'ra-training-log');
+    const mid = (await call(raTok, 'my-summary')).result;
+    ok('logged entries wait, and do not count yet', mid.counts.training === beforeClaims.counts.training && mid.counts.pilots === beforeClaims.counts.pilots && mid.waiting.training === 1 && mid.waiting.pilots === 1, JSON.stringify([beforeClaims.counts, mid.counts, mid.waiting]));
+    const mine = (await call(raTok, 'my-training')).result;
+    ok('an assistant sees only their own entries', mine.claims.length === 2 && !mine.claims.some((c) => c.title === 'Not Sam’s'), JSON.stringify(mine.claims.map((c) => c.title)));
+    const future = await call(raTok, 'claim-session', { kind: 'pilot', date: plus(yesterday, 30), title: 'Next month' });
+    const raSees = await call(raTok, 'training-claims');
+    const raConfirms = await call(raTok, 'confirm-claims', { items: [{ id: mine.claims[0].id }] });
+    ok('an assistant cannot log future dates, see others’ entries or confirm', Boolean(future.error) && Boolean(raSees.error) && Boolean(raConfirms.error), JSON.stringify([future.error, raSees.error, raConfirms.error]));
+    await team.goto(`${BASE}#sessions`);
+    await team.getByRole('heading', { name: /To confirm \(3\)/ }).waitFor();
+    await shot(team, 'team-training-to-confirm');
+    await team.locator('li', { hasText: 'GSAL pilot day' }).filter({ hasText: 'Sam Reed' }).getByRole('button', { name: 'Confirm', exact: true }).click();
+    await team.getByText('Confirmed 1.').waitFor();
+    team.once('dialog', (d) => void d.accept('We have no record of this workshop; please add the date it ran.'));
+    await team.locator('li', { hasText: 'Co-production workshop' }).getByRole('button', { name: 'Decline' }).click();
+    await team.getByText('Declined; Sam Reed has been told why.').waitFor();
+    const afterClaims = (await call(raTok, "my-summary")).result;
+    const claimsNow = (await db.collection('portalTrainingClaims').get()).docs.map((d) => d.data()).filter((c) => c.uid === raUid);
+    const declinedMail = (await db.collection('portalMail').get()).docs.map((d) => d.data()).filter((m) => m.kind === 'training-declined');
+    const raNotes = (await db.collection('portalNotifications').where('uid', '==', raUid).get()).docs.map((d) => d.data().title);
+    ok('confirming counts it; declining tells them why, by email too', afterClaims.counts.pilots === beforeClaims.counts.pilots + 1 && afterClaims.counts.training === beforeClaims.counts.training && afterClaims.waiting.training === 0 && claimsNow.some((c) => c.status === 'declined' && /no record/.test(c.reason)) && declinedMail.length === 1 && raNotes.includes('Training confirmed') && raNotes.includes('Training not confirmed'), JSON.stringify([afterClaims.counts, afterClaims.waiting, declinedMail.length, raNotes]));
+    await ra.goto(`${BASE}#home`);
+    await ra.goto(`${BASE}#training`);
+    await ra.reload();
+    await ra.locator('li', { hasText: 'Co-production workshop' }).getByText('Not confirmed', { exact: true }).waitFor();
+    await shot(ra, 'ra-training-decided');
+    await db.collection('portalTrainingClaims').where('uid', '==', 'someone-else').get().then((q) => Promise.all(q.docs.map((d) => d.ref.delete())));
 
     /* ── The team keeps its own details: status, experience, jobs, notes ── */
     await team.goto(`${BASE}#person/${raUid}`);
@@ -291,8 +337,14 @@ async function inner() {
     await team.getByText('Very calm with nervous pupils').waitFor();
     const samUser = (await db.collection('portalUsers').doc(raUid).get()).data();
     ok('the team sets status tags, experience, jobs and availability notes', samUser.level === 3 && samUser.tags.includes('ready') && samUser.capabilities.join() === 'eeg' && samUser.availabilityNote === 'No Friday afternoons', JSON.stringify(samUser));
-    const noteRows = (await db.collection('portalNotes').get()).docs.map((d) => d.data()).filter((n) => n.uid === raUid);
-    const noteAudit = (await db.collection('portalAudit').get()).docs.map((d) => d.data().action);
+    // The typed note is on screen before it is saved: wait for the saved one.
+    let noteRows = [];
+    let noteAudit = [];
+    for (let i = 0; i < 20 && !(noteRows.length && noteAudit.includes('add-note')); i += 1) {
+      noteRows = (await db.collection('portalNotes').get()).docs.map((d) => d.data()).filter((n) => n.uid === raUid);
+      noteAudit = (await db.collection('portalAudit').get()).docs.map((d) => d.data().action);
+      if (!(noteRows.length && noteAudit.includes('add-note'))) await new Promise((r) => setTimeout(r, 500));
+    }
     ok('team notes are dated, with who wrote them, and audited', noteRows.some((n) => n.byName === 'Robin Chen' && n.at) && noteAudit.includes('add-note') && noteAudit.includes('edit-person'), JSON.stringify([noteRows, noteAudit]));
 
     team.on('dialog', (d) => void d.accept());
@@ -412,7 +464,7 @@ async function inner() {
     const notes = (await db.collection('portalNotifications').get()).docs.map((d) => d.data());
     ok('the team is told about the confirmation', notes.some((n) => n.uid === users[TEAM].uid && /confirmed/.test(n.title)));
     const auditActions = (await db.collection('portalAudit').get()).docs.map((d) => d.data().action);
-    ok('the audit log has every step', ['request-access', 'approve', 'upload-document', 'verify-document', 'save-session', 'add-visit', 'offer', 'confirm-offer', 'open-document', 'canvass-answer', 'announce-provisional', 'announce-confirmed'].every((a) => auditActions.includes(a)), [...new Set(auditActions)].join(', '));
+    ok('the audit log has every step', ['request-access', 'approve', 'upload-document', 'verify-document', 'save-session', 'claim-session', 'confirm-claim', 'decline-claim', 'add-visit', 'offer', 'confirm-offer', 'open-document', 'canvass-answer', 'announce-provisional', 'announce-confirmed'].every((a) => auditActions.includes(a)), [...new Set(auditActions)].join(', '));
     await pm.goto(`${BASE}#audit`);
     await pm.getByText('confirm-offer').first().waitFor();
     await shot(pm, 'desktop-09-pm-audit');
@@ -460,7 +512,7 @@ async function inner() {
     await ra.getByRole('heading', { name: 'Notifications on this device' }).waitFor();
     await ra.locator('.mpmb-portal__push [role=status]').filter({ hasNotText: 'Checking…' }).waitFor();
     await ra.getByLabel('Email me').uncheck();
-    await ra.getByRole('button', { name: 'Save' }).click();
+    await ra.getByRole('button', { name: 'Save', exact: true }).click();
     await ra.getByText('Saved.').waitFor();
     await shot(ra, 'mobile-13-ra-notifications-settings');
     ok('each person chooses how they hear about new dates', (await db.collection('portalUsers').doc(raUid).get()).data().notifyPrefs?.newDatesEmail === false);
@@ -559,6 +611,7 @@ async function inner() {
     await tm.locator('#grid-jump').fill(d1);
     await tm.getByRole('table').waitFor();
     await shot(tm, 'availability-grid-mobile');
+    await tm.locator('details.mpmb-portal__gridfilters').evaluate((d) => { d.open = true; });
     await tm.getByLabel('One day at a time').uncheck();
     await shot(tm, 'availability-grid-mobile-week');
     // Back to the visit for the steps that follow.
@@ -666,6 +719,71 @@ async function inner() {
     const csv = fs.readFileSync(await download.path(), 'utf8');
     ok('the report downloads as CSV', /^Name,Days offered,Days confirmed,Days attended/.test(csv) && /Amira Khan,/.test(csv), csv.slice(0, 120));
     ok('school days attended show on the profile', (await call(teamToken, 'person', { uid: crewUids[0] })).result.daysAttended === 1);
+
+    /* ── Passwords (4 November 2026): make an account with one, verify, sign in, reset; set one on a link account ── */
+    {
+      const PW = 'pat.lee@example.org';
+      const oob = async (email, type) => {
+        const r = await (await fetch(`${AUTH}/emulator/v1/projects/${PROJECT}/oobCodes`)).json();
+        return (r.oobCodes ?? []).filter((c) => c.email === email && c.requestType === type).at(-1);
+      };
+      const signInRest = async (email, password) => (await (await fetch(`${AUTH}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-key`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }) })).json());
+      const pwCtx = await browser.newContext(mobile);
+      const pw = await pwCtx.newPage();
+      await pw.goto(BASE);
+      await pw.getByRole('button', { name: 'New here? Create an account with a password' }).click();
+      await pw.locator('#pw-email').fill(PW);
+      await pw.locator('#pw-password').fill('short');
+      await pw.getByRole('button', { name: 'Create the account' }).click();
+      await pw.getByText('Use at least 10 characters.').waitFor();
+      await pw.locator('#pw-password').fill('orange-kettle-1984');
+      await pw.getByRole('button', { name: 'Create the account' }).click();
+      await pw.getByRole('heading', { name: 'Check your email to verify your address' }).waitFor();
+      await shot(pw, 'password-verify-email');
+      const early = await call((await signInRest(PW, 'orange-kettle-1984')).idToken, 'me');
+      ok('an unverified password account cannot use the portal', Boolean(early.error), JSON.stringify(early.error ?? {}));
+      const verify = await oob(PW, 'VERIFY_EMAIL');
+      await fetch(verify.oobLink);
+      await pw.getByRole('button', { name: 'I have verified it' }).click();
+      await pw.getByRole('heading', { name: 'Ask for an account' }).waitFor();
+      await pw.locator('#ra-name').fill('Pat Lee');
+      await pw.getByRole('button', { name: 'Ask for an account' }).click();
+      await pw.getByText('waiting for the project manager').waitFor();
+      const patUid = (await db.collection('portalUsers').where('email', '==', PW).get()).docs[0]?.id;
+      const approved = await call(await tokenFor(PM), 'approve', { uid: patUid, role: 'ra' });
+      ok('a password account asks for access and is approved', Boolean(patUid) && !approved.error, JSON.stringify(approved.error ?? {}));
+      await pw.getByRole('button', { name: 'Sign out' }).click();
+      await pw.locator('#pw-email').fill(PW);
+      await pw.locator('#pw-password').fill('wrong-password-123');
+      await pw.locator('form', { has: pw.locator('#pw-password') }).getByRole('button', { name: 'Sign in', exact: true }).click();
+      await pw.getByText('That email and password do not match').waitFor();
+      await pw.locator('#pw-password').fill('orange-kettle-1984');
+      await pw.locator('form', { has: pw.locator('#pw-password') }).getByRole('button', { name: 'Sign in', exact: true }).click();
+      await pw.getByText('Pat Lee · Research assistant').waitFor();
+      ok('signing in with the password opens the portal; a wrong one says so plainly', true);
+      await shot(pw, 'password-signed-in');
+      await pw.getByRole('button', { name: 'Sign out' }).click();
+      await pw.getByRole('button', { name: 'Forgot your password?' }).click();
+      await pw.locator('#pw-email').fill(PW);
+      await pw.getByRole('button', { name: 'Email me a reset link' }).click();
+      await pw.getByText('a link to choose a new password').waitFor();
+      await shot(pw, 'password-reset-sent');
+      const reset = await oob(PW, 'PASSWORD_RESET');
+      await fetch(`${AUTH}/identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=demo-key`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ oobCode: reset?.oobCode, newPassword: 'purple-teapot-2026' }) });
+      const afterReset = await signInRest(PW, 'purple-teapot-2026');
+      ok('a reset email arrives and the new password works', Boolean(reset?.oobCode) && Boolean(afterReset.idToken), JSON.stringify(afterReset.error ?? {}));
+      await pwCtx.close();
+      // Robin signed in with the email link: they set a password in Your details.
+      await team.goto(`${BASE}#home`);
+      await team.getByRole('button', { name: 'Your details' }).click();
+      await team.getByRole('heading', { name: 'Set or change your password' }).waitFor();
+      await team.locator('#set-password').fill('blue-bicycle-0042');
+      await team.getByRole('button', { name: 'Save password' }).click();
+      await team.getByText('Password saved.').waitFor();
+      await shot(team, 'password-set-in-details');
+      const samPw = await signInRest(TEAM, 'blue-bicycle-0042');
+      ok('someone who signs in by link can set a password too', Boolean(samPw.idToken), JSON.stringify(samPw.error ?? {}));
+    }
 
     /* ── Retention ── */
     const archived = await call(pmToken, 'archive', { uid: raUid });

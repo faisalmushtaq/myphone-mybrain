@@ -86,6 +86,7 @@ jobs:
             echo "MPMB_SMTP_PORT=${{ vars.MPMB_SMTP_PORT || '465' }}"
             echo "MPMB_SMTP_USER=${{ vars.MPMB_SMTP_USER || 'brainpopresearch@gmail.com' }}"
             echo "MPMB_MAIL_TO=${{ vars.MPMB_MAIL_TO || 'brainpop@leeds.ac.uk' }}"
+            echo "MPMB_REPLY_TO=${{ vars.MPMB_REPLY_TO || 'brainpop@leeds.ac.uk' }}"
             echo "MPMB_MAIL_FROM_NAME=MyPhone/MyBrain"
             echo "MPMB_SMTP_SECRET=mpmb-smtp-password"
             echo "MPMB_EXPORT_BUCKET=${{ vars.MPMB_EXPORT_BUCKET || 'myphone-mybrain-exports' }}"
