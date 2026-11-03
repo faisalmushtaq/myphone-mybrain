@@ -17,6 +17,7 @@ interface PersonRow {
   hours: number;
   eegDays: number;
   coproDays: number;
+  leadDays?: number;
 }
 
 interface DayRow {
@@ -27,6 +28,8 @@ interface DayRow {
   end: string;
   eegNeed: number;
   coproNeed: number;
+  leadNeed?: number;
+  leadConfirmed?: number;
   eegConfirmed: number;
   coproConfirmed: number;
   attended: string[];
@@ -74,8 +77,8 @@ export function Reports() {
     saveFile(
       `attendance-by-person-${stamp}.csv`,
       toCsv(
-        ['Name', 'Days offered', 'Days confirmed', 'Days attended', 'Absent', 'Late', 'Left early', 'Hours', 'EEG days', 'Co-production days'],
-        value.people.map((p) => [p.name, p.offeredDays, p.confirmedDays, p.attended, p.absent, p.late, p.leftEarly, p.hours, p.eegDays, p.coproDays]),
+        ['Name', 'Days offered', 'Days confirmed', 'Days attended', 'Absent', 'Late', 'Left early', 'Hours', 'EEG days', 'Co-production days', 'Lead days'],
+        value.people.map((p) => [p.name, p.offeredDays, p.confirmedDays, p.attended, p.absent, p.late, p.leftEarly, p.hours, p.eegDays, p.coproDays, p.leadDays ?? 0]),
       ),
       'text/csv;charset=utf-8',
     );
@@ -84,8 +87,8 @@ export function Reports() {
     saveFile(
       `attendance-by-day-${stamp}.csv`,
       toCsv(
-        ['Date', 'School', 'Times', 'EEG confirmed', 'EEG needed', 'Co-production confirmed', 'Co-production needed', 'Attended', 'Absent', 'Not marked'],
-        value.days.map((d) => [d.date, d.schoolName, `${d.start}-${d.end}`, d.eegConfirmed, d.eegNeed, d.coproConfirmed, d.coproNeed, d.attended.join('; '), d.absent.join('; '), d.notMarked.join('; ')]),
+        ['Date', 'School', 'Times', 'EEG confirmed', 'EEG needed', 'Co-production confirmed', 'Co-production needed', 'Leads confirmed', 'Leads needed', 'Attended', 'Absent', 'Not marked'],
+        value.days.map((d) => [d.date, d.schoolName, `${d.start}-${d.end}`, d.eegConfirmed, d.eegNeed, d.coproConfirmed, d.coproNeed, d.leadConfirmed ?? 0, d.leadNeed ?? 0, d.attended.join('; '), d.absent.join('; '), d.notMarked.join('; ')]),
       ),
       'text/csv;charset=utf-8',
     );
@@ -160,7 +163,7 @@ export function Reports() {
                         <td>{p.absent}</td>
                         <td>{p.hours}</td>
                         <td className="mpmb-hint">
-                          EEG {p.eegDays} · Co-production {p.coproDays}
+                          EEG {p.eegDays} · Co-production {p.coproDays}{p.leadDays ? ` · Lead ${p.leadDays}` : ''}
                         </td>
                       </tr>
                     ))}
@@ -180,7 +183,7 @@ export function Reports() {
                   <thead>
                     <tr>
                       <th scope="col">Day</th>
-                      <th scope="col">Cover (EEG, co-production)</th>
+                      <th scope="col">Cover (EEG, co-production, leads)</th>
                       <th scope="col">Attended</th>
                       <th scope="col">Absent or not marked</th>
                     </tr>
@@ -194,7 +197,7 @@ export function Reports() {
                           <span className="mpmb-hint">{d.schoolName}</span>
                         </th>
                         <td>
-                          {d.eegConfirmed}/{d.eegNeed}, {d.coproConfirmed}/{d.coproNeed}
+                          {d.eegConfirmed}/{d.eegNeed}, {d.coproConfirmed}/{d.coproNeed}, {d.leadConfirmed ?? 0}/{d.leadNeed ?? 0}
                         </td>
                         <td className="mpmb-hint">{d.attended.join(', ') || '—'}</td>
                         <td className="mpmb-hint">

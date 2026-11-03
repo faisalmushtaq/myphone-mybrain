@@ -5,7 +5,7 @@ import { TextField } from '../components/ui/Field';
 import { ask, messageOf } from './api';
 import { SchoolEmail, TeamEmail } from './EmailViews';
 import { CanvassSummary, downloadIcs, ErrorLine, levelLine, Loading, TagBadges, useLoad, VisitForm, visitFormFrom, type CanvassDay } from './TeamViews';
-import { ASSIGNMENT_LABEL, ATTENDANCE_LABEL, AVAILABILITY_LABEL, clock, DAY_ROLE_LABEL, DAY_ROLES, daysOn, shortDate, stamp, todayIso, travelOn, VISIT_STATUS_LABEL, type AssignmentStatus, type AttendanceMark, type Availability, type Counts, type DayCoverage, type DayRole, type School, type TeamExtras, type Visit, type VisitStatus } from './types';
+import { ASSIGNMENT_LABEL, ATTENDANCE_LABEL, AVAILABILITY_LABEL, clock, DAY_ROLE_LABEL, DAY_ROLES, DBS_STATUS_LABEL, RA_ROLES, type DbsStatus, daysOn, shortDate, stamp, todayIso, travelOn, VISIT_STATUS_LABEL, type AssignmentStatus, type AttendanceMark, type Availability, type Counts, type DayCoverage, type DayRole, type School, type TeamExtras, type Visit, type VisitStatus } from './types';
 
 interface Place {
   uid: string;
@@ -30,6 +30,9 @@ interface Candidate extends TeamExtras {
   eligible: boolean;
   reasons: string[];
   assignment: Place | null;
+  /** A member of the research team: they lead, and are booked straight away. */
+  team?: boolean;
+  dbsStatus?: DbsStatus;
 }
 
 interface OfferItem {
@@ -104,7 +107,7 @@ export function VisitView({ visitId, role, go }: { visitId: string; role: 'pm' |
   const placed = value.candidates.filter((c) => holds(c.assignment));
   const free = value.candidates.filter((c) => !holds(c.assignment));
   const confirmedCount = placed.filter((c) => c.assignment!.status === 'confirmed').length;
-  const full = value.coverage.length > 0 && value.coverage.every((d) => d.eeg.confirmed >= d.eeg.need && d.copro.confirmed >= d.copro.need);
+  const full = value.coverage.length > 0 && value.coverage.every((d) => DAY_ROLES.every((r) => (d[r]?.confirmed ?? 0) >= (d[r]?.need ?? 0)));
   const chosen = Object.entries(picks).filter(([, p]) => p.dates.length);
   const run = async (action: string, data: Record<string, unknown>, done?: string) => {
     setActionError(null);
@@ -122,7 +125,7 @@ export function VisitView({ visitId, role, go }: { visitId: string; role: 'pm' |
   const suggest = () => setPicks(Object.fromEntries(value.suggestion.map((s) => [s.uid, { role: s.role, dates: s.dates }])));
   const offer = async () => {
     setBusy(true);
-    const ok = await run('offer', { offers: chosen.map(([uid, p]) => ({ uid, role: p.role, dates: p.dates })), overrides }, `Offered to ${chosen.length}. Each has a notification and an email naming their job and days.`);
+    const ok = await run('offer', { offers: chosen.map(([uid, p]) => ({ uid, role: p.role, dates: p.dates })), overrides }, `Done: ${chosen.length} chosen. Research assistants have an offer to confirm; research leads are booked straight away. Each has a notification and an email naming their job and days.`);
     setBusy(false);
     if (ok) {
       setPicks({});
@@ -162,7 +165,7 @@ export function VisitView({ visitId, role, go }: { visitId: string; role: 'pm' |
           <strong>Where:</strong> {v.location}
         </p>
         <p>
-          EEG {v.roleNeeds.eeg} · Co-production {v.roleNeeds.copro} a day{' '}
+          EEG {v.roleNeeds.eeg} · Co-production {v.roleNeeds.copro} · Leads {v.roleNeeds.lead ?? 0} a day{' '}
           <span className={`mpmb-portal__badge mpmb-portal__badge--${full ? 'ok' : 'wait'}`}>{full ? 'Fully staffed' : VISIT_STATUS_LABEL[v.status]}</span>
         </p>
         {(v.travel.arrival || v.travel.taxiTime || v.travel.direct) && (
@@ -229,7 +232,7 @@ export function VisitView({ visitId, role, go }: { visitId: string; role: 'pm' |
         <h3 className="mpmb-h3" id="cover-h">
           Each day
         </h3>
-        <p className="mpmb-hint">Confirmed against what is needed; offers still waiting are shown apart. Fully staffed when every day has both numbers confirmed.</p>
+        <p className="mpmb-hint">Confirmed against what is needed; offers still waiting are shown apart. Fully staffed when every day has every job confirmed.</p>
         <div className="mpmb-portal__tablewrap">
           <table className="mpmb-portal__table">
             <thead>
@@ -237,6 +240,7 @@ export function VisitView({ visitId, role, go }: { visitId: string; role: 'pm' |
                 <th scope="col">Day</th>
                 <th scope="col">EEG</th>
                 <th scope="col">Co-production</th>
+                <th scope="col">Leads</th>
                 <th scope="col">Confirmed</th>
               </tr>
             </thead>
@@ -256,6 +260,7 @@ export function VisitView({ visitId, role, go }: { visitId: string; role: 'pm' |
                     </th>
                     <Cell c={d.eeg} />
                     <Cell c={d.copro} />
+                    <Cell c={d.lead ?? { need: 0, offered: 0, confirmed: 0 }} />
                     <td className="mpmb-hint">
                       {DAY_ROLES.map((r) => {
                         const names = placed.filter((c) => c.assignment!.status === 'confirmed' && c.assignment!.role === r && c.assignment!.dates.includes(d.date)).map((c) => `${c.name}${c.assignment!.timeNotes?.[d.date] ? ` (${c.assignment!.timeNotes[d.date]})` : ''}`);
@@ -369,7 +374,7 @@ export function VisitView({ visitId, role, go }: { visitId: string; role: 'pm' |
           <ul className="mpmb-tools__list">
             {free.map((c) => {
               const p = picks[c.uid];
-              const roleChoices = [...c.capabilities, ...DAY_ROLES.filter((r) => !c.capabilities.includes(r))];
+              const roleChoices: DayRole[] = c.team ? ['lead'] : [...c.capabilities, ...RA_ROLES.filter((r) => !c.capabilities.includes(r))];
               const blocked = !c.eligible || (p && !c.capabilities.includes(p.role));
               return (
                 <li key={c.uid} className={`mpmb-tools__row mpmb-tools__row--stack mpmb-portal__candidate${c.eligible ? '' : ' is-blocked'}`}>
@@ -377,6 +382,8 @@ export function VisitView({ visitId, role, go }: { visitId: string; role: 'pm' |
                     <input type="checkbox" checked={!!p} disabled={!c.eligible && !value.mayOverride} onChange={(e) => pick(c, e.target.checked ? {} : null)} />
                     <span>
                       <strong>{c.name}</strong> <span className={`mpmb-portal__badge mpmb-portal__badge--${COVERAGE[c.coverage].tone}`}>{COVERAGE[c.coverage].label(c)}</span> <TagBadges tags={c.tags} />
+                      {c.team && <span className="mpmb-portal__badge mpmb-portal__badge--ok">Research lead</span>}
+                      {c.dbsStatus && c.dbsStatus !== 'confirmed' && <span className="mpmb-portal__badge mpmb-portal__badge--todo">DBS: {DBS_STATUS_LABEL[c.dbsStatus]}</span>}
                       {c.interested && <span className="mpmb-portal__badge mpmb-portal__badge--ok">Interested</span>}
                       {c.assignment?.status === 'declined' && <span className="mpmb-portal__badge mpmb-portal__badge--todo">Declined before</span>}
                       {c.assignment?.status === 'removed' && <span className="mpmb-portal__badge mpmb-portal__badge--todo">Removed before</span>}

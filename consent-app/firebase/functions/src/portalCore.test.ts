@@ -58,7 +58,7 @@ test('settings: stored values within range, defaults for the rest', () => {
   assert.equal(s.minPilots, 1);
   assert.equal(s.retentionDays, 183);
   assert.deepEqual(s.docTypes.map((t) => t.id), ['dbs']);
-  assert.deepEqual(settingsOf(undefined).docTypes.map((t) => t.id), ['dbs', 'health', 'safeguarding']);
+  assert.deepEqual(settingsOf(undefined).docTypes.map((t) => t.id), ['dbs', 'safeguarding']);
 });
 
 test('documents: missing, waiting, rejected, verified, expiring soon and expired; a DBS lasts three years unless on the Update Service', () => {
@@ -90,15 +90,15 @@ test('eligibility: DBS in date on the visit day, every form (the school’s too)
   assert.equal(r.eligible, false);
   assert.deepEqual(r.reasons, ['Enhanced DBS certificate: out of date by the visit', 'Safeguarding training certificate: out of date by the visit', 'Training: 1 of 2', 'Pilots: 0 of 1']);
   const none = eligibilityFor('ra2', ok, req, { training: 5, pilots: 5 }, S, '2026-11-20');
-  assert.equal(none.reasons.length, 4);
-  assert.match(none.reasons[3], /GSAL volunteer form: not uploaded/);
+  assert.equal(none.reasons.length, 3);
+  assert.match(none.reasons[2], /GSAL volunteer form: not uploaded/);
   // Expiring soon still counts: only expired does not.
   const soon = latestDocs([doc({ typeId: 'dbs', details: { issueDate: '2023-11-25' } }), doc({ typeId: 'health' }), doc({ typeId: 'safeguarding' })]);
   assert.equal(eligibilityFor('ra1', soon, requirementsFor(S, null), { training: 2, pilots: 1 }, S, '2026-11-20').eligible, true);
 });
 
 test('counts and availability: sessions attended; whether a day covers a visit; saving days', () => {
-  assert.deepEqual(countsFor('a', [{ kind: 'training', attendees: ['a', 'b'] }, { kind: 'pilot', attendees: ['a'] }, { kind: 'training', attendees: ['b'] }]), { training: 1, pilots: 1, byRole: { eeg: 0, copro: 0 } });
+  assert.deepEqual(countsFor('a', [{ kind: 'training', attendees: ['a', 'b'] }, { kind: 'pilot', attendees: ['a'] }, { kind: 'training', attendees: ['b'] }]), { training: 1, pilots: 1, byRole: { eeg: 0, copro: 0, lead: 0 } });
   assert.equal(covers('all', '08:30', '15:00'), 'yes');
   assert.equal(covers('am', '08:30', '12:00'), 'yes');
   assert.equal(covers('am', '08:30', '15:00'), 'no');
@@ -122,7 +122,7 @@ test('visits: school, period, days, times, place and places checked', () => {
   assert.equal(one.visit?.location, 'Reception');
   const bad = validateVisit({ schoolId: 'X', startDate: '2026-10-20', start: '9', end: '08:00', needed: 0 }, ['GSAL'], '2026-11-01');
   assert.equal(bad.visit, null);
-  assert.deepEqual(bad.problems, ['Choose the school.', 'The dates are in the past.', 'Give the usual start time (for example 08:30).', 'Say where: an address, a room or a meeting point.', 'Say how many people are needed for EEG and for co-production (0 to 30 each, at least one in all).']);
+  assert.deepEqual(bad.problems, ['Choose the school.', 'The dates are in the past.', 'Give the usual start time (for example 08:30).', 'Say where: an address, a room or a meeting point.', 'Say how many people are needed for EEG, co-production and leads (0 to 30 each, at least one in all).']);
   assert.match(validateVisit({ schoolId: 'GSAL', startDate: '2026-11-21', endDate: '2026-11-22', start: '08:30', end: '15:00', needed: 1, location: 'Hall' }, ['GSAL'], '2026-11-01').problems.join(' '), /at least one day/);
   assert.match(validateVisit({ schoolId: 'GSAL', startDate: '2026-11-24', endDate: '2026-11-20', start: '08:30', end: '15:00', needed: 1, location: 'Hall' }, ['GSAL'], '2026-11-01').problems.join(' '), /last date is before/);
   assert.match(validateVisit({ schoolId: 'GSAL', startDate: '2026-11-20', endDate: '2026-11-20', start: '08:30', end: '15:00', needed: 1, location: 'Hall', days: [{ date: '2026-11-20', start: '14:00', end: '13:00' }] }, ['GSAL'], '2026-11-01').problems.join(' '), /2026-11-20: the end time/);
@@ -130,7 +130,7 @@ test('visits: school, period, days, times, place and places checked', () => {
 
 test('stored visits: an old single-date visit reads as one day; a change of days, times or place is noticed', () => {
   const old = normaliseVisit({ date: '2026-11-20', start: '08:30', end: '15:00', meetingPoint: 'Reception' });
-  assert.deepEqual(old, { startDate: '2026-11-20', endDate: '2026-11-20', start: '08:30', end: '15:00', days: [{ date: '2026-11-20', on: true, start: '08:30', end: '15:00' }], location: 'Reception', roleNeeds: { eeg: 6, copro: 2 }, travel: { arrival: '', taxiFrom: 'School of Psychology, University of Leeds', taxiTime: '', direct: '' } });
+  assert.deepEqual(old, { startDate: '2026-11-20', endDate: '2026-11-20', start: '08:30', end: '15:00', days: [{ date: '2026-11-20', on: true, start: '08:30', end: '15:00' }], location: 'Reception', roleNeeds: { eeg: 6, copro: 2, lead: 2 }, travel: { arrival: '', taxiFrom: 'School of Psychology, University of Leeds', taxiTime: '', direct: '' } });
   const moved = { ...old, days: [{ date: '2026-11-20', on: true, start: '09:00', end: '15:00' }] };
   assert.deepEqual(scheduleChanged(old, moved), { changed: true, removedDays: [] });
   assert.deepEqual(scheduleChanged(old, { ...old, location: 'Hall' }).changed, true);

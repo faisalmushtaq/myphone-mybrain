@@ -37,6 +37,7 @@ interface GridCell {
 interface Needs {
   eeg: number;
   copro: number;
+  lead?: number;
 }
 interface GridDayVisit {
   visitId: string;
@@ -56,6 +57,7 @@ interface GridDay {
   available: number;
   availableEeg: number;
   availableCopro: number;
+  availableLead?: number;
   maybe: number;
   noAnswer: number;
   short: boolean;
@@ -77,7 +79,7 @@ interface Grid {
 /** The short label in a cell: words as well as colour. */
 const CELL_LABEL: Record<Availability, string> = { all: 'All day', am: 'Morning', pm: 'Afternoon', maybe: 'Maybe', no: 'Can’t' };
 const FREE = new Set<Availability>(['all', 'am', 'pm']);
-const JOB_SHORT: Record<DayRole, string> = { eeg: 'EEG', copro: 'Co-pro' };
+const JOB_SHORT: Record<DayRole, string> = { eeg: 'EEG', copro: 'Co-pro', lead: 'Lead' };
 
 /** The Monday of the week a date falls in, and moving by weeks. */
 export function mondayOf(iso: string): string {
@@ -143,8 +145,8 @@ export function AvailabilityGrid({ go }: { go: (hash: string) => void }) {
     if (!value) return;
     const header = ['Name', 'Role', 'Level', 'Jobs', ...shown.map(({ d }) => shortDate(d))];
     const body = rows.map((r) => [r.person.name, r.person.role === 'ra' ? 'Research assistant' : 'Research team', r.person.level ? `${r.person.level} ${LEVEL_LABEL[r.person.level]}` : '', r.person.capabilities.map((c) => DAY_ROLE_LABEL[c]).join(' and '), ...shown.map(({ i }) => cellWords(r.cells[i]))]);
-    const totals = ['Free (research assistants)', '', '', '', ...shown.map(({ i }) => { const d = value.days[i]; return `${d.available} (EEG ${d.availableEeg}, Co-pro ${d.availableCopro}); maybe ${d.maybe}`; })];
-    const visits = ['Visits', '', '', '', ...shown.map(({ i }) => value.days[i].visits.map((v) => `${v.schoolShort} EEG ${v.confirmed.eeg}/${v.need.eeg} Co-pro ${v.confirmed.copro}/${v.need.copro}`).join('; '))];
+    const totals = ['Free (research assistants)', '', '', '', ...shown.map(({ i }) => { const d = value.days[i]; return `${d.available} (EEG ${d.availableEeg}, Co-pro ${d.availableCopro}); maybe ${d.maybe}${includeTeam ? `; leads ${d.availableLead ?? 0}` : ''}`; })];
+    const visits = ['Visits', '', '', '', ...shown.map(({ i }) => value.days[i].visits.map((v) => `${v.schoolShort} EEG ${v.confirmed.eeg}/${v.need.eeg} Co-pro ${v.confirmed.copro}/${v.need.copro} Leads ${v.confirmed.lead ?? 0}/${v.need.lead ?? 0}`).join('; '))];
     saveFile(`availability-${value.weekStart}.csv`, toCsv(header, [...body, totals, visits]), 'text/csv;charset=utf-8');
   };
 
@@ -173,7 +175,7 @@ export function AvailabilityGrid({ go }: { go: (hash: string) => void }) {
         <div className="mpmb-tools__grid">
           <SelectField id="grid-tag" label="Status" value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Everyone" options={(value?.tags ?? []).map((t) => ({ value: t.id, label: t.label }))} />
           <SelectField id="grid-level" label="Level" value={level} onChange={(e) => setLevel(e.target.value)} placeholder="Any level" options={([4, 3, 2, 1] as Level[]).map((l) => ({ value: String(l), label: `${l}: ${LEVEL_LABEL[l]}` }))} />
-          <SelectField id="grid-job" label="Can do" value={job} onChange={(e) => setJob(e.target.value)} placeholder="Any job" options={[{ value: 'eeg', label: 'EEG' }, { value: 'copro', label: 'Co-production' }]} />
+          <SelectField id="grid-job" label="Can do" value={job} onChange={(e) => setJob(e.target.value)} placeholder="Any job" options={[{ value: 'eeg', label: 'EEG' }, { value: 'copro', label: 'Co-production' }, { value: 'lead', label: 'Lead (the team)' }]} />
           <SelectField id="grid-sort" label="Sort by" value={sort} onChange={(e) => setSort(e.target.value as Sort)} options={[{ value: 'name', label: 'Name' }, { value: 'level', label: 'Level, highest first' }, { value: 'available', label: 'Most available' }]} />
         </div>
         <div className="mpmb-portal__gridtoggles">
@@ -228,13 +230,13 @@ export function AvailabilityGrid({ go }: { go: (hash: string) => void }) {
                             <button key={v.visitId} type="button" className={`mpmb-portal__gridvisit${v.short ? ' is-short' : ''}`} title={`${v.schoolName}, ${v.start}–${v.end} · ${VISIT_STATUS_LABEL[v.status]}`} onClick={() => go(`#visit/${v.visitId}`)}>
                               <strong>{v.schoolShort}</strong> {v.status === 'provisional' ? 'provisional' : v.status === 'draft' ? 'draft' : ''}
                               <span>
-                                EEG {v.confirmed.eeg}/{v.need.eeg} · Co-pro {v.confirmed.copro}/{v.need.copro}
+                                EEG {v.confirmed.eeg}/{v.need.eeg} · Co-pro {v.confirmed.copro}/{v.need.copro} · Leads {v.confirmed.lead ?? 0}/{v.need.lead ?? 0}
                               </span>
-                              {(v.offered.eeg > 0 || v.offered.copro > 0) && <span className="mpmb-portal__gridoffered">{v.offered.eeg + v.offered.copro} offered</span>}
+                              {v.offered.eeg + v.offered.copro + (v.offered.lead ?? 0) > 0 && <span className="mpmb-portal__gridoffered">{v.offered.eeg + v.offered.copro + (v.offered.lead ?? 0)} offered</span>}
                             </button>
                           ))}
                           <span className="mpmb-portal__gridtotals">
-                            Free {g.available} (EEG {g.availableEeg} · Co-pro {g.availableCopro})
+                            Free {g.available} (EEG {g.availableEeg} · Co-pro {g.availableCopro}){includeTeam ? ` · leads ${g.availableLead ?? 0}` : ''}
                             {g.maybe ? ` · Maybe ${g.maybe}` : ''}
                           </span>
                         </th>

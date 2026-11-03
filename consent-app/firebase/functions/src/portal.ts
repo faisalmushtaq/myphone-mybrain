@@ -105,7 +105,16 @@ import {
   matchingSessions,
   waitingFor,
   type Claim,
+  dbsStatusOf,
+  healthFormMove,
+  HEALTH_FORM_SCHOOL,
+  signOffOf,
+  SIGN_OFFS,
+  RA_ROLES,
+  type EligibilityExtras,
 } from './portalCore.js';
+import { buildWorkbook, schoolShort, spreadsheetIdOf, type SheetData } from './portalSheets.js';
+import { PROJECT, serviceAccountEmail, syncErrorText, writeWorkbook } from './portalSheetsSync.js';
 
 /**
  * The staff portal (myphonemybrain.com/portal/, 1 November 2026): one
@@ -132,6 +141,8 @@ import {
  *   portalAttendance/{visit_uid_date}  who turned up on each day of a visit
  *   portalTeamEmails/{id}       each allocations email to the team: who sent it, to whom, the days and who was on them
  *   portalSchoolEmails/{id}     each email to a school about a visit: who sent it, to whom, with DBS details or not, and who was on it
+ *   portalSettings/sheet        the Google Sheet the portal mirrors into, and how the last sync went (5 November 2026)
+ *   portalSettings/migrations   one-off changes already made to the stored records
  * Storage
  *   portal/docs/{uid}/{uploadId}  document copies (the owner uploads; only this function reads)
  */
@@ -188,7 +199,37 @@ async function audit(db: Firestore, who: Caller, action: string, target: string,
 }
 
 async function settingsFrom(db: Firestore): Promise<Settings> {
-  return settingsOf((await db.collection('portalSettings').doc('main').get()).data());
+  const [main, done] = await Promise.all([db.collection('portalSettings').doc('main').get(), db.collection('portalSettings').doc('migrations').get()]);
+  if (!done.data()?.healthToGsal && (await moveHealthForm(db, main.data()))) return settingsOf((await db.collection('portalSettings').doc('main').get()).data());
+  return settingsOf(main.data());
+}
+
+/**
+ * The health form became GSAL's own (5 November 2026): taken off everyone's
+ * list, added to GSAL's forms, and the copies already uploaded filed under
+ * GSAL. Once only: the project manager's later choices stand.
+ */
+async function moveHealthForm(db: Firestore, stored: DocumentData | undefined): Promise<boolean> {
+  const gsalRef = db.collection('portalSchools').doc(HEALTH_FORM_SCHOOL);
+  const gsal = await gsalRef.get();
+  const gsalDocs = (Array.isArray(gsal.data()?.requiredDocs) ? gsal.data()!.requiredDocs : []).map(docTypeOf).filter((t: DocType | null): t is DocType => !!t);
+  const move = healthFormMove(stored, gsalDocs);
+  const doneRef = db.collection('portalSettings').doc('migrations');
+  if (!move) return false;
+  if (move.docTypes) await db.collection('portalSettings').doc('main').set({ docTypes: move.docTypes }, { merge: true });
+  if (move.gsalDocs) {
+    const site = siteSchools.find((x) => x.id === HEALTH_FORM_SCHOOL);
+    await gsalRef.set({ requiredDocs: move.gsalDocs, ...(gsal.exists ? {} : { name: site?.name ?? HEALTH_FORM_SCHOOL, area: site?.area ?? '', active: true, createdAt: FieldValue.serverTimestamp() }) }, { merge: true });
+  }
+  const uploads = (await db.collection('portalDocs').where('typeId', '==', 'health').get()).docs.filter((d) => !d.data().schoolId);
+  for (let i = 0; i < uploads.length; i += 400) {
+    const batch = db.batch();
+    for (const d of uploads.slice(i, i + 400)) batch.update(d.ref, { schoolId: HEALTH_FORM_SCHOOL });
+    await batch.commit();
+  }
+  await doneRef.set({ healthToGsal: FieldValue.serverTimestamp() }, { merge: true });
+  await db.collection('portalAudit').add({ at: FieldValue.serverTimestamp(), by: 'system', byEmail: '', byName: 'Portal update', action: 'move-health-form', target: HEALTH_FORM_SCHOOL, details: { removedFromEveryone: !!move.docTypes, addedToSchool: !!move.gsalDocs, uploadsMoved: uploads.length } });
+  return true;
 }
 
 /* ── Notifications and mail ───────────────────────────────────────────── */
@@ -267,6 +308,8 @@ interface School {
   includeDbs: boolean;
   /** The opening words of the emails to this school, kept from the last one sent. */
   emailIntro: string;
+  /** Book only people this school has approved (5 November 2026). */
+  requireApproval: boolean;
 }
 
 /** The portal's schools: the website's list, added once, then whatever the team adds or changes here. */
@@ -293,6 +336,7 @@ async function schoolsOf(db: Firestore): Promise<School[]> {
         contactEmails: Array.isArray(x.contactEmails) ? x.contactEmails.map(String) : [],
         includeDbs: x.includeDbs === true,
         emailIntro: String(x.emailIntro ?? ''),
+        requireApproval: x.requireApproval === true,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -416,6 +460,28 @@ function teamExtras(x: DocumentData, settings: Settings) {
   // The tags with their names, for the team's lists.
   const ids = tagsFor(x.tags, settings);
   return { tags: settings.tags.filter((t) => ids.includes(t.id)), level: levelOf(x.level), levelReason: String(x.levelReason ?? ''), capabilities: capabilitiesOf(x.capabilities), availabilityNote: String(x.availabilityNote ?? '') };
+}
+
+/** Training sign-off, the DBS they say they applied for, and the schools that approved them (5 November 2026). */
+function personFacts(x: DocumentData, schools: School[] = []) {
+  const raw = (x.schoolApprovals && typeof x.schoolApprovals === 'object' ? x.schoolApprovals : {}) as Record<string, DocumentData>;
+  return {
+    signOff: signOffOf(x.signOff),
+    signOffBy: String(x.signOffByName ?? ''),
+    signOffAt: iso(x.signOffAt),
+    dbsApplied: x.dbsApplied === true,
+    dbsAppliedOn: isIsoDate(x.dbsAppliedOn) ? String(x.dbsAppliedOn) : null,
+    approvals: Object.entries(raw)
+      .filter(([, a]) => a && typeof a === 'object')
+      .map(([schoolId, a]) => ({ schoolId, schoolName: schools.find((s) => s.id === schoolId)?.name ?? schoolId, at: iso(a.at), byName: String(a.byName ?? '') }))
+      .sort((a, b) => a.schoolName.localeCompare(b.schoolName)),
+  };
+}
+
+/** What eligibility needs beyond documents and sessions: whether they lead, their sign-off, and the school's approval when it asks for one. */
+function extrasFor(x: DocumentData, school: School | null): EligibilityExtras {
+  const facts = personFacts(x);
+  return { lead: x.role !== 'ra', signOff: facts.signOff, ...(school ? { schoolApproval: { required: school.requireApproval, approved: facts.approvals.some((a) => a.schoolId === school.id), schoolName: school.name } } : {}) };
 }
 
 /** Each person's DBS as the project manager checked it (the latest checked one), or nothing. */
@@ -607,6 +673,8 @@ export const portalApi = onCall(callOptions, async (request) => {
         standing: standingOf(tagsFor(user.tags, settings)),
         daysAttended: await daysAttended(db, me.uid),
         settings: { minTraining: settings.minTraining, minPilots: settings.minPilots, withdrawalContact: settings.withdrawalContact },
+        ...(({ signOff, dbsApplied, dbsAppliedOn }) => ({ signOff, dbsApplied, dbsAppliedOn }))(personFacts(user)),
+        dbsStatus: dbsStatusOf(me.uid, latestDocs(docs), settings, today, user.dbsApplied === true),
         documents: docSummary(me.uid, docs, settings, schools, today, true),
         counts,
         waiting,
@@ -780,18 +848,20 @@ export const portalApi = onCall(callOptions, async (request) => {
       const attendedBy = new Map<string, number>();
       for (const d of attendanceSnap.docs) if (isAttendanceMark(d.data().mark) && d.data().mark !== 'absent') attendedBy.set(String(d.data().uid), (attendedBy.get(String(d.data().uid)) ?? 0) + 1);
       const pm = me.role === 'pm';
+      const latest = latestDocs(docs);
       const people = usersSnap.docs
         .map((d) => userRow(d.id, d.data()))
         .filter((u) => pm || u.status === 'active')
         .map((u) => {
           const documents = docSummary(u.uid, docs.filter((d) => d.uid === u.uid), settings, schools, today, false).filter((r) => r.schoolId === null);
           const counts = countsFor(u.uid, sessions);
-          const general = eligibilityFor(u.uid, latestDocs(docs), requirementsFor(settings, null), counts, settings, today);
           const raw = usersSnap.docs.find((d) => d.id === u.uid)!.data();
-          return { ...u, ...teamExtras(raw, settings), counts, daysAttended: attendedBy.get(u.uid) ?? 0, documents: documents.map((r) => ({ typeId: r.typeId, label: r.label, state: r.state })), ready: general.eligible, reasons: general.reasons, toCheck: documents.filter((r) => r.state === 'uploaded').length, waiting: waitingFor(u.uid, claims) };
+          const general = eligibilityFor(u.uid, latest, requirementsFor(settings, null), counts, settings, today, extrasFor(raw, null));
+          const facts = personFacts(raw, schools);
+          return { ...u, ...teamExtras(raw, settings), ...facts, dbsStatus: dbsStatusOf(u.uid, latest, settings, today, facts.dbsApplied), counts, daysAttended: attendedBy.get(u.uid) ?? 0, documents: documents.map((r) => ({ typeId: r.typeId, label: r.label, state: r.state })), ready: general.eligible, reasons: general.reasons, toCheck: documents.filter((r) => r.state === 'uploaded').length, waiting: waitingFor(u.uid, claims) };
         })
         .sort((a, b) => a.name.localeCompare(b.name));
-      return { people, claimsWaiting: claims.filter((c) => c.status === 'waiting').length, settings: { minTraining: settings.minTraining, minPilots: settings.minPilots, tags: settings.tags } };
+      return { people, claimsWaiting: claims.filter((c) => c.status === 'waiting').length, settings: { minTraining: settings.minTraining, minPilots: settings.minPilots, tags: settings.tags, requireSignOff: settings.requireSignOff }, schools: schools.filter((s) => s.active).map((s) => ({ id: s.id, name: s.name, requireApproval: s.requireApproval })) };
     }
     case 'person': {
       const uid = idOf(data.uid, 'person');
@@ -802,7 +872,9 @@ export const portalApi = onCall(callOptions, async (request) => {
       return {
         user: userRow(uid, snap.data()!),
         ...teamExtras(snap.data()!, settings),
-        settings: { tags: settings.tags },
+        ...personFacts(snap.data()!, schools),
+        dbsStatus: dbsStatusOf(uid, latestDocs(docs), settings, today, snap.data()!.dbsApplied === true),
+        settings: { tags: settings.tags, requireSignOff: settings.requireSignOff },
         daysAttended: await daysAttended(db, uid),
         notes: notesSnap.docs
           .map((d) => ({ id: d.id, text: String(d.data().text ?? ''), byName: String(d.data().byName ?? ''), mine: d.data().by === me.uid, at: iso(d.data().at) }))
@@ -845,9 +917,14 @@ export const portalApi = onCall(callOptions, async (request) => {
         patch.level = data.level === null ? null : levelOf(data.level);
         patch.levelReason = text(data.levelReason, 300);
       }
-      if (data.capabilities !== undefined) patch.capabilities = capabilitiesOf(data.capabilities);
+      if (data.capabilities !== undefined) patch.capabilities = capabilitiesOf(data.capabilities).filter((r) => RA_ROLES.includes(r));
+      if (data.signOff !== undefined) {
+        if (!SIGN_OFFS.includes(data.signOff as never)) throw bad('Choose not trained, will assess in pilot, or signed off.');
+        patch.signOff = data.signOff;
+      }
       if (!Object.keys(patch).length) throw bad('Nothing to save.');
-      await ref.set({ ...patch, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      const stamp = patch.signOff !== undefined && patch.signOff !== signOffOf(before.signOff) ? { signOffBy: me.uid, signOffByName: me.name || me.email, signOffAt: FieldValue.serverTimestamp() } : {};
+      await ref.set({ ...patch, ...stamp, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       const changed = Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, { from: before[k] ?? null, to: v }]));
       await audit(db, me, 'edit-person', uid, changed);
       return { ok: true };
@@ -888,7 +965,7 @@ export const portalApi = onCall(callOptions, async (request) => {
       const id = data.id ? idOf(data.id, 'school') : name.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || db.collection('portalSchools').doc().id;
       const contactEmails = (Array.isArray(data.contactEmails) ? data.contactEmails : String(data.contactEmails ?? '').split(/[,;\s]+/)).map((e) => String(e).trim().toLowerCase()).filter(Boolean);
       if (contactEmails.some((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e))) throw bad('One of the school’s email addresses is not valid.');
-      await db.collection('portalSchools').doc(id).set({ name, area: text(data.area, 80), requiredDocs, active: data.active !== false, contactName: text(data.contactName, 120), contactEmails: contactEmails.slice(0, 5), includeDbs: data.includeDbs === true, ...(me.role === 'pm' && data.dbsCopies !== undefined ? { dbsCopies: data.dbsCopies === true } : {}), ...(typeof data.emailIntro === 'string' ? { emailIntro: text(data.emailIntro, 2000) } : {}), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await db.collection('portalSchools').doc(id).set({ name, area: text(data.area, 80), requiredDocs, active: data.active !== false, contactName: text(data.contactName, 120), contactEmails: contactEmails.slice(0, 5), includeDbs: data.includeDbs === true, ...(me.role === 'pm' && data.dbsCopies !== undefined ? { dbsCopies: data.dbsCopies === true } : {}), ...(me.role === 'pm' && data.requireApproval !== undefined ? { requireApproval: data.requireApproval === true } : {}), ...(typeof data.emailIntro === 'string' ? { emailIntro: text(data.emailIntro, 2000) } : {}), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       await audit(db, me, 'save-school', id, { name, requiredDocs: requiredDocs.map((t) => t.id) });
       return { id };
     }
@@ -1069,7 +1146,7 @@ export const portalApi = onCall(callOptions, async (request) => {
           const school = schools.find((s) => s.id === v.schoolId);
           return { visitId: v.visitId, schoolId: v.schoolId, schoolShort: school ? short(school) : v.schoolId, schoolName: school?.name ?? v.schoolId, status: v.status, days: v.days, roleNeeds: v.roleNeeds, assignments: placesOf[i] };
         }),
-        notReady: (uid, date) => eligibilityFor(uid, latest, general, counts.get(uid) ?? { training: 0, pilots: 0 } as Counts, settings, date).reasons,
+        notReady: (uid, date) => eligibilityFor(uid, latest, general, counts.get(uid) ?? { training: 0, pilots: 0 } as Counts, settings, date, extrasFor(usersSnap.docs.find((d) => d.id === uid)?.data() ?? {}, null)).reasons,
       });
       // Tags with their names, for the filters; team notes are never part of this.
       return { ...grid, tags: settings.tags.filter((t) => !t.retired), today };
@@ -1167,14 +1244,16 @@ export const portalApi = onCall(callOptions, async (request) => {
         if (x.note && !x.visitId) notesOf.set(uid, [...(notesOf.get(uid) ?? []), `${x.date}: ${x.note}`]);
       }
       const interested = new Set(interestSnap.docs.map((d) => String(d.data().uid)));
+      // Research assistants for EEG and co-production; the research team for the leads (5 November 2026).
       const candidates = usersSnap.docs
-        .filter((d) => d.data().role === 'ra')
+        .filter((d) => isRole(d.data().role))
         .map((d) => {
           const counts = countsFor(d.id, sessions);
+          const lead = d.data().role !== 'ra';
           // Documents must be in date on every day it runs: the last day decides.
-          const e = eligibilityFor(d.id, latest, requirements, counts, settings, v.lastDate);
+          const e = eligibilityFor(d.id, latest, requirements, counts, settings, v.lastDate, extrasFor(d.data(), school));
           const cover = coverageFor(v.days, availOf.get(d.id) ?? new Map());
-          const extras = teamExtras(d.data(), settings);
+          const extras = { ...teamExtras(d.data(), settings), ...(lead ? { capabilities: ['lead'] as DayRole[] } : {}), team: lead, dbsStatus: dbsStatusOf(d.id, latest, settings, v.lastDate, d.data().dbsApplied === true), signOff: signOffOf(d.data().signOff) };
           // The place that counts: an open or confirmed one, else the latest answer.
           const place = assignments.find((a) => a.uid === d.id && (a.status === 'offered' || a.status === 'confirmed')) ?? assignments.find((a) => a.uid === d.id) ?? null;
           return { uid: d.id, name: String(d.data().name ?? ''), email: String(d.data().email ?? ''), ...extras, perDay: cover.perDay, coverage: cover.coverage, availableDates: cover.availableDates, availabilityNote: [extras.availabilityNote, ...(notesOf.get(d.id) ?? [])].filter(Boolean).join(' · '), interested: interested.has(d.id), counts, eligible: e.eligible, reasons: e.reasons, assignment: place ? { ...place, ...(placeExtras.get(d.id) ?? { note: '', override: null, removedReason: '' }) } : null };
@@ -1214,11 +1293,13 @@ export const portalApi = onCall(callOptions, async (request) => {
       const v = visitOf(visitId, snap.data()!);
       const [settings, schools, usersSnap, docs, sessions, assignments] = await Promise.all([settingsFrom(db), schoolsOf(db), db.collection('portalUsers').where('status', '==', 'active').get(), docsOf(db), sessionsOf(db), assignmentsOf(db, v)]);
       const school = schools.find((s) => s.id === v.schoolId) ?? null;
-      const ras = usersSnap.docs.filter((d) => d.data().role === 'ra');
+      // Research assistants take EEG and co-production; the research team lead (5 November 2026).
+      const ras = usersSnap.docs.filter((d) => isRole(d.data().role));
+      const isLead = (uid: string) => ras.find((d) => d.id === uid)?.data().role !== 'ra';
       const requirements = requirementsFor(settings, school);
       const latest = latestDocs(docs);
-      const eligible = new Map<string, Eligibility>(ras.map((d) => [d.id, eligibilityFor(d.id, latest, requirements, countsFor(d.id, sessions), settings, v.lastDate)]));
-      const capabilities = new Map<string, DayRole[]>(ras.map((d) => [d.id, capabilitiesOf(d.data().capabilities)]));
+      const eligible = new Map<string, Eligibility>(ras.map((d) => [d.id, eligibilityFor(d.id, latest, requirements, countsFor(d.id, sessions), settings, v.lastDate, extrasFor(d.data(), school))]));
+      const capabilities = new Map<string, DayRole[]>(ras.map((d) => [d.id, d.data().role === 'ra' ? capabilitiesOf(d.data().capabilities).filter((r) => RA_ROLES.includes(r)) : ['lead']]));
       const overrides = (data.overrides && typeof data.overrides === 'object' ? data.overrides : {}) as Record<string, string>;
       const chosen = offerItemsOf(data.offers);
       const plan = planOffers(chosen, { days: v.days, roleNeeds: v.roleNeeds, assignments, active: new Set(ras.map((d) => d.id)), eligible, capabilities, overrides, mayOverride: me.role === 'pm', visitStatus: v.status });
@@ -1231,7 +1312,9 @@ export const portalApi = onCall(callOptions, async (request) => {
       for (const o of plan.offer) {
         const reason = needsOverride(o) ? text(overrides[o.uid], 300) : '';
         const timeNotes = Object.fromEntries(o.dates.map((d) => [d, o.timeNotes?.[d] ?? timeNoteFrom(dayOf.get(`${o.uid}|${d}`)) ?? '']).filter(([, n]) => n));
-        batch.set(db.collection('portalAssignments').doc(`${visitId}_${o.uid}`), { visitId, uid: o.uid, role: o.role, dates: o.dates, timeNotes, status: 'offered', offeredAt: FieldValue.serverTimestamp(), offeredBy: me.uid, respondedAt: null, remindedAt: null, note: '', removedDates: [], removedReason: null, override: reason ? { reason, by: me.uid, byName: me.name } : null });
+        // A research lead is booked straight away: the team agree their days among themselves.
+        const direct = isLead(o.uid);
+        batch.set(db.collection('portalAssignments').doc(`${visitId}_${o.uid}`), { visitId, uid: o.uid, role: o.role, dates: o.dates, timeNotes, status: direct ? 'confirmed' : 'offered', offeredAt: FieldValue.serverTimestamp(), offeredBy: me.uid, respondedAt: direct ? FieldValue.serverTimestamp() : null, remindedAt: null, note: '', removedDates: [], removedReason: null, override: reason ? { reason, by: me.uid, byName: me.name } : null });
       }
       await batch.commit();
       const after = await assignmentsOf(db, v);
@@ -1240,6 +1323,15 @@ export const portalApi = onCall(callOptions, async (request) => {
         const u = ras.find((d) => d.id === o.uid)!.data();
         const info: VisitInfo = { schoolName: school?.name ?? v.schoolId, days: daysOf(v, o.dates), location: v.location };
         const job = DAY_ROLE_LABEL[o.role];
+        if (isLead(o.uid)) {
+          const first = String(u.name ?? '').split(' ')[0] || 'there';
+          const when = whenShort(info.days);
+          const ics = icsForMany(visitEvents(v, info, o.uid, { days: info.days, description: `MyPhone/MyBrain school visit at ${placeOf(info)}. You are leading.`, url: `${PORTAL_URL}#visit/${visitId}` }), new Date(), 'School visits');
+          await notify(db, [o.uid], { title: `You're leading: ${info.schoolName}`, body: `${when}. ${info.location}. Booked by ${me.name || me.email}.`, link: `#visit/${visitId}` }, { title: `You're leading: ${info.schoolName}`, body: datesShort(info.days) });
+          await mail(db, String(u.email), `MyPhone/MyBrain: you're leading at ${info.schoolName} ${when}`, `Dear ${first},\n\n${me.name || 'The project manager'} has booked you as a research lead for the visit to ${info.schoolName}:\n\n${info.days.map((d) => `  ${niceDate(d.date)}, ${d.start} to ${d.end}`).join('\n')}\n\nWhere: ${placeOf(info)}\n\nA calendar invitation is attached. The visit in the portal: ${PORTAL_URL}#visit/${visitId}\n`, 'lead-booked', [icsAttachment(ics)]);
+          await audit(db, me, 'book-lead', visitId, { uid: o.uid, dates: o.dates });
+          continue;
+        }
         const m = offerMessage(String(u.name ?? '').split(' ')[0] || 'there', info, `${PORTAL_URL}#offers`, o.role);
         await notify(db, [o.uid], { title: m.title, body: m.body, link: '#offers' }, { title: `You've been selected: ${info.schoolName}`, body: `${job}, ${datesShort(info.days)}. Please confirm or decline.` });
         await mail(db, String(u.email), m.subject, m.email, 'offer');
@@ -1607,12 +1699,54 @@ export const portalApi = onCall(callOptions, async (request) => {
       await audit(db, me, 'edit-document-details', id, { owner: d.uid, before: d.details ?? {}, after: details });
       return { ok: true };
     }
+    case 'set-dbs-applied': {
+      // A research assistant says they have applied for a DBS (with the date, if they give one): their DBS shows as Processing.
+      const applied = data.applied === true;
+      const date = text(data.date, 10);
+      if (applied && date && (!isIsoDate(date) || date > today)) throw bad('Give the date you applied (today or earlier), or leave it empty.');
+      await db.collection('portalUsers').doc(me.uid).set({ dbsApplied: applied, dbsAppliedOn: applied && date ? date : null, dbsAppliedSaidAt: FieldValue.serverTimestamp() }, { merge: true });
+      await audit(db, me, 'set-dbs-applied', me.uid, { applied, date: applied ? date : '' });
+      return { ok: true };
+    }
+    case 'approve-for-school': {
+      // The project manager records that a school approved people (several at once), or takes an approval back.
+      const schoolId = idOf(data.schoolId, 'school');
+      const school = (await schoolsOf(db)).find((s) => s.id === schoolId);
+      if (!school) throw bad('That school is not in the portal.');
+      const uids = [...new Set((Array.isArray(data.uids) ? data.uids : []).map(String))].filter((u) => ID.test(u)).slice(0, 300);
+      if (!uids.length) throw bad('Choose who the school approved.');
+      const approve = data.approved !== false;
+      const refs = uids.map((u) => db.collection('portalUsers').doc(u));
+      const snaps = await db.getAll(...refs);
+      if (snaps.some((x) => !x.exists)) throw bad('One of those people is not in the portal.');
+      const batch = db.batch();
+      for (const ref of refs) batch.update(ref, { [`schoolApprovals.${schoolId}`]: approve ? { at: FieldValue.serverTimestamp(), by: me.uid, byName: me.name || me.email } : FieldValue.delete() });
+      await batch.commit();
+      await audit(db, me, approve ? 'approve-for-school' : 'unapprove-for-school', schoolId, { uids, names: snaps.map((x) => String(x.data()?.name ?? '')) });
+      return { ok: true, count: uids.length };
+    }
+    case 'sheet-status': {
+      const [cfg, account] = await Promise.all([db.collection('portalSettings').doc('sheet').get(), serviceAccountEmail()]);
+      return { sheet: sheetStatusOf(cfg.data()), serviceAccount: account, project: PROJECT };
+    }
+    case 'save-sheet': {
+      const url = text(data.url, 500);
+      if (url && !spreadsheetIdOf(url)) throw bad('Paste the Google Sheet’s address (it starts https://docs.google.com/spreadsheets/d/).');
+      await db.collection('portalSettings').doc('sheet').set({ url, includeNotes: data.includeNotes === true, updatedBy: me.uid, updatedAt: FieldValue.serverTimestamp(), ...(url ? {} : { lastError: '' }) }, { merge: true });
+      await audit(db, me, 'save-sheet', 'sheet', { url, includeNotes: data.includeNotes === true });
+      return { sheet: sheetStatusOf((await db.collection('portalSettings').doc('sheet').get()).data()) };
+    }
+    case 'sync-sheet': {
+      const outcome = await syncSheet(db);
+      await audit(db, me, 'sync-sheet', 'sheet', { ok: outcome.ok, error: outcome.error ?? '' });
+      return { ...outcome, sheet: sheetStatusOf((await db.collection('portalSettings').doc('sheet').get()).data()) };
+    }
     case 'settings':
       return { settings: await settingsFrom(db) };
     case 'save-settings': {
       const settings = settingsOf(data.settings);
       await db.collection('portalSettings').doc('main').set({ ...settings, updatedBy: me.uid, updatedAt: FieldValue.serverTimestamp() });
-      await audit(db, me, 'save-settings', 'main', { minTraining: settings.minTraining, minPilots: settings.minPilots, retentionDays: settings.retentionDays, docTypes: settings.docTypes.map((t) => t.id), tags: settings.tags.map((t) => `${t.id}${t.retired ? ' (retired)' : ''}`), roleNeeds: settings.roleNeeds, alwaysCopy: settings.alwaysCopy });
+      await audit(db, me, 'save-settings', 'main', { minTraining: settings.minTraining, minPilots: settings.minPilots, retentionDays: settings.retentionDays, docTypes: settings.docTypes.map((t) => t.id), tags: settings.tags.map((t) => `${t.id}${t.retired ? ' (retired)' : ''}`), roleNeeds: settings.roleNeeds, alwaysCopy: settings.alwaysCopy, requireSignOff: settings.requireSignOff });
       return { settings };
     }
     case 'audit': {
@@ -1710,3 +1844,164 @@ export async function housekeeping(db: Firestore, now = new Date()) {
 export const portalHousekeeping = onSchedule({ region: REGION, schedule: 'every day 06:30', timeZone: 'Europe/London' }, async () => {
   await housekeeping(getFirestore());
 });
+
+/* ── The Google Sheet (5 November 2026) ───────────────────────────────── */
+
+function sheetStatusOf(x: DocumentData | undefined) {
+  return { url: String(x?.url ?? ''), includeNotes: x?.includeNotes === true, lastSyncedAt: iso(x?.lastSyncedAt), lastError: String(x?.lastError ?? ''), lastErrorAt: iso(x?.lastErrorAt), title: String(x?.title ?? '') };
+}
+
+/**
+ * Everything the sheet and the export's staff tables are built from, read
+ * once. Certificate numbers, document copies and message bodies are never
+ * read into it; the team's notes only when asked for.
+ */
+export async function sheetData(db: Firestore, includeNotes: boolean, now = new Date()): Promise<SheetData> {
+  const today = ukToday(now);
+  const [settings, schools, usersSnap, docs, sessions, availSnap, visitsSnap, attendanceSnap, claims, mailSnap, auditSnap, notesSnap] = await Promise.all([
+    settingsFrom(db),
+    schoolsOf(db),
+    db.collection('portalUsers').get(),
+    docsOf(db),
+    sessionsOf(db),
+    db.collection('portalAvailability').where('date', '>=', addDaysIso(today, -28)).get(),
+    db.collection('portalVisits').get(),
+    db.collection('portalAttendance').get(),
+    claimsOf(db),
+    db.collection('portalMail').orderBy('at', 'desc').limit(5000).get(),
+    db.collection('portalAudit').orderBy('at', 'desc').limit(5000).get(),
+    includeNotes ? db.collection('portalNotes').get() : Promise.resolve(null),
+  ]);
+  const latest = latestDocs(docs);
+  const visits = visitsSnap.docs.map((d) => visitOf(d.id, d.data()));
+  const placesSnap = await db.collection('portalAssignments').get();
+  const placesBy = new Map<string, DocumentData[]>();
+  for (const d of placesSnap.docs) placesBy.set(String(d.data().visitId), [...(placesBy.get(String(d.data().visitId)) ?? []), d.data()]);
+  const attended = new Map<string, number>();
+  for (const d of attendanceSnap.docs) if (isAttendanceMark(d.data().mark) && d.data().mark !== 'absent') attended.set(String(d.data().uid), (attended.get(String(d.data().uid)) ?? 0) + 1);
+  const people = usersSnap.docs
+    .filter((d) => isRole(d.data().role) && ['active', 'archived'].includes(String(d.data().status)))
+    .map((d) => {
+      const x = d.data();
+      const facts = personFacts(x, schools);
+      const counts = countsFor(d.id, sessions);
+      const general = eligibilityFor(d.id, latest, requirementsFor(settings, null), counts, settings, today, extrasFor(x, null));
+      const reasonsBySchool = Object.fromEntries(schools.filter((s) => s.active).map((s) => [s.id, eligibilityFor(d.id, latest, requirementsFor(settings, s), counts, settings, today, extrasFor(x, s)).reasons]));
+      return {
+        uid: d.id,
+        name: String(x.name ?? x.email ?? ''),
+        email: String(x.email ?? ''),
+        phone: String(x.phone ?? ''),
+        role: x.role as Role,
+        status: String(x.status),
+        level: levelOf(x.level),
+        capabilities: x.role === 'ra' ? capabilitiesOf(x.capabilities).filter((r) => RA_ROLES.includes(r)) : (['lead'] as DayRole[]),
+        tags: settings.tags.filter((t) => tagsFor(x.tags, settings).includes(t.id)).map((t) => t.label),
+        dbs: dbsStatusOf(d.id, latest, settings, today, facts.dbsApplied),
+        dbsApplied: facts.dbsApplied,
+        dbsAppliedOn: facts.dbsAppliedOn,
+        signOff: facts.signOff,
+        signOffBy: facts.signOffBy,
+        signOffAt: facts.signOffAt,
+        approvals: facts.approvals,
+        training: counts.training,
+        pilots: counts.pilots,
+        daysAttended: attended.get(d.id) ?? 0,
+        ready: general.eligible,
+        reasons: general.reasons,
+        reasonsBySchool,
+        joined: iso(x.createdAt),
+      };
+    });
+  const named = new Map(people.map((p) => [p.uid, p.name]));
+  const typeOf = (d: (typeof docs)[number]) => (d.schoolId ? schools.find((s) => s.id === d.schoolId)?.requiredDocs : settings.docTypes)?.find((t) => t.id === d.typeId);
+  const documents = [...latest.values()]
+    .map((d) => d as (typeof docs)[number])
+    .filter((d) => named.has(d.uid))
+    .map((d) => {
+      const type = typeOf(d);
+      return {
+        uid: d.uid,
+        person: named.get(d.uid)!,
+        document: type?.label ?? d.typeId,
+        school: d.schoolId ? (schools.find((s) => s.id === d.schoolId)?.name ?? d.schoolId) : 'Everyone',
+        state: docState(d, type, settings, today),
+        uploadedOn: d.uploadedAt.slice(0, 10),
+        checkedOn: (d.verifiedAt ?? '').slice(0, 10),
+        checkedBy: d.verifiedBy ?? '',
+        validUntil: d.status === 'verified' ? (validUntil(d, type, settings) ?? '') : '',
+        // The issue date only: never the certificate's number.
+        issueDate: isIsoDate(d.details.issueDate) ? d.details.issueDate! : '',
+        updateService: type?.dbs ? d.details.updateService === true : null,
+        hasCopy: Boolean(d.path && !d.deletedAt),
+      };
+    });
+  return {
+    syncedAt: now.toISOString(),
+    today,
+    portalUrl: PORTAL_URL,
+    people,
+    documents,
+    schools: schools.map((s) => ({ id: s.id, name: s.name, short: schoolShort(s), requireApproval: s.requireApproval, requiredDocs: s.requiredDocs.map((t) => t.label) })),
+    visits: visits.map((v) => ({
+      visitId: v.visitId,
+      schoolId: v.schoolId,
+      schoolName: schools.find((s) => s.id === v.schoolId)?.name ?? v.schoolId,
+      status: v.status,
+      location: v.location,
+      days: v.days,
+      roleNeeds: v.roleNeeds,
+      assignments: (placesBy.get(v.visitId) ?? []).map((x) => ({ ...assignmentOf(x, v.days), offeredAt: iso(x.offeredAt), respondedAt: iso(x.respondedAt) })),
+    })),
+    availability: availSnap.docs.map((d) => ({ uid: String(d.data().uid), date: String(d.data().date), value: d.data().value as Availability, note: String(d.data().note ?? '') })).filter((a) => AVAILABILITY.includes(a.value)),
+    attendance: attendanceSnap.docs.filter((d) => isAttendanceMark(d.data().mark)).map((d) => ({ visitId: String(d.data().visitId), uid: String(d.data().uid), date: String(d.data().date), mark: d.data().mark, note: String(d.data().note ?? '') })),
+    sessions: sessions.map((x) => ({ id: x.id, kind: x.kind as 'training' | 'pilot', date: x.date, title: x.title, role: x.role, attendees: x.attendees })),
+    claims: claims.map((c) => ({ uid: c.uid, kind: c.kind, date: c.date, title: c.title, status: c.status })),
+    mail: mailSnap.docs.map((d) => {
+      const x = d.data();
+      const to = [x.to, x.cc, x.bcc].filter(Boolean).map(String).join(', ');
+      const outcome = x.outcome && typeof x.outcome === 'object' ? String(x.outcome.status ?? x.outcome.result ?? JSON.stringify(x.outcome)) : String(x.outcome ?? '');
+      return { at: iso(x.at), channel: String(x.channel ?? 'email'), kind: String(x.kind ?? ''), to: to.slice(0, 500), subject: String(x.subject ?? ''), outcome: outcome.slice(0, 200) };
+    }),
+    audit: auditSnap.docs.map((d) => ({ at: iso(d.data().at), by: String(d.data().byName || d.data().byEmail || ''), action: String(d.data().action ?? ''), target: String(d.data().target ?? ''), details: d.data().details ?? {} })),
+    notes: notesSnap ? notesSnap.docs.map((d) => ({ uid: String(d.data().uid), at: iso(d.data().at), byName: String(d.data().byName ?? ''), text: String(d.data().text ?? '') })) : null,
+  };
+}
+
+/** Rewrites the sheet from the portal, and records how it went. Never throws: a sync that fails never breaks the portal. */
+export async function syncSheet(db: Firestore): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
+  const ref = db.collection('portalSettings').doc('sheet');
+  let account = '';
+  try {
+    const cfg = sheetStatusOf((await ref.get()).data());
+    const id = spreadsheetIdOf(cfg.url);
+    if (!id) return { ok: false, skipped: true, error: 'No Google Sheet is set: paste its address in Settings first.' };
+    const data = await sheetData(db, cfg.includeNotes);
+    const title = await writeWorkbook(id, buildWorkbook(data));
+    await ref.set({ lastSyncedAt: FieldValue.serverTimestamp(), lastError: '', title }, { merge: true });
+    return { ok: true };
+  } catch (error) {
+    account = await serviceAccountEmail();
+    const message = syncErrorText(error, account);
+    logger.warn('Portal sheet: sync failed', { error: error instanceof Error ? error.message : String(error) });
+    await ref.set({ lastError: message, lastErrorAt: FieldValue.serverTimestamp() }, { merge: true }).catch(() => undefined);
+    return { ok: false, error: message };
+  }
+}
+
+/** Every hour, twenty past (the export runs at five past). */
+export const portalSheetSync = onSchedule({ region: REGION, schedule: '20 * * * *', timeZone: 'Europe/London', memory: '512MiB', timeoutSeconds: 300 }, async () => {
+  await syncSheet(getFirestore());
+});
+
+/** Every document copy the portal still holds, for the export's staff-portal/documents/. */
+export async function portalDocCopies(db: Firestore): Promise<{ uid: string; person: string; document: string; uploadedAt: string; path: string; fileName: string }[]> {
+  const [settings, schools, usersSnap, docs] = await Promise.all([settingsFrom(db), schoolsOf(db), db.collection('portalUsers').get(), docsOf(db)]);
+  const named = new Map(usersSnap.docs.map((d) => [d.id, String(d.data().name ?? d.data().email ?? d.id)]));
+  return docs
+    .filter((d) => d.path && !d.deletedAt && d.path.startsWith(`${DOC_ROOT}/`))
+    .map((d) => {
+      const type = (d.schoolId ? schools.find((s) => s.id === d.schoolId)?.requiredDocs : settings.docTypes)?.find((t) => t.id === d.typeId);
+      return { uid: d.uid, person: named.get(d.uid) ?? d.uid, document: type?.label ?? d.typeId, uploadedAt: d.uploadedAt, path: d.path!, fileName: d.fileName };
+    });
+}

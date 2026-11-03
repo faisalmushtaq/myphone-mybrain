@@ -5,7 +5,7 @@
 # catches up. Run again any time; run with --uninstall to remove everything.
 #
 #   bash mac-sync-install.sh <path-to-key.json> [bucket-name]   first set-up (asks where the data should go)
-#   bash mac-sync-install.sh --add <folder> [all|bids]           mirror into another folder too (default: all)
+#   bash mac-sync-install.sh --add <folder> [all|bids|no-documents]  mirror into another folder too (default: all)
 #   bash mac-sync-install.sh --remove <folder>                   stop mirroring into a folder (files are left alone)
 #   bash mac-sync-install.sh --list                              show the folders and run a copy now
 #   bash mac-sync-install.sh --uninstall
@@ -21,6 +21,11 @@
 # website-usage/. "bids" is for any copy outside the University's own
 # storage: each study's donations/ only, nothing identifying (a copy of
 # identifying/ or the UPN lists left there by an earlier version is deleted).
+# "no-documents" (5 November 2026, for a Google Drive folder) is "bids" plus
+# the staff portal's tables (staff-portal/tables/ and its README): never
+# staff-portal/documents/, the copies of people's DBS certificates and forms,
+# which stay in the University's own storage. "all" mirrors staff-portal/
+# whole.
 # Each written folder is mirrored on its own, so the team's own datasets kept
 # beside them (for example social-media-break/lab-visits/) are never touched.
 #
@@ -163,7 +168,7 @@ migrate_old_layout() {
   grep -qxF "$1" "$MIGRATED" 2>/dev/null && return 0
   for old in bids lab identifying; do
     [ -d "$2/$old" ] || continue
-    if [ "$4" = "bids" ]; then
+    if [ "$4" != "all" ]; then
       rm -rf "$2/$old" && echo "$(now) deleted old-layout folder $old from a research-only folder" >> "$LOG"
     else
       mkdir -p "$3/old-layout" && mv "$2/$old" "$3/old-layout/$old.$(date +%H%M%S)" && echo "$(now) moved old-layout folder $old to $3/old-layout" >> "$LOG"
@@ -203,19 +208,34 @@ while IFS=$'\t' read -r dest scope; do
       fail "could not list $top"
       continue
     fi
-    if printf '%s\n' "$subs" | grep -qx 'donations/'; then
+    if [ "$top" = "staff-portal" ]; then
+      # The staff portal: whole for "all"; its tables without the document copies for "no-documents" (copies found there are deleted, never kept); nothing for "bids".
+      if [ "$scope" = "all" ]; then
+        mirror "$top" "$target" "$removed"
+      elif [ "$scope" = "no-documents" ]; then
+        copy_files "$top" "$target" "$removed"
+        [ -d "$target/$top/documents" ] && rm -rf "$target/$top/documents" && echo "$(now) removed staff-portal/documents from a no-documents folder" >> "$LOG"
+        for sub in $subs; do
+          sub="${sub%/}"
+          [ "$sub" = "documents" ] && continue
+          mirror "$top/$sub" "$target" "$removed"
+        done
+      else
+        [ -d "$target/$top" ] && rm -rf "$target/$top" && echo "$(now) removed staff-portal from a research-only folder" >> "$LOG"
+      fi
+    elif printf '%s\n' "$subs" | grep -qx 'donations/'; then
       # A study: its own files, then each written folder on its own.
       copy_files "$top" "$target" "$removed"
       for sub in $subs; do
         sub="${sub%/}"
         # Research data only: each study's donations/, nothing else the website writes (identifying/, the schools' UPN lists), and that deleted, not kept.
-        if [ "$scope" = "bids" ] && [ "$sub" != "donations" ]; then
+        if [ "$scope" != "all" ] && [ "$sub" != "donations" ]; then
           [ -d "$target/$top/$sub" ] && rm -rf "$target/$top/$sub" && echo "$(now) removed $top/$sub from a research-only folder" >> "$LOG"
           continue
         fi
         mirror "$top/$sub" "$target" "$removed"
       done
-    elif [ "$scope" != "bids" ]; then
+    elif [ "$scope" = "all" ]; then
       # A folder the export writes whole (website-usage/): mirrored as one.
       mirror "$top" "$target" "$removed"
     fi
@@ -272,7 +292,7 @@ list_destinations() {
   echo "Folders being mirrored:"
   while IFS=$'\t' read -r dest scope; do
     [[ -z "$dest" ]] && continue
-    if [[ "$scope" == "bids" ]]; then echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data   (bids: research data only, each study's donations/; for copies outside University storage)"; else echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data   (all: everything, including identifying/; for the University's own OneDrive or SharePoint)"; fi
+    if [[ "$scope" == "bids" ]]; then echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data   (bids: research data only, each study's donations/; for copies outside University storage)"; elif [[ "$scope" == "no-documents" ]]; then echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data   (no-documents: research data and the staff portal's tables, no document copies; for Google Drive)"; else echo "  • ${dest/#$HOME/~}/MyPhoneMyBrain data   (all: everything, including identifying/; for the University's own OneDrive or SharePoint)"; fi
   done < "$DESTS"
 }
 
@@ -308,14 +328,17 @@ case "${1:-}" in
   --add)
     [[ -d "$APP_DIR" ]] || die "Run the first-time set-up with the key file before adding folders."
     folder="${2:-}"; scope="${3:-all}"
-    [[ -n "$folder" ]] || die "Usage: bash mac-sync-install.sh --add <folder> [all|bids]   (all, the default, for the University's own OneDrive or SharePoint; bids for anywhere else)"
+    [[ -n "$folder" ]] || die "Usage: bash mac-sync-install.sh --add <folder> [all|bids|no-documents]   (all, the default, for the University's own OneDrive or SharePoint; bids for anywhere else)"
     folder="${folder%/}"; folder="${folder/#\~/$HOME}"
     [[ -d "$folder" ]] || die "That folder does not exist: $folder"
-    [[ "$scope" == "bids" || "$scope" == "all" ]] || die "The scope must be 'all' (everything: the University's own OneDrive or SharePoint) or 'bids' (research datasets only: anywhere else)."
+    [[ "$scope" == "bids" || "$scope" == "all" || "$scope" == "no-documents" ]] || die "The scope must be 'all' (everything: the University's own OneDrive or SharePoint), 'no-documents' (research datasets and the staff portal's tables, no document copies: Google Drive) or 'bids' (research datasets only: anywhere else)."
     migrate
     grep -v -F "$folder"$'	' "$DESTS" > "$DESTS.tmp" 2>/dev/null || true; mv "$DESTS.tmp" "$DESTS"
     printf '%s\t%s\n' "$folder" "$scope" >> "$DESTS"
     mkdir -p "$folder/MyPhoneMyBrain data"
+    if [[ "$scope" == "no-documents" ]]; then
+      printf 'This folder holds the de-identified research datasets and the staff portal'"'"'s tables, mirrored automatically:\nschools/donations, social-media-break/donations, and staff-portal/tables (people, availability, visits, staffing; never DBS numbers).\nCopies of people'"'"'s documents (DBS certificates, forms) are kept only in the University OneDrive copy.\nThese folders are mirrors: do not edit or add files inside them.\n' > "$folder/MyPhoneMyBrain data/README.txt"
+    fi
     if [[ "$scope" == "bids" ]]; then
       printf 'This folder holds the de-identified research datasets only, mirrored automatically:\nschools/donations (the young people'"'"'s study) and social-media-break/donations (the adult lab study).\nNames, contact details and consent records are kept in the University OneDrive copy.\nThe donations/ folders are mirrors: do not edit or add files inside them. Other datasets may be kept beside them.\n' > "$folder/MyPhoneMyBrain data/README.txt"
     fi
@@ -395,7 +418,7 @@ if run_now; then
   echo
   echo "That's everything. OneDrive (or whichever app syncs the folder) now carries the data to the team. If a copy ever fails you will get a notification."
   echo "Anything the copy deletes or replaces is kept for 90 days in 'MyPhoneMyBrain removed', next to the data folder."
-  echo "Log: ${LOG/#$HOME/~}    Another folder: bash $(basename "$0") --add <folder> [all|bids]    Stop it: bash $(basename "$0") --uninstall"
+  echo "Log: ${LOG/#$HOME/~}    Another folder: bash $(basename "$0") --add <folder> [all|bids|no-documents]    Stop it: bash $(basename "$0") --uninstall"
 else
   exit 1
 fi

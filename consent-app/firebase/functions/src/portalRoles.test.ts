@@ -45,12 +45,12 @@ const place = (uid: string, status: Assignment['status'], role: Assignment['role
 
 test('visits: numbers for each job; an old single number is all EEG; a day can have its own', () => {
   const old = validateVisit({ schoolId: 'GSAL', startDate: D1, endDate: D1, start: '08:30', end: '15:00', needed: 4, location: 'Hall' }, ['GSAL'], '2026-11-01');
-  assert.deepEqual(old.visit?.roleNeeds, { eeg: 4, copro: 0 });
+  assert.deepEqual(old.visit?.roleNeeds, { eeg: 4, copro: 0, lead: 2 });
   const roles = validateVisit({ schoolId: 'GSAL', startDate: D1, endDate: D1, start: '08:30', end: '15:00', location: 'Hall', days: [{ date: D1, eeg: 3 }] }, ['GSAL'], '2026-11-01');
-  assert.deepEqual(roles.visit?.roleNeeds, { eeg: 6, copro: 2 });
-  assert.deepEqual(needsOn(roles.visit!.days[0], roles.visit!.roleNeeds), { eeg: 3, copro: 2 });
-  assert.match(validateVisit({ schoolId: 'GSAL', startDate: D1, endDate: D1, start: '08:30', end: '15:00', location: 'Hall', roleNeeds: { eeg: 0, copro: 0 } }, ['GSAL'], '2026-11-01').problems.join(' '), /at least one in all/);
-  assert.match(validateVisit({ schoolId: 'GSAL', startDate: D1, endDate: D1, start: '08:30', end: '15:00', location: 'Hall', days: [{ date: D1, eeg: 0, copro: 0 }] }, ['GSAL'], '2026-11-01').problems.join(' '), /nobody is needed that day/);
+  assert.deepEqual(roles.visit?.roleNeeds, { eeg: 6, copro: 2, lead: 2 });
+  assert.deepEqual(needsOn(roles.visit!.days[0], roles.visit!.roleNeeds), { eeg: 3, copro: 2, lead: 2 });
+  assert.match(validateVisit({ schoolId: 'GSAL', startDate: D1, endDate: D1, start: '08:30', end: '15:00', location: 'Hall', roleNeeds: { eeg: 0, copro: 0, lead: 0 } }, ['GSAL'], '2026-11-01').problems.join(' '), /at least one in all/);
+  assert.match(validateVisit({ schoolId: 'GSAL', startDate: D1, endDate: D1, start: '08:30', end: '15:00', location: 'Hall', days: [{ date: D1, eeg: 0, copro: 0, lead: 0 }] }, ['GSAL'], '2026-11-01').problems.join(' '), /nobody is needed that day/);
 });
 
 test('offers: a person, a job and days; eligible and set up for the job, within each day’s numbers; overrides only by the project manager, with a reason', () => {
@@ -60,7 +60,7 @@ test('offers: a person, a job and days; eligible and set up for the job, within 
     ['c', { eligible: false, reasons: ['Pilots: 0 of 1'] }],
   ]);
   const capabilities = new Map<string, ('eeg' | 'copro')[]>([['a', ['eeg']], ['b', ['eeg', 'copro']], ['c', ['eeg']]]);
-  const base = { days: twoDays, roleNeeds: { eeg: 2, copro: 2 }, assignments: [] as Assignment[], active: new Set(['a', 'b', 'c']), eligible, capabilities, overrides: {}, mayOverride: false, visitStatus: 'staffing' as const };
+  const base = { days: twoDays, roleNeeds: { eeg: 2, copro: 2, lead: 0 }, assignments: [] as Assignment[], active: new Set(['a', 'b', 'c']), eligible, capabilities, overrides: {}, mayOverride: false, visitStatus: 'staffing' as const };
   assert.deepEqual(planOffers([{ uid: 'a', role: 'eeg', dates: [D1, D2] }, { uid: 'b', role: 'copro', dates: [D2] }], base).problems, []);
   assert.match(planOffers([{ uid: 'a', role: 'copro', dates: [D1] }], base).problems.join(' '), /not set up for Co-production/);
   assert.match(planOffers([{ uid: 'a', role: 'eeg', dates: ['2026-11-21'] }], base).problems.join(' '), /choose days the visit runs/);
@@ -77,7 +77,7 @@ test('offers: a person, a job and days; eligible and set up for the job, within 
 
 test('coverage: each day, each job, offered and confirmed against what is needed; staffed only when every day has every job confirmed', () => {
   const places = [place('a', 'confirmed', 'eeg', [D1, D2]), place('b', 'offered', 'eeg', [D1]), place('c', 'confirmed', 'copro', [D2]), place('d', 'declined', 'copro', [D1])];
-  const cover = coverageByDay(twoDays, { eeg: 2, copro: 2 }, places);
+  const cover = coverageByDay(twoDays, { eeg: 2, copro: 2, lead: 0 }, places);
   assert.deepEqual(
     cover.map((c) => [c.date, c.eeg, c.copro]),
     [
@@ -85,26 +85,26 @@ test('coverage: each day, each job, offered and confirmed against what is needed
       [D2, { need: 2, offered: 0, confirmed: 1 }, { need: 1, offered: 0, confirmed: 1 }],
     ],
   );
-  assert.equal(fullyStaffed(twoDays, { eeg: 1, copro: 1 }, places), false);
+  assert.equal(fullyStaffed(twoDays, { eeg: 1, copro: 1, lead: 0 }, places), false);
   const full = [place('a', 'confirmed', 'eeg', [D1, D2]), place('c', 'confirmed', 'copro', [D1, D2])];
-  assert.equal(fullyStaffed(twoDays, { eeg: 1, copro: 1 }, full), true);
-  assert.equal(visitStatusAfter('staffing', twoDays, { eeg: 1, copro: 1 }, full), 'locked');
-  assert.equal(visitStatusAfter('locked', twoDays, { eeg: 1, copro: 1 }, [full[0], { ...full[1], status: 'removed' }]), 'staffing');
-  assert.equal(visitStatusAfter('draft', twoDays, { eeg: 1, copro: 1 }, [place('a', 'offered', 'eeg', [D1])]), 'staffing');
-  assert.equal(visitStatusAfter('cancelled', twoDays, { eeg: 1, copro: 1 }, full), 'cancelled');
+  assert.equal(fullyStaffed(twoDays, { eeg: 1, copro: 1, lead: 0 }, full), true);
+  assert.equal(visitStatusAfter('staffing', twoDays, { eeg: 1, copro: 1, lead: 0 }, full), 'locked');
+  assert.equal(visitStatusAfter('locked', twoDays, { eeg: 1, copro: 1, lead: 0 }, [full[0], { ...full[1], status: 'removed' }]), 'staffing');
+  assert.equal(visitStatusAfter('draft', twoDays, { eeg: 1, copro: 1, lead: 0 }, [place('a', 'offered', 'eeg', [D1])]), 'staffing');
+  assert.equal(visitStatusAfter('cancelled', twoDays, { eeg: 1, copro: 1, lead: 0 }, full), 'cancelled');
 });
 
 test('migration: a place saved before jobs is EEG on every day the visit runs; an old visit needs its number on EEG', () => {
   assert.deepEqual(assignmentOf({ uid: 'a', status: 'confirmed' }, twoDays), { uid: 'a', status: 'confirmed', role: 'eeg', dates: [D1, D2] });
   assert.deepEqual(assignmentOf({ uid: 'a', status: 'offered', role: 'copro', dates: [D2, '2026-11-21'] }, twoDays), { uid: 'a', status: 'offered', role: 'copro', dates: [D2] });
-  assert.deepEqual(normaliseVisit({ date: D1, start: '08:30', end: '15:00', needed: 3, meetingPoint: 'Hall' }).roleNeeds, { eeg: 3, copro: 0 });
+  assert.deepEqual(normaliseVisit({ date: D1, start: '08:30', end: '15:00', needed: 3, meetingPoint: 'Hall' }).roleNeeds, { eeg: 3, copro: 0, lead: 2 });
 });
 
 test('the strongest team: most experienced first, by job, for the days they are free; the same people across days; nobody in two jobs; ties on training and pilots', () => {
   const c = (uid: string, level: 1 | 2 | 3 | 4 | null, capabilities: ('eeg' | 'copro')[], availableDates: string[], extra: Partial<{ eligible: boolean; training: number; pilots: number }> = {}) => ({ uid, name: uid, eligible: true, capabilities, level, training: 2, pilots: 1, availableDates, ...extra });
   const team = suggestTeam({
     days: twoDays,
-    roleNeeds: { eeg: 2, copro: 1 },
+    roleNeeds: { eeg: 2, copro: 1, lead: 0 },
     assignments: [],
     candidates: [
       c('lead', 4, ['eeg', 'copro'], [D1, D2]),
@@ -129,7 +129,7 @@ test('the strongest team: most experienced first, by job, for the days they are 
   // With places already taken, only what is left is suggested; training breaks the tie between equals.
   const more = suggestTeam({
     days: twoDays,
-    roleNeeds: { eeg: 3, copro: 1 },
+    roleNeeds: { eeg: 3, copro: 1, lead: 0 },
     assignments: [place('lead', 'confirmed', 'eeg', [D1, D2]), place('exp', 'offered', 'eeg', [D1, D2]), place('cop', 'confirmed', 'copro', [D1, D2])],
     candidates: [c('dev2', 2, ['eeg'], [D1, D2], { training: 2 }), c('dev', 2, ['eeg'], [D1, D2], { training: 5 })],
   });
@@ -155,8 +155,8 @@ test('tags and experience: only known tags; research assistants see only Ready o
   assert.equal(standingOf(['ready']), 'Ready');
   assert.equal(standingOf(['ready', 'on-hold']), 'On hold');
   assert.deepEqual(settingsOf({}).tags.map((t) => t.label), ['New', 'In training', 'Ready', 'On hold', 'Left']);
-  assert.deepEqual(settingsOf({}).roleNeeds, { eeg: 6, copro: 2 });
-  assert.deepEqual(settingsOf({ roleNeeds: { eeg: 5, copro: 3 } }).roleNeeds, { eeg: 5, copro: 3 });
+  assert.deepEqual(settingsOf({}).roleNeeds, { eeg: 6, copro: 2, lead: 2 });
+  assert.deepEqual(settingsOf({ roleNeeds: { eeg: 5, copro: 3, lead: 0 } }).roleNeeds, { eeg: 5, copro: 3, lead: 0 });
   assert.equal(mayDo('add-note', 'researcher', 'active'), true);
   assert.equal(mayDo('add-note', 'ra', 'active'), false);
   assert.equal(mayDo('save-person', 'ra', 'active'), false);
@@ -179,7 +179,7 @@ test('attendance: only the visit’s days, from the day itself, only people conf
 });
 
 test('reports: per person and per day, offered, confirmed, attended, absent, hours and jobs; filtered by dates, school and person; CSV', () => {
-  const visits = [{ visitId: 'v', schoolId: 'GSAL', schoolName: 'GSAL', days: twoDays, roleNeeds: { eeg: 1, copro: 1 }, assignments: [place('a', 'confirmed', 'eeg', [D1, D2]), place('b', 'confirmed', 'copro', [D1]), place('c', 'declined', 'eeg', [D1]), place('d', 'withdrawn', 'eeg', [D2])] }];
+  const visits = [{ visitId: 'v', schoolId: 'GSAL', schoolName: 'GSAL', days: twoDays, roleNeeds: { eeg: 1, copro: 1, lead: 0 }, assignments: [place('a', 'confirmed', 'eeg', [D1, D2]), place('b', 'confirmed', 'copro', [D1]), place('c', 'declined', 'eeg', [D1]), place('d', 'withdrawn', 'eeg', [D2])] }];
   const attendance = [
     { visitId: 'v', uid: 'a', date: D1, mark: 'attended' as const, note: '' },
     { visitId: 'v', uid: 'a', date: D2, mark: 'late' as const, note: '' },

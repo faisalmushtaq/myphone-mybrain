@@ -11,6 +11,8 @@ import { COPY_LIMIT, needsWrite, planCopies, staleObjects, stampFor, copyState, 
 import { moreQuestionTopics, moreQuestionWording, noPhoneQuestionWording, parentMoreForm, parentNoPhoneForm, parentQuestionsForm, questionWording, study, type ServedQuestionForm } from './forms.js';
 import { healthFiles, healthOf } from './health.js';
 
+import { portalDocCopies, sheetData } from './portal.js';
+import { STAFF, staffPortalExport } from './exportStaff.js';
 /**
  * The hourly export: everything the studies have recorded, written into a
  * private bucket of its own, one folder per study, each with two subfolders.
@@ -769,6 +771,12 @@ social-media-break/   the adult laboratory study: cleaned TikTok, YouTube and
                       labelled by their participant ID; the recordings of
                       answers spoken in that chat identify a voice, so they
                       are in identifying/mystory_voice/
+staff-portal/         the staff portal's records: tables/ (people, documents,
+                      availability, visits, staffing, attendance, training,
+                      the audit log; the same tables as the team's Google
+                      Sheet, never DBS certificate numbers) and documents/
+                      (each uploaded document, DBS certificates included;
+                      University storage only)
 website-usage/        how the website is used: anonymous page-view counts,
                       a daily table and every view by month; nothing that
                       identifies anyone, and deleted after five years as the
@@ -988,6 +996,19 @@ export async function runExport(): Promise<Manifest> {
   const labels = await assignLabels(db, c.participants);
   const { files, jobs, derived, counts } = buildExport(c, labels, exportedAt);
 
+  // The staff portal (exportStaff.ts): its tables and document copies. If it cannot be read this run, what is there already stays.
+  let keepStaff = false;
+  try {
+    const sheetCfg = (await db.collection('portalSettings').doc('sheet').get()).data();
+    const staff = staffPortalExport(await sheetData(db, sheetCfg?.includeNotes === true, now), await portalDocCopies(db));
+    files.push(...staff.files);
+    jobs.push(...staff.copies.map((j) => ({ ...j, sha256: null })));
+    Object.assign(counts, staff.counts);
+  } catch (error) {
+    keepStaff = true;
+    logger.error('Export: the staff portal could not be read', { error: errorText(error) });
+  }
+
   // What is there already, what the last run left undone, and what the study's storage holds (listed, not fetched one by one).
   const [existingFiles] = await dest.getFiles();
   const existing = new Map(existingFiles.map((f) => [f.name, objectInfo(f)]));
@@ -1033,6 +1054,7 @@ export async function runExport(): Promise<Manifest> {
 
   // 2. Clean-up: anything that no longer belongs. Every file a record still points at is expected, copied or not, so a copy that fails is never deleted here.
   const expected = new Set<string>([...files.map((f) => f.path), ...jobs.map((j) => j.target), ...derived.flatMap((d) => d.paths), 'manifest.json']);
+  if (keepStaff) for (const f of existingFiles) if (f.name.startsWith(`${STAFF}/`)) expected.add(f.name);
   const stale = staleObjects(existingFiles.map((f) => objectInfo(f)), expected);
   let removed = 0;
   await settle(

@@ -510,6 +510,9 @@ function navFor(role: Role): NavItem[] {
     { hash: '#sessions', label: 'Training and pilots' },
     { hash: '#schools', label: 'Schools' },
     { hash: '#reports', label: 'Reports' },
+    // The team lead on visit days (5 November 2026): their own days free and documents.
+    { hash: '#my-days', label: 'My days' },
+    { hash: '#my-documents', label: 'My documents' },
     ...(role === 'pm' ? [{ hash: '#settings', label: 'Settings' }, { hash: '#audit', label: 'Audit log' }] : []),
   ];
 }
@@ -529,9 +532,11 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
       setSummaryError(messageOf(e));
     }
   }, []);
+  const [route0] = hash.slice(1).split('/');
+  const needsSummary = role === 'ra' || route0 === 'my-days' || route0 === 'my-documents';
   useEffect(() => {
-    if (role === 'ra') void loadSummary();
-  }, [role, loadSummary]);
+    if (needsSummary) void loadSummary();
+  }, [needsSummary, loadSummary]);
   // The service worker opens the portal when a notification is tapped.
   useEffect(() => registerPortalWorker(), []);
   const reload = async () => {
@@ -566,6 +571,17 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
             </>
           );
       }
+    }
+    if (route === 'my-days' || route === 'my-documents') {
+      if (!summary) return summaryError ? <Callout tone="warning">{summaryError}</Callout> : <p>Loading…</p>;
+      return route === 'my-days' ? (
+        <>
+          <p className="mpmb-hint">The days you could lead a school visit. They show in the availability grid (tick “Include the research team”) and in each school’s sessions tab of the Google Sheet.</p>
+          <AvailabilityView summary={summary} reload={reload} />
+        </>
+      ) : (
+        <Documents summary={summary} reload={reload} />
+      );
     }
     switch (route) {
       case 'people':

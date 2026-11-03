@@ -54,12 +54,49 @@ export interface Counts {
 }
 
 /** The jobs on a visit day. */
-export type DayRole = 'eeg' | 'copro';
-export const DAY_ROLES: DayRole[] = ['eeg', 'copro'];
-export const DAY_ROLE_LABEL: Record<DayRole, string> = { eeg: 'EEG', copro: 'Co-production' };
+export type DayRole = 'eeg' | 'copro' | 'lead';
+export const DAY_ROLES: DayRole[] = ['eeg', 'copro', 'lead'];
+/** The jobs a research assistant can be set up for; leads are the research team. */
+export const RA_ROLES: DayRole[] = ['eeg', 'copro'];
+export const DAY_ROLE_LABEL: Record<DayRole, string> = { eeg: 'EEG', copro: 'Co-production', lead: 'Lead' };
 export interface RoleNeeds {
   eeg: number;
   copro: number;
+  lead: number;
+}
+
+/** Where someone stands on training, as the team records it. */
+export type SignOff = 'not-trained' | 'assess' | 'signed-off';
+export const SIGN_OFFS: SignOff[] = ['not-trained', 'assess', 'signed-off'];
+export const SIGN_OFF_LABEL: Record<SignOff, string> = { 'not-trained': 'Not trained', assess: 'Will assess in pilot', 'signed-off': 'Signed off' };
+/** A DBS in plain terms. */
+export type DbsStatus = 'confirmed' | 'processing' | 'starting' | 'expired';
+export const DBS_STATUS_LABEL: Record<DbsStatus, string> = { confirmed: 'Confirmed', processing: 'Processing', starting: 'Starting process', expired: 'Expired' };
+export interface SchoolApproval {
+  schoolId: string;
+  schoolName: string;
+  at: string | null;
+  byName: string;
+}
+/** Sign-off, the DBS they say they applied for, and the schools that approved them. */
+export interface PersonFacts {
+  signOff: SignOff;
+  signOffBy: string;
+  signOffAt: string | null;
+  dbsApplied: boolean;
+  dbsAppliedOn: string | null;
+  approvals: SchoolApproval[];
+  dbsStatus: DbsStatus;
+}
+
+/** The Google Sheet the portal mirrors into. */
+export interface SheetStatus {
+  url: string;
+  includeNotes: boolean;
+  lastSyncedAt: string | null;
+  lastError: string;
+  lastErrorAt: string | null;
+  title: string;
 }
 
 /** A status the team gives someone (only "Ready" or "On hold" is ever shown to them). */
@@ -96,6 +133,7 @@ export interface VisitDay {
   on: boolean;
   eeg?: number;
   copro?: number;
+  lead?: number;
   arrival?: string;
   taxiTime?: string;
 }
@@ -107,6 +145,7 @@ export interface DayCoverage {
   end: string;
   eeg: { need: number; offered: number; confirmed: number };
   copro: { need: number; offered: number; confirmed: number };
+  lead: { need: number; offered: number; confirmed: number };
 }
 
 export type AttendanceMark = 'attended' | 'absent' | 'late' | 'left-early';
@@ -150,6 +189,10 @@ export interface MySummary {
   /** "Ready" or "On hold", when the team has said so. */
   standing: string | null;
   daysAttended: number;
+  signOff?: SignOff;
+  dbsApplied?: boolean;
+  dbsAppliedOn?: string | null;
+  dbsStatus?: DbsStatus;
   /** Visits offered to or taken by this person, with only their days: status is their place's, visitStatus the visit's. */
   assignments: (Omit<Visit, 'status'> & { status: AssignmentStatus; visitStatus: VisitStatus; removedReason: string; role: DayRole; dates: string[]; timeNotes: Record<string, string> })[];
 }
@@ -181,6 +224,8 @@ export interface School {
   contactEmails?: string[];
   includeDbs?: boolean;
   dbsCopies?: boolean;
+  /** Book only people this school has approved. */
+  requireApproval?: boolean;
   emailIntro?: string;
   dbsAccess?: { active: boolean; setAt: string | null; lastViewedAt: string | null; link: string };
 }
@@ -197,6 +242,8 @@ export interface Settings {
   roleNeeds: RoleNeeds;
   /** Copied into every portal email to people outside the sender. */
   alwaysCopy: string[];
+  /** Booking needs training sign-off. */
+  requireSignOff: boolean;
 }
 
 export const DOC_STATE_LABEL: Record<DocState, string> = {

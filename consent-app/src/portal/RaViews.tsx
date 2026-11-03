@@ -4,7 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { ACCEPT, ask, messageOf, uploadDocument } from './api';
 import { SelectField, TextField } from '../components/ui/Field';
-import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, CANVASS_LABEL, clock, DAY_ROLE_LABEL, dayLines, daysOn, DOC_STATE_LABEL, longDate, todayIso, travelOn, visitWhen, type Availability, type CanvassAnswer, type Contact, type DayRole, type DocRow, type MySummary, type TrainingClaim, type Visit } from './types';
+import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, CANVASS_LABEL, clock, DAY_ROLE_LABEL, DBS_STATUS_LABEL, dayLines, daysOn, DOC_STATE_LABEL, longDate, todayIso, travelOn, visitWhen, type Availability, type CanvassAnswer, type Contact, type DayRole, type DocRow, type MySummary, type TrainingClaim, type Visit } from './types';
 
 /** A badge for a document's state, coloured by how much it needs doing. */
 export function StateBadge({ state }: { state: DocRow['state'] }) {
@@ -145,16 +145,74 @@ export function Documents({ summary, reload }: { summary: MySummary; reload: () 
       <p className="mpmb-lead">Upload a clear photo or scan of each document. The project manager checks it, and only they can open your copies. They are kept while you work on the study.</p>
       <h2 className="mpmb-h2">Everyone needs</h2>
       {general.map((d) => (
-        <DocCard key={`${d.typeId}|`} doc={d} reload={reload} />
+        <div key={`${d.typeId}|`}>
+          <DocCard doc={d} reload={reload} />
+          {d.dbs && (d.state === 'missing' || d.state === 'rejected' || d.state === 'expired') && <DbsApplied summary={summary} reload={reload} />}
+        </div>
       ))}
+      {bySchool.length > 0 && <p className="mpmb-hint">Some schools ask for their own forms as well. You need these only if you go to that school.</p>}
       {bySchool.map(([name, docs]) => (
         <section key={name}>
-          <h2 className="mpmb-h2">{name} also asks for</h2>
+          <h2 className="mpmb-h2">Only if you go to {name}</h2>
           {docs.map((d) => (
             <DocCard key={`${d.typeId}|${d.schoolId}`} doc={d} reload={reload} />
           ))}
         </section>
       ))}
+    </div>
+  );
+}
+
+/** "I've applied for my DBS", with the date if they know it: their DBS shows as Processing to the team. */
+function DbsApplied({ summary, reload }: { summary: MySummary; reload: () => Promise<void> }) {
+  const [applied, setApplied] = useState(summary.dbsApplied === true);
+  const [date, setDate] = useState(summary.dbsAppliedOn ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const save = async (nextApplied: boolean, nextDate: string) => {
+    setBusy(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await ask('set-dbs-applied', { applied: nextApplied, date: nextDate });
+      setSaved(true);
+      await reload();
+    } catch (e) {
+      setError(messageOf(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="mpmb-card">
+      <label className="mpmb-portal__inline">
+        <input
+          type="checkbox"
+          checked={applied}
+          disabled={busy}
+          onChange={(e) => {
+            setApplied(e.target.checked);
+            void save(e.target.checked, e.target.checked ? date : '');
+          }}
+        />{' '}
+        I’ve applied for my DBS and am waiting for the certificate
+      </label>
+      {applied && (
+        <div className="mpmb-actions">
+          <TextField id="dbs-applied-on" label="When you applied" required={false} type="date" max={todayIso()} value={date} onChange={(e) => setDate(e.target.value)} hint="Optional." />
+          <Button variant="secondary" loading={busy} onClick={() => void save(true, date)}>
+            Save the date
+          </Button>
+        </div>
+      )}
+      {summary.dbsStatus && <p className="mpmb-hint">The team sees your DBS as: {DBS_STATUS_LABEL[summary.dbsStatus]}. Upload the certificate when it arrives.</p>}
+      {saved && <p role="status">Saved.</p>}
+      {error && (
+        <p className="mpmb-error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

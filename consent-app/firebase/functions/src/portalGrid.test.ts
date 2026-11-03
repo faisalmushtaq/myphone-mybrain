@@ -17,7 +17,7 @@ const visit = (over: Partial<GridVisit> = {}): GridVisit => ({
     { date: '2026-11-24', start: '08:30', end: '15:00', on: false },
     { date: '2026-11-25', start: '09:00', end: '12:00', on: true, eeg: 1, copro: 0 },
   ],
-  roleNeeds: { eeg: 2, copro: 1 },
+  roleNeeds: { eeg: 2, copro: 1, lead: 0 },
   assignments: [],
   ...over,
 });
@@ -88,16 +88,16 @@ test('day headers show each visit running, its needs against confirmed, and when
   });
   const mon = grid.days[0];
   assert.deepEqual(mon.visits.map((v) => v.visitId), ['v1', 'v2']);
-  assert.deepEqual(mon.visits[0].need, { eeg: 2, copro: 1 });
-  assert.deepEqual(mon.visits[0].confirmed, { eeg: 0, copro: 0 });
-  assert.deepEqual(mon.visits[0].offered, { eeg: 1, copro: 0 });
+  assert.deepEqual(mon.visits[0].need, { eeg: 2, copro: 1, lead: 0 });
+  assert.deepEqual(mon.visits[0].confirmed, { eeg: 0, copro: 0, lead: 0 });
+  assert.deepEqual(mon.visits[0].offered, { eeg: 1, copro: 0, lead: 0 });
   assert.equal(mon.visits[0].short, true);
   // A provisional visit is not being staffed yet, so it is never short.
   assert.equal(mon.visits[1].short, false);
   assert.equal(mon.short, true);
   // A day switched off has no visit; a day's own numbers win.
   assert.equal(grid.days[1].visits.length, 0);
-  assert.deepEqual(grid.days[2].visits[0].need, { eeg: 1, copro: 0 });
+  assert.deepEqual(grid.days[2].visits[0].need, { eeg: 1, copro: 0, lead: 0 });
   assert.equal(grid.days[2].visits[0].short, false);
   assert.equal(grid.days[2].short, false);
 });

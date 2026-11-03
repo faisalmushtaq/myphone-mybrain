@@ -190,13 +190,19 @@ async function inner() {
     await shot(ra, 'mobile-03-ra-checklist');
     await ra.goto(`${BASE}#documents`);
     await ra.getByRole('heading', { name: 'Everyone needs' }).waitFor();
-    for (const id of ['dbs', 'health', 'safeguarding']) {
-      await ra.locator(`#doc-${id}-all`).setInputFiles({ name: `${id}.pdf`, mimeType: 'application/pdf', buffer: pdf });
-      await ra.locator('.mpmb-portal__doc', { has: ra.locator(`#doc-${id}-all`) }).getByText('Waiting to be checked').waitFor({ timeout: 20000 });
+    // The health form is GSAL's own since 5 November 2026: listed apart, needed only for its visits.
+    await ra.getByRole('heading', { name: 'Only if you go to The Grammar School at Leeds' }).waitFor();
+    await shot(ra, 'mobile-04a-ra-documents-by-school');
+    for (const [id, school] of [['dbs', 'all'], ['health', 'GSAL'], ['safeguarding', 'all']]) {
+      await ra.locator(`#doc-${id}-${school}`).setInputFiles({ name: `${id}.pdf`, mimeType: 'application/pdf', buffer: pdf });
+      await ra.locator('.mpmb-portal__doc', { has: ra.locator(`#doc-${id}-${school}`) }).getByText('Waiting to be checked').waitFor({ timeout: 20000 });
     }
     await shot(ra, 'mobile-04-ra-documents');
+    const mainSettings = (await db.collection('portalSettings').doc('main').get()).data();
+    const gsalSchool = (await db.collection('portalSchools').doc('GSAL').get()).data();
+    ok('the health form moved: off everyone’s list, onto GSAL’s, once', !(mainSettings?.docTypes ?? []).some((t) => t.id === 'health') && (gsalSchool?.requiredDocs ?? []).filter((t) => t.id === 'health').length === 1 && Boolean((await db.collection('portalSettings').doc('migrations').get()).data()?.healthToGsal), JSON.stringify([mainSettings?.docTypes, gsalSchool?.requiredDocs]));
     const docs = (await db.collection('portalDocs').where('uid', '==', raUid).get()).docs;
-    ok('three documents uploaded and registered', docs.length === 3 && docs.every((d) => d.data().status === 'uploaded'));
+    ok('three documents uploaded and registered, the health form under GSAL', docs.length === 3 && docs.every((d) => d.data().status === 'uploaded') && docs.find((d) => d.data().typeId === 'health')?.data().schoolId === 'GSAL');
     const [stored] = await bucket.getFiles({ prefix: `portal/docs/${raUid}/` });
     ok('the copies are in Storage under the person', stored.length === 3);
 
@@ -243,7 +249,7 @@ async function inner() {
     await pm.locator('#chk-dbs-all-issue').fill('2025-09-01');
     await card(pm.locator('#chk-dbs-all-num')).getByRole('button', { name: 'Accept' }).click();
     await card(pm.getByText('Enhanced DBS certificate')).locator('.mpmb-portal__badge', { hasText: /^Checked$/ }).waitFor();
-    await card(pm.locator('#chk-health-all-note')).getByRole('button', { name: 'Accept' }).click();
+    await card(pm.locator('#chk-health-GSAL-note')).getByRole('button', { name: 'Accept' }).click();
     await card(pm.getByText('Health form')).locator('.mpmb-portal__badge', { hasText: /^Checked$/ }).waitFor();
     await pm.locator('#chk-safeguarding-all-exp').fill('2028-09-01');
     await card(pm.locator('#chk-safeguarding-all-exp')).getByRole('button', { name: 'Accept' }).click();
@@ -356,6 +362,7 @@ async function inner() {
     await team.locator('#v-to').fill(thu);
     await team.locator('#v-eeg').fill('1');
     await team.locator('#v-copro').fill('0');
+    await team.locator('#v-lead').fill('0');
     await team.getByLabel(`${longDate(tue)}: the visit runs`).uncheck();
     await team.getByLabel(`${longDate(wed)}: start`).fill('09:00');
     await team.getByLabel(`${longDate(wed)}: end`).fill('12:00');
@@ -408,7 +415,7 @@ async function inner() {
     await team.locator('li', { hasText: 'Sam Reed' }).locator('label.mpmb-portal__dayChip', { hasText: shortDate(wed) }).locator('input').check();
     await team.locator('li', { hasText: 'Sam Reed' }).locator('label.mpmb-portal__dayChip', { hasText: shortDate(thu) }).locator('input').check();
     await team.getByRole('button', { name: /Lock in and notify/ }).click();
-    await team.getByText('Offered to 1').waitFor();
+    await team.getByText('Done: 1 chosen').waitFor();
     await shot(team, 'desktop-08-team-offered');
     const assignment = await db.collection('portalAssignments').doc(`${visit.id}_${raUid}`).get();
     ok('the place is offered, as EEG on the three days', assignment.data()?.role === 'eeg' && assignment.data()?.dates?.join() === [mon, wed, thu].join() && assignment.data()?.status === 'offered' && (await db.collection('portalVisits').doc(visit.id).get()).data().status === 'staffing');
@@ -561,7 +568,7 @@ async function inner() {
     ok('the strongest team: 6 EEG and 2 co-production each day, the most experienced first, ticked', [d1, d2].every((d) => onDay('eeg', d) === 6 && onDay('copro', d) === 2) && sug.length === 9 && sug.find((s) => s.uid === crewUids[3])?.dates.join() === d1 && sug.find((s) => s.uid === crewUids[0])?.role === 'eeg' && sug.find((s) => s.uid === crewUids[9])?.role === 'eeg', JSON.stringify(sug));
     await shot(team, 'staffing-coverage-suggestion');
     await team.getByRole('button', { name: /Lock in and notify \(9\)/ }).click();
-    await team.getByText('Offered to 9').waitFor();
+    await team.getByText('Done: 9 chosen').waitFor();
     const places2 = (await db.collection('portalAssignments').where('visitId', '==', twoDay).get()).docs.map((d) => d.data());
     ok('nine offers, each with its job and its days', places2.length === 9 && places2.every((a) => a.status === 'offered') && places2.filter((a) => a.role === 'copro').length === 2 && places2.find((a) => a.uid === crewUids[3])?.dates.join() === d1);
     const offerMails = (await db.collection('portalMail').where('kind', '==', 'offer').get()).docs.map((d) => d.data()).filter((m) => /^crew/.test(m.to));
@@ -587,8 +594,23 @@ async function inner() {
       const i = crewUids.indexOf(a.uid);
       await call(await tokenFor(`crew${i + 1}@example.org`), 'respond-offer', { visitId: twoDay, response: 'confirm' });
     }
+    // Research leads (5 November 2026): the team, two a day by default, booked straight away once their documents are in.
+    const leadView = (await call(teamToken, 'visit', { visitId: twoDay })).result;
+    ok('the visit needs two leads a day by default; the research team are its candidates', leadView.visit.roleNeeds.lead === 2 && leadView.candidates.filter((c) => c.team).length === 2 && leadView.candidates.filter((c) => c.team).every((c) => c.capabilities.join() === 'lead') && leadView.visit.status !== 'locked', JSON.stringify(leadView.visit.roleNeeds));
+    const teamUids = [users[TEAM].uid, users[PM].uid];
+    const notReadyLead = await call(teamToken, 'offer', { visitId: twoDay, offers: [{ uid: teamUids[0], role: 'lead', dates: [d1, d2] }] });
+    ok('a lead without documents cannot be booked', /not eligible/.test(notReadyLead.error?.message ?? ''), JSON.stringify(notReadyLead.error ?? {}));
+    for (const uid of teamUids) for (const d of samDocs) await db.collection('portalDocs').add({ ...d, uid });
+    for (const uid of teamUids) for (const date of [d1, d2]) await db.collection('portalAvailability').doc(`${uid}_${date}`).set({ uid, date, value: 'all', note: '' });
+    const spare = crewUids.find((u) => !places2.some((a) => a.uid === u));
+    const raLead = await call(teamToken, 'offer', { visitId: twoDay, offers: [{ uid: spare, role: 'lead', dates: [d1] }] });
+    ok('a research assistant is not set up to lead', /not set up for Lead/.test(raLead.error?.message ?? ''), JSON.stringify(raLead.error ?? {}));
+    const leads = await call(teamToken, 'offer', { visitId: twoDay, offers: teamUids.map((uid) => ({ uid, role: 'lead', dates: [d1, d2] })) });
+    ok('leads are booked', leads.result?.offered === 2, JSON.stringify(leads.error ?? {}));
+    const leadPlaces = (await db.collection('portalAssignments').where('visitId', '==', twoDay).get()).docs.map((d) => d.data()).filter((a) => a.role === 'lead');
+    ok('a lead’s place is confirmed straight away, with an email and a calendar invitation', leadPlaces.length === 2 && leadPlaces.every((a) => a.status === 'confirmed') && (await db.collection('portalMail').where('kind', '==', 'lead-booked').get()).size === 2);
     const view3 = (await call(teamToken, 'visit', { visitId: twoDay })).result;
-    ok('every day has both numbers confirmed: fully staffed', view3.coverage.length === 2 && view3.coverage.every((c) => c.eeg.confirmed === 6 && c.copro.confirmed === 2 && c.eeg.offered === 0) && (await db.collection('portalVisits').doc(twoDay).get()).data().status === 'locked', JSON.stringify(view3.coverage));
+    ok('every day has every job confirmed: fully staffed', view3.coverage.length === 2 && view3.coverage.every((c) => c.eeg.confirmed === 6 && c.copro.confirmed === 2 && c.lead.confirmed === 2 && c.eeg.offered === 0) && (await db.collection('portalVisits').doc(twoDay).get()).data().status === 'locked', JSON.stringify(view3.coverage));
     const teamIcs = (await call(teamToken, 'visit-ics', { visitId: twoDay })).result.ics;
     ok('the team calendar lists who is on each day by job', /EEG \(6 of 6\): /.test(teamIcs) && /Co-production \(2 of 2\): /.test(teamIcs));
 
@@ -635,9 +657,10 @@ async function inner() {
     ok('the composer fills each day with who is on it, and their time notes', /\(until 1:00 pm\)/.test(await team.locator('#te-allocations').inputValue()) && /Ben Ortiz/.test(await team.locator('#te-allocations').inputValue()), await team.locator('#te-allocations').inputValue());
     ok('the composer fills the subject with the school and dates', /^GSAL team allocations: /.test(subj) || /team allocations/.test(subj), subj);
     await team.getByRole('button', { name: 'Send to the team' }).click();
-    await team.getByText(/Sent as one email to 9 people/).waitFor();
+    // Nine research assistants and the two leads (5 November 2026).
+    await team.getByText(/Sent as one email to 1[01] people/).waitFor();
     const teamMail = (await db.collection('portalMail').where('kind', '==', 'team-allocations').get()).docs.map((d) => d.data());
-    ok('one email to the team, people in blind copy, brainpop and Sarmad copied once', teamMail.length === 1 && teamMail[0].to === TEAM && teamMail[0].bcc.split(', ').length === 9 && /brainpop/.test(teamMail[0].cc), JSON.stringify(teamMail));
+    ok('one email to the team, people in blind copy, brainpop and Sarmad copied once', teamMail.length === 1 && teamMail[0].to === TEAM && teamMail[0].bcc.split(', ').length >= 10 && teamMail[0].bcc.includes(PM) && /brainpop/.test(teamMail[0].cc), JSON.stringify(teamMail));
     ok('the team are notified that allocations were sent', (await db.collection('portalNotifications').where('uid', '==', crewUids[0]).get()).docs.some((d) => /Team allocations/.test(d.data().title)));
     // A change afterwards: the team should be told again.
     const pmToken2 = await tokenFor(PM);
@@ -647,7 +670,7 @@ async function inner() {
     ok('changes since the team was last told are flagged', (await call(teamToken, 'visit', { visitId: twoDay })).result.teamEmail?.changedSince === true);
 
     /* ── The email to the school, and its DBS page ── */
-    await call(pmToken2, 'save-school', { id: 'GSAL', name: 'The Grammar School at Leeds', area: 'Alwoodley', requiredDocs: [], contactName: 'Ms Hughes', contactEmails: 'office@gsal.example.org', includeDbs: true });
+    await call(pmToken2, 'save-school', { id: 'GSAL', name: 'The Grammar School at Leeds', area: 'Alwoodley', requiredDocs: (await db.collection('portalSchools').doc('GSAL').get()).data()?.requiredDocs ?? [], contactName: 'Ms Hughes', contactEmails: 'office@gsal.example.org', includeDbs: true });
     const preview = (await call(teamToken, 'school-email-preview', { visitId: twoDay })).result;
     ok('the school email lists who is coming each day, with no DBS numbers', /Amira Khan/.test(preview?.body ?? '') && !/00999900/.test(preview.body) && !/EEG|Co-production/.test(preview.body), preview?.body?.slice(0, 400));
     ok('it warns when the school has no DBS page password', preview.warnings.some((w) => /no DBS page password/.test(w)));
@@ -783,6 +806,55 @@ async function inner() {
       await shot(team, 'password-set-in-details');
       const samPw = await signInRest(TEAM, 'blue-bicycle-0042');
       ok('someone who signs in by link can set a password too', Boolean(samPw.idToken), JSON.stringify(samPw.error ?? {}));
+    }
+
+    /* ── School approvals, training sign-off, "I've applied for my DBS", the Google Sheet (5 November 2026) ── */
+    {
+      const pmTok = await tokenFor(PM);
+      const teamTok2 = await tokenFor(TEAM);
+      const deniedApprove = await call(teamTok2, 'approve-for-school', { schoolId: 'GSAL', uids: [crewUids[0]] });
+      ok('only the project manager records school approvals', deniedApprove.error?.status === 'PERMISSION_DENIED');
+      const approvedTwo = await call(pmTok, 'approve-for-school', { schoolId: 'GSAL', uids: [crewUids[0], crewUids[1]] });
+      ok('the project manager approves several people for a school at once', approvedTwo.result?.count === 2 && (await db.collection('portalUsers').doc(crewUids[0]).get()).data()?.schoolApprovals?.GSAL?.byName === 'Priya Malik', JSON.stringify(approvedTwo.error ?? {}));
+      const gsal = (await call(pmTok, 'schools')).result.schools.find((x) => x.id === 'GSAL');
+      const saveGsal = (requireApproval) => call(pmTok, 'save-school', { id: 'GSAL', name: gsal.name, area: gsal.area, requiredDocs: gsal.requiredDocs, contactName: gsal.contactName, contactEmails: gsal.contactEmails, includeDbs: gsal.includeDbs, requireApproval });
+      await saveGsal(true);
+      const strictView = (await call(teamTok2, 'visit', { visitId: twoDay })).result;
+      const cand = (uid) => strictView.candidates.find((c) => c.uid === uid);
+      ok('a school that books only people it approved: the others are not ready', cand(crewUids[0])?.eligible === true && cand(crewUids[2])?.eligible === false && cand(crewUids[2]).reasons.includes('Not yet approved by The Grammar School at Leeds'), JSON.stringify(cand(crewUids[2])?.reasons));
+      await saveGsal(false);
+      const gsalAfter = (await db.collection('portalSchools').doc('GSAL').get()).data();
+      ok('saving the school keeps its own forms', gsalAfter.requireApproval === false && gsalAfter.requiredDocs.some((t) => t.id === 'health'));
+      await call(teamTok2, 'save-person', { uid: crewUids[0], signOff: 'signed-off' });
+      const signed = (await call(teamTok2, 'person', { uid: crewUids[0] })).result;
+      ok('training sign-off is recorded with who and when', signed.signOff === 'signed-off' && signed.signOffBy === 'Robin Chen' && Boolean(signed.signOffAt) && signed.approvals?.[0]?.schoolId === 'GSAL', JSON.stringify([signed.signOff, signed.signOffBy]));
+      const crew5 = await tokenFor('crew5@example.org');
+      const futureApplied = await call(crew5, 'set-dbs-applied', { applied: true, date: plus(new Date().toISOString().slice(0, 10), 5) });
+      ok('a DBS applied for in the future is refused', /today or earlier/.test(futureApplied.error?.message ?? ''));
+      await call(crew5, 'set-dbs-applied', { applied: true, date: plus(new Date().toISOString().slice(0, 10), -3) });
+      const peopleNow = (await call(teamTok2, 'people')).result.people;
+      ok('the team sees each person’s DBS status, sign-off and approvals', peopleNow.find((x) => x.uid === crewUids[4])?.dbsApplied === true && peopleNow.find((x) => x.uid === crewUids[0])?.dbsStatus === 'confirmed' && peopleNow.find((x) => x.uid === crewUids[0])?.approvals?.length === 1);
+
+      const status = (await call(pmTok, 'sheet-status')).result;
+      ok('no sheet set: the settings say so', status?.sheet?.url === '' && status.sheet.lastSyncedAt === null && typeof status.serviceAccount === 'string', JSON.stringify(status));
+      const noSheet = (await call(pmTok, 'sync-sheet')).result;
+      ok('Sync now with no sheet set: a friendly message, nothing breaks', noSheet?.ok === false && /No Google Sheet is set/.test(noSheet.error ?? ''), JSON.stringify(noSheet));
+      const badUrl = await call(pmTok, 'save-sheet', { url: 'https://example.com/not-a-sheet' });
+      ok('an address that is not a Google Sheet is refused, in words', /docs\.google\.com\/spreadsheets/.test(badUrl.error?.message ?? ''), JSON.stringify(badUrl.error ?? {}));
+      ok('research assistants cannot see the sheet settings', (await call(raToken, 'sheet-status')).error?.status === 'PERMISSION_DENIED' || (await call(crew5, 'sheet-status')).error?.status === 'PERMISSION_DENIED');
+      ok('only the project manager changes or syncs the sheet', (await call(teamTok2, 'save-sheet', { url: '' })).error?.status === 'PERMISSION_DENIED' && (await call(teamTok2, 'sync-sheet')).error?.status === 'PERMISSION_DENIED');
+      await pm.goto(`${BASE}#settings`);
+      await pm.getByRole('heading', { name: 'Google Sheet' }).waitFor();
+      await pm.getByText('No sheet is set: nothing is synced.').waitFor();
+      ok('Settings shows the Google Sheet section, with Sync now off until a sheet is set', await pm.getByRole('button', { name: 'Sync now' }).isDisabled());
+      await shot(pm, 'settings-google-sheet');
+      await pm.getByRole('heading', { name: 'Documents everyone needs' }).scrollIntoViewIfNeeded();
+      await shot(pm, 'settings-required-documents');
+      ok('the health form is no longer one everyone needs', !(await pm.locator('#dt-0, #dt-1, #dt-2').evaluateAll((els) => els.map((e) => e.value))).includes('Health form'));
+      await pm.goto(`${BASE}#schools`);
+      await pm.locator('li', { hasText: 'The Grammar School at Leeds' }).getByRole('button', { name: 'Who this school approved' }).click();
+      await pm.getByRole('button', { name: 'Mark approved' }).waitFor();
+      await shot(pm, 'schools-approvals');
     }
 
     /* ── Retention ── */

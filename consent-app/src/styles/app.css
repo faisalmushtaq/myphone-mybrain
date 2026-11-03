@@ -4421,6 +4421,8 @@
 .mpmb-portal__dayChip input { margin: 0 0.25rem 0 0; vertical-align: middle; }
 .mpmb-portal__email { white-space: pre-wrap; word-break: break-word; font-family: inherit; font-size: 0.95rem; background: var(--mpb-surface-2, rgba(127, 127, 127, 0.08)); border: 1px solid var(--mpb-line); border-radius: 8px; padding: 0.75rem 1rem; max-height: 28rem; overflow: auto; }
 .mpmb-portal__password { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.4rem; letter-spacing: 0.06em; }
+.mpmb-portal__steps { list-style: decimal; margin: 0 0 var(--mpb-space-3, 0.75rem); padding-left: 1.5rem; display: grid; gap: 0.35rem; }
+.mpmb-portal__code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; background: rgba(127, 127, 127, 0.14); padding: 0.1rem 0.35rem; border-radius: 4px; overflow-wrap: anywhere; }
 .mpmb-portal__times { flex-wrap: wrap; }
 
 /* Staff portal: the week at a glance (5 November 2026). Colour always comes with words. */

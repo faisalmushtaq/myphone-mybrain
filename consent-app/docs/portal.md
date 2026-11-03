@@ -326,17 +326,117 @@ can delete an entry while it is waiting, can only log for themselves, and
 never sees anyone else's. Every log, confirmation and decline is in the audit
 log.
 
+## Research leads, sign-off, DBS status, school approvals (5 November 2026)
+
+**Documents per school.** The documents in Settings ("Documents everyone
+needs") are needed for every school; each school can add its own under
+Schools ("Documents only this school asks for"). Someone can go to a
+school's visits once they have both. The health form is now GSAL's own: on
+the first call after this release the portal took it off everyone's list,
+added it to GSAL's (keeping its id, so uploads already made still count),
+filed the uploads already made under GSAL, and recorded that in the audit
+log (`move-health-form`) and in `portalSettings/migrations`, so it never runs
+again. Research assistants see a school's documents under "Only if you go to
+{school}".
+
+**Research leads.** A third job on the day, "Lead", taken by the research
+team (project managers and researchers), two a day by default (Settings →
+Jobs on the day), changeable per visit and per day like the other jobs.
+Coverage shows "Leads x/2", and a visit is fully staffed only when leads are
+too. On a visit page the team are listed as lead candidates; they need their
+documents but not training or pilots. A lead is booked straight away (no
+offer to answer): they get a notification, an email and a calendar
+invitation (`book-lead` in the audit log). The team mark the days they could
+lead under **My days**, and upload their documents under **My documents**.
+
+**Training sign-off.** Not trained / Will assess in pilot / Signed off, set
+by the team on a person's page (recorded with who and when). Booking needs
+it only if the project manager ticks "Require training sign-off to be
+booked" (off by default).
+
+**DBS status.** Confirmed (checked and in date), Processing (uploaded and
+waiting to be checked, or the person ticked "I've applied for my DBS", with
+the date if they gave one), Starting process, or Expired. Shown on People,
+on each person, on visit candidates, and in the sheet.
+
+**Approved by school.** The project manager records who a school approved
+(Schools → "Who this school approved", several at once; with the date and
+who recorded it), or takes it off. A school can be set to "Only book people
+this school has approved" (off by default); then anyone not approved shows
+as not ready for its visits ("Not yet approved by …").
+
+## The Google Sheet (5 November 2026)
+
+The portal rewrites one Google Sheet every hour (twenty past;
+`portalSheetSync`), and when the project manager presses **Sync now** in
+Settings. Tabs, in order:
+
+1. **Overview**: last synced, a link to the portal, counts, the next six
+   weeks of visit days (EEG, Co-pro and Leads confirmed/needed, offers
+   waiting, "Short by" in red or green), and what needs attention (days
+   short, offers unanswered for over two days, people booked whose DBS is
+   not confirmed, attendance not marked).
+2. **{School} sessions** for each school with visit days from four weeks
+   back to twelve ahead: research assistants then research leads, with
+   level, jobs, DBS status, sign-off, approval, then one column per visit
+   day (confirmed dark teal, offered amber, available light green, maybe
+   pale yellow, can't grey), days available and booked; names in red when
+   not ready (the note says why); totals per day and "Fully staffed".
+3. **{School} allocations**: a block per week, Monday to Friday, names by
+   job (offered in italics, red when their DBS is not confirmed, "needed"
+   for an empty place), a status line per day, and who the school approved.
+4. Tables: People, Documents, Availability (four weeks back, twelve ahead),
+   Visits, Staffing, Coverage, Attendance, Training and pilots, Report — per
+   person, Emails sent, Audit log (the latest 5,000), and Notes only when
+   "Include team notes" is ticked.
+
+The portal's tabs are cleared and rewritten (with their formatting) each
+time; any other tab in the spreadsheet is left alone. **Never in the sheet:**
+DBS certificate numbers, copies of any document, the text of emails and
+texts, passwords; the team's notes only when the project manager turns them
+on. A failed sync never affects the portal: Settings shows the last sync and
+the last error in words (not shared, Sheets API off, wrong address).
+
+**Setting it up (once):**
+
+1. Make a Google Sheet.
+2. Share it, as **Editor**, with the functions' service account,
+   `<project number>-compute@developer.gserviceaccount.com` (Settings shows
+   the exact address, with a Copy button).
+3. Turn on the Google Sheets API:
+   https://console.cloud.google.com/apis/library/sheets.googleapis.com?project=myphone-mybrain
+4. Paste the sheet's address in Settings → Google Sheet, Save, Sync now.
+
+**DPIA note (5 November 2026):** the sheet holds staff personal data (names,
+emails, phones, availability, DBS *status*, training, attendance, the audit
+log) in Google Workspace, shared with whoever the project manager shares
+the spreadsheet with. It holds no certificate numbers and no copies. Anyone
+it is shared with sees all of it, so share it only with the research team.
+The same tables are written to the export bucket (below).
+
+## In the export (5 November 2026)
+
+The hourly export writes `staff-portal/` beside the studies:
+`tables/` (the sheet's tables as CSV and TSV, `data_dictionary.md`, with the
+same exclusions) and `documents/<person>/<document>_<date>.<ext>` (a copy of
+each document the portal still holds, DBS certificates included; deleted
+there when the portal deletes them). On the Mac, a destination with scope
+`all` (the University's OneDrive) gets all of it; scope `no-documents` (for
+Google Drive) gets the tables without `documents/`; `bids` gets none of it.
+See docs/firebase.md.
+
 ## Data kept, and for how long
 
 | Collection | What |
 | --- | --- |
-| `portalUsers` | name, email, mobile, role, status, text-message preference |
+| `portalUsers` | name, email, mobile, role, status, text-message preference, training sign-off (who, when), "I've applied for my DBS" (and the date), schools that approved them (when, who recorded it) |
 | `portalDocs` | each upload: whose, which document, the file's place in Storage, its check and details |
 | `portal/docs/{uid}/…` (Storage) | the document copies |
 | `portalSessions`, `portalAvailability`, `portalInterest` | training and pilots, availability, interest in visits |
 | `portalSchools`, `portalVisits`, `portalAssignments` | schools and their forms, visits, offers and answers |
 | `portalNotifications`, `portalMail`, `portalAudit`, `portalWarnings` | notifications, emails and texts sent, the audit log, expiry warnings already sent |
-| `portalSettings/main` | thresholds, document types, retention, status tags, jobs needed, always copy in |
+| `portalSettings/main` | thresholds, document types, retention, status tags, jobs needed, always copy in, whether sign-off is required |
+| `portalSettings/sheet`, `portalSettings/migrations` | the Google Sheet's address, whether team notes go in it, the last sync and error; one-off changes made |
 | `portalNotes` | the team's notes about people (who, when) |
 | `portalAttendance` | attendance per person per visit day, with notes |
 | `portalSchoolEmails`, `portalTeamEmails` | emails sent to schools and to the team: when, by whom, to whom, who was on each day |

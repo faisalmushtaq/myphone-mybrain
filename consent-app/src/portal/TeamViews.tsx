@@ -5,7 +5,7 @@ import { SelectField, TextField } from '../components/ui/Field';
 import { ask, messageOf } from './api';
 import { TeamEmailRange } from './Reports';
 import { StateBadge } from './RaViews';
-import { AVAILABILITY_LABEL, DAY_ROLE_LABEL, DAY_ROLES, LEVEL_LABEL, longDate, ROLE_LABEL, saveFile, shortDate, stamp, todayIso, VISIT_STATUS_LABEL, visitWhen, type Availability, type Counts, type DayRole, type DocRow, type DocType, type Level, type PortalUser, type Role, type School, type Settings, type StatusTag, type TeamExtras, type TrainingClaim, type Visit, type VisitDay } from './types';
+import { AVAILABILITY_LABEL, DAY_ROLE_LABEL, DAY_ROLES, DBS_STATUS_LABEL, LEVEL_LABEL, RA_ROLES, SIGN_OFF_LABEL, SIGN_OFFS, type PersonFacts, type SheetStatus, type SignOff, longDate, ROLE_LABEL, saveFile, shortDate, stamp, todayIso, VISIT_STATUS_LABEL, visitWhen, type Availability, type Counts, type DayRole, type DocRow, type DocType, type Level, type PortalUser, type Role, type School, type Settings, type StatusTag, type TeamExtras, type TrainingClaim, type Visit, type VisitDay } from './types';
 
 /** Loads with an action, shows loading and errors, and offers a reload. */
 export function useLoad<T>(action: string, data: Record<string, unknown> = {}) {
@@ -46,7 +46,7 @@ export function ErrorLine({ error }: { error: string | null }) {
 
 /* ── Overview ─────────────────────────────────────────────────────────── */
 
-interface PersonRow extends PortalUser, TeamExtras {
+interface PersonRow extends PortalUser, TeamExtras, Partial<PersonFacts> {
   counts: Counts;
   daysAttended: number;
   documents: { typeId: string; label: string; state: DocRow['state'] }[];
@@ -175,7 +175,7 @@ export function VisitTable({ visits, go }: { visits: VisitRow[]; go: (hash: stri
             <br />
             {visitWhen(v)} · {v.location}
             <br />
-            EEG {v.roleNeeds.eeg} · Co-production {v.roleNeeds.copro} a day · {v.confirmed} of {v.needed} person-days confirmed{v.offered ? `, ${v.offered} waiting` : ''}{' '}
+            EEG {v.roleNeeds.eeg} · Co-production {v.roleNeeds.copro} · Leads {v.roleNeeds.lead ?? 0} a day · {v.confirmed} of {v.needed} person-days confirmed{v.offered ? `, ${v.offered} waiting` : ''}{' '}
             <span className={`mpmb-portal__badge mpmb-portal__badge--${v.status === 'locked' ? 'ok' : v.status === 'staffing' ? 'wait' : 'todo'}`}>{VISIT_STATUS_LABEL[v.status]}</span>
           </span>
           <Button variant="secondary" onClick={() => go(`#visit/${v.visitId}`)}>
@@ -190,7 +190,7 @@ export function VisitTable({ visits, go }: { visits: VisitRow[]; go: (hash: stri
 /* ── People ───────────────────────────────────────────────────────────── */
 
 export function People({ role, go }: { role: Role; go: (hash: string) => void }) {
-  const { value, error, load } = useLoad<{ people: PersonRow[]; settings: { minTraining: number; minPilots: number; tags: StatusTag[] } }>('people');
+  const { value, error, load } = useLoad<{ people: PersonRow[]; settings: { minTraining: number; minPilots: number; tags: StatusTag[]; requireSignOff?: boolean }; schools?: { id: string; name: string; requireApproval: boolean }[] }>('people');
   const [tagFilter, setTagFilter] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -272,15 +272,16 @@ export function People({ role, go }: { role: Role; go: (hash: string) => void })
               .map((p) => (
                 <li key={p.uid} className="mpmb-tools__row">
                   <span>
-                    <strong>{p.name}</strong> · {p.role ? ROLE_LABEL[p.role] : ''}
+                    <strong>{p.name}</strong> · {p.role ? ROLE_LABEL[p.role] : ''} · leads on visit days
                     <br />
-                    <span className="mpmb-hint">{p.email}</span>
+                    <span className="mpmb-hint">
+                      {p.email} · DBS: {p.dbsStatus ? DBS_STATUS_LABEL[p.dbsStatus] : '—'}
+                      {!p.ready && p.reasons.length ? ` · Not ready: ${p.reasons.join('; ')}` : ''}
+                    </span>
                   </span>
-                  {role === 'pm' && (
-                    <Button variant="ghost" onClick={() => go(`#person/${p.uid}`)}>
-                      Manage
-                    </Button>
-                  )}
+                  <Button variant="ghost" onClick={() => go(`#person/${p.uid}`)}>
+                    {role === 'pm' ? 'Manage' : 'Open'}
+                  </Button>
                 </li>
               ))}
           </ul>
@@ -319,6 +320,10 @@ function PeopleList({ people, go }: { people: PersonRow[]; go: (hash: string) =>
             <br />
             {levelLine(p)}
             <br />
+            DBS: {p.dbsStatus ? DBS_STATUS_LABEL[p.dbsStatus] : '—'}
+            {p.dbsStatus === 'processing' && p.dbsApplied ? ` (said they applied${p.dbsAppliedOn ? ` ${shortDate(p.dbsAppliedOn)}` : ''})` : ''} · Training sign-off: {p.signOff ? SIGN_OFF_LABEL[p.signOff] : '—'}
+            {p.approvals?.length ? ` · Approved by ${p.approvals.map((a) => a.schoolName).join(', ')}` : ''}
+            <br />
             Training {p.counts.training} · Pilots {p.counts.pilots}
             {p.waiting && p.waiting.training + p.waiting.pilots > 0 ? ` (${p.waiting.training + p.waiting.pilots} waiting)` : ''} · {p.documents.filter((d) => d.state === 'verified' || d.state === 'expiring-soon').length}/{p.documents.length} documents · {p.daysAttended} school day{p.daysAttended === 1 ? '' : 's'} attended
             {!p.ready && (
@@ -345,9 +350,9 @@ interface PersonNote {
   at: string | null;
 }
 
-interface PersonDetail extends TeamExtras {
+interface PersonDetail extends TeamExtras, Partial<PersonFacts> {
   user: PortalUser;
-  settings: { tags: StatusTag[] };
+  settings: { tags: StatusTag[]; requireSignOff?: boolean };
   daysAttended: number;
   notes: PersonNote[];
   counts: Counts;
@@ -395,6 +400,17 @@ export function Person({ uid, role, go }: { uid: string; role: Role; go: (hash: 
         <p>
           Training {value.counts.training} · Pilots {value.counts.pilots} · School days attended {value.daysAttended}
         </p>
+        <p>
+          DBS: <strong>{value.dbsStatus ? DBS_STATUS_LABEL[value.dbsStatus] : '—'}</strong>
+          {value.dbsApplied ? ` (they said they applied${value.dbsAppliedOn ? ` on ${shortDate(value.dbsAppliedOn)}` : ''})` : ''}
+          {u.role === 'ra' && (
+            <>
+              {' '}· Training sign-off: <strong>{SIGN_OFF_LABEL[value.signOff ?? 'not-trained']}</strong>
+              {value.signOffBy ? ` (${value.signOffBy}, ${stamp(value.signOffAt ?? null)})` : ''}
+            </>
+          )}
+        </p>
+        {(value.approvals ?? []).length > 0 && <p className="mpmb-hint">Approved by {value.approvals!.map((a) => `${a.schoolName}${a.at ? ` (${shortDate(a.at.slice(0, 10))}, recorded by ${a.byName})` : ''}`).join('; ')}</p>}
         {(value.claims ?? []).some((c) => c.status === 'waiting') && (
           <p className="mpmb-hint">
             Logged by them, waiting for the team:{' '}
@@ -411,7 +427,7 @@ export function Person({ uid, role, go }: { uid: string; role: Role; go: (hash: 
         {value.availabilityNote && <p className="mpmb-hint">Availability: {value.availabilityNote}</p>}
       </div>
       <ErrorLine error={actionError} />
-      {u.role === 'ra' && <PersonEdit key={JSON.stringify([u.name, u.phone, value.tags, value.level, value.capabilities, value.availabilityNote])} uid={uid} detail={value} reload={load} />}
+      {u.role === 'ra' && <PersonEdit key={JSON.stringify([u.name, u.phone, value.tags, value.level, value.capabilities, value.availabilityNote, value.signOff])} uid={uid} detail={value} reload={load} />}
       <PersonNotes uid={uid} notes={value.notes} pm={pm} reload={load} />
       <section>
         <h3 className="mpmb-h3">Documents</h3>
@@ -494,7 +510,7 @@ export function Person({ uid, role, go }: { uid: string; role: Role; go: (hash: 
 
 /** The team's details about someone: name and phone as the team keeps them, availability notes, status, experience and jobs. Never shown to them. */
 function PersonEdit({ uid, detail, reload }: { uid: string; detail: PersonDetail; reload: () => Promise<void> }) {
-  const [form, setForm] = useState({ name: detail.user.name, phone: detail.user.phone, availabilityNote: detail.availabilityNote, tags: detail.tags.map((t) => t.id), level: detail.level ? String(detail.level) : '', levelReason: detail.levelReason, capabilities: detail.capabilities });
+  const [form, setForm] = useState({ name: detail.user.name, phone: detail.user.phone, availabilityNote: detail.availabilityNote, tags: detail.tags.map((t) => t.id), level: detail.level ? String(detail.level) : '', levelReason: detail.levelReason, capabilities: detail.capabilities.filter((r) => RA_ROLES.includes(r)), signOff: (detail.signOff ?? 'not-trained') as SignOff });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -504,7 +520,7 @@ function PersonEdit({ uid, detail, reload }: { uid: string; detail: PersonDetail
     setError(null);
     setSaved(false);
     try {
-      await ask('save-person', { uid, name: form.name, phone: form.phone, availabilityNote: form.availabilityNote, tags: form.tags, level: form.level ? Number(form.level) : null, levelReason: form.levelReason, capabilities: form.capabilities });
+      await ask('save-person', { uid, name: form.name, phone: form.phone, availabilityNote: form.availabilityNote, tags: form.tags, level: form.level ? Number(form.level) : null, levelReason: form.levelReason, capabilities: form.capabilities, signOff: form.signOff });
       setSaved(true);
       await reload();
     } catch (err) {
@@ -533,9 +549,10 @@ function PersonEdit({ uid, detail, reload }: { uid: string; detail: PersonDetail
         <SelectField id="pe-level" label="Experience" placeholder="Not set" options={([1, 2, 3, 4] as Level[]).map((l) => ({ value: String(l), label: `${l}: ${LEVEL_LABEL[l]}` }))} value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} />
         <TextField id="pe-reason" label="Why this level" required={false} value={form.levelReason} onChange={(e) => setForm({ ...form, levelReason: e.target.value })} hint="Optional: for example “led three school days”." />
       </div>
+      <SelectField id="pe-signoff" label="Training sign-off" options={SIGN_OFFS.map((x) => ({ value: x, label: SIGN_OFF_LABEL[x] }))} value={form.signOff} onChange={(e) => setForm({ ...form, signOff: e.target.value as SignOff })} hint={detail.settings.requireSignOff ? 'Only people signed off can be booked (a setting).' : 'Recorded with who set it and when. Booking does not need it unless the project manager turns that on in Settings.'} />
       <fieldset className="mpmb-tools__days">
         <legend className="mpmb-label">Jobs they can do on the day</legend>
-        {DAY_ROLES.map((r) => (
+        {RA_ROLES.map((r) => (
           <label key={r} className="mpmb-portal__inline">
             <input type="checkbox" checked={form.capabilities.includes(r)} onChange={(e) => setForm({ ...form, capabilities: e.target.checked ? [...form.capabilities, r] : form.capabilities.filter((x) => x !== r) })} /> {DAY_ROLE_LABEL[r]}
           </label>
@@ -770,6 +787,7 @@ interface VisitFormValue {
   location: string;
   eeg: string;
   copro: string;
+  lead: string;
   arrival: string;
   taxiFrom: string;
   taxiTime: string;
@@ -778,7 +796,7 @@ interface VisitFormValue {
   /** Days changed from the usual: switched on or off, other times, other numbers or travel times. */
   overrides: Record<string, DayOverride>;
 }
-type DayOverride = { on?: boolean; start?: string; end?: string; eeg?: string; copro?: string; arrival?: string; taxiTime?: string };
+type DayOverride = { on?: boolean; start?: string; end?: string; eeg?: string; copro?: string; lead?: string; arrival?: string; taxiTime?: string };
 const DEFAULT_TAXI_FROM = 'School of Psychology, University of Leeds';
 const count = (v: string | undefined) => (v === undefined || v === '' ? undefined : Number(v));
 
@@ -791,13 +809,14 @@ function formDays(f: VisitFormValue): VisitDay[] {
     const o = f.overrides[d] ?? {};
     const eeg = count(o.eeg);
     const copro = count(o.copro);
-    out.push({ date: d, on: o.on ?? !isWeekend(d), start: o.start || f.start, end: o.end || f.end, ...(eeg !== undefined ? { eeg } : {}), ...(copro !== undefined ? { copro } : {}), ...(o.arrival ? { arrival: o.arrival } : {}), ...(o.taxiTime ? { taxiTime: o.taxiTime } : {}) });
+    const lead = count(o.lead);
+    out.push({ date: d, on: o.on ?? !isWeekend(d), start: o.start || f.start, end: o.end || f.end, ...(eeg !== undefined ? { eeg } : {}), ...(copro !== undefined ? { copro } : {}), ...(lead !== undefined ? { lead } : {}), ...(o.arrival ? { arrival: o.arrival } : {}), ...(o.taxiTime ? { taxiTime: o.taxiTime } : {}) });
   }
   return out;
 }
 
 export function emptyVisitForm(): VisitFormValue {
-  return { schoolId: '', startDate: '', endDate: '', start: '08:30', end: '15:00', location: '', eeg: '6', copro: '2', arrival: '', taxiFrom: DEFAULT_TAXI_FROM, taxiTime: '', direct: '', notes: '', overrides: {} };
+  return { schoolId: '', startDate: '', endDate: '', start: '08:30', end: '15:00', location: '', eeg: '6', copro: '2', lead: '2', arrival: '', taxiFrom: DEFAULT_TAXI_FROM, taxiTime: '', direct: '', notes: '', overrides: {} };
 }
 
 export function visitFormFrom(v: Visit): VisitFormValue {
@@ -809,11 +828,12 @@ export function visitFormFrom(v: Visit): VisitFormValue {
     if (d.end !== v.end) o.end = d.end;
     if (d.eeg !== undefined) o.eeg = String(d.eeg);
     if (d.copro !== undefined) o.copro = String(d.copro);
+    if (d.lead !== undefined) o.lead = String(d.lead);
     if (d.arrival) o.arrival = d.arrival;
     if (d.taxiTime) o.taxiTime = d.taxiTime;
     if (Object.keys(o).length) overrides[d.date] = o;
   }
-  return { schoolId: v.schoolId, startDate: v.startDate, endDate: v.endDate, start: v.start, end: v.end, location: v.location, eeg: String(v.roleNeeds.eeg), copro: String(v.roleNeeds.copro), arrival: v.travel.arrival, taxiFrom: v.travel.taxiFrom, taxiTime: v.travel.taxiTime, direct: v.travel.direct, notes: v.notes, overrides };
+  return { schoolId: v.schoolId, startDate: v.startDate, endDate: v.endDate, start: v.start, end: v.end, location: v.location, eeg: String(v.roleNeeds.eeg), copro: String(v.roleNeeds.copro), lead: String(v.roleNeeds.lead ?? 2), arrival: v.travel.arrival, taxiFrom: v.travel.taxiFrom, taxiTime: v.travel.taxiTime, direct: v.travel.direct, notes: v.notes, overrides };
 }
 
 /**
@@ -843,7 +863,7 @@ export function VisitForm({ schools, initial, visitId, onSaved, submitLabel, idP
         start: form.start,
         end: form.end,
         location: form.location,
-        roleNeeds: { eeg: Number(form.eeg), copro: Number(form.copro) },
+        roleNeeds: { eeg: Number(form.eeg), copro: Number(form.copro), lead: Number(form.lead) },
         travel: { arrival: form.arrival, taxiFrom: form.taxiFrom, taxiTime: form.taxiTime, direct: form.direct },
         notes: form.notes,
         days,
@@ -866,6 +886,7 @@ export function VisitForm({ schools, initial, visitId, onSaved, submitLabel, idP
         <TextField id={`${idPrefix}-end`} label="Usual end" type="time" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} />
         <TextField id={`${idPrefix}-eeg`} label="EEG: people needed each day" type="number" min={0} max={30} value={form.eeg} onChange={(e) => setForm({ ...form, eeg: e.target.value })} />
         <TextField id={`${idPrefix}-copro`} label="Co-production: people needed each day" type="number" min={0} max={30} value={form.copro} onChange={(e) => setForm({ ...form, copro: e.target.value })} />
+        <TextField id={`${idPrefix}-lead`} label="Research leads: people needed each day" type="number" min={0} max={30} value={form.lead} onChange={(e) => setForm({ ...form, lead: e.target.value })} hint="From the research team." />
       </div>
       <fieldset className="mpmb-portal__days">
         <legend className="mpmb-label">Travel (optional)</legend>
@@ -898,7 +919,7 @@ export function VisitForm({ schools, initial, visitId, onSaved, submitLabel, idP
                     <span aria-hidden="true">to</span>
                     <input className="mpmb-input" type="time" aria-label={`${longDate(d.date)}: end`} value={d.end} onChange={(e) => setDay(d.date, { end: e.target.value })} />
                     <span className="mpmb-hint">
-                      EEG {d.eeg ?? form.eeg} · Co-production {d.copro ?? form.copro}
+                      EEG {d.eeg ?? form.eeg} · Co-production {d.copro ?? form.copro} · Leads {d.lead ?? form.lead}
                     </span>
                     <Button variant="link" onClick={() => setDayDetail(dayDetail === d.date ? null : d.date)} aria-expanded={dayDetail === d.date}>
                       Numbers and travel
@@ -912,6 +933,9 @@ export function VisitForm({ schools, initial, visitId, onSaved, submitLabel, idP
                     </label>
                     <label className="mpmb-hint">
                       Co-production <input className="mpmb-input mpmb-portal__num" type="number" min={0} max={30} aria-label={`${longDate(d.date)}: co-production needed`} placeholder={form.copro} value={form.overrides[d.date]?.copro ?? ''} onChange={(e) => setDay(d.date, { copro: e.target.value })} />
+                    </label>
+                    <label className="mpmb-hint">
+                      Leads <input className="mpmb-input mpmb-portal__num" type="number" min={0} max={30} aria-label={`${longDate(d.date)}: leads needed`} placeholder={form.lead} value={form.overrides[d.date]?.lead ?? ''} onChange={(e) => setDay(d.date, { lead: e.target.value })} />
                     </label>
                     <label className="mpmb-hint">
                       Arrive <input className="mpmb-input" type="time" aria-label={`${longDate(d.date)}: arrive by`} value={form.overrides[d.date]?.arrival ?? ''} onChange={(e) => setDay(d.date, { arrival: e.target.value })} />
@@ -1248,13 +1272,14 @@ function ClaimsToConfirm({ onChange }: { onChange: () => Promise<void> }) {
 
 /* ── Schools ──────────────────────────────────────────────────────────── */
 
-type SchoolEdit = { id: string; name: string; area: string; forms: string; contactName: string; contactEmails: string; includeDbs: boolean; dbsCopies: boolean };
+type SchoolEdit = { id: string; name: string; area: string; forms: string; contactName: string; contactEmails: string; includeDbs: boolean; dbsCopies: boolean; requireApproval: boolean };
 
 export function Schools({ role }: { role: Role }) {
   const { value, error, load } = useLoad<{ schools: School[] }>('schools');
   const [edit, setEdit] = useState<SchoolEdit | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [password, setPassword] = useState<{ schoolId: string; password: string; link: string } | null>(null);
+  const [approving, setApproving] = useState<string | null>(null);
   const pm = role === 'pm';
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -1264,9 +1289,10 @@ export function Schools({ role }: { role: Role }) {
       .split('\n')
       .map((l) => l.trim())
       .filter(Boolean)
-      .map((label) => ({ id: label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40), label, hint: '' }));
+      // A form already there keeps its id (and its hint), so uploads already made still count.
+      .map((label) => (value?.schools.find((s) => s.id === edit.id)?.requiredDocs ?? []).find((d) => d.label === label) ?? { id: label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40), label, hint: '' });
     try {
-      await ask('save-school', { id: edit.id || undefined, name: edit.name, area: edit.area, requiredDocs, contactName: edit.contactName, contactEmails: edit.contactEmails, includeDbs: edit.includeDbs, ...(pm ? { dbsCopies: edit.dbsCopies } : {}) });
+      await ask('save-school', { id: edit.id || undefined, name: edit.name, area: edit.area, requiredDocs, contactName: edit.contactName, contactEmails: edit.contactEmails, includeDbs: edit.includeDbs, ...(pm ? { dbsCopies: edit.dbsCopies, requireApproval: edit.requireApproval } : {}) });
       setEdit(null);
       await load();
     } catch (err) {
@@ -1304,6 +1330,7 @@ export function Schools({ role }: { role: Role }) {
                 <span className="mpmb-hint">
                   DBS page: {s.dbsAccess?.active ? `open (password made ${stamp(s.dbsAccess.setAt)}${s.dbsAccess.lastViewedAt ? `, last viewed ${stamp(s.dbsAccess.lastViewedAt)}` : ', not viewed yet'})` : 'closed (no password)'}
                   {s.dbsCopies ? ' · certificate copies shared' : ''}
+                  {s.requireApproval ? ' · books only people it has approved' : ''}
                 </span>
               </span>
               {password?.schoolId === s.id && (
@@ -1315,9 +1342,14 @@ export function Schools({ role }: { role: Role }) {
                 </Callout>
               )}
               <div className="mpmb-actions">
-                <Button variant="ghost" onClick={() => setEdit({ id: s.id, name: s.name, area: s.area, forms: s.requiredDocs.map((d) => d.label).join('\n'), contactName: s.contactName ?? '', contactEmails: (s.contactEmails ?? []).join(', '), includeDbs: s.includeDbs === true, dbsCopies: s.dbsCopies === true })}>
+                <Button variant="ghost" onClick={() => setEdit({ id: s.id, name: s.name, area: s.area, forms: s.requiredDocs.map((d) => d.label).join('\n'), contactName: s.contactName ?? '', contactEmails: (s.contactEmails ?? []).join(', '), includeDbs: s.includeDbs === true, dbsCopies: s.dbsCopies === true, requireApproval: s.requireApproval === true })}>
                   Change
                 </Button>
+                {pm && (
+                  <Button variant="ghost" onClick={() => setApproving(approving === s.id ? null : s.id)} aria-expanded={approving === s.id}>
+                    Who this school approved
+                  </Button>
+                )}
                 {pm && (
                   <Button variant="secondary" onClick={() => void dbsAction(s, 'make-dbs-password')}>
                     {s.dbsAccess?.active ? 'New DBS page password' : 'Make a DBS page password'}
@@ -1329,11 +1361,12 @@ export function Schools({ role }: { role: Role }) {
                   </Button>
                 )}
               </div>
+              {pm && approving === s.id && <SchoolApprovals school={s} />}
             </li>
           ))}
         </ul>
         {!edit && (
-          <Button variant="secondary" onClick={() => setEdit({ id: '', name: '', area: '', forms: '', contactName: '', contactEmails: '', includeDbs: false, dbsCopies: false })}>
+          <Button variant="secondary" onClick={() => setEdit({ id: '', name: '', area: '', forms: '', contactName: '', contactEmails: '', includeDbs: false, dbsCopies: false, requireApproval: false })}>
             Add a school
           </Button>
         )}
@@ -1352,9 +1385,15 @@ export function Schools({ role }: { role: Role }) {
                 <input type="checkbox" checked={edit.dbsCopies} onChange={(e) => setEdit({ ...edit, dbsCopies: e.target.checked })} /> Let this school open copies of the certificates on its DBS page
               </label>
             )}
+            {pm && (
+              <label className="mpmb-portal__inline">
+                <input type="checkbox" checked={edit.requireApproval} onChange={(e) => setEdit({ ...edit, requireApproval: e.target.checked })} /> Only book people this school has approved
+              </label>
+            )}
             <label className="mpmb-label" htmlFor="sc-forms">
-              Forms this school asks for, one per line <span className="mpmb-label__tag">(optional)</span>
+              Documents only this school asks for, one per line <span className="mpmb-label__tag">(optional)</span>
             </label>
+            <p className="mpmb-hint">Someone can go to this school once they have the documents everyone needs (Settings) and these. Research assistants see them under “Only if you go to {edit.name || 'this school'}”.</p>
             <textarea id="sc-forms" className="mpmb-input" rows={3} value={edit.forms} onChange={(e) => setEdit({ ...edit, forms: e.target.value })} />
             <ErrorLine error={formError} />
             <div className="mpmb-actions">
@@ -1394,6 +1433,8 @@ export function SettingsView() {
     }
   };
   return (
+    <div className="mpmb-tools__section">
+    <SheetSettings />
     <form className="mpmb-tools__section" onSubmit={(e) => void save(e)}>
       <div className="mpmb-tools__grid">
         <TextField id="st-train" label="Training sessions needed" type="number" min={0} value={form.minTraining} onChange={num('minTraining')} />
@@ -1424,7 +1465,12 @@ export function SettingsView() {
         <div className="mpmb-tools__grid">
           <TextField id="st-eeg" label="EEG" type="number" min={0} max={30} value={form.roleNeeds.eeg} onChange={(e) => setForm({ ...form, roleNeeds: { ...form.roleNeeds, eeg: Number(e.target.value) } })} />
           <TextField id="st-copro" label="Co-production" type="number" min={0} max={30} value={form.roleNeeds.copro} onChange={(e) => setForm({ ...form, roleNeeds: { ...form.roleNeeds, copro: Number(e.target.value) } })} />
+          <TextField id="st-lead" label="Research leads" type="number" min={0} max={30} value={form.roleNeeds.lead ?? 2} onChange={(e) => setForm({ ...form, roleNeeds: { ...form.roleNeeds, lead: Number(e.target.value) } })} hint="From the research team; booked straight away." />
         </div>
+        <label className="mpmb-portal__inline">
+          <input type="checkbox" checked={form.requireSignOff === true} onChange={(e) => setForm({ ...form, requireSignOff: e.target.checked })} /> Require training sign-off to be booked
+        </label>
+        <p className="mpmb-hint">Off: sign-off is recorded and shown, but booking needs only documents, training and pilots. On: research assistants must also be “Signed off”.</p>
       </section>
       <section>
         <h2 className="mpmb-h2">Status tags</h2>
@@ -1443,10 +1489,16 @@ export function SettingsView() {
       </section>
       <section>
         <h2 className="mpmb-h2">Documents everyone needs</h2>
+        <p className="mpmb-hint">Needed for every school. A school’s own forms (GSAL’s health form, say) are added to that school under Schools, and are needed only for its visits.</p>
         {form.docTypes.map((t, i) => (
           <div key={t.id} className="mpmb-tools__grid">
             <TextField id={`dt-${i}`} label={`Name (${t.id})`} value={t.label} onChange={(e) => setForm({ ...form, docTypes: form.docTypes.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
             <TextField id={`dth-${i}`} label="What to upload" required={false} value={t.hint} onChange={(e) => setForm({ ...form, docTypes: form.docTypes.map((x, j) => (j === i ? { ...x, hint: e.target.value } : x)) })} />
+            {form.docTypes.length > 1 && (
+              <Button variant="ghost" onClick={() => window.confirm(`Stop asking everyone for “${t.label}”? Uploads already made are kept.`) && setForm({ ...form, docTypes: form.docTypes.filter((_, j) => j !== i) })}>
+                Remove {t.label}
+              </Button>
+            )}
           </div>
         ))}
         <Button variant="ghost" onClick={() => setForm({ ...form, docTypes: [...form.docTypes, { id: `doc-${form.docTypes.length + 1}`, label: 'New document', hint: '' }] })}>
@@ -1461,6 +1513,166 @@ export function SettingsView() {
         </Button>
       </div>
     </form>
+    </div>
+  );
+}
+
+/** The Google Sheet the portal rewrites every hour: which one, and how the last sync went. */
+export function SheetSettings() {
+  const { value, error, load } = useLoad<{ sheet: SheetStatus; serviceAccount: string; project: string }>('sheet-status');
+  const [url, setUrl] = useState<string | null>(null);
+  const [includeNotes, setIncludeNotes] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState<'save' | 'sync' | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  if (!value) return <Loading error={error}>Loading the Google Sheet settings…</Loading>;
+  const sheet = value.sheet;
+  const theUrl = url ?? sheet.url;
+  const notes = includeNotes ?? sheet.includeNotes;
+  const run = async (kind: 'save' | 'sync') => {
+    setBusy(kind);
+    setFormError(null);
+    setMessage(null);
+    try {
+      if (kind === 'save' || theUrl !== sheet.url || notes !== sheet.includeNotes) await ask('save-sheet', { url: theUrl, includeNotes: notes });
+      if (kind === 'sync') {
+        const r = await ask<{ ok: boolean; error?: string }>('sync-sheet');
+        if (r.ok) setMessage('Synced: the sheet now matches the portal.');
+        else setFormError(r.error ?? 'The sync failed.');
+      } else setMessage(theUrl ? 'Saved. It syncs every hour, or press Sync now.' : 'Saved: no sheet is set.');
+      setUrl(null);
+      setIncludeNotes(null);
+      await load();
+    } catch (e) {
+      setFormError(messageOf(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value.serviceAccount);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <section className="mpmb-card" aria-labelledby="sheet-h">
+      <h2 className="mpmb-h2" id="sheet-h">
+        Google Sheet
+      </h2>
+      <p className="mpmb-hint">The portal rewrites one Google Sheet every hour: an overview, each school’s sessions and allocations, and the records as tables. Never DBS certificate numbers or copies of documents. Tabs you add yourself are left alone.</p>
+      <ol className="mpmb-portal__steps">
+        <li>Make a Google Sheet (or use one you have).</li>
+        <li>
+          Share it as an <strong>Editor</strong> with the portal’s address:{' '}
+          {value.serviceAccount ? (
+            <>
+              <code className="mpmb-portal__code">{value.serviceAccount}</code>{' '}
+              <Button variant="link" onClick={() => void copy()}>
+                {copied ? 'Copied' : 'Copy'}
+              </Button>
+            </>
+          ) : (
+            <span>shown here once the portal is live (the functions’ service account, ending -compute@developer.gserviceaccount.com).</span>
+          )}
+        </li>
+        <li>
+          Once only: turn on the Google Sheets API for the project at{' '}
+          <a href={`https://console.cloud.google.com/apis/library/sheets.googleapis.com?project=${value.project}`} target="_blank" rel="noreferrer">
+            console.cloud.google.com
+          </a>
+          .
+        </li>
+        <li>Paste the sheet’s address below, save, and press Sync now.</li>
+      </ol>
+      <TextField id="sheet-url" label="The sheet’s address" required={false} value={theUrl} onChange={(e) => setUrl(e.target.value)} hint="Starts https://docs.google.com/spreadsheets/d/" />
+      <label className="mpmb-portal__inline">
+        <input type="checkbox" checked={notes} onChange={(e) => setIncludeNotes(e.target.checked)} /> Include team notes (a Notes tab with the team’s notes on people)
+      </label>
+      <p className="mpmb-hint">
+        {sheet.url ? (sheet.lastSyncedAt ? `Last synced ${stamp(sheet.lastSyncedAt)}${sheet.title ? ` into “${sheet.title}”` : ''}.` : 'Not synced yet.') : 'No sheet is set: nothing is synced.'}
+      </p>
+      {sheet.lastError && (
+        <Callout tone="important" title={`The last sync failed${sheet.lastErrorAt ? ` (${stamp(sheet.lastErrorAt)})` : ''}`}>
+          <p>{sheet.lastError}</p>
+        </Callout>
+      )}
+      <ErrorLine error={formError} />
+      {message && <p role="status">{message}</p>}
+      <div className="mpmb-actions">
+        <Button variant="secondary" loading={busy === 'save'} onClick={() => void run('save')}>
+          Save
+        </Button>
+        <Button variant="primary" loading={busy === 'sync'} disabled={!theUrl} onClick={() => void run('sync')}>
+          Sync now
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+/** Record who a school approved (several at once), or take an approval back; the project manager only. */
+function SchoolApprovals({ school }: { school: School }) {
+  const { value, error, load } = useLoad<{ people: PersonRow[] }>('people');
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const people = (value?.people ?? []).filter((p) => p.status === 'active');
+  const approved = (p: PersonRow) => (p.approvals ?? []).find((a) => a.schoolId === school.id);
+  const run = async (approve: boolean) => {
+    setBusy(true);
+    setFormError(null);
+    try {
+      await ask('approve-for-school', { schoolId: school.id, uids: chosen, approved: approve });
+      setMessage(`${approve ? 'Recorded' : 'Taken off'}: ${chosen.length} ${chosen.length === 1 ? 'person' : 'people'}.`);
+      setChosen([]);
+      await load();
+    } catch (e) {
+      setFormError(messageOf(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Loading error={error}>
+      <fieldset className="mpmb-tools__days" aria-label={`Approved by ${school.name}`}>
+        <legend className="mpmb-label">Approved by {school.name}</legend>
+        <p className="mpmb-hint">{school.requireApproval ? 'This school books only people it has approved.' : 'Recorded for the sheet; booking does not need it unless you tick “Only book people this school has approved”.'}</p>
+        {['ra', 'team'].map((group) => (
+          <div key={group}>
+            <p className="mpmb-label">{group === 'ra' ? 'Research assistants' : 'Research team'}</p>
+            {people
+              .filter((p) => (group === 'ra' ? p.role === 'ra' : p.role !== 'ra'))
+              .map((p) => {
+                const a = approved(p);
+                return (
+                  <label key={p.uid} className="mpmb-portal__inline">
+                    <input type="checkbox" checked={chosen.includes(p.uid)} onChange={(e) => setChosen(e.target.checked ? [...chosen, p.uid] : chosen.filter((x) => x !== p.uid))} /> {p.name}
+                    {a ? ` · approved${a.at ? ` ${shortDate(a.at.slice(0, 10))}` : ''}${a.byName ? ` (recorded by ${a.byName})` : ''}` : ''}
+                  </label>
+                );
+              })}
+          </div>
+        ))}
+        <ErrorLine error={formError} />
+        {message && <p role="status">{message}</p>}
+        <div className="mpmb-actions">
+          <Button variant="secondary" onClick={() => setChosen(people.filter((p) => !approved(p)).map((p) => p.uid))}>
+            Tick everyone not yet approved
+          </Button>
+          <Button variant="primary" loading={busy} disabled={!chosen.length} onClick={() => void run(true)}>
+            Mark approved
+          </Button>
+          <Button variant="ghost" disabled={!chosen.length || busy} onClick={() => void run(false)}>
+            Take approval off
+          </Button>
+        </div>
+      </fieldset>
+    </Loading>
   );
 }
 

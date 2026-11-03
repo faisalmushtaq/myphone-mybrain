@@ -51,11 +51,12 @@ const TEAM_ACTIONS = new Set([
   'send-school-email',
   'set-time-note',
   'team-email-preview',
+  'sheet-status',
   'send-team-email',
 ]);
-const PM_ACTIONS = new Set(['requests', 'approve', 'reject', 'set-role', 'archive', 'restore', 'verify-document', 'settings', 'save-settings', 'audit', 'override', 'remove-confirmed', 'save-doc-details', 'make-dbs-password', 'close-dbs-access']);
+const PM_ACTIONS = new Set(['requests', 'approve', 'reject', 'set-role', 'archive', 'restore', 'verify-document', 'settings', 'save-settings', 'audit', 'override', 'remove-confirmed', 'save-doc-details', 'make-dbs-password', 'close-dbs-access', 'approve-for-school', 'save-sheet', 'sync-sheet']);
 /** Every active user, for themselves. */
-const SELF_ACTIONS = new Set(['me', 'my-summary', 'my-training', 'claim-session', 'delete-claim', 'update-profile', 'notifications', 'mark-read', 'register-document', 'document-url', 'set-availability', 'open-visits', 'set-interest', 'respond-offer', 'canvass-answer', 'push-key', 'push-subscribe', 'push-unsubscribe', 'push-test']);
+const SELF_ACTIONS = new Set(['me', 'my-summary', 'my-training', 'claim-session', 'delete-claim', 'update-profile', 'notifications', 'mark-read', 'register-document', 'document-url', 'set-availability', 'open-visits', 'set-interest', 'respond-offer', 'canvass-answer', 'push-key', 'push-subscribe', 'push-unsubscribe', 'push-test', 'set-dbs-applied']);
 /** Anyone signed in with a checked email, active or not: asking for an account, and seeing where the request stands. */
 const OPEN_ACTIONS = new Set(['me', 'request-access']);
 
@@ -81,16 +82,33 @@ export interface DocType {
   expires?: boolean;
 }
 
-/** The two jobs on a school visit day (4 November 2026). */
-export type DayRole = 'eeg' | 'copro';
-export const DAY_ROLES: DayRole[] = ['eeg', 'copro'];
-export const DAY_ROLE_LABEL: Record<DayRole, string> = { eeg: 'EEG', copro: 'Co-production' };
-export const isDayRole = (v: unknown): v is DayRole => v === 'eeg' || v === 'copro';
+/**
+ * The jobs on a school visit day: EEG and co-production (4 November 2026),
+ * and the research leads, members of the research team who run the day
+ * (5 November 2026).
+ */
+export type DayRole = 'eeg' | 'copro' | 'lead';
+export const DAY_ROLES: DayRole[] = ['eeg', 'copro', 'lead'];
+export const DAY_ROLE_LABEL: Record<DayRole, string> = { eeg: 'EEG', copro: 'Co-production', lead: 'Lead' };
+export const isDayRole = (v: unknown): v is DayRole => v === 'eeg' || v === 'copro' || v === 'lead';
+/** The jobs a research assistant can be set up for (leads are the research team). */
+export const RA_ROLES: DayRole[] = ['eeg', 'copro'];
 /** How many people each job needs on a day. */
 export interface RoleNeeds {
   eeg: number;
   copro: number;
+  lead: number;
 }
+
+/** Where someone stands on training, as the team records it (5 November 2026). */
+export type SignOff = 'not-trained' | 'assess' | 'signed-off';
+export const SIGN_OFFS: SignOff[] = ['not-trained', 'assess', 'signed-off'];
+export const SIGN_OFF_LABEL: Record<SignOff, string> = { 'not-trained': 'Not trained', assess: 'Will assess in pilot', 'signed-off': 'Signed off' };
+export const signOffOf = (v: unknown): SignOff => (v === 'assess' || v === 'signed-off' ? v : 'not-trained');
+
+/** A DBS in plain terms (5 November 2026): checked and in date, under way, nothing yet, or run out. */
+export type DbsStatus = 'confirmed' | 'processing' | 'starting' | 'expired';
+export const DBS_STATUS_LABEL: Record<DbsStatus, string> = { confirmed: 'Confirmed', processing: 'Processing', starting: 'Starting process', expired: 'Expired' };
 
 /** A status the team gives someone who signed up (never shown to research assistants, apart from "Ready" and "On hold"). */
 export interface StatusTag {
@@ -124,6 +142,8 @@ export interface Settings {
   roleNeeds: RoleNeeds;
   /** "Always copy in": copied into every portal email to people outside the sender (5 November 2026). */
   alwaysCopy: string[];
+  /** Only people the team has signed off on training can be booked (5 November 2026; off unless the project manager turns it on). */
+  requireSignOff: boolean;
 }
 
 export const DEFAULT_TAGS: StatusTag[] = [
@@ -142,14 +162,36 @@ export const DEFAULT_SETTINGS: Settings = {
   dbsValidYears: 3,
   docTypes: [
     { id: 'dbs', label: 'Enhanced DBS certificate', hint: 'A photo or scan of both sides of your enhanced DBS certificate.', dbs: true, expires: true },
-    { id: 'health', label: 'Health form', hint: 'The completed occupational health form.' },
     { id: 'safeguarding', label: 'Safeguarding training certificate', hint: 'Your certificate for the University safeguarding training.', expires: true },
   ],
   withdrawalContact: { name: 'Dr Sarmad Ali', email: 'S.A.Ali1@leeds.ac.uk' },
   tags: DEFAULT_TAGS,
-  roleNeeds: { eeg: 6, copro: 2 },
+  roleNeeds: { eeg: 6, copro: 2, lead: 2 },
   alwaysCopy: ['brainpop@leeds.ac.uk', 'S.A.Ali1@leeds.ac.uk'],
+  requireSignOff: false,
 };
+
+/** The health form: asked for by everyone until 5 November 2026, now by GSAL only (other schools can ask for their own forms). */
+export const HEALTH_FORM: DocType = { id: 'health', label: 'Health form', hint: 'The completed occupational health form.' };
+export const HEALTH_FORM_SCHOOL = 'GSAL';
+
+/**
+ * Moving the health form from everyone's documents to GSAL's own (5 November
+ * 2026), once: settings that still list it for everyone lose it, and GSAL
+ * gains it if it does not have it. Null when there is nothing to do, or it was
+ * done before (the project manager's later choices stand).
+ */
+export function healthFormMove(stored: Record<string, unknown> | undefined, gsalDocs: DocType[]): { docTypes: DocType[] | null; gsalDocs: DocType[] | null } | null {
+  const o = stored ?? {};
+  if ((o.migrations as Record<string, unknown> | undefined)?.healthToGsal) return null;
+  const types = Array.isArray(o.docTypes) ? o.docTypes.map(docTypeOf).filter((t): t is DocType => !!t) : null;
+  const hadHealth = types ? types.some((t) => t.id === HEALTH_FORM.id) : true;
+  const health = types?.find((t) => t.id === HEALTH_FORM.id) ?? HEALTH_FORM;
+  return {
+    docTypes: types && hadHealth ? types.filter((t) => t.id !== HEALTH_FORM.id) : null,
+    gsalDocs: hadHealth && !gsalDocs.some((t) => t.id === HEALTH_FORM.id) ? [...gsalDocs, health] : null,
+  };
+}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 function contactOf(v: unknown): { name: string; email: string } {
@@ -191,6 +233,7 @@ export function settingsOf(v: unknown): Settings {
     tags: tagsSetting(o.tags),
     roleNeeds: roleNeedsOf(o.roleNeeds) ?? DEFAULT_SETTINGS.roleNeeds,
     alwaysCopy: Array.isArray(o.alwaysCopy) ? [...new Map(o.alwaysCopy.map((e) => text(e, 200)).filter((e) => EMAIL_RE.test(e)).map((e) => [e.toLowerCase(), e])).values()].slice(0, 5) : DEFAULT_SETTINGS.alwaysCopy,
+    requireSignOff: o.requireSignOff === true,
   };
 }
 
@@ -222,14 +265,16 @@ function tagsSetting(v: unknown): StatusTag[] {
   return out.length ? out.slice(0, 30) : DEFAULT_TAGS;
 }
 
-/** People needed for each job; null when not given or none at all. */
-export function roleNeedsOf(v: unknown): RoleNeeds | null {
+/** People needed for each job; null when not given or none at all. Numbers saved before leads (5 November 2026) take the default number of leads. */
+export function roleNeedsOf(v: unknown, leadDefault = DEFAULT_SETTINGS.roleNeeds.lead): RoleNeeds | null {
   if (!v || typeof v !== 'object') return null;
   const o = v as Record<string, unknown>;
   const eeg = Number(o.eeg);
   const copro = Number(o.copro);
-  if (!Number.isInteger(eeg) || !Number.isInteger(copro) || eeg < 0 || copro < 0 || eeg > 30 || copro > 30 || eeg + copro < 1) return null;
-  return { eeg, copro };
+  const lead = o.lead === undefined || o.lead === null || o.lead === '' ? leadDefault : Number(o.lead);
+  const ok = (n: number) => Number.isInteger(n) && n >= 0 && n <= 30;
+  if (!ok(eeg) || !ok(copro) || !ok(lead) || eeg + copro + lead < 1) return null;
+  return { eeg, copro, lead };
 }
 
 /** The tags someone has that the settings still know (in the settings' order). */
@@ -352,7 +397,15 @@ export interface Eligibility {
  * the visit's day, every required document (the school's too) verified and in
  * date, and at least the set number of training sessions and pilots.
  */
-export function eligibilityFor(uid: string, docs: Map<string, PortalDoc>, requirements: Requirement[], counts: Counts, settings: Settings, visitDate: string): Eligibility {
+export interface EligibilityExtras {
+  /** A member of the research team booked as a lead: documents count, training numbers do not. */
+  lead?: boolean;
+  signOff?: SignOff;
+  /** The school only books people it has approved, and whether it approved this person. */
+  schoolApproval?: { required: boolean; approved: boolean; schoolName: string };
+}
+
+export function eligibilityFor(uid: string, docs: Map<string, PortalDoc>, requirements: Requirement[], counts: Counts, settings: Settings, visitDate: string, extras: EligibilityExtras = {}): Eligibility {
   const reasons: string[] = [];
   for (const { type, schoolId } of requirements) {
     const doc = docs.get(`${uid}|${type.id}|${schoolId ?? ''}`);
@@ -363,15 +416,36 @@ export function eligibilityFor(uid: string, docs: Map<string, PortalDoc>, requir
     else if (state === 'rejected') reasons.push(`${name}: not accepted${doc?.note ? ` (${doc.note})` : ''}`);
     else if (state === 'expired') reasons.push(`${name}: out of date by the visit`);
   }
-  if (counts.training < settings.minTraining) reasons.push(`Training: ${counts.training} of ${settings.minTraining}`);
-  if (counts.pilots < settings.minPilots) reasons.push(`Pilots: ${counts.pilots} of ${settings.minPilots}`);
+  if (!extras.lead) {
+    if (counts.training < settings.minTraining) reasons.push(`Training: ${counts.training} of ${settings.minTraining}`);
+    if (counts.pilots < settings.minPilots) reasons.push(`Pilots: ${counts.pilots} of ${settings.minPilots}`);
+    if (settings.requireSignOff && (extras.signOff ?? 'not-trained') !== 'signed-off') reasons.push(`Training sign-off: ${SIGN_OFF_LABEL[extras.signOff ?? 'not-trained'].toLowerCase()}`);
+  }
+  if (extras.schoolApproval?.required && !extras.schoolApproval.approved) reasons.push(`Not yet approved by ${extras.schoolApproval.schoolName}`);
   return { eligible: reasons.length === 0, reasons };
+}
+
+/**
+ * Someone's DBS in plain terms: Confirmed (checked, and in date on the day),
+ * Expired (checked, but run out), Processing (uploaded and waiting to be
+ * checked, or they told us they have applied), else Starting process.
+ */
+export function dbsStatusOf(uid: string, docs: Map<string, PortalDoc>, settings: Settings, onDate: string, applied: boolean): DbsStatus {
+  const types = settings.docTypes.filter((t) => t.dbs);
+  let best: DbsStatus = applied ? 'processing' : 'starting';
+  for (const type of types) {
+    const state = docState(docs.get(`${uid}|${type.id}|`), type, settings, onDate);
+    if (state === 'verified' || state === 'expiring-soon') return 'confirmed';
+    if (state === 'expired') best = 'expired';
+    else if (state === 'uploaded' && best !== 'expired') best = 'processing';
+  }
+  return best;
 }
 
 export function countsFor(uid: string, sessions: { kind: string; attendees: string[]; role?: string | null }[]): Counts {
   let training = 0;
   let pilots = 0;
-  const byRole: Record<DayRole, number> = { eeg: 0, copro: 0 };
+  const byRole: Record<DayRole, number> = { eeg: 0, copro: 0, lead: 0 };
   for (const s of sessions) {
     if (!s.attendees.includes(uid)) continue;
     if (s.kind === 'training') {
@@ -438,6 +512,7 @@ export interface VisitDay {
   /** The day's own numbers for each job, when they differ from the visit's. */
   eeg?: number;
   copro?: number;
+  lead?: number;
   /** The day's own arrival and taxi times, when they differ from the visit's travel. */
   arrival?: string;
   taxiTime?: string;
@@ -495,15 +570,16 @@ const dayNeed = (v: unknown): number | undefined => {
   return Number.isInteger(n) && n >= 0 && n <= 30 ? n : undefined;
 };
 
-export function periodDays(startDate: string, endDate: string, start: string, end: string, overrides: { date: string; on?: boolean; start?: string; end?: string; eeg?: unknown; copro?: unknown; arrival?: unknown; taxiTime?: unknown }[] = []): VisitDay[] {
+export function periodDays(startDate: string, endDate: string, start: string, end: string, overrides: { date: string; on?: boolean; start?: string; end?: string; eeg?: unknown; copro?: unknown; lead?: unknown; arrival?: unknown; taxiTime?: unknown }[] = []): VisitDay[] {
   const out: VisitDay[] = [];
   for (let d = startDate, n = 0; d <= endDate && n < MAX_VISIT_DAYS; d = addDaysIso(d, 1), n += 1) {
     const o = overrides.find((x) => x.date === d);
     const eeg = dayNeed(o?.eeg);
     const copro = dayNeed(o?.copro);
+    const lead = dayNeed(o?.lead);
     const arrival = typeof o?.arrival === 'string' && TIME.test(o.arrival) ? o.arrival : undefined;
     const taxiTime = typeof o?.taxiTime === 'string' && TIME.test(o.taxiTime) ? o.taxiTime : undefined;
-    out.push({ date: d, on: typeof o?.on === 'boolean' ? o.on : !weekend(d), start: o?.start && TIME.test(o.start) ? o.start : start, end: o?.end && TIME.test(o.end) ? o.end : end, ...(eeg !== undefined ? { eeg } : {}), ...(copro !== undefined ? { copro } : {}), ...(arrival ? { arrival } : {}), ...(taxiTime ? { taxiTime } : {}) });
+    out.push({ date: d, on: typeof o?.on === 'boolean' ? o.on : !weekend(d), start: o?.start && TIME.test(o.start) ? o.start : start, end: o?.end && TIME.test(o.end) ? o.end : end, ...(eeg !== undefined ? { eeg } : {}), ...(copro !== undefined ? { copro } : {}), ...(lead !== undefined ? { lead } : {}), ...(arrival ? { arrival } : {}), ...(taxiTime ? { taxiTime } : {}) });
   }
   return out;
 }
@@ -527,10 +603,10 @@ export function validateVisit(input: unknown, schoolIds: string[], today: string
   if (!location) problems.push('Say where: an address, a room or a meeting point.');
   // How many for each job; a visit saved before 4 November 2026 had one number of research assistants, all on EEG.
   const needed = Number(o.needed);
-  const roleNeeds = o.roleNeeds !== undefined ? roleNeedsOf(o.roleNeeds) : o.needed !== undefined ? (Number.isInteger(needed) && needed >= 1 && needed <= 30 ? { eeg: needed, copro: 0 } : null) : defaults;
-  if (!roleNeeds) problems.push('Say how many people are needed for EEG and for co-production (0 to 30 each, at least one in all).');
+  const roleNeeds = o.roleNeeds !== undefined ? roleNeedsOf(o.roleNeeds, defaults.lead) : o.needed !== undefined ? (Number.isInteger(needed) && needed >= 1 && needed <= 30 ? { eeg: needed, copro: 0, lead: defaults.lead } : null) : defaults;
+  if (!roleNeeds) problems.push('Say how many people are needed for EEG, co-production and leads (0 to 30 each, at least one in all).');
   if (problems.length) return { visit: null, problems };
-  const overrides = (Array.isArray(o.days) ? o.days : []).filter((d): d is Record<string, unknown> => !!d && typeof d === 'object').map((d) => ({ date: String(d.date ?? ''), on: typeof d.on === 'boolean' ? d.on : undefined, start: typeof d.start === 'string' ? d.start : undefined, end: typeof d.end === 'string' ? d.end : undefined, eeg: d.eeg, copro: d.copro, arrival: d.arrival, taxiTime: d.taxiTime }));
+  const overrides = (Array.isArray(o.days) ? o.days : []).filter((d): d is Record<string, unknown> => !!d && typeof d === 'object').map((d) => ({ date: String(d.date ?? ''), on: typeof d.on === 'boolean' ? d.on : undefined, start: typeof d.start === 'string' ? d.start : undefined, end: typeof d.end === 'string' ? d.end : undefined, eeg: d.eeg, copro: d.copro, lead: d.lead, arrival: d.arrival, taxiTime: d.taxiTime }));
   for (const d of overrides) {
     if ((d.start && !TIME.test(d.start)) || (d.end && !TIME.test(d.end))) problems.push(`${d.date}: give times like 08:30.`);
   }
@@ -539,7 +615,7 @@ export function validateVisit(input: unknown, schoolIds: string[], today: string
   if (!days.some((d) => d.on)) problems.push('Choose at least one day the visit runs.');
   for (const d of includedDays(days)) {
     const n = needsOn(d, roleNeeds!);
-    if (n.eeg + n.copro < 1) problems.push(`${d.date}: nobody is needed that day; switch the day off instead.`);
+    if (n.eeg + n.copro + n.lead < 1) problems.push(`${d.date}: nobody is needed that day; switch the day off instead.`);
   }
   if (problems.length) return { visit: null, problems };
   return { visit: { schoolId: o.schoolId as string, startDate: startDate as string, endDate: endDate as string, start: o.start as string, end: o.end as string, days, location, roleNeeds: roleNeeds!, travel: travelOf(o.travel), notes: text(o.notes, 1000) }, problems };
@@ -569,9 +645,10 @@ export function normaliseVisit(x: Record<string, unknown>, defaults: RoleNeeds =
     ? raw.filter((d) => isIsoDate(d?.date)).map((d) => {
         const eeg = dayNeed(d.eeg);
         const copro = dayNeed(d.copro);
+        const lead = dayNeed(d.lead);
         const arrival = typeof d.arrival === 'string' && TIME.test(d.arrival) ? d.arrival : undefined;
         const taxiTime = typeof d.taxiTime === 'string' && TIME.test(d.taxiTime) ? d.taxiTime : undefined;
-        return { date: String(d.date), on: d.on !== false, start: typeof d.start === 'string' && TIME.test(d.start) ? d.start : start, end: typeof d.end === 'string' && TIME.test(d.end) ? d.end : end, ...(eeg !== undefined ? { eeg } : {}), ...(copro !== undefined ? { copro } : {}), ...(arrival ? { arrival } : {}), ...(taxiTime ? { taxiTime } : {}) };
+        return { date: String(d.date), on: d.on !== false, start: typeof d.start === 'string' && TIME.test(d.start) ? d.start : start, end: typeof d.end === 'string' && TIME.test(d.end) ? d.end : end, ...(eeg !== undefined ? { eeg } : {}), ...(copro !== undefined ? { copro } : {}), ...(lead !== undefined ? { lead } : {}), ...(arrival ? { arrival } : {}), ...(taxiTime ? { taxiTime } : {}) };
       })
     : isIsoDate(x.date)
       ? [{ date: x.date, on: true, start, end }]
@@ -579,13 +656,13 @@ export function normaliseVisit(x: Record<string, unknown>, defaults: RoleNeeds =
   days.sort((a, b) => a.date.localeCompare(b.date));
   const location = text(x.location, 200) || text(x.meetingPoint, 200);
   const needed = Number(x.needed);
-  const roleNeeds = roleNeedsOf(x.roleNeeds) ?? (Number.isInteger(needed) && needed >= 1 ? { eeg: needed, copro: 0 } : defaults);
+  const roleNeeds = roleNeedsOf(x.roleNeeds, defaults.lead) ?? (Number.isInteger(needed) && needed >= 1 ? { eeg: needed, copro: 0, lead: defaults.lead } : defaults);
   return { startDate: days[0]?.date ?? String(x.date ?? ''), endDate: days.at(-1)?.date ?? String(x.date ?? ''), start, end, days, location, roleNeeds, travel: travelOf(x.travel) };
 }
 
 /** The numbers each job needs on a day: the day's own, else the visit's. */
 export function needsOn(day: VisitDay, roleNeeds: RoleNeeds): RoleNeeds {
-  return { eeg: day.eeg ?? roleNeeds.eeg, copro: day.copro ?? roleNeeds.copro };
+  return { eeg: day.eeg ?? roleNeeds.eeg, copro: day.copro ?? roleNeeds.copro, lead: day.lead ?? roleNeeds.lead };
 }
 
 /** The days a visit runs. */
@@ -653,6 +730,7 @@ export interface DayCoverage {
   end: string;
   eeg: { need: number; offered: number; confirmed: number };
   copro: { need: number; offered: number; confirmed: number };
+  lead: { need: number; offered: number; confirmed: number };
 }
 
 /** For each day the visit runs: each job's need, and how many hold an open offer or a confirmed place. */
@@ -660,14 +738,15 @@ export function coverageByDay(days: VisitDay[], roleNeeds: RoleNeeds, assignment
   return includedDays(days).map((d) => {
     const need = needsOn(d, roleNeeds);
     const count = (role: DayRole, status: AssignmentStatus) => assignments.filter((a) => a.role === role && a.status === status && a.dates.includes(d.date)).length;
-    return { date: d.date, start: d.start, end: d.end, eeg: { need: need.eeg, offered: count('eeg', 'offered'), confirmed: count('eeg', 'confirmed') }, copro: { need: need.copro, offered: count('copro', 'offered'), confirmed: count('copro', 'confirmed') } };
+    const job = (role: DayRole) => ({ need: need[role], offered: count(role, 'offered'), confirmed: count(role, 'confirmed') });
+    return { date: d.date, start: d.start, end: d.end, eeg: job('eeg'), copro: job('copro'), lead: job('lead') };
   });
 }
 
 /** Every day the visit runs has enough confirmed people for both jobs. */
 export function fullyStaffed(days: VisitDay[], roleNeeds: RoleNeeds, assignments: Assignment[]): boolean {
   const cover = coverageByDay(days, roleNeeds, assignments);
-  return cover.length > 0 && cover.every((c) => c.eeg.confirmed >= c.eeg.need && c.copro.confirmed >= c.copro.need);
+  return cover.length > 0 && cover.every((c) => DAY_ROLES.every((r) => c[r].confirmed >= c[r].need));
 }
 
 /** Places still open on a day for a job: needed, less those offered and those confirmed. */
@@ -724,11 +803,11 @@ export function planOffers(
     }
     seen.add(item.uid);
     if (!args.active.has(item.uid)) {
-      problems.push(`${item.uid} is not an active research assistant.`);
+      problems.push(`${item.uid} is not an active member of the portal who can take this job.`);
       continue;
     }
     if (!isDayRole(item.role)) {
-      problems.push(`${item.uid}: choose EEG or co-production.`);
+      problems.push(`${item.uid}: choose EEG, co-production or lead.`);
       continue;
     }
     if (!item.dates.length || item.dates.some((d) => !on.has(d))) {
@@ -1171,6 +1250,7 @@ export interface PersonReportRow {
   hours: number;
   eegDays: number;
   coproDays: number;
+  leadDays: number;
 }
 
 export interface VisitReportDay {
@@ -1181,8 +1261,10 @@ export interface VisitReportDay {
   end: string;
   eegNeed: number;
   coproNeed: number;
+  leadNeed: number;
   eegConfirmed: number;
   coproConfirmed: number;
+  leadConfirmed: number;
   attended: string[];
   absent: string[];
   notMarked: string[];
@@ -1200,7 +1282,7 @@ export function buildReport(args: { visits: ReportVisit[]; attendance: Attendanc
   const name = (uid: string) => args.people.find((p) => p.uid === uid)?.name ?? uid;
   const rows = new Map<string, PersonReportRow>();
   const row = (uid: string) => {
-    if (!rows.has(uid)) rows.set(uid, { uid, name: name(uid), offeredDays: 0, confirmedDays: 0, attended: 0, absent: 0, late: 0, leftEarly: 0, hours: 0, eegDays: 0, coproDays: 0 });
+    if (!rows.has(uid)) rows.set(uid, { uid, name: name(uid), offeredDays: 0, confirmedDays: 0, attended: 0, absent: 0, late: 0, leftEarly: 0, hours: 0, eegDays: 0, coproDays: 0, leadDays: 0 });
     return rows.get(uid)!;
   };
   const days: VisitReportDay[] = [];
@@ -1225,6 +1307,7 @@ export function buildReport(args: { visits: ReportVisit[]; attendance: Attendanc
           if (mark === 'left-early') r.leftEarly += 1;
           r.hours += hoursBetween(d.start, d.end);
           if (a.role === 'eeg') r.eegDays += 1;
+          else if (a.role === 'lead') r.leadDays += 1;
           else r.coproDays += 1;
         }
       }
@@ -1237,8 +1320,10 @@ export function buildReport(args: { visits: ReportVisit[]; attendance: Attendanc
         end: d.end,
         eegNeed: need.eeg,
         coproNeed: need.copro,
+        leadNeed: need.lead,
         eegConfirmed: confirmed.filter((a) => a.role === 'eeg').length,
         coproConfirmed: confirmed.filter((a) => a.role === 'copro').length,
+        leadConfirmed: confirmed.filter((a) => a.role === 'lead').length,
         attended: marked((m) => !!m && wasThere(m)),
         absent: marked((m) => m === 'absent'),
         notMarked: marked((m) => !m),
@@ -1577,6 +1662,8 @@ export interface GridDay {
   available: number;
   availableEeg: number;
   availableCopro: number;
+  /** Team members free that day (they can lead). */
+  availableLead: number;
   maybe: number;
   noAnswer: number;
   short: boolean;
@@ -1631,9 +1718,9 @@ export function availabilityGrid(args: {
       if (!day) return [];
       const need = needsOn(day, v.roleNeeds);
       const count = (role: DayRole, status: AssignmentStatus) => v.assignments.filter((s) => s.role === role && s.status === status && s.dates.includes(date)).length;
-      const confirmed = { eeg: count('eeg', 'confirmed'), copro: count('copro', 'confirmed') };
-      const offered = { eeg: count('eeg', 'offered'), copro: count('copro', 'offered') };
-      const short = STAFFED.has(v.status) && (confirmed.eeg < need.eeg || confirmed.copro < need.copro);
+      const confirmed = { eeg: count('eeg', 'confirmed'), copro: count('copro', 'confirmed'), lead: count('lead', 'confirmed') };
+      const offered = { eeg: count('eeg', 'offered'), copro: count('copro', 'offered'), lead: count('lead', 'offered') };
+      const short = STAFFED.has(v.status) && DAY_ROLES.some((r) => confirmed[r] < need[r]);
       return [{ visitId: v.visitId, schoolShort: v.schoolShort, schoolName: v.schoolName, status: v.status, start: day.start, end: day.end, need, confirmed, offered, short }];
     });
     const free = ras.filter((r) => r.cells[i].value && FREE.has(r.cells[i].value!));
@@ -1643,6 +1730,7 @@ export function availabilityGrid(args: {
       available: free.length,
       availableEeg: free.filter((r) => r.person.capabilities.includes('eeg')).length,
       availableCopro: free.filter((r) => r.person.capabilities.includes('copro')).length,
+      availableLead: rows.filter((r) => r.person.role !== 'ra' && r.cells[i].value && FREE.has(r.cells[i].value!)).length,
       maybe: ras.filter((r) => r.cells[i].value === 'maybe').length,
       noAnswer: ras.filter((r) => !r.cells[i].value).length,
       short: dayVisits.some((v) => v.short),

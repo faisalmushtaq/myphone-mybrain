@@ -493,6 +493,16 @@ minutes, in the background:
    (every study's `donations/` and nothing else: no `identifying/`, no
    `schools/upn-uploads/`, no `website-usage/`; identifying data found in such
    a folder is deleted outright).
+   Scope `no-documents` (5 November 2026) is `bids` plus the staff portal's
+   tables (`staff-portal/tables/` and its README), never
+   `staff-portal/documents/` (people's DBS certificates and forms, which stay
+   in the University's own storage; a copy found there is deleted outright).
+   **Adding a Google Drive destination:** install Google Drive for desktop on
+   the Mac and sign in with the study's Google account; make a folder in My
+   Drive (for example `MyPhoneMyBrain`), then run
+   `bash mac-sync-install.sh --add "$HOME/Library/CloudStorage/GoogleDrive-<account>/My Drive/MyPhoneMyBrain" no-documents`
+   (`--list` shows the folders and their scopes). The University OneDrive
+   folder stays `all`.
    With scope `all` the job copies every file the export writes at the top
    and in each study's folder (not just `README.md` and `manifest.json`),
    every folder in each study, and every other top-level folder whole (such
