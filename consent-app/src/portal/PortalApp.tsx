@@ -73,7 +73,7 @@ export function PortalApp() {
       </Shell>
     );
   }
-  if (user === undefined) return <Shell>Loading…</Shell>;
+  if (user === undefined) return <Waiting what="Checking whether you are signed in" retry={() => window.location.reload()} />;
   if (!user) return <SignIn />;
   if (needsVerifying(user)) return <VerifyEmail email={user.email ?? ''} done={async () => setVerified((n) => n + 1)} />;
   if (error)
@@ -87,7 +87,7 @@ export function PortalApp() {
         </Button>
       </Shell>
     );
-  if (!me) return <Shell>Loading…</Shell>;
+  if (!me) return <Waiting what="Opening your account" retry={() => void loadMe()} />;
   if (!me.user || me.user.status === 'rejected') return <RequestAccess email={me.email} rejected={me.user?.status === 'rejected'} done={loadMe} />;
   if (me.user.status === 'pending')
     return (
@@ -114,6 +114,43 @@ export function PortalApp() {
       </Shell>
     );
   return <Portal me={me} reloadMe={loadMe} />;
+}
+
+/** Loading, but never for ever: after 15 seconds it says what it is waiting for, with a way out (4 November 2026). */
+function Waiting({ what, retry }: { what: string; retry: () => void }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setSlow(true), 15_000);
+    return () => window.clearTimeout(t);
+  }, []);
+  return (
+    <Shell>
+      <p role="status">Loading…</p>
+      {slow && (
+        <Callout tone="warning" title="This is taking longer than it should">
+          <p>
+            {what} has not finished. Check your internet connection, then try again. If it keeps happening, sign out and sign in again, or close the page and open
+            myphonemybrain.com/portal/ afresh.
+          </p>
+          <div className="mpmb-actions">
+            <Button
+              variant="primary"
+              onClick={() => {
+                setSlow(false);
+                retry();
+                window.setTimeout(() => setSlow(true), 15_000);
+              }}
+            >
+              Try again
+            </Button>
+            <Button variant="secondary" onClick={() => void leave().then(() => window.location.reload())}>
+              Sign out
+            </Button>
+          </div>
+        </Callout>
+      )}
+    </Shell>
+  );
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
