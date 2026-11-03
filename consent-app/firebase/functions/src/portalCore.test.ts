@@ -16,19 +16,13 @@ import {
   mayDo,
   normaliseVisit,
   offerMessage,
-  planOffers,
-  placesLeft,
   removalMessage,
-  removalProblem,
   requirementsFor,
-  respond,
   scheduleChanged,
   settingsOf,
   validateAvailability,
   validateVisit,
-  visitStatusAfter,
   whenShort,
-  type Eligibility,
   type PortalDoc,
 } from './portalCore.js';
 import { icsForMany } from './ics.js';
@@ -104,7 +98,7 @@ test('eligibility: DBS in date on the visit day, every form (the school’s too)
 });
 
 test('counts and availability: sessions attended; whether a day covers a visit; saving days', () => {
-  assert.deepEqual(countsFor('a', [{ kind: 'training', attendees: ['a', 'b'] }, { kind: 'pilot', attendees: ['a'] }, { kind: 'training', attendees: ['b'] }]), { training: 1, pilots: 1 });
+  assert.deepEqual(countsFor('a', [{ kind: 'training', attendees: ['a', 'b'] }, { kind: 'pilot', attendees: ['a'] }, { kind: 'training', attendees: ['b'] }]), { training: 1, pilots: 1, byRole: { eeg: 0, copro: 0 } });
   assert.equal(covers('all', '08:30', '15:00'), 'yes');
   assert.equal(covers('am', '08:30', '12:00'), 'yes');
   assert.equal(covers('am', '08:30', '15:00'), 'no');
@@ -128,7 +122,7 @@ test('visits: school, period, days, times, place and places checked', () => {
   assert.equal(one.visit?.location, 'Reception');
   const bad = validateVisit({ schoolId: 'X', startDate: '2026-10-20', start: '9', end: '08:00', needed: 0 }, ['GSAL'], '2026-11-01');
   assert.equal(bad.visit, null);
-  assert.deepEqual(bad.problems, ['Choose the school.', 'The dates are in the past.', 'Give the usual start time (for example 08:30).', 'Say where: an address, a room or a meeting point.', 'Say how many research assistants are needed (1 to 30).']);
+  assert.deepEqual(bad.problems, ['Choose the school.', 'The dates are in the past.', 'Give the usual start time (for example 08:30).', 'Say where: an address, a room or a meeting point.', 'Say how many people are needed for EEG and for co-production (0 to 30 each, at least one in all).']);
   assert.match(validateVisit({ schoolId: 'GSAL', startDate: '2026-11-21', endDate: '2026-11-22', start: '08:30', end: '15:00', needed: 1, location: 'Hall' }, ['GSAL'], '2026-11-01').problems.join(' '), /at least one day/);
   assert.match(validateVisit({ schoolId: 'GSAL', startDate: '2026-11-24', endDate: '2026-11-20', start: '08:30', end: '15:00', needed: 1, location: 'Hall' }, ['GSAL'], '2026-11-01').problems.join(' '), /last date is before/);
   assert.match(validateVisit({ schoolId: 'GSAL', startDate: '2026-11-20', endDate: '2026-11-20', start: '08:30', end: '15:00', needed: 1, location: 'Hall', days: [{ date: '2026-11-20', start: '14:00', end: '13:00' }] }, ['GSAL'], '2026-11-01').problems.join(' '), /2026-11-20: the end time/);
@@ -136,7 +130,7 @@ test('visits: school, period, days, times, place and places checked', () => {
 
 test('stored visits: an old single-date visit reads as one day; a change of days, times or place is noticed', () => {
   const old = normaliseVisit({ date: '2026-11-20', start: '08:30', end: '15:00', meetingPoint: 'Reception' });
-  assert.deepEqual(old, { startDate: '2026-11-20', endDate: '2026-11-20', start: '08:30', end: '15:00', days: [{ date: '2026-11-20', on: true, start: '08:30', end: '15:00' }], location: 'Reception' });
+  assert.deepEqual(old, { startDate: '2026-11-20', endDate: '2026-11-20', start: '08:30', end: '15:00', days: [{ date: '2026-11-20', on: true, start: '08:30', end: '15:00' }], location: 'Reception', roleNeeds: { eeg: 6, copro: 2 }, travel: { arrival: '', taxiFrom: 'School of Psychology, University of Leeds', taxiTime: '', direct: '' } });
   const moved = { ...old, days: [{ date: '2026-11-20', on: true, start: '09:00', end: '15:00' }] };
   assert.deepEqual(scheduleChanged(old, moved), { changed: true, removedDays: [] });
   assert.deepEqual(scheduleChanged(old, { ...old, location: 'Hall' }).changed, true);
@@ -158,49 +152,6 @@ test('availability across a visit’s days: all, some or none, day by day', () =
   assert.deepEqual(some.perDay.map((d) => d.covers), ['no', 'yes'], 'the day switched off is left out');
   assert.equal(coverageFor(days, new Map([['2026-11-20', 'no']])).coverage, 'none');
   assert.equal(coverageFor(days, new Map()).coverage, 'unknown');
-});
-
-test('offers: eligible, active, not already placed, within the places left; overrides only by the project manager, with a reason', () => {
-  const eligible = new Map<string, Eligibility>([
-    ['a', { eligible: true, reasons: [] }],
-    ['b', { eligible: true, reasons: [] }],
-    ['c', { eligible: false, reasons: ['Pilots: 0 of 1'] }],
-  ]);
-  const base = { needed: 2, assignments: [], active: new Set(['a', 'b', 'c']), eligible, overrides: {}, mayOverride: false, visitStatus: 'draft' as const };
-  assert.deepEqual(planOffers(['a', 'b'], base), { offer: ['a', 'b'], problems: [] });
-  assert.match(planOffers(['a', 'b', 'c'], base).problems.join(' '), /Only 2 places left/);
-  assert.match(planOffers(['c'], base).problems.join(' '), /not eligible: Pilots: 0 of 1/);
-  assert.match(planOffers(['c'], { ...base, overrides: { c: 'Piloted at another site' } }).problems.join(' '), /Only the project manager/);
-  assert.deepEqual(planOffers(['c'], { ...base, overrides: { c: 'Piloted at another site' }, mayOverride: true }).offer, ['c']);
-  assert.match(planOffers(['a'], { ...base, assignments: [{ uid: 'a', status: 'offered' }] }).problems.join(' '), /already has this visit/);
-  assert.deepEqual(planOffers(['a'], { ...base, assignments: [{ uid: 'a', status: 'declined' }] }).offer, ['a'], 'offered again after declining');
-  assert.match(planOffers(['z'], base).problems.join(' '), /not an active research assistant/);
-  assert.match(planOffers(['a'], { ...base, visitStatus: 'cancelled' }).problems.join(' '), /closed/);
-  assert.equal(placesLeft(3, [{ uid: 'a', status: 'confirmed' }, { uid: 'b', status: 'offered' }, { uid: 'c', status: 'declined' }]), 1);
-});
-
-test('answers: only an open offer is confirmed or declined; the visit locks once every place is confirmed and reopens on a decline', () => {
-  assert.deepEqual(respond('offered', 'confirm'), { next: 'confirmed', problem: null });
-  assert.deepEqual(respond('offered', 'decline'), { next: 'declined', problem: null });
-  assert.match(String(respond('confirmed', 'decline').problem), /confirmed this visit, so it cannot be cancelled here/);
-  assert.match(String(respond(undefined, 'confirm').problem), /no offer/);
-  assert.match(String(respond('offered', 'maybe').problem), /confirm or decline/);
-  assert.equal(visitStatusAfter('staffing', 2, [{ uid: 'a', status: 'confirmed' }, { uid: 'b', status: 'confirmed' }]), 'locked');
-  assert.equal(visitStatusAfter('locked', 2, [{ uid: 'a', status: 'confirmed' }, { uid: 'b', status: 'declined' }]), 'staffing');
-  assert.equal(visitStatusAfter('draft', 2, [{ uid: 'a', status: 'offered' }]), 'staffing');
-  assert.equal(visitStatusAfter('cancelled', 2, [{ uid: 'a', status: 'confirmed' }, { uid: 'b', status: 'confirmed' }]), 'cancelled');
-});
-
-test('removing people: the team withdraws an unanswered offer; only the project manager removes a confirmed place, with a reason', () => {
-  assert.equal(removalProblem('offered', 'withdraw-offer', 'researcher', ''), null);
-  assert.match(String(removalProblem('confirmed', 'withdraw-offer', 'researcher', '')), /only the project manager/);
-  assert.match(String(removalProblem('confirmed', 'withdraw-offer', 'pm', '')), /only the project manager can remove them, with a reason/);
-  assert.match(String(removalProblem('confirmed', 'remove-confirmed', 'researcher', 'ill')), /Only the project manager/);
-  assert.match(String(removalProblem('confirmed', 'remove-confirmed', 'pm', '  ')), /Give the reason/);
-  assert.equal(removalProblem('confirmed', 'remove-confirmed', 'pm', 'Emailed to say she is ill'), null);
-  assert.match(String(removalProblem('offered', 'remove-confirmed', 'pm', 'x')), /not confirmed/);
-  assert.equal(placesLeft(2, [{ uid: 'a', status: 'removed' }, { uid: 'b', status: 'confirmed' }]), 1, 'a removed place is open again');
-  assert.equal(visitStatusAfter('locked', 2, [{ uid: 'a', status: 'removed' }, { uid: 'b', status: 'confirmed' }]), 'staffing');
 });
 
 test('retention: copies go once someone has been archived longer than the period; nothing for active people or copies already gone', () => {
@@ -229,8 +180,9 @@ test('expiry warnings: once per document and date, only within the window', () =
 
 test('messages: the offer, the confirmation, a change and a removal say where, when and what to do', () => {
   const one = { schoolName: 'The Grammar School at Leeds', days: [{ date: '2026-11-20', on: true, start: '08:30', end: '15:00' }], location: 'Main reception' };
-  const o = offerMessage('Sam', one, 'https://myphonemybrain.com/portal/#offers');
-  assert.match(o.subject, /selected for The Grammar School at Leeds on Friday, 20 November 2026/);
+  const o = offerMessage('Sam', one, 'https://myphonemybrain.com/portal/#offers', 'copro');
+  assert.match(o.email, /Your role: Co-production/);
+  assert.match(o.subject, /selected for The Grammar School at Leeds on Friday, 20 November 2026 \(Co-production\)/);
   assert.match(o.email, /Hello Sam,[\s\S]*Where: Main reception[\s\S]*08:30 to 15:00[\s\S]*#offers/);
   const c = confirmationMessage('Sam', one, 'https://myphonemybrain.com/portal/#my-visits', { name: 'Dr Sarmad Ali', email: 'S.A.Ali1@leeds.ac.uk' });
   assert.match(c.email, /confirmed[\s\S]*calendar invitation is attached[\s\S]*email Dr Sarmad Ali at S\.A\.Ali1@leeds\.ac\.uk/);

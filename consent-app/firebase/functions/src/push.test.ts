@@ -67,9 +67,10 @@ test('provisional answers: per day it runs, can do, maybe or can’t do; only wh
 });
 
 test('provisional visits: no offers; the status holds while answers come in', () => {
-  const base = { needed: 1, assignments: [], active: new Set(['a']), eligible: new Map([['a', { eligible: true, reasons: [] }]]), overrides: {}, mayOverride: true, visitStatus: 'provisional' as const };
-  assert.match(planOffers(['a'], base).problems.join(' '), /provisional/);
-  assert.equal(visitStatusAfter('provisional', 1, []), 'provisional');
+  const days = [{ date: '2026-11-20', on: true, start: '08:30', end: '15:00' }];
+  const base = { days, roleNeeds: { eeg: 1, copro: 0 }, assignments: [], active: new Set(['a']), eligible: new Map([['a', { eligible: true, reasons: [] }]]), capabilities: new Map([['a', ['eeg' as const]]]), overrides: {}, mayOverride: true, visitStatus: 'provisional' as const };
+  assert.match(planOffers([{ uid: 'a', role: 'eeg', dates: ['2026-11-20'] }], base).problems.join(' '), /provisional/);
+  assert.equal(visitStatusAfter('provisional', days, { eeg: 1, copro: 0 }, []), 'provisional');
 });
 
 test('notification choices: new dates by push and by email unless switched off', () => {

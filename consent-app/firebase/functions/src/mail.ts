@@ -44,6 +44,10 @@ export interface Mail extends TeamMessage {
   to: string;
   /** A copy, for example to the study's contact for every booking. */
   cc?: string;
+  /** Blind copies, for one email to many people (the portal's team emails). */
+  bcc?: string;
+  /** An HTML version beside the plain text. */
+  html?: string;
   attachments?: Attachment[];
 }
 
@@ -101,7 +105,7 @@ export async function sendMail(message: Mail, settings: MailSettings | null = se
       greetingTimeout: 10_000,
       socketTimeout: 20_000,
     });
-    await transport.sendMail({ from: settings.from, to: message.to, cc: message.cc, replyTo: message.replyTo, subject: message.subject, text: message.text, attachments: message.attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })) });
+    await transport.sendMail({ from: settings.from, to: message.to, cc: message.cc, bcc: message.bcc, replyTo: message.replyTo, subject: message.subject, text: message.text, ...(message.html ? { html: message.html } : {}), attachments: message.attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })) });
     return 'sent';
   } catch (error) {
     logger.error('Mail: sending failed', { error: String((error as Error).message ?? error) });
