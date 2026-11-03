@@ -150,9 +150,9 @@ export interface LabInfoSection {
  * texts, visits, storage, linkage and open data). 2.2 (the sheet of 21 February 2026, ages 18 to 24) is still accepted from
  * pages loaded before the change. Consents record the version they were shown.
  */
-export const labInformationVersion = { version: '2.3', label: 'Participant information sheet, version 2.3 (October 2026)' };
+export const labInformationVersion = { version: '2.4', label: 'Participant information sheet, version 2.4 (November 2026)' };
 /** Earlier versions the server still accepts with a consent, for anyone who loaded the page before an update. */
-export const labEarlierInformationVersions = { break: ['2.2'], control: ['2.2-control'] };
+export const labEarlierInformationVersions = { break: ['2.3', '2.2'], control: ['2.3-control', '2.2-control'] };
 
 export const labInformation: LabInfoSection[] = [
   {
@@ -289,7 +289,7 @@ export const labInformation: LabInfoSection[] = [
     summary: 'The University of Leeds is the data controller. Research data are labelled with your participant ID and reported only in group form.',
     detail: [
       'The University of Leeds acts as the Data Controller for this research. Identifiable information will be stored separately from research data. Data will be labelled using a study ID code rather than your name. Results will be analysed, including with machine learning (computers finding patterns in data), and reported anonymously at the group level. Anonymised findings may be published in academic journals, conference presentations, reports, or academic theses.',
-      'We keep your first name, last name, date of birth and postcode, from which your participant ID is made so that you can return on any device, together with your mobile number, email address and consent, separately from the research data. Your screenshots, cleaned data files, answers, MyStory conversations and laboratory recordings are labelled with your participant ID. Information given online is stored on the study’s secure system (Google Firebase, London) and copied every hour to restricted University of Leeds storage in the lead researcher’s University OneDrive. Text messages are sent through Twilio and emails from a University of Leeds mailbox. Questionnaires at the laboratory visits are completed using MySelf, the research team’s own survey app: answers are encrypted on the device as they are given and stored on secure servers in London, with names kept separately from answers. Data are kept for up to 10 years after the project ends.',
+      'We keep your first name, last name, date of birth and postcode, from which your participant ID is made so that you can return on any device, together with your mobile number, email address and consent, separately from the research data. Your screenshots, cleaned data files, answers, MyStory conversations and laboratory recordings are labelled with your participant ID. Information given online is stored on the study’s secure system (Google Firebase, London) and copied every hour to restricted University of Leeds storage in the lead researcher’s University OneDrive. Text messages are sent through Twilio and emails from the study’s Gmail account (brainpopresearch@gmail.com). Questionnaires at the laboratory visits are completed using MySelf, the research team’s own survey app: answers are encrypted on the device as they are given and stored on secure servers in London, with names kept separately from answers. Data are kept for up to 10 years after the project ends.',
       'If you agree, your study information may also be linked through Connected West Yorkshire with records already held about you, including NHS health records, education records (including those held by the Department for Education) and other routinely collected records. This part is optional. Linking takes place once the necessary approvals are in place, including the study’s ethics approval, NHS Research Ethics Committee approval for NHS records, permission from each record holder and Connected West Yorkshire’s data access process. It is carried out within a secure research environment, and linked information is labelled with your participant ID.',
       'Fully anonymised EEG data will be shared openly through research platforms such as G-Node, EEGNet and OpenNeuro so that other researchers can use them. Study data will also be available to approved researchers through the Born in Bradford Executive and listed in the Born in Bradford data dictionary. Linked education and health data stay within Connected West Yorkshire’s secure research environment.',
       'You may request removal of your identifiable research data within one month after your final session. Your identifiers are kept separately from the research data, as they are needed for linkage. After this period, or once data have been anonymised or used in analyses, withdrawal may no longer be complete, and we will remove everything we still can.',
@@ -519,7 +519,7 @@ export const labConsentFormControl: typeof labConsentForm = {
 /** Earlier consent forms the server still accepts, for anyone who loaded the page before an update. */
 export const labEarlierConsentForms = { break: [labConsentFormV2_1], control: [labConsentFormControlV1_1] };
 
-export const labInformationVersionControl = { version: '2.3-control', label: 'Participant information sheet, version 2.3 (October 2026), for the control group' };
+export const labInformationVersionControl = { version: '2.4-control', label: 'Participant information sheet, version 2.4 (November 2026), for the control group' };
 
 const controlSections: Record<string, Partial<LabInfoSection>> = {
   purpose: {

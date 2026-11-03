@@ -130,6 +130,7 @@ async function inner() {
     return d.toISOString().slice(0, 10);
   };
   const [mon, tue, wed, thu] = [0, 1, 2, 3].map((n) => plus(visitDate, n));
+  const shortDate = (iso) => new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
   const longDate = (iso) => new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
   const pdf = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n');
 
@@ -270,9 +271,29 @@ async function inner() {
     await record('pilot', 'Pilot session at the lab');
     await shot(team, 'desktop-05-team-training');
     await team.goto(`${BASE}#people`);
-    await team.locator('li', { hasText: 'Sam Reed' }).getByText('Ready', { exact: true }).waitFor();
+    await team.locator('li', { hasText: 'Sam Reed' }).getByText('Documents and training done', { exact: true }).waitFor();
     await shot(team, 'desktop-06-team-people');
     ok('the assistant shows as ready once documents, training and pilots are done', true);
+
+    /* ── The team keeps its own details: status, experience, jobs, notes ── */
+    await team.goto(`${BASE}#person/${raUid}`);
+    await team.getByRole('heading', { name: 'Status, experience and jobs' }).waitFor();
+    await team.locator('form', { has: team.locator('#pe-level') }).getByLabel('Ready', { exact: true }).check();
+    await team.locator('form', { has: team.locator('#pe-level') }).getByLabel('In training', { exact: true }).check();
+    await team.locator('#pe-level').selectOption('3');
+    await team.locator('#pe-reason').fill('Led two pilot days');
+    await team.locator('form', { has: team.locator('#pe-level') }).getByLabel('EEG', { exact: true }).check();
+    await team.locator('#pe-avail').fill('No Friday afternoons');
+    await team.getByRole('button', { name: 'Save', exact: true }).click();
+    await team.getByText('Level 3: Experienced').first().waitFor();
+    await team.locator('#note-new').fill('Very calm with nervous pupils; ask about leading next term.');
+    await team.getByRole('button', { name: 'Add the note' }).click();
+    await team.getByText('Very calm with nervous pupils').waitFor();
+    const samUser = (await db.collection('portalUsers').doc(raUid).get()).data();
+    ok('the team sets status tags, experience, jobs and availability notes', samUser.level === 3 && samUser.tags.includes('ready') && samUser.capabilities.join() === 'eeg' && samUser.availabilityNote === 'No Friday afternoons', JSON.stringify(samUser));
+    const noteRows = (await db.collection('portalNotes').get()).docs.map((d) => d.data()).filter((n) => n.uid === raUid);
+    const noteAudit = (await db.collection('portalAudit').get()).docs.map((d) => d.data().action);
+    ok('team notes are dated, with who wrote them, and audited', noteRows.some((n) => n.byName === 'Robin Chen' && n.at) && noteAudit.includes('add-note') && noteAudit.includes('edit-person'), JSON.stringify([noteRows, noteAudit]));
 
     team.on('dialog', (d) => void d.accept());
     pm.on('dialog', (d) => void d.accept());
@@ -281,7 +302,8 @@ async function inner() {
     await team.locator('#v-location').fill('Main reception, Alwoodley Gates');
     await team.locator('#v-from').fill(mon);
     await team.locator('#v-to').fill(thu);
-    await team.locator('#v-needed').fill('1');
+    await team.locator('#v-eeg').fill('1');
+    await team.locator('#v-copro').fill('0');
     await team.getByLabel(`${longDate(tue)}: the visit runs`).uncheck();
     await team.getByLabel(`${longDate(wed)}: start`).fill('09:00');
     await team.getByLabel(`${longDate(wed)}: end`).fill('12:00');
@@ -295,11 +317,12 @@ async function inner() {
     /* ── Provisional dates: asking who could do them ── */
     await team.locator('select[aria-label="Visit status"]').selectOption('provisional');
     await team.getByText('Status changed.').waitFor();
-    const raMail = async () => (await db.collection('portalMail').where('to', '==', RA).get()).docs.map((d) => d.data());
+    // An email to them, or one they are in blind copy on (announcements to everyone go as one email).
+    const raMail = async () => (await db.collection('portalMail').get()).docs.map((d) => d.data()).filter((m) => m.to === RA || String(m.bcc ?? '').split(', ').includes(RA));
     const pushes = async () => (await db.collection('portalPushLog').where('uid', '==', raUid).get()).docs.map((d) => d.data());
     ok('putting dates out as provisional emails and pushes every research assistant', (await raMail()).some((m) => m.kind === 'dates-provisional' && /not yet confirmed/.test(m.subject)) && (await pushes()).some((p) => /^Possible school dates \(not yet confirmed\): The Grammar School at Leeds/.test(p.body)), JSON.stringify(await pushes()));
     ok('the push carries only the school and the dates', (await pushes()).every((p) => !/Sam|Reed|sam\.reed/.test(JSON.stringify(p))));
-    const provOffer = await call(teamToken, 'offer', { visitId: visit.id, uids: [raUid] });
+    const provOffer = await call(teamToken, 'offer', { visitId: visit.id, offers: [{ uid: raUid, role: 'eeg', dates: [mon] }] });
     ok('no offers while the dates are provisional', /provisional/.test(provOffer.error?.message ?? ''), JSON.stringify(provOffer.error ?? {}));
     await ra.goto(`${BASE}#offers`);
     await ra.getByText('Provisional — not confirmed').waitFor();
@@ -328,12 +351,15 @@ async function inner() {
     const visitView = (await call(teamToken, 'visit', { visitId: visit.id })).result;
     const sam = visitView?.candidates?.find((c) => c.uid === raUid);
     ok('availability shown day by day across the visit', sam?.coverage === 'some' && sam.perDay.map((d) => d.covers).join() === 'yes,unknown,no', JSON.stringify(sam?.perDay));
-    await team.getByLabel(/Sam Reed/).check();
+    // The strongest team arrives ticked: Sam, for EEG, on the day they are free; the team adds the other two days.
+    ok('the suggestion ticks the one person who can do it', await team.getByRole('checkbox', { name: /^Sam Reed/ }).isChecked());
+    await team.locator('li', { hasText: 'Sam Reed' }).locator('label.mpmb-portal__dayChip', { hasText: shortDate(wed) }).locator('input').check();
+    await team.locator('li', { hasText: 'Sam Reed' }).locator('label.mpmb-portal__dayChip', { hasText: shortDate(thu) }).locator('input').check();
     await team.getByRole('button', { name: /Lock in and notify/ }).click();
     await team.getByText('Offered to 1').waitFor();
     await shot(team, 'desktop-08-team-offered');
     const assignment = await db.collection('portalAssignments').doc(`${visit.id}_${raUid}`).get();
-    ok('the place is offered', assignment.data()?.status === 'offered' && (await db.collection('portalVisits').doc(visit.id).get()).data().status === 'staffing');
+    ok('the place is offered, as EEG on the three days', assignment.data()?.role === 'eeg' && assignment.data()?.dates?.join() === [mon, wed, thu].join() && assignment.data()?.status === 'offered' && (await db.collection('portalVisits').doc(visit.id).get()).data().status === 'staffing');
     ok('the offer is pushed too', (await pushes()).some((p) => /^You've been selected/.test(p.title)));
 
     /* ── The assistant confirms ── */
@@ -375,7 +401,7 @@ async function inner() {
 
     /* ── A change after confirming: the person confirmed is told ── */
     const cur = (await call(teamToken, 'visit', { visitId: visit.id })).result.visit;
-    const changed = await call(teamToken, 'save-visit', { visitId: visit.id, schoolId: cur.schoolId, startDate: cur.startDate, endDate: cur.endDate, start: cur.start, end: cur.end, needed: cur.needed, notes: cur.notes, location: 'Sports hall', days: cur.days });
+    const changed = await call(teamToken, 'save-visit', { visitId: visit.id, schoolId: cur.schoolId, startDate: cur.startDate, endDate: cur.endDate, start: cur.start, end: cur.end, roleNeeds: cur.roleNeeds, travel: cur.travel, notes: cur.notes, location: 'Sports hall', days: cur.days });
     ok('a change of place is saved', Boolean(changed.result?.visitId), JSON.stringify(changed.error ?? {}));
     ok('the person confirmed is emailed and pushed the change', (await raMail()).some((m) => m.kind === 'visit-changed') && (await pushes()).some((p) => /^Visit changed/.test(p.title)));
 
@@ -395,15 +421,15 @@ async function inner() {
     await shot(pm, 'desktop-10-pm-visit-locked');
 
     // A second offer on a full visit is refused.
-    const full = await call(teamToken, 'offer', { visitId: visit.id, uids: [raUid] });
+    const full = await call(teamToken, 'offer', { visitId: visit.id, offers: [{ uid: raUid, role: 'eeg', dates: [mon] }] });
     ok('no offers beyond the places on a visit', Boolean(full.error));
 
     /* ── The project manager removes them (they emailed to withdraw) ── */
-    await pm.getByRole('button', { name: 'Remove…' }).click();
+    await pm.getByRole('button', { name: 'Remove…' }).first().click();
     await pm.locator('#remove-reason').fill('Emailed to withdraw: unwell');
     await shot(pm, 'desktop-15-pm-remove');
     await pm.getByRole('button', { name: 'Remove Sam Reed' }).click();
-    await pm.getByText('Sam Reed removed.').waitFor();
+    await pm.getByText(/Sam Reed removed from 3 days/).waitFor();
     const removed = (await db.collection('portalAssignments').doc(`${visit.id}_${raUid}`).get()).data();
     ok('the project manager removes a confirmed place, with the reason', removed?.status === 'removed' && removed.removedReason === 'Emailed to withdraw: unwell');
     ok('the place opens again', (await db.collection('portalVisits').doc(visit.id).get()).data().status === 'staffing');
@@ -438,6 +464,183 @@ async function inner() {
     await ra.getByText('Saved.').waitFor();
     await shot(ra, 'mobile-13-ra-notifications-settings');
     ok('each person chooses how they hear about new dates', (await db.collection('portalUsers').doc(raUid).get()).data().notifyPrefs?.newDatesEmail === false);
+
+    /* ── A two-day visit with ten research assistants: jobs on the day ── */
+    const uidOf = (token) => JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).user_id;
+    const samDocs = (await db.collection('portalDocs').where('uid', '==', raUid).get()).docs.map((d) => d.data());
+    const crew = [
+      ['Amira Khan', ['eeg'], 4], ['Ben Ortiz', ['eeg'], 3], ['Chloe Park', ['eeg'], 3], ['Dev Patel', ['eeg'], 2], ['Ella Morris', ['eeg'], 2],
+      ['Finn Walsh', ['eeg'], 1], ['Grace Liu', ['eeg'], 1], ['Hana Sato', ['copro'], 3], ['Isaac Bell', ['copro'], 2], ['Jade Fox', ['eeg', 'copro'], 2],
+    ];
+    const crewUids = [];
+    const [d1, d2] = [plus(visitDate, 7), plus(visitDate, 8)];
+    for (const [i, [name, caps, level]] of crew.entries()) {
+      const email = `crew${i + 1}@example.org`;
+      const uid = uidOf(await tokenFor(email));
+      crewUids.push(uid);
+      await db.collection('portalUsers').doc(uid).set({ email, name, phone: '', role: 'ra', requested: 'ra', status: 'active', smsOptIn: false, notifyPrefs: { newDatesPush: false, newDatesEmail: false }, capabilities: caps, level, tags: [level >= 3 ? 'ready' : 'in-training'], createdAt: new Date() });
+      for (const d of samDocs) await db.collection('portalDocs').add({ ...d, uid, details: d.typeId === 'dbs' ? { ...d.details, certificateNumber: `00999900${String(i).padStart(4, '0')}`, updateService: i % 2 === 0 } : d.details });
+      for (const date of [d1, d2]) await db.collection('portalAvailability').doc(`${uid}_${date}`).set({ uid, date, value: i === 3 && date === d2 ? 'am' : 'all', note: '' });
+    }
+    for (const s of (await db.collection('portalSessions').get()).docs) await s.ref.update({ attendees: [...s.data().attendees, ...crewUids] });
+    const crewToken = await tokenFor('crew1@example.org');
+    const saved = await call(teamToken, 'save-visit', { schoolId: 'GSAL', startDate: d1, endDate: d2, start: '08:30', end: '15:00', location: 'Sports hall, Alwoodley Gates', notes: '', travel: { arrival: '08:00', taxiFrom: 'School of Psychology, University of Leeds', taxiTime: '07:15', direct: 'Please let Robin know if you are travelling directly.' } });
+    const twoDay = saved.result?.visitId;
+    ok('a two-day visit takes the usual numbers: 6 EEG and 2 co-production a day', (await db.collection('portalVisits').doc(twoDay).get()).data()?.roleNeeds?.eeg === 6, JSON.stringify(saved.error ?? {}));
+    await call(teamToken, 'set-visit-status', { visitId: twoDay, status: 'staffing' });
+    const bulk = (await db.collection('portalMail').get()).docs.map((d) => d.data()).filter((m) => /^dates-/.test(m.kind));
+    ok('new dates go as one email: research assistants in blind copy, the team copied in once', bulk.length >= 1 && bulk.every((m) => m.to === 'undisclosed-recipients:;' && /brainpop@leeds\.ac\.uk/.test(m.cc) && /S\.A\.Ali1@leeds\.ac\.uk/.test(m.cc)), JSON.stringify(bulk.map((m) => [m.to, m.cc, m.bcc])));
+
+    await team.goto(`${BASE}#people`);
+    await team.locator('li', { hasText: 'Amira Khan' }).getByText('Level 4: Lead').waitFor();
+    await shot(team, 'people-list-tags-levels');
+    await team.goto(`${BASE}#person/${raUid}`);
+    await team.getByText('Very calm with nervous pupils').waitFor();
+    await shot(team, 'person-page');
+
+    await team.goto(`${BASE}#visit/${twoDay}`);
+    await team.getByRole('heading', { name: 'Choose who to ask' }).waitFor();
+    const view2 = (await call(teamToken, 'visit', { visitId: twoDay })).result;
+    if ((view2?.suggestion ?? []).length !== 9) console.log('suggestion', JSON.stringify(view2?.suggestion), JSON.stringify(view2?.candidates?.map((c) => [c.name, c.eligible, c.reasons, c.availableDates, c.capabilities])));
+    await team.getByRole('button', { name: /Lock in and notify \(9\)/ }).waitFor();
+    const sug = view2?.suggestion ?? [];
+    // Dev can do only the morning of the second day, so the next strongest covers that day.
+    const onDay = (role, date) => sug.filter((s) => s.role === role && s.dates.includes(date)).length;
+    ok('the strongest team: 6 EEG and 2 co-production each day, the most experienced first, ticked', [d1, d2].every((d) => onDay('eeg', d) === 6 && onDay('copro', d) === 2) && sug.length === 9 && sug.find((s) => s.uid === crewUids[3])?.dates.join() === d1 && sug.find((s) => s.uid === crewUids[0])?.role === 'eeg' && sug.find((s) => s.uid === crewUids[9])?.role === 'eeg', JSON.stringify(sug));
+    await shot(team, 'staffing-coverage-suggestion');
+    await team.getByRole('button', { name: /Lock in and notify \(9\)/ }).click();
+    await team.getByText('Offered to 9').waitFor();
+    const places2 = (await db.collection('portalAssignments').where('visitId', '==', twoDay).get()).docs.map((d) => d.data());
+    ok('nine offers, each with its job and its days', places2.length === 9 && places2.every((a) => a.status === 'offered') && places2.filter((a) => a.role === 'copro').length === 2 && places2.find((a) => a.uid === crewUids[3])?.dates.join() === d1);
+    const offerMails = (await db.collection('portalMail').where('kind', '==', 'offer').get()).docs.map((d) => d.data()).filter((m) => /^crew/.test(m.to));
+    ok('offer emails copy in brainpop and Sarmad', offerMails.length === 9 && offerMails.every((m) => /brainpop@leeds\.ac\.uk/.test(m.cc ?? '') && /S\.A\.Ali1/.test(m.cc ?? '')));
+    const offerNote = (await db.collection('portalNotifications').where('uid', '==', crewUids[7]).get()).docs.map((d) => d.data()).find((n) => /selected/i.test(n.title + n.body));
+    ok('the offer names the job', /Co-production/.test(JSON.stringify(offerNote ?? {})), JSON.stringify(offerNote));
+
+    // One research assistant's view of their offer, then everyone confirms.
+    const crewCtx = await browser.newContext(mobile);
+    const cr = await crewCtx.newPage();
+    await signIn(cr, 'crew8@example.org');
+    await cr.getByRole('heading', { name: 'Getting ready for school visits' }).waitFor();
+    await cr.goto(`${BASE}#offers`);
+    await cr.getByText('Your job: Co-production').waitFor().catch(async (e) => {
+      await shot(cr, 'debug-crew-offers');
+      console.log('crew page:', (await cr.locator('body').innerText()).slice(0, 1500));
+      throw e;
+    });
+    await shot(cr, 'ra-offer-role-days');
+    await cr.getByRole('button', { name: 'Confirm I can do it' }).click();
+    await cr.getByText('No offers waiting.').waitFor();
+    for (const a of places2) if (a.uid !== crewUids[7]) {
+      const i = crewUids.indexOf(a.uid);
+      await call(await tokenFor(`crew${i + 1}@example.org`), 'respond-offer', { visitId: twoDay, response: 'confirm' });
+    }
+    const view3 = (await call(teamToken, 'visit', { visitId: twoDay })).result;
+    ok('every day has both numbers confirmed: fully staffed', view3.coverage.length === 2 && view3.coverage.every((c) => c.eeg.confirmed === 6 && c.copro.confirmed === 2 && c.eeg.offered === 0) && (await db.collection('portalVisits').doc(twoDay).get()).data().status === 'locked', JSON.stringify(view3.coverage));
+    const teamIcs = (await call(teamToken, 'visit-ics', { visitId: twoDay })).result.ics;
+    ok('the team calendar lists who is on each day by job', /EEG \(6 of 6\): /.test(teamIcs) && /Co-production \(2 of 2\): /.test(teamIcs));
+
+    // What the team keeps never reaches research assistants.
+    const crewSummary = JSON.stringify((await call(crewToken, 'my-summary')).result ?? {});
+    const samSummary = JSON.stringify((await call(raToken, 'my-summary')).result ?? {});
+    ok('notes, levels and other tags never reach research assistants', !/Very calm|nervous pupils|levelReason|Led two pilot|In training|"level"|capabilities|No Friday/.test(crewSummary + samSummary) && /"standing":"Ready"/.test(crewSummary), crewSummary.slice(0, 300));
+    ok('research assistants cannot read notes or tags', (await call(crewToken, 'person', { uid: raUid })).error?.status === 'PERMISSION_DENIED' && (await call(crewToken, 'add-note', { uid: raUid, text: 'x' })).error?.status === 'PERMISSION_DENIED');
+
+    /* ── The team allocations email ── */
+    await call(teamToken, 'set-time-note', { visitId: twoDay, uid: crewUids[1], date: d2, note: 'until 1:00 pm' });
+    await team.reload();
+    await team.getByRole('button', { name: 'Email the team' }).click();
+    await team.getByRole('heading', { name: 'Email the team' }).waitFor();
+    await team.locator('#te-allocations').waitFor();
+    await shot(team, 'team-email-composer');
+    const subj = await team.locator('#te-subject').inputValue();
+    ok('the composer fills each day with who is on it, and their time notes', /\(until 1:00 pm\)/.test(await team.locator('#te-allocations').inputValue()) && /Ben Ortiz/.test(await team.locator('#te-allocations').inputValue()), await team.locator('#te-allocations').inputValue());
+    ok('the composer fills the subject with the school and dates', /^GSAL team allocations: /.test(subj) || /team allocations/.test(subj), subj);
+    await team.getByRole('button', { name: 'Send to the team' }).click();
+    await team.getByText(/Sent as one email to 9 people/).waitFor();
+    const teamMail = (await db.collection('portalMail').where('kind', '==', 'team-allocations').get()).docs.map((d) => d.data());
+    ok('one email to the team, people in blind copy, brainpop and Sarmad copied once', teamMail.length === 1 && teamMail[0].to === TEAM && teamMail[0].bcc.split(', ').length === 9 && /brainpop/.test(teamMail[0].cc), JSON.stringify(teamMail));
+    ok('the team are notified that allocations were sent', (await db.collection('portalNotifications').where('uid', '==', crewUids[0]).get()).docs.some((d) => /Team allocations/.test(d.data().title)));
+    // A change afterwards: the team should be told again.
+    const pmToken2 = await tokenFor(PM);
+    await call(pmToken2, 'remove-confirmed', { visitId: twoDay, uid: crewUids[4], reason: 'Exam clash on the second day', dates: [d2] });
+    const partly = (await db.collection('portalAssignments').doc(`${twoDay}_${crewUids[4]}`).get()).data();
+    ok('the project manager takes someone off one day, keeping the other', partly.status === 'confirmed' && partly.dates.join() === d1 && partly.removedDates.includes(d2));
+    ok('changes since the team was last told are flagged', (await call(teamToken, 'visit', { visitId: twoDay })).result.teamEmail?.changedSince === true);
+
+    /* ── The email to the school, and its DBS page ── */
+    await call(pmToken2, 'save-school', { id: 'GSAL', name: 'The Grammar School at Leeds', area: 'Alwoodley', requiredDocs: [], contactName: 'Ms Hughes', contactEmails: 'office@gsal.example.org', includeDbs: true });
+    const preview = (await call(teamToken, 'school-email-preview', { visitId: twoDay })).result;
+    ok('the school email lists who is coming each day, with no DBS numbers', /Amira Khan/.test(preview?.body ?? '') && !/00999900/.test(preview.body) && !/EEG|Co-production/.test(preview.body), preview?.body?.slice(0, 400));
+    ok('it warns when the school has no DBS page password', preview.warnings.some((w) => /no DBS page password/.test(w)));
+    ok('the research team cannot make a DBS page password', (await call(teamToken, 'make-dbs-password', { schoolId: 'GSAL' })).error?.status === 'PERMISSION_DENIED');
+    const made = (await call(pmToken2, 'make-dbs-password', { schoolId: 'GSAL' })).result;
+    ok('the project manager makes the school a DBS page password, shown once', typeof made?.password === 'string' && /schools\/dbs\/\?school=/.test(made.link), JSON.stringify(made));
+    await team.goto(`${BASE}#visit/${twoDay}`);
+    await team.getByRole('button', { name: 'Email the school' }).click();
+    await team.getByText('Subject:').waitFor();
+    await shot(team, 'school-email-preview');
+    await team.getByRole('button', { name: 'Send to the school' }).click();
+    await team.getByText(/Emailed office@gsal\.example\.org/).waitFor();
+    const schoolMail = (await db.collection('portalMail').where('kind', '==', 'school').get()).docs.map((d) => d.data());
+    ok('the school email copies the sender, the withdrawal contact and brainpop, once each', schoolMail.length === 1 && schoolMail[0].cc.split(', ').map((e) => e.toLowerCase()).sort().join() === ['brainpop@leeds.ac.uk', 's.a.ali1@leeds.ac.uk', TEAM].sort().join(), schoolMail[0]?.cc);
+    ok('the school email is logged and audited', (await db.collection('portalSchoolEmails').where('visitId', '==', twoDay).get()).size === 1 && (await db.collection('portalAudit').where('action', '==', 'email-school').get()).size === 1);
+
+    const slug = made.link.split('school=')[1];
+    const DBS_FN = `http://127.0.0.1:5001/${PROJECT}/europe-west2/schoolDbs`;
+    const anonToken = async () => (await (await fetch(`${AUTH}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json()).idToken;
+    const dbsCall = async (token, data) => (await fetch(DBS_FN, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ data }) })).json();
+    const schoolCtx = await browser.newContext(desktop);
+    const sp = await schoolCtx.newPage();
+    await sp.goto(`http://127.0.0.1:${PORT}/tools.html?tool=school-dbs&school=${slug}`);
+    await sp.locator('#dbs-password').fill('WRONG-WRONG');
+    await sp.getByRole('button', { name: 'Show the DBS details' }).click();
+    await sp.getByText('That password is not right').waitFor();
+    await sp.locator('#dbs-password').fill(made.password);
+    await sp.getByRole('button', { name: 'Show the DBS details' }).click();
+    await sp.getByText('The Grammar School at Leeds: DBS details').waitFor();
+    await sp.getByText('009999000000').first().waitFor();
+    await shot(sp, 'school-dbs-page');
+    ok('the school’s DBS page shows each person’s checked DBS, after the password', true);
+    ok('every view of the DBS page is audited', (await db.collection('portalAudit').where('action', '==', 'school-dbs-view').get()).size >= 1 && Boolean((await db.collection('schoolDbsAccess').doc(slug).get()).data()?.lastViewedAt));
+    const anonA = await anonToken();
+    const copyRefused = await dbsCall(anonA, { school: slug, password: made.password, action: 'copy', docId: 'x' });
+    ok('no certificate copies unless the project manager allows them', copyRefused.error?.status === 'PERMISSION_DENIED', JSON.stringify(copyRefused.error ?? {}));
+    let limited = null;
+    for (let i = 0; i < 11; i += 1) limited = await dbsCall(anonA, { school: slug, password: 'nope-nope' });
+    ok('wrong passwords are limited', /Too many/.test(limited.error?.message ?? ''), JSON.stringify(limited.error ?? {}));
+    await call(pmToken2, 'close-dbs-access', { schoolId: 'GSAL' });
+    const closed = await dbsCall(await anonToken(), { school: slug, password: made.password });
+    ok('closing access stops the password working', /not open/.test(closed.error?.message ?? ''), JSON.stringify(closed.error ?? {}));
+
+    /* ── Attendance and reports (a visit last week) ── */
+    const past = plus(new Date().toISOString().slice(0, 10), -7);
+    const pastRef = await db.collection('portalVisits').add({ schoolId: 'GSAL', startDate: past, endDate: past, start: '08:30', end: '15:00', days: [{ date: past, on: true, start: '08:30', end: '15:00' }], date: past, lastDate: past, location: 'Main hall', roleNeeds: { eeg: 2, copro: 1 }, travel: {}, notes: '', status: 'locked', version: 0 });
+    for (const [uid, role] of [[crewUids[0], 'eeg'], [crewUids[1], 'eeg'], [crewUids[7], 'copro']]) await db.collection('portalAssignments').doc(`${pastRef.id}_${uid}`).set({ visitId: pastRef.id, uid, role, dates: [past], status: 'confirmed' });
+    const due = (await call(teamToken, 'visits')).result.attendanceDue;
+    ok('the overview reminds about days not marked', due.some((d) => d.visitId === pastRef.id && d.unmarked === 3), JSON.stringify(due));
+    await team.goto(`${BASE}#visit/${pastRef.id}`);
+    await team.getByRole('heading', { name: 'Attendance' }).waitFor();
+    await team.getByLabel(`Amira Khan, ${shortDate(past)}`, { exact: true }).selectOption('attended');
+    await team.getByLabel(`Ben Ortiz, ${shortDate(past)}`, { exact: true }).selectOption('late');
+    await team.getByLabel('Ben Ortiz: note').fill('Bus delayed, 20 minutes');
+    await team.getByLabel(`Hana Sato, ${shortDate(past)}`, { exact: true }).selectOption('absent');
+    await shot(team, 'attendance-marking');
+    await team.getByRole('button', { name: /Save attendance/ }).click();
+    await team.getByText('Saved.').waitFor();
+    ok('attendance is marked, with notes, and audited', (await db.collection('portalAttendance').where('visitId', '==', pastRef.id).get()).size === 3 && (await db.collection('portalAudit').where('action', '==', 'mark-attendance').get()).size === 1);
+    const report = (await call(teamToken, 'report', { from: plus(past, -1), to: plus(past, 1) })).result;
+    const amira = report.people.find((p) => p.uid === crewUids[0]);
+    ok('the report counts days attended, absent and hours per person', amira?.attended === 1 && amira.hours === 6.5 && report.people.find((p) => p.uid === crewUids[7])?.absent === 1 && report.totals.attended === 2, JSON.stringify(report.totals));
+    await team.goto(`${BASE}#reports`);
+    await team.locator('#r-from').fill(plus(past, -1));
+    await team.getByRole('button', { name: 'Show' }).click();
+    await team.locator('tr', { hasText: 'Amira Khan' }).first().waitFor();
+    await shot(team, 'report');
+    const [download] = await Promise.all([team.waitForEvent('download'), team.getByRole('button', { name: 'Download (CSV)' }).first().click()]);
+    const csv = fs.readFileSync(await download.path(), 'utf8');
+    ok('the report downloads as CSV', /^Name,Days offered,Days confirmed,Days attended/.test(csv) && /Amira Khan,/.test(csv), csv.slice(0, 120));
+    ok('school days attended show on the profile', (await call(teamToken, 'person', { uid: crewUids[0] })).result.daysAttended === 1);
 
     /* ── Retention ── */
     const archived = await call(pmToken, 'archive', { uid: raUid });

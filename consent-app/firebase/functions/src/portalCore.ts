@@ -1421,9 +1421,10 @@ export function teamEmail(args: { schoolName: string; days: TeamEmailDay[]; name
   const last = days.at(-1)?.date ?? first;
   const range = first ? dateRange(first, last) : '';
   const nameOf = (uid: string) => args.names.get(uid) ?? uid;
-  const fill = (t: string) => t.replace(/\{school\}/g, args.schoolName).replace(/\{range\}/g, range ? ` (${range})` : '').replace(/\{sender\}/g, firstName(args.sender));
+  // "the {school}" reads once for a school whose name starts with "The".
+  const fill = (t: string) => t.replace(/\bthe \{school\}/gi, (m) => (/^the\s/i.test(args.schoolName) ? '{school}' : m)).replace(/\{school\}/g, args.schoolName).replace(/\{range\}/g, range ? ` (${range})` : '').replace(/\{sender\}/g, firstName(args.sender));
   const intro = args.update
-    ? `Please see below the updated team allocations for the ${args.schoolName} sessions${range ? ` (${range})` : ''}, following a few changes to availability.`
+    ? `Please see below the updated team allocations for ${/^the\s/i.test(args.schoolName) ? '' : 'the '}${args.schoolName} sessions${range ? ` (${range})` : ''}, following a few changes to availability.`
     : fill(args.intro?.trim() || DEFAULT_TEAM_INTRO);
   const allocations = days
     .map((d) => {

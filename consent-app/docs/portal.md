@@ -28,10 +28,14 @@ after the retention period) and restored.
 | Approve accounts, change roles, archive | ✓ | | |
 | Open document copies, check (accept or reject) documents | ✓ | | own copies only |
 | See where each person's documents stand | ✓ (with certificate details) | ✓ (status only) | own |
-| Settings (thresholds, document types, retention), audit log | ✓ | | |
+| Settings (thresholds, document types, retention, status tags, jobs needed, always copy in), audit log | ✓ | | |
+| Correct a checked document's details; a school's DBS page password, certificate copies for a school | ✓ | | |
+| Status tags, experience, jobs, team notes, a person's name, phone and availability notes | ✓ | ✓ | only "Ready" or "On hold" |
+| Mark attendance, reports, email a school, email the team | ✓ | ✓ | |
 | Schools and their required forms, visits, training and pilots | ✓ | ✓ | |
 | See availability, choose people, lock in and notify | ✓ | ✓ | |
-| Book someone who is not ready (with a recorded reason) | ✓ | | |
+| Book someone who is not ready, or for a job not theirs (with a recorded reason) | ✓ | | |
+| Take someone off a confirmed place, some days or all (with a reason) | ✓ | | |
 | Own details, documents, availability, interest in visits | ✓ | ✓ | ✓ |
 | Answer offers (confirm or decline), see own visits | | | ✓ |
 
@@ -77,12 +81,26 @@ they can also mark interest in upcoming visits.
 **Visits over several days (3 November 2026).** The team enters a visit as a
 period: school, **where** (required: the address, room or meeting point; the
 school's name is put in front), first and last date, usual start and end
-times, number needed and notes. Every day of the period is listed, weekends
+times, how many are needed for each job (below), travel and notes. Every day of the period is listed, weekends
 switched off to start with; any day can be switched on or off and given its
-own times. A one-day visit has the same first and last date. Visits saved
+own times, its own numbers for each job, and its own arrival and taxi
+times. A one-day visit has the same first and last date. Visits saved
 before then (one date and a meeting point) read as a period of one day.
-Selection is for the whole visit: a confirmed research assistant is booked
-for every day it runs.
+
+**Jobs on the day (4 November 2026).** Each visit day needs people for two
+jobs: **EEG** and **Co-production**, by default 6 and 2 a day (Settings),
+changeable for a visit and for any day. A place is one person, one job, and
+the days they are booked for (a person has one job on a visit). Places saved
+before then read as EEG on every day the visit runs, and a visit's old
+"number needed" as that many for EEG. Each person's jobs are set on their
+page (by the team); a training session can be marked as training for one
+job.
+
+**Travel.** A visit can say when to be at the school, where and when the
+taxi leaves (by default the School of Psychology, University of Leeds), and
+a line for anyone going straight there; a day can have its own arrival and
+taxi times. Travel shows in the research assistants' visits, the team's
+email and the visit page.
 
 **Statuses.** Draft (the team's own), **Provisional** (dates not yet agreed
 with the school, put out to ask who could do them), Staffing, Fully staffed,
@@ -104,22 +122,32 @@ and everyone else that there are new dates; their answers stay as
 availability for staffing. Cancelling it tells everyone who answered that
 the dates won't go ahead.
 
-**Staffing a visit.** The visit page lists every active research assistant,
-ready and available first, with their availability **day by day** across the
-visit (available every day, some days, not available, or not given) and
-whether they asked for it. The team ticks people and presses **Lock in and
-notify**: each gets an *offer* (notification, push, email, and a text if they
-opted in) for every day, and confirms or declines in the portal. Confirming
-sends a confirmation email with a calendar invitation holding every day
-(.ics) and tells the team; declining tells the team (with an email) and frees
-the place. An offer still unanswered after two days gets one reminder
-(portal, push and email). A visit is *fully staffed* once every place is
-confirmed; no more places can be offered than it needs.
+**Staffing a visit.** The visit page shows **each day**: for EEG and for
+co-production, how many are needed and how many are confirmed, with offers
+still waiting shown apart, and who is on that day. It lists every active
+research assistant, ready and available first and then by experience, with
+their availability **day by day**, their status tags, experience and jobs.
+**The strongest team is ticked for you** ("Suggest the strongest team" ticks
+it again): the job fewer people can do is filled first, the most experienced
+first (then those with fewer other jobs, more training and pilots, and more
+days free), each on the days they are free, until each day has its numbers.
+Change anyone's job or days, untick or add people, then **Lock in and
+notify**: each gets an *offer* naming their job and days (notification, push,
+email, and a text if they opted in), and confirms or declines it as a whole.
+Someone who can only do a morning or an afternoon gets a time note ("morning
+only"); the team can write its own ("until 1:00 pm"), shown in brackets after
+their name. Confirming sends a confirmation email naming the job, with a
+calendar invitation for their days (.ics), and tells the team; declining
+tells the team (with an email) and frees the place. An offer still
+unanswered after two days gets one reminder (portal, push and email). A
+visit is **fully staffed** when every day has both numbers confirmed; no day
+can be offered more people for a job than it needs. The project manager can
+book someone not ready, or for a job not theirs, giving a reason.
 
 **Once confirmed, research assistants can't cancel in the portal.** Their
 visit shows "To withdraw, email {name} at {email}" with a ready-made email;
 the contact is a setting (default Dr Sarmad Ali, S.A.Ali1@leeds.ac.uk). Only
-the **project manager** can then remove them, giving a reason: they are
+the **project manager** can then remove them, from some of their days or all of them, giving a reason: they are
 notified, pushed (without the reason) and emailed (with it, and a calendar
 cancellation), the team is told, the place opens again, and it is in the
 audit log. The research team can still withdraw an offer that hasn't been
@@ -133,7 +161,81 @@ assistant as new dates.
 
 **Calendars.** The team can download a calendar file (.ics) for one visit
 (Add to my calendar) or for every visit coming up (on the Visits tab): one
-event per day it runs, with the place, who is confirmed, and the notes.
+event per day it runs, with the place, who is confirmed that day for EEG and
+for co-production (with the numbers), and the notes.
+
+**Status tags, experience and notes (4 November 2026).** The team gives
+people statuses (by default New, In training, Ready, On hold, Left; the
+project manager adds, renames and retires them in Settings), an experience
+level (1 New, 2 Developing, 3 Experienced, 4 Lead, with an optional reason)
+and the jobs they do, and can correct their name, phone and availability
+notes. People shows the tags and levels, with a filter by status. **Team
+notes** are dated with who wrote them; the writer or the project manager can
+delete one. None of this reaches research assistants: they see only "Ready"
+or "On hold" if the team has said so, and the number of school days they
+have attended. Every change is in the audit log.
+
+**Attendance and reports.** After each visit day the team marks who
+attended, was absent, was late or left early, with a note; the overview
+reminds about days not yet marked. **Reports** shows, between two dates and
+for one school or person if chosen, each person's days offered, confirmed,
+attended and absent, hours and days by job, and each visit day's cover and
+who came, with CSV downloads. A person's page shows the school days they
+have attended.
+
+**Emails to schools.** A school has a contact name, email addresses and
+whether it wants DBS details. "Email the school" on a visit shows the email
+before it goes: the days, times and place, and on each day the full names of
+those confirmed (not their jobs), and the team's contact. The opening can be
+edited, and is kept for that school. It goes to the school, copying the
+sender, the withdrawal contact and the "Always copy in" addresses, with
+replies to the sender; it is logged and audited, the visit shows when the
+school was last told, and "Changes since the school was last told" offers an
+update. **DBS details never go in an email.** With DBS details on, the email
+links to the school's own DBS page instead.
+
+**A school's DBS page** (myphonemybrain.com/schools/dbs/?school=<slug>, not
+listed or indexed; the `schoolDbs` function, `schoolDbs.ts`). The project
+manager makes a password for the school on Schools (shown once, given to the
+school by phone; scrypt-hashed in `schoolDbsAccess/{slug}`, apart from the
+class-list password), can make a new one or close access, and sees when it
+was last viewed. Behind the password the school sees its visits coming up
+(and those in the last 30 days) by date: each confirmed person's name, DBS
+certificate number, issue date, that it is enhanced, and Update Service yes
+or no, **only as the project manager checked them**; anyone not yet checked
+shows as "DBS being checked". Copies of certificates only if the project
+manager allows them for that school (off by default), as five-minute links.
+Wrong passwords are limited (10 per browser and 25 per school an hour);
+every view and every copy opened is in the audit log. The research team
+cannot see DBS numbers or make passwords. When the email says DBS details
+are on and the school has no password yet, the preview warns, with a link
+for the project manager.
+
+**The team's allocations email.** "Email the team" on a visit (or, on
+Visits, for a school between two dates) makes the email from the portal:
+subject ("{school} team allocations: 23–24 November"), opening (an update
+says so when allocations changed), each day with the full names of those
+confirmed and any time notes (jobs hidden unless shown), travel
+arrangements, a DBS and ID check reminder for anyone whose first day at that
+school falls in those dates, and a closing signed with the sender's first
+name. Every part can be edited; the opening and closing can be kept as the
+sender's own. It goes to those confirmed (and the research team if ticked),
+as one email with everyone in blind copy or one each, with replies to the
+sender, in plain text and simple HTML; each person also gets a notification
+and push ("Team allocations for {school} {dates} have been sent"). Sends are
+logged; the visit shows when the team was last told and flags changes since.
+
+**Who emails come from, and who is copied in (5 November 2026).** Every
+portal email comes from the study's own email account (the sender in
+`mail.ts`, `MPMB_SMTP_USER`), shown as "MyPhone/MyBrain team", with replies
+to the person who sent it where a person did. Every portal email to anyone
+else is copied to the **Always copy in** addresses (a project manager
+setting; by default brainpop@leeds.ac.uk and S.A.Ali1@leeds.ac.uk), never
+twice and not on an email only to them. Emails to many people go as one email
+(people in blind copy, these addresses copied once): new dates, and the team
+email sent as one; the team email sent one each gets a single copy for them.
+The sign-in link emails come from Firebase Authentication and are not
+copied.
 
 **Notifications.** An in-portal list (the bell, with the unread count),
 plus email for: account requests (to the project manager), approval,
@@ -179,7 +281,11 @@ log tab for the project manager.
 | `portalSessions`, `portalAvailability`, `portalInterest` | training and pilots, availability, interest in visits |
 | `portalSchools`, `portalVisits`, `portalAssignments` | schools and their forms, visits, offers and answers |
 | `portalNotifications`, `portalMail`, `portalAudit`, `portalWarnings` | notifications, emails and texts sent, the audit log, expiry warnings already sent |
-| `portalSettings/main` | thresholds, document types, retention |
+| `portalSettings/main` | thresholds, document types, retention, status tags, jobs needed, always copy in |
+| `portalNotes` | the team's notes about people (who, when) |
+| `portalAttendance` | attendance per person per visit day, with notes |
+| `portalSchoolEmails`, `portalTeamEmails` | emails sent to schools and to the team: when, by whom, to whom, who was on each day |
+| `schoolDbsAccess/{slug}` | each school's DBS page password (hashed), when made, last viewed |
 
 **Copies are kept while someone works on the study.** Once they are
 archived, `portalHousekeeping` (every day at 06:30, UK time) deletes their
@@ -188,7 +294,15 @@ record that a document was checked, and its details, stay. The same job
 warns people (and the project manager) when a checked document runs out
 within the warning window (default 30 days). DBS certificates and health
 forms are criminal-record and health data: the DPIA should list the portal
-and this retention.
+and this retention. **DPIA note (4 November 2026):** DBS details (name,
+certificate number, issue date, enhanced, Update Service) are shared with a
+school, on its request, only for the people coming to its visits, only as
+the project manager checked them, and only through the school's
+password-protected page (never by email), with every view recorded;
+certificate copies only where the project manager allows it for that school.
+Team notes, status tags and experience levels are personal data about staff:
+they are seen only by the research team and kept while the person works on
+the study.
 
 Also kept (3 November 2026): answers to provisional dates
 (`portalCanvass`, with the person's availability for those days), push
@@ -230,10 +344,21 @@ visit over several days (a day off, a day with its own times); provisional
 dates, the answers and the team's summary, then confirming them; staffing
 with availability day by day; lock-in; confirmation; the assistant unable to
 cancel and the team unable to remove; calendar files; a change of place; the
-project manager removing them; notification choices; the emails, notifications and audit
-log; what each role must not be able to do (the team opening copies,
+project manager removing them; notification choices; the team's tags,
+experience, jobs and notes; a two-day visit with ten research assistants
+(the strongest team suggested and ticked, lock-in, confirmations, each day's
+cover, fully staffed, the team calendar by job); notes and tags never
+reaching research assistants; the team's allocations email (time notes, one
+email in blind copy, copied in once) and a change flagged afterwards; taking
+someone off one day; the school email (names, no DBS numbers, the warning
+with no password, who is copied); the school's DBS page (wrong password,
+the details, no copies, the limit on wrong passwords, closing access, every
+view audited); attendance, the reminder, the report and its CSV; the
+emails, notifications and audit log; what each role must not be able to do (the team opening copies,
 assistants seeing others, direct reads of records and files, anonymous
 sessions); and retention. Screenshots go to `portal-shots/`.
 In the emulator no push is sent: each is written to `portalPushLog`, which
-the test checks. Unit tests: `firebase/functions/src/portalCore.test.ts` and
-`push.test.ts`.
+the test checks. Unit tests: `firebase/functions/src/portalCore.test.ts`,
+`portalRoles.test.ts` (jobs, coverage, the strongest team, migration, tags
+and notes hidden, attendance, reports, school and team emails, the DBS page,
+always copy in) and `push.test.ts`.

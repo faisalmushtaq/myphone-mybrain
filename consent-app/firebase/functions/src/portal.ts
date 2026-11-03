@@ -375,7 +375,9 @@ const daysOf = (v: Pick<PortalVisit, 'days'>, dates: string[]) => includedDays(v
 
 /** The team's details about someone: tags, experience, the jobs they do, notes on availability (never for research assistants). */
 function teamExtras(x: DocumentData, settings: Settings) {
-  return { tags: tagsFor(x.tags, settings), level: levelOf(x.level), levelReason: String(x.levelReason ?? ''), capabilities: capabilitiesOf(x.capabilities), availabilityNote: String(x.availabilityNote ?? '') };
+  // The tags with their names, for the team's lists.
+  const ids = tagsFor(x.tags, settings);
+  return { tags: settings.tags.filter((t) => ids.includes(t.id)), level: levelOf(x.level), levelReason: String(x.levelReason ?? ''), capabilities: capabilitiesOf(x.capabilities), availabilityNote: String(x.availabilityNote ?? '') };
 }
 
 /** Each person's DBS as the project manager checked it (the latest checked one), or nothing. */

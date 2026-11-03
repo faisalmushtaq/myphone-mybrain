@@ -32,7 +32,8 @@ export interface DbsAccess {
 export async function checkDbsPassword(db: Firestore, uid: string, slug: string, password: unknown): Promise<DbsAccess> {
   const keys = [`dbs-fail-${slug}`, `dbs-fail-uid-${uid}`];
   const limits = [FAILURES_PER_SCHOOL, FAILURES_PER_SESSION];
-  const open = await Promise.all(keys.map((k, i) => countFailure(db, k, limits[i], false)));
+  // Open while fewer than the limit have failed: the tenth wrong password is the last one tried.
+  const open = await Promise.all(keys.map((k, i) => countFailure(db, k, limits[i] - 1, false)));
   if (open.includes(false)) throw new HttpsError('failed-precondition', 'Too many wrong passwords. Please wait an hour, or ask the research team for help.');
   const access = (await db.collection('schoolDbsAccess').doc(slug).get()).data();
   if (!access?.active || typeof access.hash !== 'string') throw new HttpsError('failed-precondition', 'This page is not open for your school. Please ask the research team for a password.');

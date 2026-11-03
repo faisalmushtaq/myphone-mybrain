@@ -324,3 +324,12 @@ test('always copy in: the two addresses by default, never twice, none on an emai
   assert.deepEqual(settingsOf({ alwaysCopy: ['team@leeds.ac.uk', 'not an email', 'TEAM@leeds.ac.uk'] }).alwaysCopy, ['TEAM@leeds.ac.uk']);
   assert.deepEqual(settingsOf({ alwaysCopy: [] }).alwaysCopy, []);
 });
+
+test('team email: no "the The" for a school whose name starts with The', async () => {
+  const { teamEmail } = await import('./portalCore.js');
+  const days = [{ date: '2026-11-23', travel: { arrival: '', taxiFrom: '', taxiTime: '', direct: '' }, people: [] }];
+  const base = { days, names: new Map<string, string>(), showRoles: false, firstDays: new Map<string, string>(), sender: 'Robin Chen' };
+  assert.match(teamEmail({ ...base, schoolName: 'The Grammar School at Leeds', update: false }).intro, /for The Grammar School at Leeds sessions/);
+  assert.match(teamEmail({ ...base, schoolName: 'The Grammar School at Leeds', update: true }).intro, /updated team allocations for The Grammar/);
+  assert.match(teamEmail({ ...base, schoolName: 'GSAL', update: false }).intro, /for the GSAL sessions/);
+});
