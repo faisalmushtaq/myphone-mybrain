@@ -12,6 +12,7 @@ import { VisitView } from './VisitView';
 import { ROLE_LABEL, stamp, type Me, type MySummary, type Notification, type Role } from './types';
 import { AvailabilityGrid } from './AvailabilityGrid';
 import { Linkage } from './LinkageViews';
+import { LogProblem, LogProblemButton, Notebook, useIssueQueue } from './IssueViews';
 
 /**
  * The staff portal (myphonemybrain.com/portal/): sign in with an email link,
@@ -502,6 +503,7 @@ function navFor(role: Role): NavItem[] {
       { hash: '#availability', label: 'Availability' },
       { hash: '#documents', label: 'Documents' },
       { hash: '#training', label: 'Training' },
+      { hash: '#notebook', label: 'Notebook' },
     ];
   return [
     { hash: '#home', label: 'Overview' },
@@ -512,6 +514,7 @@ function navFor(role: Role): NavItem[] {
     { hash: '#schools', label: 'Schools' },
     { hash: '#reports', label: 'Reports' },
     { hash: '#linkage', label: 'Linkage' },
+    { hash: '#notebook', label: 'Notebook' },
     // The team lead on visit days (5 November 2026): their own days free and documents.
     { hash: '#my-days', label: 'My days' },
     { hash: '#my-documents', label: 'My documents' },
@@ -547,11 +550,15 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
 
   const nav = navFor(role);
   const [route, arg] = hash.slice(1).split('/');
+  // The issue log: "Log a problem" on every screen, and its offline queue sent when it can be.
+  const issues = useIssueQueue();
+  const [logging, setLogging] = useState<Date | null>(null);
   const current = `#${route}`;
 
   const content = () => {
     if (route === 'notifications') return <Notifications go={go} reloadMe={reloadMe} />;
     if (route === 'profile') return <Profile me={me} reload={reloadMe} />;
+    if (route === 'notebook') return <Notebook role={role} entryId={arg} go={go} />;
     if (role === 'ra') {
       if (!summary) return summaryError ? <Callout tone="warning">{summaryError}</Callout> : <p>Loading…</p>;
       switch (route) {
@@ -625,6 +632,7 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
             </p>
           </div>
           <div className="mpmb-actions">
+            <LogProblemButton role={role} waiting={issues.waiting} onOpen={setLogging} />
             <Button variant="ghost" onClick={() => go('#notifications')} aria-label={me.unread > 0 ? `Notifications, ${me.unread} unread` : 'Notifications'}>
               <span className="mpmb-portal__notify">
                 Notifications
@@ -643,6 +651,17 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
             </Button>
           </div>
         </header>
+        {issues.refused.length ? (
+          <Callout tone="warning" title="An entry could not be saved">
+            {issues.refused.map((r) => (
+              <p key={r}>{r}</p>
+            ))}
+            <Button variant="link" onClick={issues.clearRefused}>
+              Dismiss
+            </Button>
+          </Callout>
+        ) : null}
+        {logging ? <LogProblem role={role} pressedAt={logging} onClose={() => setLogging(null)} /> : null}
         <nav className="mpmb-portal__studies" aria-label="Studies">
           {(
             [

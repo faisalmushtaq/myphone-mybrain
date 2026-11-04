@@ -14,6 +14,7 @@
  *               availability, counts, offers and visits
  */
 
+import { ISSUE_PM_ACTIONS, ISSUE_SELF_ACTIONS, ISSUE_TEAM_ACTIONS } from './issues.js';
 import { LINK_PM_ACTIONS, LINK_TEAM_ACTIONS } from './linkage.js';
 
 export type Role = 'pm' | 'researcher' | 'ra';
@@ -57,10 +58,12 @@ const TEAM_ACTIONS = new Set([
   'send-team-email',
   // The linkage registry (linkageStore.ts): the project manager and the research team.
   ...LINK_TEAM_ACTIONS,
+  // The issue log (issues.ts): changing an entry's status and naming a typed pupil.
+  ...ISSUE_TEAM_ACTIONS,
 ]);
-const PM_ACTIONS = new Set(['requests', 'approve', 'reject', 'set-role', 'archive', 'restore', 'verify-document', 'settings', 'save-settings', 'audit', 'override', 'remove-confirmed', 'save-doc-details', 'make-dbs-password', 'close-dbs-access', 'approve-for-school', 'save-sheet', 'sync-sheet', ...LINK_PM_ACTIONS]);
+const PM_ACTIONS = new Set(['requests', 'approve', 'reject', 'set-role', 'archive', 'restore', 'verify-document', 'settings', 'save-settings', 'audit', 'override', 'remove-confirmed', 'save-doc-details', 'make-dbs-password', 'close-dbs-access', 'approve-for-school', 'save-sheet', 'sync-sheet', ...LINK_PM_ACTIONS, ...ISSUE_PM_ACTIONS]);
 /** Every active user, for themselves. */
-const SELF_ACTIONS = new Set(['me', 'my-summary', 'my-training', 'claim-session', 'delete-claim', 'update-profile', 'notifications', 'mark-read', 'register-document', 'document-url', 'set-availability', 'open-visits', 'set-interest', 'respond-offer', 'canvass-answer', 'push-key', 'push-subscribe', 'push-unsubscribe', 'push-test', 'set-dbs-applied']);
+const SELF_ACTIONS = new Set(['me', 'my-summary', 'my-training', 'claim-session', 'delete-claim', 'update-profile', 'notifications', 'mark-read', 'register-document', 'document-url', 'set-availability', 'open-visits', 'set-interest', 'respond-offer', 'canvass-answer', 'push-key', 'push-subscribe', 'push-unsubscribe', 'push-test', 'set-dbs-applied', ...ISSUE_SELF_ACTIONS]);
 /** Anyone signed in with a checked email, active or not: asking for an account, and seeing where the request stands. */
 const OPEN_ACTIONS = new Set(['me', 'request-access']);
 

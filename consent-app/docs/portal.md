@@ -432,6 +432,86 @@ ID for each young person across the website, MySelf and EEG; a review queue for
 what matching could not decide; EEG manifests; MySelf's connection. See
 [linkage.md](linkage.md).
 
+## The issue log, "Notebook" (4 November 2026)
+
+For data problems on visit days: a headset that would not settle, a fire
+alarm, a laptop that crashed, a pupil who left early. Logged in a few taps at
+the moment they happen, so the analysis can flag or leave out the data they
+touch.
+
+**Not for safeguarding.** The form says so at the top: a worry about a child's
+safety or welfare goes through the safeguarding procedure to the lead, now.
+There is no option to log one here.
+
+### Logging
+
+**Log a problem** is in the header of every portal screen, for everyone signed
+in (research assistants, the research team, the project manager). The form,
+built for a phone:
+
+* **Time**: the device's clock at the moment the button was pressed; can be
+  adjusted.
+* **Visit**: today's visit the person is confirmed on (or the only one today);
+  any other recent visit, or "Not at a visit".
+* **About** (optional): the team searches the linkage registry by name or study
+  ID; a research assistant types a first name and surname (the team resolves it
+  to a study ID later); and "Whole room/session".
+* **Type**: Headset/EEG signal, Noise/interruption, Equipment (laptop/iPad),
+  Task/software, Participant, Timing/schedule, Other.
+* **Impact**: Minor, May affect data, Data unusable.
+* **Note**: free text (phone dictation works). The form asks for no pupils'
+  names in the note: names go in "About".
+* **Affected recordings** (optional): the day's EEG recordings of the pupils
+  chosen are offered; any other of the day's recordings can be added.
+
+One tap saves it: "Logged at 10:42", and the form is ready for the next.
+
+**No signal?** The entry is kept on the device (IndexedDB) with its own time and
+a "1 waiting to send" badge on the button; it is sent when the connection comes
+back, when the portal is opened, and every minute meanwhile. Each entry has an id
+made on the device, so a retry never stores it twice. An entry the server
+refuses (a clock far in the future) is reported, not retried.
+
+### The notebook (Notebook tab)
+
+The project manager and the research team see every entry; a research assistant
+sees their own. Filters: school, visit, dates, pupil, type, impact, status, who
+logged it. Each entry has comments, a status (Open, Handled in analysis, Not
+relevant) with a resolution note (the team), and every change kept with what it
+was before: the original note is never lost. An assistant can change their own
+entry for 24 hours, then comment. A typed name has a **Resolve pupil** action
+(the team) to pick the study ID.
+
+### The daily email
+
+At 6 pm UK time (GMT or BST) every day, to the addresses in the setting (the
+project manager's Notebook › Daily problems email; by default
+brainpop@leeds.ac.uk and f.mushtaq@leeds.ac.uk). It lists the counts by impact,
+then "Data unusable" entries first and highlighted, then the rest by school and
+visit, by time, each with its time, type, impact, pupils (first name and last
+initial), note, who logged it and a link. Entries that happened earlier but
+arrived that day (the offline queue) are included and marked. It ends with how
+many entries from earlier days are still open. Nothing logged, nothing sent
+(unless "Send even when there's nothing" is ticked). Sent from the study Gmail,
+replies to brainpop@; the "always copy" list is added without duplicates. Each
+send is in the mail log, the audit log and `portalDigests`. "Send today's now"
+sends it on demand.
+
+### In the export and the Sheet
+
+* `linkage/issues.tsv` (+ `.json`): one row an entry: times (device and server),
+  day, school, visit, study IDs, whole room, pupils still to resolve, recording
+  ids, type, impact, status, resolution and the note as written. No names.
+* `linkage/identifying/issues.tsv`: the same with the typed names and who logged
+  each.
+* The Google Sheet's **Issues** tab: the entries with study IDs (no pupils'
+  names).
+
+Code: `firebase/functions/src/issues.ts` (rules, export rows, the email; tested in
+`issues.test.ts`), `issuesStore.ts`, `src/portal/IssueViews.tsx`,
+`src/portal/issueQueue.ts` (tested in `issueQueue.test.ts`); end to end:
+`node scripts/issues-e2e.mjs`.
+
 ## Data kept, and for how long
 
 | Collection | What |

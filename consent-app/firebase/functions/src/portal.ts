@@ -116,6 +116,7 @@ import {
 import { buildWorkbook, schoolShort, spreadsheetIdOf, type SheetData } from './portalSheets.js';
 import { PROJECT, serviceAccountEmail, syncErrorText, writeWorkbook } from './portalSheetsSync.js';
 import { linkageAction, summaryOf } from './linkageStore.js';
+import { issueAction, issueTables } from './issuesStore.js';
 
 /**
  * The staff portal (myphonemybrain.com/portal/, 1 November 2026): one
@@ -261,6 +262,9 @@ const PORTAL_SENDER = 'MyPhone/MyBrain team';
  * in" addresses (not twice, and not on an email only to them), and keeps a
  * record of it. Never throws.
  */
+/** For the issue log's daily email (issuesStore.ts): the portal's own sending rules. */
+export const sendPortalMail = (db: Firestore, message: Omit<Mail, 'fromName'>, kind: string) => send(db, message, kind);
+
 async function send(db: Firestore, message: Omit<Mail, 'fromName'>, kind: string): Promise<MailOutcome> {
   const { alwaysCopy } = await settingsFrom(db);
   const copy = copyFor(alwaysCopy, message);
@@ -596,6 +600,8 @@ export const portalApi = onCall(callOptions, async (request) => {
   const today = ukToday();
   // The linkage registry (linkageStore.ts); mayDo has already checked the role.
   if (action.startsWith('link-')) return linkageAction(db, { uid: me.uid, email: me.email, name: me.name, role: me.role }, action, data);
+  // The issue log (issuesStore.ts); mayDo has checked the role, the store checks each entry.
+  if (action.startsWith('issue-')) return issueAction(db, { uid: me.uid, email: me.email, name: me.name, role: me.role }, action, data, (to, subject, body, html) => send(db, { to, subject, text: body, html }, 'issue-digest'));
 
   switch (action) {
     /* ── Everyone ── */
@@ -1968,6 +1974,12 @@ export async function sheetData(db: Firestore, includeNotes: boolean, now = new 
     }),
     audit: auditSnap.docs.map((d) => ({ at: iso(d.data().at), by: String(d.data().byName || d.data().byEmail || ''), action: String(d.data().action ?? ''), target: String(d.data().target ?? ''), details: d.data().details ?? {} })),
     notes: notesSnap ? notesSnap.docs.map((d) => ({ uid: String(d.data().uid), at: iso(d.data().at), byName: String(d.data().byName ?? ''), text: String(d.data().text ?? '') })) : null,
+    issues: await issueTables(db)
+      .then((t) => t.identifying.map(({ typed_names: _t, ...r }) => r))
+      .catch((error) => {
+        logger.warn('Sheet: the issue log could not be read', { error: error instanceof Error ? error.message : String(error) });
+        return null;
+      }),
     linkage: await summaryOf(db).catch((error) => {
       logger.warn('Sheet: the linkage counts could not be read', { error: error instanceof Error ? error.message : String(error) });
       return null;

@@ -16,6 +16,8 @@ import { portalDocCopies, sheetData } from './portal.js';
 import { STAFF, staffPortalExport } from './exportStaff.js';
 import { CROSSWALK_COLUMNS, EEG_MAP_COLUMNS, LINK_PARTICIPANT_COLUMNS, LINKAGE_README, linkageParticipantsDictionary, type linkageTables } from './linkage.js';
 import { linkageExport } from './linkageStore.js';
+import { ISSUE_COLUMNS, ISSUE_IDENTIFYING_COLUMNS, issuesDictionary } from './issues.js';
+import { issueTables } from './issuesStore.js';
 /**
  * The hourly export: everything the studies have recorded, written into a
  * private bucket of its own, one folder per study, each with two subfolders.
@@ -1053,6 +1055,16 @@ export async function runExport(): Promise<Manifest> {
     logger.error('Export: the linkage registry could not be read', { error: errorText(error) });
   }
   const { files, jobs, derived, counts } = buildExport(c, labels, exportedAt, linkage?.websiteIds);
+  // The issue log (issuesStore.ts): research-safe beside the linkage tables, the identifying version in linkage/identifying/.
+  let issuesOk = true;
+  try {
+    const t = await issueTables(db);
+    files.push(tsvFile(`${LINKAGE}/issues.tsv`, t.research, ISSUE_COLUMNS), jsonFile(`${LINKAGE}/issues.json`, issuesDictionary()), tsvFile(`${LINKAGE}/identifying/issues.tsv`, t.identifying, ISSUE_IDENTIFYING_COLUMNS));
+    counts.issues = t.research.length;
+  } catch (error) {
+    issuesOk = false;
+    logger.error('Export: the issue log could not be read', { error: errorText(error) });
+  }
   if (linkage) {
     files.push(...linkageFiles(linkage.tables));
     counts.linkageParticipants = linkage.tables.participants.length;
@@ -1119,6 +1131,7 @@ export async function runExport(): Promise<Manifest> {
   const expected = new Set<string>([...files.map((f) => f.path), ...jobs.map((j) => j.target), ...derived.flatMap((d) => d.paths), 'manifest.json']);
   if (keepStaff) for (const f of existingFiles) if (f.name.startsWith(`${STAFF}/`)) expected.add(f.name);
   if (!linkage) for (const f of existingFiles) if (f.name.startsWith(`${LINKAGE}/`)) expected.add(f.name);
+  if (!issuesOk) for (const f of existingFiles) if (/^linkage\/(identifying\/)?issues\./.test(f.name)) expected.add(f.name);
   const stale = staleObjects(existingFiles.map((f) => objectInfo(f)), expected);
   let removed = 0;
   await settle(
