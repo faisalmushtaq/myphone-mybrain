@@ -11,6 +11,7 @@ import { Audit, People, Person, Schools, Sessions, SettingsView, TeamHome, Visit
 import { VisitView } from './VisitView';
 import { ROLE_LABEL, stamp, type Me, type MySummary, type Notification, type Role } from './types';
 import { AvailabilityGrid } from './AvailabilityGrid';
+import { Linkage } from './LinkageViews';
 
 /**
  * The staff portal (myphonemybrain.com/portal/): sign in with an email link,
@@ -510,6 +511,7 @@ function navFor(role: Role): NavItem[] {
     { hash: '#sessions', label: 'Training and pilots' },
     { hash: '#schools', label: 'Schools' },
     { hash: '#reports', label: 'Reports' },
+    { hash: '#linkage', label: 'Linkage' },
     // The team lead on visit days (5 November 2026): their own days free and documents.
     { hash: '#my-days', label: 'My days' },
     { hash: '#my-documents', label: 'My documents' },
@@ -600,6 +602,8 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
         return <Schools role={role} />;
       case 'reports':
         return <Reports />;
+      case 'linkage':
+        return <Linkage role={role} hash={hash} go={go} />;
       case 'settings':
         return role === 'pm' ? <SettingsView /> : null;
       case 'audit':
@@ -665,7 +669,7 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
           <>
             <nav className="mpmb-tools__tabs" aria-label="School study">
               {nav.map((n) => (
-                <a key={n.hash} href={n.hash} className={`mpmb-tools__tab mpmb-portal__tab${current === n.hash || (n.hash === '#visits' && route === 'visit') || (n.hash === '#people' && route === 'person') ? ' is-current' : ''}`} aria-current={current === n.hash ? 'page' : undefined}>
+                <a key={n.hash} href={n.hash} className={`mpmb-tools__tab mpmb-portal__tab${current === n.hash || (n.hash === '#visits' && route === 'visit') || (n.hash === '#people' && route === 'person') || (n.hash === '#linkage' && route === 'linkage') ? ' is-current' : ''}`} aria-current={current === n.hash ? 'page' : undefined}>
                   {n.label}
                   {role === 'ra' && n.hash === '#offers' && summary && summary.assignments.some((a) => a.status === 'offered') ? <span className="mpmb-portal__count">{summary.assignments.filter((a) => a.status === 'offered').length}</span> : null}
                 </a>

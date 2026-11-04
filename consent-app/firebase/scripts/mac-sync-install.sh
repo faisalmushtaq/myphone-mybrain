@@ -25,7 +25,9 @@
 # the staff portal's tables (staff-portal/tables/ and its README): never
 # staff-portal/documents/, the copies of people's DBS certificates and forms,
 # which stay in the University's own storage. "all" mirrors staff-portal/
-# whole.
+# whole. linkage/ (the linkage registry, 4 November 2026): its research
+# tables (participants.tsv, eeg_map.tsv: study IDs, no names) in every scope;
+# linkage/identifying/ (the crosswalk) only in "all".
 # Each written folder is mirrored on its own, so the team's own datasets kept
 # beside them (for example social-media-break/lab-visits/) are never touched.
 #
@@ -222,6 +224,14 @@ while IFS=$'\t' read -r dest scope; do
         done
       else
         [ -d "$target/$top" ] && rm -rf "$target/$top" && echo "$(now) removed staff-portal from a research-only folder" >> "$LOG"
+      fi
+    elif [ "$top" = "linkage" ]; then
+      # The linkage registry (4 November 2026): its research tables (no names) everywhere; its identifying/ (the crosswalk) only in "all", and deleted elsewhere.
+      if [ "$scope" = "all" ]; then
+        mirror "$top" "$target" "$removed"
+      else
+        copy_files "$top" "$target" "$removed"
+        [ -d "$target/$top/identifying" ] && rm -rf "$target/$top/identifying" && echo "$(now) removed linkage/identifying from a research-only folder" >> "$LOG"
       fi
     elif printf '%s\n' "$subs" | grep -qx 'donations/'; then
       # A study: its own files, then each written folder on its own.

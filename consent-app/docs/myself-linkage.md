@@ -7,6 +7,10 @@ Neither side waits for the other. Instead, both work out the same ID from the
 same three details, and a script on a coordinator's computer joins the two
 whenever someone wants up-to-date links.
 
+> **4 November 2026: the main route is now online**, in the staff portal's
+> linkage registry ([linkage.md](linkage.md)). This script still works, as a
+> fallback and a cross-check; the portal gives the same automatic links.
+
 ## The ID
 
 MySelf gives every pupil a participant ID such as `PNNTN6X2K00`: "P" and ten

@@ -115,6 +115,7 @@ import {
 } from './portalCore.js';
 import { buildWorkbook, schoolShort, spreadsheetIdOf, type SheetData } from './portalSheets.js';
 import { PROJECT, serviceAccountEmail, syncErrorText, writeWorkbook } from './portalSheetsSync.js';
+import { linkageAction, summaryOf } from './linkageStore.js';
 
 /**
  * The staff portal (myphonemybrain.com/portal/, 1 November 2026): one
@@ -593,6 +594,8 @@ export const portalApi = onCall(callOptions, async (request) => {
   const me = await callerOf(db, request);
   if (!mayDo(action, me.role, me.status)) throw refused(me.status === 'pending' ? 'Your account is waiting for the project manager to approve it.' : undefined);
   const today = ukToday();
+  // The linkage registry (linkageStore.ts); mayDo has already checked the role.
+  if (action.startsWith('link-')) return linkageAction(db, { uid: me.uid, email: me.email, name: me.name, role: me.role }, action, data);
 
   switch (action) {
     /* ── Everyone ── */
@@ -1965,6 +1968,10 @@ export async function sheetData(db: Firestore, includeNotes: boolean, now = new 
     }),
     audit: auditSnap.docs.map((d) => ({ at: iso(d.data().at), by: String(d.data().byName || d.data().byEmail || ''), action: String(d.data().action ?? ''), target: String(d.data().target ?? ''), details: d.data().details ?? {} })),
     notes: notesSnap ? notesSnap.docs.map((d) => ({ uid: String(d.data().uid), at: iso(d.data().at), byName: String(d.data().byName ?? ''), text: String(d.data().text ?? '') })) : null,
+    linkage: await summaryOf(db).catch((error) => {
+      logger.warn('Sheet: the linkage counts could not be read', { error: error instanceof Error ? error.message : String(error) });
+      return null;
+    }),
   };
 }
 

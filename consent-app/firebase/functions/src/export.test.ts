@@ -51,7 +51,7 @@ test('participants.tsv holds only consenting participants, de-identified, with a
   ];
   const rows = participantsTable(snap);
   assert.equal(rows.length, 1);
-  assert.deepEqual(rows[0], { participant_id: 'sub-00001', myself_id: myselfId('Kai', 'Patel', '2013-03-14'), age: 13, year_group: 'Year 8', site: 'BRD-001', route: 'young', consented_on: '2026-10-01', consent_version: '0.5-draft', self_consent: false, phone_source: null, assent_status: 'completed', questions_status: 'not-started', more_questions_status: 'not-asked', no_phone_questions_status: 'not-asked', sessions_n: 2, screenshots_n: 3, platform: 'android', added_later_on: null, young_link_opened_on: null, screen_time_off_on: null, reminders_sent: 0, opted_out: false, opt_out_kind: null });
+  assert.deepEqual(rows[0], { participant_id: 'sub-00001', myself_id: myselfId('Kai', 'Patel', '2013-03-14'), linkage_id: null, age: 13, year_group: 'Year 8', site: 'BRD-001', route: 'young', consented_on: '2026-10-01', consent_version: '0.5-draft', self_consent: false, phone_source: null, assent_status: 'completed', questions_status: 'not-started', more_questions_status: 'not-asked', no_phone_questions_status: 'not-asked', sessions_n: 2, screenshots_n: 3, platform: 'android', added_later_on: null, young_link_opened_on: null, screen_time_off_on: null, reminders_sent: 0, opted_out: false, opt_out_kind: null });
   assert.ok(!JSON.stringify(rows).includes('Patel'));
   const sessions = sessionsOf(snap);
   assert.deepEqual(sessions.map((s) => [s.session, s.donation.id]), [['ses-01', 'd1'], ['ses-02', 'd2']], 'sessions are numbered in time order');

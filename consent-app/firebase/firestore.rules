@@ -144,7 +144,8 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // The staff portal (portal*): no direct access at all; portalApi checks every call against the caller's account.
+    // The staff portal (portal*) and its linkage registry (link*: names from EEG manifests, MySelf codes, study IDs):
+    // no direct access at all; portalApi checks every call against the caller's account.
     match /{document=**} {
       allow read, write: if false;
     }

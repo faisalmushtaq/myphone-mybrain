@@ -14,6 +14,8 @@ import { healthFiles, healthOf } from './health.js';
 
 import { portalDocCopies, sheetData } from './portal.js';
 import { STAFF, staffPortalExport } from './exportStaff.js';
+import { CROSSWALK_COLUMNS, EEG_MAP_COLUMNS, LINK_PARTICIPANT_COLUMNS, LINKAGE_README, linkageParticipantsDictionary, type linkageTables } from './linkage.js';
+import { linkageExport } from './linkageStore.js';
 /**
  * The hourly export: everything the studies have recorded, written into a
  * private bucket of its own, one folder per study, each with two subfolders.
@@ -183,6 +185,8 @@ export interface Snapshot {
   optOuts?: Doc[];
   /** Firestore participant id → sub-label, for participants with a permission record. */
   labels: Map<string, string>;
+  /** Firestore participant id → the linkage registry's study ID (linkageStore.ts), when it has one. */
+  linkIds?: Map<string, string>;
 }
 
 export interface Session {
@@ -258,6 +262,7 @@ export function participantsTable(snap: Snapshot): Row[] {
       return {
         participant_id: snap.labels.get(p.id),
         myself_id: myselfId(p.data.firstName, p.data.lastName, p.data.dateOfBirth),
+        linkage_id: snap.linkIds?.get(p.id) ?? null,
         age: ageAt(p.data.dateOfBirth, agreedOn ?? consent?.data.completedAt),
         year_group: p.data.yearGroup,
         site: p.data.schoolId,
@@ -293,7 +298,7 @@ function dayOf(value: unknown): string | null {
 }
 
 /** The columns of participants.tsv, in order. */
-export const PARTICIPANT_COLUMNS = ['participant_id', 'myself_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'no_phone_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'added_later_on', 'young_link_opened_on', 'screen_time_off_on', 'reminders_sent', 'opted_out', 'opt_out_kind'];
+export const PARTICIPANT_COLUMNS = ['participant_id', 'myself_id', 'linkage_id', 'age', 'year_group', 'site', 'route', 'consented_on', 'consent_version', 'self_consent', 'phone_source', 'assent_status', 'questions_status', 'more_questions_status', 'no_phone_questions_status', 'sessions_n', 'screenshots_n', 'platform', 'added_later_on', 'young_link_opened_on', 'screen_time_off_on', 'reminders_sent', 'opted_out', 'opt_out_kind'];
 
 export function phenotypeTable(snap: Snapshot, form: ServedQuestionForm = parentQuestionsForm): Row[] {
   const ids = form.questions.map((q) => q.id);
@@ -553,6 +558,7 @@ export function participantsDictionary(): Record<string, unknown> {
   return {
     participant_id: { Description: 'Participant label, assigned in order of consent. The key from labels to names is kept outside this dataset, in identifying/participants_key.tsv.' },
     myself_id: { Description: 'The young person’s MySelf participant ID (P and ten characters), worked out from the first name, last name and date of birth the parent or carer gave, exactly as the MySelf school survey works out its own; joins this table to MySelf’s research data where the names and date agree. A pseudonym: anyone holding a name and date of birth can recompute it. Empty when a name or the date is missing. Matches under other spellings are made by the coordinators (identifying/myself_candidate_ids.tsv) and are not shown here.' },
+    linkage_id: { Description: 'The young person’s study ID in the linkage registry (sub-0001 …; the staff portal’s Linkage tab), which joins this record to their MySelf surveys and EEG recordings (linkage/participants.tsv, linkage/eeg_map.tsv). Empty until they have one.' },
     age: { Description: 'Age in whole years on the date of the record (the parent’s confirmed date, or the young person’s agreement when they decided alone)', Units: 'years' },
     year_group: { Description: 'School year group at consent (England)' },
     site: { Description: 'School identifier from the study’s school list; "other" when the school was typed in (the name is in identifying/)' },
@@ -849,6 +855,18 @@ export interface OutFile {
   metadata?: Record<string, string>;
 }
 
+/** The linkage registry's folder (linkage.ts): research tables at its top, the key in identifying/. */
+export const LINKAGE = 'linkage';
+export function linkageFiles(t: ReturnType<typeof linkageTables>): OutFile[] {
+  return [
+    textFile(`${LINKAGE}/README.md`, LINKAGE_README, 'text/markdown; charset=utf-8'),
+    tsvFile(`${LINKAGE}/participants.tsv`, t.participants, LINK_PARTICIPANT_COLUMNS),
+    jsonFile(`${LINKAGE}/participants.json`, linkageParticipantsDictionary()),
+    tsvFile(`${LINKAGE}/eeg_map.tsv`, t.eegMap, EEG_MAP_COLUMNS),
+    tsvFile(`${LINKAGE}/identifying/crosswalk.tsv`, t.crosswalk, CROSSWALK_COLUMNS),
+  ];
+}
+
 export const tsvFile = (path: string, rows: Row[], columns?: string[]): OutFile => ({ path, body: toTsv(rows, columns), contentType: 'text/tab-separated-values; charset=utf-8' });
 export const jsonFile = (path: string, value: unknown): OutFile => ({ path, body: `${JSON.stringify(value, null, 2)}\n`, contentType: 'application/json' });
 export const textFile = (path: string, body: string, contentType = 'text/plain; charset=utf-8'): OutFile => ({ path, body, contentType });
@@ -890,8 +908,8 @@ export const COLLECTIONS = ['participants', 'consents', 'assents', 'submissions'
 export type Collections = Record<(typeof COLLECTIONS)[number], Doc[]>;
 
 /** What the export is made of, from the records alone: the files to write, the files to copy, the tables to build from archives, and the counts. No bucket involved. */
-export function buildExport(c: Collections, labels: Map<string, string>, exportedAt: string): { files: OutFile[]; jobs: CopyJob[]; derived: Derivation[]; counts: Record<string, number>; sessions: Session[] } {
-  const snap: Snapshot = { participants: c.participants, consents: c.consents, assents: c.assents, submissions: c.submissions, enquiries: c.enquiries, surveys: c.surveys, donations: c.donations, optOuts: c.optOuts, labels };
+export function buildExport(c: Collections, labels: Map<string, string>, exportedAt: string, linkIds?: Map<string, string>): { files: OutFile[]; jobs: CopyJob[]; derived: Derivation[]; counts: Record<string, number>; sessions: Session[] } {
+  const snap: Snapshot = { participants: c.participants, consents: c.consents, assents: c.assents, submissions: c.submissions, enquiries: c.enquiries, surveys: c.surveys, donations: c.donations, optOuts: c.optOuts, labels, linkIds };
   const sessions = sessionsOf(snap);
   const lab = labExport({ participants: c.labParticipants, consents: c.labConsents, donations: c.labDonations, reminders: c.labReminders, checkIns: c.labCheckIns, stories: c.labStories, storyChats: c.labStoryChats, bookings: c.labBookings, contacts: c.labContacts, slots: c.labSlots }, exportedAt);
   const upn = upnExport(c.schoolUploads, c.participants, labels, c.optOuts);
@@ -1027,7 +1045,19 @@ export async function runExport(): Promise<Manifest> {
   const loaded = await Promise.all(COLLECTIONS.map(load));
   const c = Object.fromEntries(COLLECTIONS.map((name, i) => [name, loaded[i]])) as Collections;
   const labels = await assignLabels(db, c.participants);
-  const { files, jobs, derived, counts } = buildExport(c, labels, exportedAt);
+  // The linkage registry (linkageStore.ts): linkage/, and the study ID in the website's participants.tsv. If it cannot be read this run, what is there already stays.
+  let linkage: Awaited<ReturnType<typeof linkageExport>> | null = null;
+  try {
+    linkage = await linkageExport(db);
+  } catch (error) {
+    logger.error('Export: the linkage registry could not be read', { error: errorText(error) });
+  }
+  const { files, jobs, derived, counts } = buildExport(c, labels, exportedAt, linkage?.websiteIds);
+  if (linkage) {
+    files.push(...linkageFiles(linkage.tables));
+    counts.linkageParticipants = linkage.tables.participants.length;
+    counts.linkageEegRecordings = linkage.tables.eegMap.length;
+  }
 
   // The staff portal (exportStaff.ts): its tables and document copies. If it cannot be read this run, what is there already stays.
   let keepStaff = false;
@@ -1088,6 +1118,7 @@ export async function runExport(): Promise<Manifest> {
   // 2. Clean-up: anything that no longer belongs. Every file a record still points at is expected, copied or not, so a copy that fails is never deleted here.
   const expected = new Set<string>([...files.map((f) => f.path), ...jobs.map((j) => j.target), ...derived.flatMap((d) => d.paths), 'manifest.json']);
   if (keepStaff) for (const f of existingFiles) if (f.name.startsWith(`${STAFF}/`)) expected.add(f.name);
+  if (!linkage) for (const f of existingFiles) if (f.name.startsWith(`${LINKAGE}/`)) expected.add(f.name);
   const stale = staleObjects(existingFiles.map((f) => objectInfo(f)), expected);
   let removed = 0;
   await settle(

@@ -4559,3 +4559,44 @@
   .mpmb-app .mpmb-portal__head .mpmb-btn { padding: 0.3rem 0.6rem; font-size: 0.9rem; }
   .mpmb-portal__head .mpmb-actions { gap: 0.4rem; }
 }
+
+/* ── The linkage registry (portal, School study › Linkage; 4 November 2026) ── */
+.mpmb-link__nav { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: -0.5rem 0 1.25rem; }
+.mpmb-app .mpmb-link__navitem { padding: 0.35rem 0.8rem; border: 1px solid var(--mpb-line); border-radius: 999px; text-decoration: none; color: var(--mpb-ink); font-size: 0.92rem; background: var(--mpb-white); }
+.mpmb-app .mpmb-link__navitem.is-current { background: var(--mpb-teal); border-color: var(--mpb-teal); color: var(--mpb-white); font-weight: 600; }
+.mpmb-link__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.6rem; margin: 1rem 0; }
+.mpmb-link__stat { display: grid; gap: 0.15rem; padding: 0.9rem 1rem; border: 1px solid var(--mpb-line); border-radius: 10px; background: var(--mpb-white); text-align: left; font: inherit; color: var(--mpb-ink); }
+button.mpmb-link__stat { cursor: pointer; }
+.mpmb-link__stat strong { font-size: 1.6rem; line-height: 1.1; }
+.mpmb-link__stat span { font-size: 0.88rem; color: var(--mpb-muted, #555); }
+.mpmb-link__stat.is-warn { border-left: 4px solid var(--mpb-pink); }
+.mpmb-link__table { width: 100%; border-collapse: collapse; margin: 0.75rem 0 1rem; font-size: 0.93rem; }
+.mpmb-link__table :is(th, td) { padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--mpb-line); text-align: left; vertical-align: top; }
+.mpmb-link__table thead th { font-size: 0.82rem; text-transform: none; color: var(--mpb-muted, #555); }
+.mpmb-link__scroll { overflow-x: auto; }
+.mpmb-link__searchform { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.6rem; }
+.mpmb-link__searchform .mpmb-field { flex: 1 1 18rem; margin: 0; }
+.mpmb-link__why { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+.mpmb-link__tier { padding: 0.2rem 0.6rem; border-radius: 999px; background: #eef3f5; font-weight: 600; }
+.mpmb-link__tier.is-fuzzy { background: #fff3d6; }
+.mpmb-link__reason { margin: 0.4rem 0 1rem; color: var(--mpb-muted, #555); font-size: 0.95rem; }
+.mpmb-link__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 720px) { .mpmb-link__pair { grid-template-columns: 1fr; } }
+.mpmb-link__side { display: grid; gap: 0.6rem; align-content: start; }
+.mpmb-link__card { padding: 0.9rem 1rem; border: 1px solid var(--mpb-line); border-radius: 10px; background: var(--mpb-white); }
+.mpmb-link__card.is-website { border-top: 4px solid var(--mpb-teal); }
+.mpmb-link__card.is-myself { border-top: 4px solid #7b61c4; }
+.mpmb-link__card.is-eeg { border-top: 4px solid var(--mpb-pink); }
+.mpmb-link__cardhead { font-weight: 700; margin-bottom: 0.4rem !important; }
+.mpmb-link__kind { display: inline-block; margin-right: 0.35rem; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mpb-muted, #555); }
+.mpmb-link__card dl { display: grid; gap: 0.2rem; margin: 0; }
+.mpmb-link__field { display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.5rem; font-size: 0.93rem; }
+.mpmb-link__field dt { color: var(--mpb-muted, #555); }
+.mpmb-link__field dd { margin: 0; overflow-wrap: anywhere; }
+.mpmb-link__decide { position: sticky; bottom: 0; padding: 0.75rem 0; background: var(--mpb-paper); }
+.mpmb-link__records { display: grid; gap: 1rem; }
+.mpmb-link__status { font-weight: 400; font-size: 1rem; color: var(--mpb-pink); }
+.mpmb-link__file { position: relative; overflow: hidden; cursor: pointer; }
+.mpmb-link__file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.mpmb-link__code { white-space: pre-wrap; overflow-wrap: anywhere; padding: 0.6rem 0.75rem; background: #f3f5f7; border-radius: 6px; font-size: 0.85rem; }
+.mpmb-link__unlink { margin-top: 0.5rem; }

@@ -126,6 +126,41 @@ export interface SheetData {
   audit: { at: string | null; by: string; action: string; target: string; details: unknown }[];
   /** Only when the project manager has turned team notes on. */
   notes: { uid: string; at: string | null; byName: string; text: string }[] | null;
+  /** The linkage registry's counts (linkageStore.ts summaryOf): no names, no IDs. */
+  linkage?: LinkageCounts | null;
+}
+
+export interface LinkageCounts {
+  people: number;
+  active: number;
+  withdrawn: number;
+  pending: number;
+  multiSource: number;
+  lastRunAt: string | null;
+  sources: Record<'website' | 'myself' | 'eeg', { total: number; linked: number; awaiting: number; unlinked: number }>;
+  perSchool: { school: string; people: number; website: number; myself: number; eeg: number; allThree: number }[];
+}
+
+/** The Linkage tab: how many young people have a study ID, school by school, and what is waiting. Counts only. */
+export function linkageTable(l: LinkageCounts): Table {
+  const rows: (string | number)[][] = l.perSchool.map((s) => [s.school, s.people, s.website, s.myself, s.eeg, s.allThree]);
+  const sum = (k: 'people' | 'website' | 'myself' | 'eeg' | 'allThree') => l.perSchool.reduce((n, s) => n + s[k], 0);
+  rows.push(['All schools', sum('people'), sum('website'), sum('myself'), sum('eeg'), sum('allThree')]);
+  rows.push(['', '', '', '', '', '']);
+  rows.push(['Source', 'Records', 'With a study ID', 'Waiting for review', 'No study ID yet', '']);
+  const label = { website: 'Website', myself: 'MySelf', eeg: 'EEG' } as const;
+  for (const k of ['website', 'myself', 'eeg'] as const) rows.push([label[k], l.sources[k].total, l.sources[k].linked, l.sources[k].awaiting, l.sources[k].unlinked, '']);
+  rows.push(['', '', '', '', '', '']);
+  rows.push(['Withdrawn (left out of the dataset)', l.withdrawn, '', '', '', '']);
+  rows.push(['Suggestions waiting for a person', l.pending, '', '', '', '']);
+  rows.push(['Last matching run', l.lastRunAt ? ukStamp(l.lastRunAt) : 'not yet', '', '', '', '']);
+  return {
+    name: 'Linkage',
+    file: 'linkage',
+    describe: 'The linkage registry (portal, Linkage tab): young people with a study ID, school by school, and which sources each has; then each source’s records and what is waiting for review. Counts only: no names or IDs.',
+    header: ['School', 'Study IDs', 'With website', 'With MySelf', 'With EEG', 'All three'],
+    rows,
+  };
 }
 
 /* ── What a tab is ────────────────────────────────────────────────────── */
@@ -684,6 +719,7 @@ export function dataTables(d: SheetData): Table[] {
       rows: [...d.notes].sort((a, b) => (b.at ?? '').localeCompare(a.at ?? '')).map((n) => [nameOf(d, n.uid), ukStamp(n.at), n.byName, n.text]),
     });
   }
+  if (d.linkage) tables.push(linkageTable(d.linkage));
   return tables;
 }
 

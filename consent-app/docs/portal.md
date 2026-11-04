@@ -425,6 +425,13 @@ there when the portal deletes them). On the Mac, a destination with scope
 Google Drive) gets the tables without `documents/`; `bids` gets none of it.
 See docs/firebase.md.
 
+## The linkage registry (4 November 2026)
+
+School study › Linkage, for the project manager and the research team: one study
+ID for each young person across the website, MySelf and EEG; a review queue for
+what matching could not decide; EEG manifests; MySelf's connection. See
+[linkage.md](linkage.md).
+
 ## Data kept, and for how long
 
 | Collection | What |

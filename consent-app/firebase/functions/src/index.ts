@@ -25,6 +25,7 @@ export { schoolUpload } from './schoolUpload.js';
 import { SCHOOL_QUARANTINE } from './schoolUpload.js';
 export { staffApi } from './staff.js';
 export { portalApi, portalHousekeeping, portalSheetSync } from './portal.js';
+export { linkageHourly, linkageOnNewData } from './linkageJobs.js';
 export { schoolDbs } from './schoolDbs.js';
 export { purgeUsage, usage } from './usage.js';
 export { findAddresses } from './address.js';
