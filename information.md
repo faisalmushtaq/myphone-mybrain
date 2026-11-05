@@ -142,6 +142,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <div class="prose">
       <p>The records are education records, such as attendance and results, held by the Department for Education, and NHS health records. The linking is done through Connected West Yorkshire, using your child’s Unique Pupil Number, which the school gives us, together with their name, date of birth and home address from the workshop questionnaire. If you use the online form, the address finder also adds your home’s Unique Property Reference Number (UPRN), which helps match records more reliably. Linking happens only with the approvals in place.</p>
       <p>It happens inside a secure research environment: names and other details that identify someone directly are removed before researchers see anything, the analysis stays inside that environment, and only results about groups of people come out. Linking is part of the workshop, so opting out, either way, also opts your child out of linking.</p>
+      <p>Linking can happen now and again at times in the future, including as your child grows up and becomes an adult, for as long as the research goes on. The information is only ever used for research into health, wellbeing and learning, never to make decisions about your child. You can stop the linking at any time, without giving a reason, by emailing <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a> or Dr Sarmad Ali at <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>.</p>
     </div>
       </div>
     </details>
@@ -223,7 +224,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <p>Email Dr Sarmad Ali, the study’s contact, at <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>; we aim to reply within five working days. You can also contact the study lead, Professor Faisal Mushtaq, at <a href="mailto:F.Mushtaq@leeds.ac.uk">F.Mushtaq@leeds.ac.uk</a>, both at the School of Psychology, University of Leeds. To opt out, please email Dr Sarmad Ali at S.A.Ali1@leeds.ac.uk, or tell your child’s school, which passes it on.</p>
       <p>Need this information in another language, in an easier-to-read version or on paper? <a href="{{ '/contact/?topic=Participant%20information' | relative_url }}">Contact us</a> and we will send you what works for you. There are also <a href="{{ '/faq/' | relative_url }}">questions and answers</a>.</p>
       <p>This study has been approved by the University of Leeds School of Psychology Research Ethics Committee, reference SoPREC - 2026 4202-7027, on 11 June 2026. The University’s data protection team signed off its data protection impact assessment in May 2026.</p>
-      <p class="info-sheet__updated">Last updated 26 October 2026.</p>
+      <p class="info-sheet__updated">Last updated 5 November 2026.</p>
     </div>
       </div>
     </details>

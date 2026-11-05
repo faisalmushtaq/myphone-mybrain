@@ -128,7 +128,7 @@ test('rejects a missing required statement, and the statements no longer asked',
 test('the current information, or a recent earlier version for a family who signed before an update', () => {
   const p = valid();
   assert.deepEqual(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.6-draft' } }), []);
-  assert.ok(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.4-draft' } }).some((m) => m.includes('information shown must be version 0.7-draft')));
+  assert.ok(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.4-draft' } }).some((m) => m.includes('information shown must be version 0.8-draft')));
 });
 
 test('rejects an old statement version', () => {
