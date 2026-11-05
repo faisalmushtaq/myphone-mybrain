@@ -60,7 +60,8 @@ export const parentConsentForm: StatementForm = {
   // 0.8: the same statements in very plain English, for parents with little time or reading confidence (8 October 2026).
   // 0.9: "My answers" also covers linking with Department for Education records and machine learning (8 October 2026).
   // 0.10: linking spelled out as in MySelf's record-linkage statement: what is shared with Connected West Yorkshire, which records, now and in the future, only for research, and how to stop (5 November 2026).
-  version: '0.10-draft', // PLACEHOLDER — ethics-approved version identifier
+  // 0.11: says plainly that nothing that could identify the child will ever appear in any report or publication (5 November 2026).
+  version: '0.11-draft', // PLACEHOLDER — ethics-approved version identifier
   title: 'Parent or carer permission',
   statements: [
     {
@@ -73,10 +74,10 @@ export const parentConsentForm: StatementForm = {
     },
     {
       id: 'answers',
-      version: '0.4-draft',
+      version: '0.5-draft',
       kind: 'required',
       label: 'My answers',
-      text: 'My answers about my child’s phone use can be used in the study, with a code instead of a name, including research using machine learning (computers finding patterns in data). They are only ever used for research into health, wellbeing and learning, never to make decisions about my child.',
+      text: 'My answers about my child’s phone use can be used in the study, with a code instead of a name, including research using machine learning (computers finding patterns in data). They are only ever used for research into health, wellbeing and learning, never to make decisions about my child. Nothing that could identify my child will ever appear in any report, publication or presentation.',
       draft: true,
     },
     {
@@ -110,15 +111,16 @@ export const childAssentForm: StatementForm = {
   id: 'mpmb-child-assent',
   // 0.6: "understand" also covers linking with Department for Education records and machine learning (8 October 2026).
   // 0.7: linking spelled out as on the parent's form (5 November 2026).
-  version: '0.7-draft', // PLACEHOLDER — ethics-approved version identifier
+  // 0.8: nothing that could identify them will ever appear in any report (5 November 2026).
+  version: '0.8-draft', // PLACEHOLDER — ethics-approved version identifier
   title: 'Young person’s agreement',
   statements: [
     {
       id: 'understand',
-      version: '0.6-draft',
+      version: '0.7-draft',
       kind: 'required',
       label: 'Understanding what sharing means',
-      text: 'I know what sharing my screen time means. My name, date of birth, address and pupil number can be shared securely with Connected West Yorkshire, so it can be linked with my health records (such as GP and hospital visits) and education records (such as attendance and exam results), now and at times in the future, for as long as the research goes on. It is only used for research, including machine learning (computers finding patterns in data), never to make decisions about me. Researchers only see it with my name, date of birth and address removed. I can ask questions.',
+      text: 'I know what sharing my screen time means. My name, date of birth, address and pupil number can be shared securely with Connected West Yorkshire, so it can be linked with my health records (such as GP and hospital visits) and education records (such as attendance and exam results), now and at times in the future, for as long as the research goes on. It is only used for research, including machine learning (computers finding patterns in data), never to make decisions about me. Researchers only see it with my name, date of birth and address removed, and nothing that could identify me will ever appear in any report. I can ask questions.',
       coveredBySignature: true,
       draft: true,
     },
@@ -252,5 +254,104 @@ const childAssentForm06: StatementForm = {
   ],
 };
 
-export const earlierParentConsentForms: StatementForm[] = [parentConsentForm09];
-export const earlierChildAssentForms: StatementForm[] = [childAssentForm06];
+const parentConsentForm010: StatementForm = {
+  id: 'mpmb-parent-consent',
+  // 0.7: no optional choices (7 October 2026). Sharing the screen time is the parent's answer on the "where from" step; recontact is gone.
+  // 0.8: the same statements in very plain English, for parents with little time or reading confidence (8 October 2026).
+  // 0.9: "My answers" also covers linking with Department for Education records and machine learning (8 October 2026).
+  // 0.10: linking spelled out as in MySelf's record-linkage statement: what is shared with Connected West Yorkshire, which records, now and in the future, only for research, and how to stop (5 November 2026).
+  version: '0.10-draft', // PLACEHOLDER — ethics-approved version identifier
+  title: 'Parent or carer permission',
+  statements: [
+    {
+      id: 'read-information',
+      version: '0.5-draft',
+      kind: 'required',
+      label: 'Reading the information',
+      text: 'I know what this is about, and I could ask questions if I wanted to.',
+      draft: true,
+    },
+    {
+      id: 'answers',
+      version: '0.4-draft',
+      kind: 'required',
+      label: 'My answers',
+      text: 'My answers about my child’s phone use can be used in the study, with a code instead of a name, including research using machine learning (computers finding patterns in data). They are only ever used for research into health, wellbeing and learning, never to make decisions about my child.',
+      draft: true,
+    },
+    {
+      id: 'linking',
+      version: '0.1-draft',
+      kind: 'required',
+      label: 'Linking with records',
+      text: 'My child’s name, date of birth, address and pupil number can be shared securely with Connected West Yorkshire, so that my answers can be linked with my child’s health records (such as GP and hospital visits) and education records (such as attendance and exam results). This can happen now and at times in the future, including as my child grows up, for as long as the research goes on, and only for research. Researchers only see the linked information with names, dates of birth and addresses removed.',
+      draft: true,
+    },
+    {
+      id: 'understand-withdraw',
+      version: '0.6-draft',
+      kind: 'required',
+      label: 'Changing my mind',
+      text: 'I can change my mind at any time, including about linking, by emailing brainpop@leeds.ac.uk. I don’t have to say why.',
+      draft: true,
+    },
+    {
+      id: 'records-checked',
+      version: '0.4-draft',
+      kind: 'required',
+      label: 'Checks on the study',
+      text: 'People who check that research is done properly may look at the study’s records.',
+      draft: true,
+    },
+  ],
+};
+
+const childAssentForm07: StatementForm = {
+  id: 'mpmb-child-assent',
+  // 0.6: "understand" also covers linking with Department for Education records and machine learning (8 October 2026).
+  // 0.7: linking spelled out as on the parent's form (5 November 2026).
+  version: '0.7-draft', // PLACEHOLDER — ethics-approved version identifier
+  title: 'Young person’s agreement',
+  statements: [
+    {
+      id: 'understand',
+      version: '0.6-draft',
+      kind: 'required',
+      label: 'Understanding what sharing means',
+      text: 'I know what sharing my screen time means. My name, date of birth, address and pupil number can be shared securely with Connected West Yorkshire, so it can be linked with my health records (such as GP and hospital visits) and education records (such as attendance and exam results), now and at times in the future, for as long as the research goes on. It is only used for research, including machine learning (computers finding patterns in data), never to make decisions about me. Researchers only see it with my name, date of birth and address removed. I can ask questions.',
+      coveredBySignature: true,
+      draft: true,
+    },
+    {
+      id: 'can-stop',
+      version: '0.4-draft',
+      kind: 'required',
+      label: 'Stopping at any time',
+      text: 'I can stop at any time, including the linking, by emailing brainpop@leeds.ac.uk. I don’t have to say why.',
+      coveredBySignature: true,
+      draft: true,
+    },
+    {
+      id: 'take-part',
+      version: '0.4-draft',
+      kind: 'required',
+      label: 'Sharing my screen time',
+      text: 'I want to share my screen time with MyPhone/MyBrain.',
+      coveredBySignature: true,
+      draft: true,
+    },
+    {
+      id: 'phone-use',
+      version: '0.5-draft',
+      kind: 'optional',
+      label: 'Sending screenshots of your screen time and apps',
+      text: 'I am happy to share screenshots of my phone’s screen-time summary, including which apps I use and for how long.',
+      more: 'It shows which apps you use and for how long — not what you do in them. Both matter: how you use your phone, not just how much. You can hide any part before sharing, and you can skip it.',
+      affects: 'phone-use',
+      draft: true,
+    },
+  ],
+};
+
+export const earlierParentConsentForms: StatementForm[] = [parentConsentForm010, parentConsentForm09];
+export const earlierChildAssentForms: StatementForm[] = [childAssentForm07, childAssentForm06];

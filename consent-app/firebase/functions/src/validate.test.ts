@@ -128,7 +128,7 @@ test('rejects a missing required statement, and the statements no longer asked',
 test('the current information, or a recent earlier version for a family who signed before an update', () => {
   const p = valid();
   assert.deepEqual(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.6-draft' } }), []);
-  assert.ok(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.4-draft' } }).some((m) => m.includes('information shown must be version 0.8-draft')));
+  assert.ok(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.4-draft' } }).some((m) => m.includes('information shown must be version 0.9-draft')));
 });
 
 test('rejects an old statement version', () => {
@@ -344,5 +344,10 @@ test('the parent’s form with linking spelled out (0.10) is accepted, and so is
   delete p.consent!.responses.linking;
   assert.ok(validateConsentPayload(p).some((m) => m.includes('"linking"')), 'the new form needs the linking statement');
   p.consent!.formVersion = '0.8-draft';
-  assert.ok(validateConsentPayload(p).some((m) => m.includes('must be mpmb-parent-consent 0.10-draft')), 'older forms are refused');
+  assert.ok(validateConsentPayload(p).some((m) => m.includes('must be mpmb-parent-consent 0.11-draft')), 'older forms are refused');
+  // 0.11, the current form: "My answers" also says nothing that could identify the child will appear in any report.
+  p.consent!.formVersion = '0.11-draft';
+  p.consent!.responses.linking = r('linking', 'agreed', 'group', '0.1-draft');
+  p.consent!.responses.answers = r('answers', 'agreed', 'group', '0.5-draft');
+  assert.deepEqual(validateConsentPayload(p), []);
 });
