@@ -69,3 +69,6 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # GitHub Pages sometimes takes longer than the default 10 minutes to publish (5 November 2026).
+          timeout: 1800000
