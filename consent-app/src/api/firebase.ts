@@ -4,7 +4,7 @@ import { connectAuthEmulator, getAuth, signInAnonymously, type Auth, type User }
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, deleteObject, getStorage, ref, uploadBytesResumable, type FirebaseStorage } from 'firebase/storage';
 import type { SessionInfo } from '../model/types';
-import { ApiError, type AddressLookup, type AddressSuggestions, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabStoryChatRequest, type LabStoryChatResponse, type LabStoryVoiceRequest, type LabStoryVoiceResponse, type LabStoryPayload, type LabStoryResult, type LateAgreementPayload, type LateAgreementResult, type PickedAddress, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type AddressLookup, type AddressSuggestions, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabRecruitment, type LabPhase, type LabPlatform, type LabReminderResult, type LabStoryChatRequest, type LabStoryChatResponse, type LabStoryVoiceRequest, type LabStoryVoiceResponse, type LabStoryPayload, type LabStoryResult, type LateAgreementPayload, type LateAgreementResult, type PickedAddress, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
 
 /**
  * Firebase implementation of the API boundary.
@@ -84,6 +84,21 @@ export class FirebaseConsentApi implements ConsentApi {
   private functions: Functions;
   private storage: FirebaseStorage;
 
+  private recruitmentUrl: string;
+
+  async labRecruitment(): Promise<LabRecruitment> {
+    const open: LabRecruitment = { break: { open: true, message: null }, control: { open: true, message: null } };
+    try {
+      const res = await fetch(this.recruitmentUrl, { method: 'GET' });
+      if (!res.ok) return open;
+      const body = (await res.json()) as Partial<LabRecruitment>;
+      const one = (g: unknown) => (g && typeof g === 'object' && (g as { open?: unknown }).open === false ? { open: false, message: String((g as { message?: unknown }).message ?? '') || null } : { open: true, message: null });
+      return { break: one(body.break), control: one(body.control) };
+    } catch {
+      return open;
+    }
+  }
+
   constructor(settings: FirebaseSettings) {
     this.app = initializeApp({ apiKey: settings.apiKey, authDomain: settings.authDomain, projectId: settings.projectId, storageBucket: settings.storageBucket, appId: settings.appId });
     if (settings.appCheckSiteKey) {
@@ -92,6 +107,7 @@ export class FirebaseConsentApi implements ConsentApi {
     this.auth = getAuth(this.app);
     this.functions = getFunctions(this.app, settings.region);
     this.storage = getStorage(this.app);
+    this.recruitmentUrl = settings.emulatorHost ? `http://${settings.emulatorHost.split(':')[0]}:5001/${settings.projectId}/${settings.region}/labRecruitment` : `https://${settings.region}-${settings.projectId}.cloudfunctions.net/labRecruitment`;
     if (settings.emulatorHost) {
       const [host, port] = settings.emulatorHost.split(':');
       connectAuthEmulator(this.auth, `http://${host}:9099`, { disableWarnings: true });

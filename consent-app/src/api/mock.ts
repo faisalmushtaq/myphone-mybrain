@@ -3,7 +3,7 @@ import { referenceCode } from '../lib/ids';
 import type { SessionInfo } from '../model/types';
 import { labBooking, labCheckInNumberOn } from '../lab/booking';
 import { addDays, atUkTime, daysBetween, previewIcs, ukIsoDay } from '../lab/calendar';
-import { ApiError, type AddressLookup, type AddressSuggestions, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBooking, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabPhase, type LabPlatform, type LabReminderResult, type LabSlot, type LabStoryChatRequest, type LabStoryChatResponse, type LabStoryVoiceResponse, type LabStoryPayload, type LabStoryResult, type LabVisit, type LateAgreementPayload, type LateAgreementResult, type PickedAddress, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
+import { ApiError, type AddressLookup, type AddressSuggestions, type ConsentApi, type ConsentPayload, type ConsentResult, type DeliveryOutcome, type DonationPayload, type DonationResult, type LabBooking, type LabBookingOptions, type LabBookPayload, type LabBookResult, type LabCancelResult, type LabCheckInPayload, type LabCheckInResult, type LabConsentPayload, type LabConsentResult, type LabDonationPayload, type LabDonationResult, type LabLookupResult, type LabRecruitment, type LabPhase, type LabPlatform, type LabReminderResult, type LabSlot, type LabStoryChatRequest, type LabStoryChatResponse, type LabStoryVoiceResponse, type LabStoryPayload, type LabStoryResult, type LabVisit, type LateAgreementPayload, type LateAgreementResult, type PickedAddress, type ResumeLookupPayload, type ResumeSummary, type UploadMeta, type UploadSlot } from './types';
 
 export interface MockFlags {
   failUploads: boolean;
@@ -330,6 +330,13 @@ export class MockConsentApi implements ConsentApi {
     this.lab.set(payload.participantCode, existing);
     this.persistLab();
     return { participantCode: payload.participantCode, consentId: `labc_${existing.consents.length}_${payload.participantCode}`, receivedAt: new Date().toISOString(), version: existing.consents.length };
+  }
+
+  /** The preview: add ?recruitment=paused to the address to see the paused page. */
+  async labRecruitment(): Promise<LabRecruitment> {
+    const paused = new URLSearchParams(window.location.search).get('recruitment') === 'paused';
+    const g = paused ? { open: false, message: 'We are not taking on new participants at the moment because all our lab visits are full. Recruitment will reopen after the New Year.' } : { open: true, message: null };
+    return { break: g, control: g };
   }
 
   async lookupLabParticipant(session: SessionInfo, participantCode: string): Promise<LabLookupResult> {

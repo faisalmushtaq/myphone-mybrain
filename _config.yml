@@ -8,6 +8,7 @@ contact_name: "Dr Sarmad Ali"
 enquiry_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/enquiry"
 # Anonymous usage counts (assets/js/usage.js → the usage Cloud Function): sent only from the live site. Empty = nothing is sent.
 usage_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/usage"
+recruitment_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/labRecruitment"
 
 baseurl: ""
 url: "https://myphonemybrain.com"

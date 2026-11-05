@@ -59,6 +59,13 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
       <p>The full participant information sheet is shown, section by section, before you are asked to consent, and you can download a copy of your signed consent for your own records.</p>
     </div>
 
+    <div class="info-panel info-panel-alt recruitment-paused" data-recruitment-paused="break" role="status" hidden>
+      <h3>Recruitment is paused</h3>
+      <p data-recruitment-message>We are not taking on new participants at the moment because all our lab visits are full. Recruitment will reopen after the New Year.</p>
+      <p>If you have already started, you can carry on as normal.</p>
+    </div>
+    <script src="{{ '/assets/js/recruitment.js' | relative_url }}" data-endpoint="{{ site.recruitment_endpoint }}" defer></script>
+
     <div class="participant-next-step">
       <h3>Interested in taking part?</h3>
       <p>Email Miftah Faizah at <a href="mailto:M.Faizah@leeds.ac.uk?subject=Social%20media%20break%20study">M.Faizah@leeds.ac.uk</a>. The research team tells you which part of the study you are in, and sends you the link to start.</p>

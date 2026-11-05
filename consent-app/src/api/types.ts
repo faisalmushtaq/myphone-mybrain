@@ -497,8 +497,13 @@ export type AddressSuggestions = { status: 'suggestions'; suggestions: AddressSu
 /** The full address for a suggestion the parent chose. */
 export type PickedAddress = { status: 'picked'; postcode: string; address: string; uprn: string | null } | { status: 'not-found' } | { status: 'unavailable' };
 
+/** Whether each lab group is taking on new participants (firebase/functions/src/recruitment.ts); a paused group has the team's message. */
+export type LabRecruitment = Record<'break' | 'control', { open: boolean; message: string | null }>;
+
 export interface ConsentApi {
   startSession(): Promise<SessionInfo>;
+  /** The lab study's sign-up status, set on the staff page. Never fails: if it cannot be read, both groups count as open (the consent is checked again on the server). */
+  labRecruitment(): Promise<LabRecruitment>;
   /** The addresses at a postcode, so a parent can pick theirs instead of typing it. */
   findAddresses(session: SessionInfo, postcode: string): Promise<AddressLookup>;
   /** Addresses matching what the parent has typed so far, near the postcode they have given if any (free). */

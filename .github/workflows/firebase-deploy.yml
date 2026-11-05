@@ -117,7 +117,7 @@ jobs:
       - name: Keep the callables reachable from the website
         if: ${{ inputs.target != 'rules only' }}
         run: |
-          for fn in submitconsent submitdonation enquiry submitlabconsent lookuplabparticipant submitlabdonation requestlabreminder submitlabcheckin updatelabplatforms labbookingoptions booklabslot cancellabbooking submitlabstory emaillabstory labstorychat labstoryvoice resumerecord schoolupload staffapi usage findaddresses; do
+          for fn in submitconsent submitdonation enquiry submitlabconsent lookuplabparticipant submitlabdonation requestlabreminder submitlabcheckin updatelabplatforms labbookingoptions booklabslot cancellabbooking submitlabstory emaillabstory labstorychat labstoryvoice resumerecord schoolupload staffapi usage findaddresses labrecruitment; do
             gcloud run services add-iam-policy-binding "$fn" --region="$REGION" --member=allUsers --role=roles/run.invoker --project="$PROJECT_ID" --quiet >/dev/null
           done
 
@@ -140,6 +140,9 @@ jobs:
             echo "$fn → http $code"
             case "$code" in 400|401) ;; *) echo "unexpected status for $fn"; exit 1 ;; esac
           done
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://$REGION-$PROJECT_ID.cloudfunctions.net/labRecruitment" -H 'Origin: https://myphonemybrain.com')
+          echo "labRecruitment → http $code"
+          [ "$code" = 200 ] || { echo "unexpected status for labRecruitment"; exit 1; }
           # The website's contact and school forms post from another origin, so
           # the browser's preflight request must be allowed for the site.
           headers=$(curl -s -o /dev/null -D - -X OPTIONS "https://$REGION-$PROJECT_ID.cloudfunctions.net/enquiry" -H 'Origin: https://myphonemybrain.com' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type')

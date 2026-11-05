@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react';
+import { getApi } from '../../api';
 import { Button } from '../../components/ui/Button';
+import { Callout } from '../../components/ui/Callout';
 import { Icon } from '../../components/ui/Icon';
 import { labPages, labStudy } from '../config';
 import { LabShell } from '../LabShell';
@@ -17,6 +20,21 @@ export function LabWelcome() {
   const { group, words } = useLabGroup();
   const consented = state.submission.consentStage === 'sent';
   const remembered = state.restored && state.codeConfirmed;
+  // Recruitment paused on the staff page (5 November 2026): no new sign-ups, so nobody sends their data and then finds
+  // no visit to book. "Already started?" works as before. The server refuses a new consent while paused as well.
+  const [pausedMessage, setPausedMessage] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void getApi()
+      .labRecruitment()
+      .then((r) => {
+        if (live && !r[group].open) setPausedMessage(r[group].message ?? '');
+      });
+    return () => {
+      live = false;
+    };
+  }, [group]);
+  const paused = pausedMessage !== null && !(remembered && consented);
 
   const start = () => {
     dispatch({ type: 'carry-on', on: false });
@@ -44,7 +62,16 @@ export function LabWelcome() {
       hideContinue
       hideBack
     >
+      {paused && (
+        <Callout tone="important" title="Recruitment is paused">
+          <p>{pausedMessage || 'We are not taking on new participants at the moment.'}</p>
+          <p>
+            If you have already started, choose <strong>Already started?</strong> below to carry on. Questions: {labStudy.contact.name}, <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>.
+          </p>
+        </Callout>
+      )}
       <div className="mpmb-routes">
+        {!paused && (
         <button type="button" className="mpmb-route" onClick={start} aria-labelledby="lab-new-title" aria-describedby="lab-new-body">
           <span className="mpmb-route__icon" aria-hidden="true">
             <Icon name="young" size={30} />
@@ -59,6 +86,7 @@ export function LabWelcome() {
             Start →
           </span>
         </button>
+        )}
         <button type="button" className="mpmb-route mpmb-route--young" onClick={carryOn} aria-labelledby="lab-back-title" aria-describedby="lab-back-body">
           <span className="mpmb-route__icon" aria-hidden="true">
             <Icon name="refresh" size={30} />

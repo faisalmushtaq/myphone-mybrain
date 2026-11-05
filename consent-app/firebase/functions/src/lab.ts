@@ -2,6 +2,7 @@ import { FieldValue, getFirestore, Timestamp, type DocumentData, type Firestore 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
+import { readRecruitment } from './recruitment.js';
 import { logger } from 'firebase-functions/v2';
 import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
@@ -471,6 +472,7 @@ export const submitLabConsent = onCall(callOptions, async (request) => {
   const consentRef = db.collection('labConsents').doc(`c${sameConsent}`);
   const stored = sig?.method === 'drawn' && sig.imageDataUrl ? await storeSignature(`lab/${code}`, consentRef.id, sig.imageDataUrl) : null;
 
+  const recruitment = await readRecruitment(db);
   const result = await db.runTransaction(async (tx) => {
     const [held, previousSnap, contactSnap] = await Promise.all([tx.get(consentRef), tx.get(participantRef), tx.get(contactRef)]);
     const before = held.data();
@@ -482,6 +484,11 @@ export const submitLabConsent = onCall(callOptions, async (request) => {
     }
     // Someone already taking part stays in their group: a consent on the other group's form is refused.
     const group = consentGroupOf(payload.consent.formId);
+    // While the team has paused recruitment to this group, only people who have already given consent can carry on.
+    if (!previous?.consentId && recruitment[group].paused) {
+      logger.warn('Sign-up refused: recruitment paused', { participantCode: code, group });
+      throw new HttpsError('failed-precondition', `Recruitment is paused. ${recruitment[group].message}`, { reason: 'recruitment-paused' });
+    }
     if (previous?.consentId && groupOf(previous) !== group) throw new HttpsError('failed-precondition', 'You are already taking part in the other part of this study. Please use the link the team gave you, or contact the team.');
     const version = Number(previous?.consentVersion ?? 0) + 1;
     const contactBefore = contactSnap.data();

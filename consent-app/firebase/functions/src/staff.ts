@@ -18,6 +18,7 @@ import { countFailure, schoolBySlug, setSchoolPassword } from './schoolUpload.js
 import { readSecret } from './secrets.js';
 import { sendSms, smsReady, ukMobile } from './sms.js';
 import { isObj } from './validate.js';
+import { readRecruitment, setRecruitment } from './recruitment.js';
 import { usageSummary } from './usage.js';
 
 /**
@@ -508,6 +509,14 @@ export const staffApi = onCall(callOptions, async (request) => {
       const code = codeOf(data.participantCode);
       await db.collection('labParticipants').doc(code).set({ messagesPaused: Boolean(data.paused), messagesPausedAt: data.paused ? now : null, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       return { ok: true, messagesPaused: Boolean(data.paused) };
+    }
+
+    case 'recruitment':
+      return readRecruitment(db);
+
+    case 'set-recruitment': {
+      if (data.group !== 'break' && data.group !== 'control') throw bad('Unknown group.');
+      return setRecruitment(db, data.group, data.paused, data.message, 'staff page');
     }
 
     case 'schools':

@@ -10,12 +10,13 @@ import { OptOuts } from './staff/OptOuts';
 import { Participants } from './staff/Participants';
 import { Schools } from './staff/Schools';
 import { Times } from './staff/Times';
+import { Recruitment } from './staff/Recruitment';
 import { Usage } from './staff/Usage';
 
 const KEY_STORE = 'mpmb-staff-key';
 /** The export runs every hour (five past); older than three hours means a run, or more, has failed. */
 const EXPORT_STALE_MS = 3 * 3_600_000;
-type Tab = 'schools-dashboard' | 'families' | 'schools' | 'opt-outs' | 'break-dashboard' | 'times' | 'bookings' | 'participants' | 'usage';
+type Tab = 'schools-dashboard' | 'families' | 'schools' | 'opt-outs' | 'break-dashboard' | 'times' | 'bookings' | 'participants' | 'recruitment' | 'usage';
 type Area = 'schools' | 'break' | 'site';
 /**
  * The two studies kept apart (16 October 2026): the schools study (parents,
@@ -42,6 +43,7 @@ const AREAS: { id: Area; label: string; tabs: { id: Tab; label: string }[] }[] =
       { id: 'times', label: 'Lab times' },
       { id: 'bookings', label: 'Bookings' },
       { id: 'participants', label: 'Participants' },
+      { id: 'recruitment', label: 'Recruitment' },
     ],
   },
   { id: 'site', label: 'Website', tabs: [{ id: 'usage', label: 'Website use' }] },
@@ -225,6 +227,7 @@ export function StaffApp() {
         {tab === 'times' && <Times staff={staff} />}
         {tab === 'bookings' && <Bookings staff={staff} />}
         {tab === 'participants' && <Participants staff={staff} />}
+        {tab === 'recruitment' && <Recruitment staff={staff} />}
         {tab === 'schools' && <Schools staff={staff} />}
         {tab === 'schools-dashboard' && <Dashboard staff={staff} study="schools" />}
         {tab === 'break-dashboard' && <Dashboard staff={staff} study="break" />}
