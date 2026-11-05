@@ -2,7 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { FieldValue, getFirestore, Timestamp, type DocumentData } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { childAssentForm, REFERENCE_CODE, study } from './forms.js';
+import { childAssentForm, childAssentFormFor, REFERENCE_CODE, study } from './forms.js';
 import { rateLimitLookups } from './lab.js';
 import { storeSignature, signatureRecord } from './signatures.js';
 import { isObj, parseDate, validateClient, validateResponses, validateSignature, validTime, type ClientInfo, type StatementRecord } from './validate.js';
@@ -127,12 +127,14 @@ export function validateLateAgreement(input: unknown): string[] {
   const a = input.assent;
   if (!isObj(a)) problems.push('The agreement record is missing.');
   else {
-    if (a.formId !== childAssentForm.id || a.formVersion !== childAssentForm.version) problems.push(`The agreement form must be ${childAssentForm.id} ${childAssentForm.version}.`);
+    // The current form, or the one just before for a page opened before an update reached it.
+    const agreedForm = a.formId === childAssentForm.id ? (childAssentFormFor(a.formVersion) ?? childAssentForm) : childAssentForm;
+    if (a.formId !== childAssentForm.id || !childAssentFormFor(a.formVersion)) problems.push(`The agreement form must be ${childAssentForm.id} ${childAssentForm.version}.`);
     if (a.status !== 'completed' && a.status !== 'declined') problems.push('The young person’s answer is missing.');
-    validateResponses(a.responses, childAssentForm, problems, 'Agreement');
+    validateResponses(a.responses, agreedForm, problems, 'Agreement');
     const responses = isObj(a.responses) ? (a.responses as Record<string, StatementRecord>) : {};
     if (a.status === 'completed') {
-      for (const sid of childAssentForm.signed) {
+      for (const sid of agreedForm.signed) {
         if (responses[sid]?.response !== 'agreed' || responses[sid]?.via !== 'signature') problems.push(`Agreement statement "${sid}" was not signed.`);
       }
       validateSignature(a.signature, 'Agreement', problems);

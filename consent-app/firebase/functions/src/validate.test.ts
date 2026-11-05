@@ -328,3 +328,21 @@ test('a young person with no phone of their own: the no-phone questions in the l
   assert.ok(validateConsentPayload({ ...p, more: { ...p.more, formId: 'mpmb-parent-phone-use', formVersion: '0.5-draft', responses: {} } }).some((m) => m.includes('do not match whether the young person has a phone')), '"no phone" needs the no-phone questions');
   assert.ok(validateConsentPayload({ ...p, more: { ...p.more!, responses: { 'expected-age': { questionId: 'expected-age', version: '0.1-draft', value: '9', answeredAt: now } } } }).some((m) => m.includes('Malformed answer')));
 });
+
+test('the parent’s form with linking spelled out (0.10) is accepted, and so is the one just before (0.9) for a family who opened it before the update', () => {
+  const p = valid();
+  assert.deepEqual(validateConsentPayload(p), [], '0.9, as opened before the update');
+  p.consent!.formVersion = '0.10-draft';
+  p.consent!.responses = {
+    'read-information': r('read-information', 'agreed', 'group', '0.5-draft'),
+    answers: r('answers', 'agreed', 'group', '0.4-draft'),
+    linking: r('linking', 'agreed', 'group', '0.1-draft'),
+    'understand-withdraw': r('understand-withdraw', 'agreed', 'group', '0.6-draft'),
+    'records-checked': r('records-checked', 'agreed', 'group', '0.4-draft'),
+  };
+  assert.deepEqual(validateConsentPayload(p), []);
+  delete p.consent!.responses.linking;
+  assert.ok(validateConsentPayload(p).some((m) => m.includes('"linking"')), 'the new form needs the linking statement');
+  p.consent!.formVersion = '0.8-draft';
+  assert.ok(validateConsentPayload(p).some((m) => m.includes('must be mpmb-parent-consent 0.10-draft')), 'older forms are refused');
+});

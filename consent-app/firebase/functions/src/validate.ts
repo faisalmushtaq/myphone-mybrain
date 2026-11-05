@@ -1,4 +1,4 @@
-import { childAssentForm, earlierInformationVersions, parentConsentForm, parentMoreForm, parentNoPhoneForm, parentQuestionsForm, informationVersion, REFERENCE_CODE, study, type ServedQuestionForm } from './forms.js';
+import { childAssentForm, childAssentFormFor, earlierInformationVersions, parentConsentForm, parentConsentFormFor, parentMoreForm, parentNoPhoneForm, parentQuestionsForm, informationVersion, REFERENCE_CODE, study, type ServedQuestionForm } from './forms.js';
 
 /**
  * Server-side validation. Mirrors the browser rules in src/lib/validation.ts
@@ -303,12 +303,14 @@ export function validateConsentPayload(input: unknown): string[] {
     if (c !== null && c !== undefined) problems.push('A young person deciding alone sends no permission record.');
   } else if (!isObj(c)) problems.push('The permission record is missing.');
   else {
-    if (c.formId !== parentConsentForm.id || c.formVersion !== parentConsentForm.version) problems.push(`The permission form must be ${parentConsentForm.id} ${parentConsentForm.version}.`);
+    // The current form, or the one just before for a family who opened it before an update reached them.
+    const signedForm = c.formId === parentConsentForm.id ? (parentConsentFormFor(c.formVersion) ?? parentConsentForm) : parentConsentForm;
+    if (c.formId !== parentConsentForm.id || !parentConsentFormFor(c.formVersion)) problems.push(`The permission form must be ${parentConsentForm.id} ${parentConsentForm.version}.`);
     // The current information, or a recent earlier version for a family who signed before an update reached them.
     if (c.informationVersion !== informationVersion && !earlierInformationVersions.includes(String(c.informationVersion))) problems.push(`The information shown must be version ${informationVersion}.`);
-    validateResponses(c.responses, parentConsentForm, problems, 'Permission');
+    validateResponses(c.responses, signedForm, problems, 'Permission');
     const responses = isObj(c.responses) ? (c.responses as Record<string, StatementRecord>) : {};
-    for (const s of parentConsentForm.statements) {
+    for (const s of signedForm.statements) {
       const r = responses[s.id];
       if (s.underSelfConsentAge && selfConsent) {
         if (r) problems.push(`Statement "${s.id}" is not asked when the young person is ${study.selfConsentAge} or over: they decide for themselves.`);
@@ -332,14 +334,15 @@ export function validateConsentPayload(input: unknown): string[] {
   const a = p.assent;
   if (!isObj(a)) problems.push('The agreement record is missing.');
   else {
-    if (a.formId !== childAssentForm.id || a.formVersion !== childAssentForm.version) problems.push(`The agreement form must be ${childAssentForm.id} ${childAssentForm.version}.`);
+    const agreedForm = a.formId === childAssentForm.id ? (childAssentFormFor(a.formVersion) ?? childAssentForm) : childAssentForm;
+    if (a.formId !== childAssentForm.id || !childAssentFormFor(a.formVersion)) problems.push(`The agreement form must be ${childAssentForm.id} ${childAssentForm.version}.`);
     if (!['not-started', 'completed', 'deferred', 'declined'].includes(String(a.status))) problems.push('Unknown agreement status.');
-    validateResponses(a.responses, childAssentForm, problems, 'Agreement');
+    validateResponses(a.responses, agreedForm, problems, 'Agreement');
     const responses = isObj(a.responses) ? (a.responses as Record<string, StatementRecord>) : {};
     // Otherwise the record is saved from the moment the parent signs, before the young person answers (or is asked).
     if (alone && a.status !== 'completed') problems.push('A young person deciding alone sends their record only once they have agreed.');
     if (a.status === 'completed') {
-      for (const sid of childAssentForm.signed) {
+      for (const sid of agreedForm.signed) {
         if (responses[sid]?.response !== 'agreed' || responses[sid]?.via !== 'signature') problems.push(`Agreement statement "${sid}" was not signed.`);
       }
       validateSignature(a.signature, 'Agreement', problems);

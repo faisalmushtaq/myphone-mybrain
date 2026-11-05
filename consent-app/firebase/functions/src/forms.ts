@@ -36,6 +36,16 @@ export const childAssentForm = {
   statements: generated.childAssentForm.statements.map(served),
 };
 
+type GeneratedForm = { readonly id: string; readonly version: string; readonly statements: readonly { readonly id: string; readonly version: string; readonly kind: string; readonly underSelfConsentAge?: boolean; readonly coveredBySignature?: boolean }[] };
+const earlier = (forms: readonly GeneratedForm[] | undefined) => (forms ?? []).map((f) => ({ id: f.id, version: f.version, statements: f.statements.map(served), signed: f.statements.filter((s) => s.coveredBySignature).map((s) => s.id) }));
+const earlierParent = earlier((generated as { earlierParentConsentForms?: readonly GeneratedForm[] }).earlierParentConsentForms);
+const earlierChild = earlier((generated as { earlierChildAssentForms?: readonly GeneratedForm[] }).earlierChildAssentForms);
+
+/** The parent's form as signed: the current one, or the one just before for a family who opened it before an update (null otherwise). */
+export const parentConsentFormFor = (version: unknown) => (version === parentConsentForm.version ? parentConsentForm : (earlierParent.find((f) => f.version === version) ?? null));
+/** The young person's form as signed: the current one, or the one just before (null otherwise). */
+export const childAssentFormFor = (version: unknown) => (version === childAssentForm.version ? childAssentForm : (earlierChild.find((f) => f.version === version) ?? null));
+
 export const informationVersion: string = generated.informationVersion;
 /** Earlier versions of the information still accepted, for families who signed before an update reached them. */
 export const earlierInformationVersions: readonly string[] = (generated as { earlierInformationVersions?: readonly string[] }).earlierInformationVersions ?? [];

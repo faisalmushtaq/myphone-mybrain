@@ -37,6 +37,17 @@ function storage(): Storage | null {
   }
 }
 
+/**
+ * A form saved under an earlier version (the wording changed since, 5 November 2026): if it was signed, it is kept as
+ * signed (the server accepts the version just before); if not, its ticks are cleared, so the person agrees to the
+ * wording they now see and the record carries that version.
+ */
+function sameFormOrFresh<T extends { formVersion: string; responses: Record<string, unknown>; completedAt: string | null }>(base: T, saved: Partial<T> | undefined): T {
+  const merged = { ...base, ...(saved ?? {}) } as T;
+  if (!saved || saved.formVersion === base.formVersion || merged.completedAt) return merged;
+  return { ...merged, formVersion: base.formVersion, responses: {} };
+}
+
 export function loadState(): { state: AppState; expired: boolean } | null {
   const store = storage();
   if (!store) return null;
@@ -63,8 +74,8 @@ export function loadState(): { state: AppState; expired: boolean } | null {
         ...parsed,
         identity: { ...base.identity, ...(parsed.identity ?? {}) },
         guardian: { ...base.guardian, ...(parsed.guardian ?? {}) },
-        consent: { ...base.consent, ...(parsed.consent ?? {}) },
-        assent: { ...base.assent, ...(parsed.assent ?? {}) },
+        consent: sameFormOrFresh(base.consent, parsed.consent),
+        assent: sameFormOrFresh(base.assent, parsed.assent),
         donation: {
           ...base.donation,
           ...(parsed.donation ?? {}),

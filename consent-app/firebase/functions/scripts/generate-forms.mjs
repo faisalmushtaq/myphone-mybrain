@@ -147,6 +147,9 @@ function chatProtocol(phase, name = phase) {
 const generated = {
   parentConsentForm: form(statements.parentConsentForm),
   childAssentForm: form(statements.childAssentForm),
+  // The versions just before, still accepted from a family who opened the form before an update.
+  earlierParentConsentForms: (statements.earlierParentConsentForms ?? []).map(form),
+  earlierChildAssentForms: (statements.earlierChildAssentForms ?? []).map(form),
   informationVersion: copy.parentInformationVersion.version,
   // Earlier versions still accepted, for families who signed before an update.
   earlierInformationVersions: copy.earlierInformationVersions ?? [],
