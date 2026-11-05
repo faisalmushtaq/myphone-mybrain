@@ -5,6 +5,7 @@ import { sendTeamMail } from './mail.js';
 import { readSecret } from './secrets.js';
 import { ukDate } from './ukTime.js';
 import { isObj } from './validate.js';
+import { backup, isBackupId } from './addressBackup.js';
 
 /**
  * Finding a family's address (Ideal Postcodes, decided 7 October 2026), so the
@@ -15,9 +16,10 @@ import { isObj } from './validate.js';
  * function and this function asks Ideal Postcodes, so the provider sees only
  * the postcode or the part of the address typed so far, never who is asking,
  * and the account key stays in Secret Manager (scripts/set-address-key.sh).
- * Until the key is stored, or if the provider fails or the credit runs out,
- * the answer is "unavailable" and the form simply asks for the address to be
- * typed.
+ * Until the key is stored, or if the provider fails, the credit runs out or
+ * the site's daily cap is reached, the answer comes from the West Yorkshire
+ * backup (addressBackup.ts) instead; where that has nothing, the form simply
+ * asks for the address to be typed.
  *
  * A postcode's list or a chosen address costs a credit. Suggestions are free,
  * but Ideal Postcodes suspends accounts that ask for many without fetching
@@ -209,23 +211,41 @@ async function failed(db: Firestore, status: number, reason: 'no-credit' | 'limi
   return { status: 'unavailable' };
 }
 
-/** The addresses at a postcode (one credit). */
+/**
+ * Answers from the West Yorkshire backup (addressBackup.ts) when Ideal Postcodes cannot. The
+ * per-session limits still apply, so the backup cannot be used to copy the address list.
+ */
+async function fromBackup<T>(run: () => Promise<T>): Promise<T | { status: 'unavailable' }> {
+  try {
+    return await run();
+  } catch (error) {
+    logger.warn('Address finder: the backup failed', { error: String((error as Error).message ?? error).slice(0, 200) });
+    return { status: 'unavailable' };
+  }
+}
+
+/** The addresses at a postcode (one credit, or the backup's). */
 async function lookUp(uid: string, input: unknown): Promise<AddressLookup> {
   const postcode = compactPostcode(input);
   if (!postcode) throw new HttpsError('invalid-argument', 'Enter a full UK postcode, for example LS2 9JT.');
-  const key = await readSecret(process.env.MPMB_ADDRESS_SECRET?.trim() || 'mpmb-address-key');
-  if (!key) return { status: 'unavailable' };
   const db = getFirestore();
   const gate = await allowed(db, uid, 'lookup');
-  if (gate !== 'yes') {
-    if (gate === 'site') await alertTeam(db, 'cap');
-    return { status: 'unavailable' };
+  if (gate === 'session') return { status: 'unavailable' };
+  const viaBackup = () => fromBackup(() => backup().postcode(postcode));
+  if (gate === 'site') {
+    await alertTeam(db, 'cap');
+    return viaBackup();
   }
+  const key = await readSecret(process.env.MPMB_ADDRESS_SECRET?.trim() || 'mpmb-address-key');
+  if (!key) return viaBackup();
   const answer = await ask(key, `/v1/postcodes/${postcode}`);
-  if (!answer) return { status: 'unavailable' };
+  if (!answer) return viaBackup();
   const outcome = outcomeOf(answer.status, answer.body);
   if (outcome.kind === 'not-found') return { status: 'not-found' };
-  if (outcome.kind === 'unavailable') return failed(db, answer.status, outcome.reason);
+  if (outcome.kind === 'unavailable') {
+    await failed(db, answer.status, outcome.reason);
+    return viaBackup();
+  }
   const addresses = addressesFrom(isObj(answer.body) ? answer.body.result : null);
   if (!addresses.length) return { status: 'not-found' };
   return { status: 'found', postcode: spaced(postcode), addresses };
@@ -235,28 +255,40 @@ async function lookUp(uid: string, input: unknown): Promise<AddressLookup> {
 async function suggest(uid: string, input: unknown, near: unknown): Promise<AddressSuggestions> {
   const query = searchText(input);
   if (!query) throw new HttpsError('invalid-argument', 'Type at least three letters or numbers of your address.');
-  const key = await readSecret(process.env.MPMB_ADDRESS_SECRET?.trim() || 'mpmb-address-key');
-  if (!key) return { status: 'unavailable' };
   const db = getFirestore();
   const gate = await allowed(db, uid, 'suggestion');
-  if (gate !== 'yes') {
-    if (gate === 'site') await alertTeam(db, 'suggestion-cap');
-    return { status: 'unavailable' };
+  if (gate === 'session') return { status: 'unavailable' };
+  const viaBackup = () => fromBackup(() => backup().suggest(query));
+  if (gate === 'site') {
+    await alertTeam(db, 'suggestion-cap');
+    return viaBackup();
   }
+  const key = await readSecret(process.env.MPMB_ADDRESS_SECRET?.trim() || 'mpmb-address-key');
+  if (!key) return viaBackup();
   const answer = await ask(key, '/v1/autocomplete/addresses', { query, limit: String(SUGGESTIONS), context: 'GBR', ...biasFor(near) });
-  if (!answer) return { status: 'unavailable' };
+  if (!answer) return viaBackup();
   const outcome = outcomeOf(answer.status, answer.body);
-  if (outcome.kind !== 'found') return failed(db, answer.status, outcome.reason ?? 'provider');
+  if (outcome.kind !== 'found') {
+    await failed(db, answer.status, outcome.reason ?? 'provider');
+    return viaBackup();
+  }
   const result = isObj(answer.body) && isObj(answer.body.result) ? answer.body.result : null;
-  return { status: 'suggestions', suggestions: suggestionsFrom(result?.hits) };
+  const suggestions = suggestionsFrom(result?.hits);
+  // Nothing from Ideal Postcodes (a brand-new street, say): the backup may still know it.
+  if (!suggestions.length) return viaBackup();
+  return { status: 'suggestions', suggestions };
 }
 
-/** The full address for the suggestion the parent chose (one credit). */
+/** The full address for the suggestion the parent chose (one credit, or none for a backup suggestion). */
 async function pick(uid: string, input: unknown): Promise<PickedAddress> {
   if (typeof input !== 'string' || !SUGGESTION_ID.test(input)) throw new HttpsError('invalid-argument', 'Choose an address from the list.');
+  const db = getFirestore();
+  if (isBackupId(input)) {
+    if ((await allowed(db, uid, 'lookup')) === 'session') return { status: 'unavailable' };
+    return fromBackup(() => backup().pick(input));
+  }
   const key = await readSecret(process.env.MPMB_ADDRESS_SECRET?.trim() || 'mpmb-address-key');
   if (!key) return { status: 'unavailable' };
-  const db = getFirestore();
   const gate = await allowed(db, uid, 'lookup');
   if (gate !== 'yes') {
     if (gate === 'site') await alertTeam(db, 'cap');

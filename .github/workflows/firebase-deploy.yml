@@ -94,6 +94,7 @@ jobs:
             echo "MPMB_OPENAI_BASE_URL=${{ vars.MPMB_OPENAI_BASE_URL || 'https://api.openai.com' }}"
             echo "MPMB_TWILIO_BASE_URL=${{ vars.MPMB_TWILIO_BASE_URL || 'https://api.twilio.com' }}"
             echo "MPMB_ADDRESS_DAILY_CAP=${{ vars.MPMB_ADDRESS_DAILY_CAP || '1500' }}"
+            echo "MPMB_ADDRESS_BACKUP_BUCKET=${{ vars.MPMB_ADDRESS_BACKUP_BUCKET || 'myphone-mybrain-address-backup' }}"
             echo "MPMB_PUSH_PUBLIC_KEY=${{ vars.MPMB_PUSH_PUBLIC_KEY || '' }}"
           } > consent-app/firebase/functions/.env
 

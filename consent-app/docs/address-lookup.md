@@ -76,10 +76,56 @@ allow about 1,500 lookups.
   suspends accounts that ask for many suggestions without fetching
   addresses, so the suggestions' cap matters as much as the lookups'.
 
-When a limit is reached, or the account runs out of credit, or Ideal
-Postcodes refuses the key, families are asked to type their address. The
-team gets **one email a day** saying why ("MyPhone/MyBrain — the address
-finder has stopped"), from the same account as the enquiry emails.
+When the site's daily cap is reached, or the account runs out of credit, or
+Ideal Postcodes refuses the key or does not answer, the finder carries on
+from the **West Yorkshire backup** (below), and families type their address
+only if the backup does not know it. The team gets **one email a day**
+saying why ("MyPhone/MyBrain — the address finder has stopped"), from the
+same account as the enquiry emails, so the account can be fixed. A family's
+own hourly limit still stops them, whichever source is answering.
+
+## The West Yorkshire backup
+
+The function also holds its own list for Bradford, Calderdale, Kirklees,
+Leeds and Wakefield: every live postcode (OS Code-Point Open), about 44,800
+streets (OS Open Names) and about 635,000 addresses (HM Land Registry Price
+Paid Data, homes sold since 1995). It answers whenever Ideal Postcodes
+cannot, including before a key is stored, and when Ideal Postcodes has no
+suggestion for what was typed. Its answers look the same to the form, so
+nothing changes for families; its addresses have no UPRN, and its picked
+suggestions have ids starting `wy:`, so it costs no credit.
+
+* **What it lacks.** Homes not sold since 1995, which includes much council
+  and housing association housing. Those families type their address, as
+  they do now.
+* **Where it lives.** A private Cloud Storage bucket,
+  `myphone-mybrain-address-backup` in europe-west2 (or the repository
+  variable `MPMB_ADDRESS_BACKUP_BUCKET`, passed to the functions in the same
+  name), with public access blocked. Only the functions read it. The files
+  are never in GitHub or on the website, and a family only ever receives the
+  handful of addresses matching what they typed. That matters because the
+  Price Paid addresses carry Royal Mail and Ordnance Survey rights: HM Land
+  Registry says they may be used "for personal and/or non-commercial use",
+  and anything else needs Royal Mail's agreement
+  (https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads).
+* **Setting it up and keeping it current.** Run the **Address finder
+  backup** workflow once from the Actions tab. It downloads the three
+  datasets, builds the files (`consent-app/firebase/address-backup`),
+  creates the bucket if needed and uploads them, in about ten minutes. It
+  then runs on the 9th of each month. Storage is about 35 MB, a fraction of
+  a penny a month.
+* **Attribution**, for the privacy notice or documents page: Contains OS
+  data © Crown copyright and database right 2026. Contains Royal Mail data
+  © Royal Mail copyright and database right 2026. Contains National
+  Statistics data © Crown copyright and database right 2026. Contains HM
+  Land Registry data © Crown copyright and database right 2021. This data is
+  licensed under the Open Government Licence v3.0. Price Paid address data
+  has been processed against Ordnance Survey's AddressBase Premium product,
+  which incorporates Royal Mail's PAF® database.
+
+Because the backup works without a key, the finder can be shown on the form
+(step 3 above) before the Ideal Postcodes account is opened; families then
+get the backup's suggestions until the key is stored.
 
 ## Privacy and the DPIA
 
@@ -106,5 +152,8 @@ finder has stopped"), from the same account as the enquiry emails.
 | `src/components/GuardianFields.tsx` | Uses them when `addressFinder` is on (`src/config/features.ts`, from `VITE_MPMB_ADDRESS_LOOKUP`) |
 | `firebase/functions/src/address.ts` | The `findAddresses` callable: `{ postcode }`, `{ search, near }` and `{ pick }`, the limits and the team's email |
 | `firebase/scripts/set-address-key.sh` | Stores the key in Secret Manager (`mpmb-address-key`) |
+| `firebase/functions/src/addressBackup.ts` | The West Yorkshire backup: postcode lists, suggestions and picks from the private bucket |
+| `firebase/address-backup/` | Builds the backup's files from the open data (`build.sh`) |
+| `.github/workflows/address-backup.yml` | Builds and uploads the backup monthly, and creates the bucket the first time |
 | `src/api/mock.ts` | Made-up addresses for the standalone preview, which always shows the finder |
 | `scripts/emulator-e2e.mjs` | Builds the form with the finder on and tests it against a stand-in for Ideal Postcodes |

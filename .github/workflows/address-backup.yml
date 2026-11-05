@@ -1,0 +1,74 @@
+name: Address finder backup
+
+# Rebuilds the address finder's West Yorkshire backup from the official open
+# data (OS Code-Point Open, OS Open Names, HM Land Registry Price Paid Data)
+# and uploads it to a private Cloud Storage bucket that only the functions
+# read (docs/address-lookup.md). The address files are never committed or
+# published: the Price Paid addresses may be used for non-commercial purposes
+# only, and families only ever receive the few that match what they typed.
+#
+# Monthly, as Price Paid Data is, and by hand from the Actions tab. The first
+# run creates the bucket.
+on:
+  schedule:
+    - cron: "17 4 9 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: address-backup
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: myphone-mybrain
+  REGION: europe-west2
+  BUCKET: ${{ vars.MPMB_ADDRESS_BACKUP_BUCKET || 'myphone-mybrain-address-backup' }}
+  WORKLOAD_IDENTITY_PROVIDER: projects/904206810525/locations/global/workloadIdentityPools/github/providers/github-repo
+  SERVICE_ACCOUNT: github-deploy@myphone-mybrain.iam.gserviceaccount.com
+
+jobs:
+  build:
+    if: github.repository == 'faisalmushtaq/myphone-mybrain'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pandas pyproj openpyxl
+
+      - name: Build
+        run: bash consent-app/firebase/address-backup/build.sh "$RUNNER_TEMP/address"
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Make sure the private bucket exists
+        run: |
+          if ! gcloud storage buckets describe "gs://$BUCKET" --project="$PROJECT_ID" >/dev/null 2>&1; then
+            gcloud storage buckets create "gs://$BUCKET" --project="$PROJECT_ID" --location="$REGION" \
+              --uniform-bucket-level-access --public-access-prevention
+            echo "created gs://$BUCKET"
+          fi
+          # The functions run as the default compute account; they only need to read.
+          number=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+          gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
+            --member="serviceAccount:$number-compute@developer.gserviceaccount.com" \
+            --role=roles/storage.objectViewer >/dev/null
+
+      - name: Upload
+        run: |
+          data="$RUNNER_TEMP/address/out/site/data"
+          gcloud storage rsync --recursive --delete-unmatched-destination-objects "$data/pc" "gs://$BUCKET/pc"
+          gcloud storage rsync --recursive --delete-unmatched-destination-objects "$data/st" "gs://$BUCKET/st"
+          gcloud storage cp "$data/index.json" "gs://$BUCKET/index.json"
+          python3 -c "import json,sys; s=json.load(open(sys.argv[1]))['stats']; print(f\"{s['postcodes']} postcodes, {s['addresses']} addresses uploaded\")" "$data/index.json"
+          echo "Function instances pick up the new files as they restart (within a day or so)."
