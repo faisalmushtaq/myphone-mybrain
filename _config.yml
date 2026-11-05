@@ -9,6 +9,7 @@ enquiry_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/enqui
 # Anonymous usage counts (assets/js/usage.js → the usage Cloud Function): sent only from the live site. Empty = nothing is sent.
 usage_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/usage"
 recruitment_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/labRecruitment"
+waitlist_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/labWaitlist"
 
 baseurl: ""
 url: "https://myphonemybrain.com"

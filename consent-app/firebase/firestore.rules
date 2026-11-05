@@ -23,6 +23,7 @@ rules_version = '2';
 // labBookings/      bookings of those times, by code, with the confirmations and reminders sent
 // labContacts/      the email address and mobile number given when booking (identifying)
 // labStories/       research data: MyStory stories, by code and phase
+// labWaitlist/      email addresses left while recruitment was paused, deleted once told it reopened (identifying)
 //
 // The schools:
 // schoolUploadAccess/  a hash of each school's upload password

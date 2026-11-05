@@ -11,7 +11,13 @@ interface GroupState {
   message: string;
   changedAt: string | null;
 }
-type State = Record<Group, GroupState>;
+interface Waiting {
+  id: string;
+  email: string;
+  joinedAt: string | null;
+  lastTry: string | null;
+}
+type State = Record<Group, GroupState> & { waiting: Record<Group, Waiting[]>; result?: { sent: number; failed: number; left: number } };
 
 const LABELS: Record<Group, { name: string; page: string }> = {
   break: { name: 'Break group', page: '/break/take-part/' },
@@ -27,9 +33,10 @@ export function Recruitment({ staff }: { staff: Staff }) {
   const [drafts, setDrafts] = useState<Record<Group, string>>({ break: '', control: '' });
   const [busy, setBusy] = useState<Group | null>(null);
   const [error, setError] = useState('');
+  const [note, setNote] = useState('');
 
   const show = (r: State) => {
-    setState(r);
+    setState({ ...r, waiting: r.waiting ?? { break: [], control: [] } });
     setDrafts({ break: r.break.message, control: r.control.message });
   };
   useEffect(() => {
@@ -50,6 +57,31 @@ export function Recruitment({ staff }: { staff: Staff }) {
     }
   };
 
+  const notify = async (group: Group) => {
+    const n = state?.waiting[group].length ?? 0;
+    if (!window.confirm(`Email all ${n} ${n === 1 ? 'person' : 'people'} waiting for the ${LABELS[group].name.toLowerCase()} that recruitment is open again? Each address is deleted once its email has gone.`)) return;
+    setBusy(group);
+    setError('');
+    setNote('');
+    try {
+      const r = await staff.ask<State>('notify-waitlist', { group });
+      show(r);
+      if (r.result) setNote(`Sent ${r.result.sent}.${r.result.failed ? ` ${r.result.failed} could not be sent (still on the list).` : ''}${r.result.left ? ` ${r.result.left} still to send: press the button again.` : ''}`);
+    } catch (e) {
+      setError(messageOf(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const remove = async (id: string) => {
+    if (!window.confirm('Remove this address from the waiting list?')) return;
+    try {
+      show(await staff.ask<State>('remove-waiting', { id }));
+    } catch (e) {
+      setError(messageOf(e));
+    }
+  };
+
   if (!state) return error ? <Callout tone="important" role="alert"><p>{error}</p></Callout> : <p className="mpmb-hint">Loading…</p>;
   return (
     <section aria-labelledby="recruit-title">
@@ -59,6 +91,11 @@ export function Recruitment({ staff }: { staff: Staff }) {
       <p className="mpmb-hint">
         Pause a group when the lab times are full. While it is paused, the first page of the study shows your message instead of “New to the study”, and the server refuses new consents. People who have already given consent carry on as normal: check-ins, sending data, MyStory and booking all still work.
       </p>
+      {note && (
+        <Callout tone="success" role="status">
+          <p>{note}</p>
+        </Callout>
+      )}
       {error && (
         <Callout tone="important" role="alert">
           <p>{error}</p>
@@ -94,6 +131,27 @@ export function Recruitment({ staff }: { staff: Staff }) {
                 </Button>
               )}
             </div>
+            <h4 className="mpmb-h3" style={{ marginTop: '1.25rem' }}>
+              Waiting list: {state.waiting[g].length} {state.waiting[g].length === 1 ? 'person' : 'people'}
+            </h4>
+            <p className="mpmb-hint">People who left an email address while recruitment was paused. Each gets one email when you press the button below (best after reopening), and their address is then deleted. Replies go to the study contact.</p>
+            {state.waiting[g].length > 0 && (
+              <>
+                <ul className="mpmb-tools__list">
+                  {state.waiting[g].map((p) => (
+                    <li key={p.id}>
+                      <span className="mpmb-mono">{p.email}</span> <span className="mpmb-hint">joined {when(p.joinedAt)}{p.lastTry ? ` · last try: ${p.lastTry}` : ''}</span>{' '}
+                      <Button variant="link" onClick={() => void remove(p.id)}>
+                        Remove
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+                <Button variant={s.paused ? 'ghost' : 'primary'} onClick={() => void notify(g)} disabled={busy !== null}>
+                  {busy === g ? 'Sending…' : `Email the ${state.waiting[g].length} waiting that it has reopened`}
+                </Button>
+              </>
+            )}
           </div>
         );
       })}

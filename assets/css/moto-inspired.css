@@ -637,6 +637,14 @@ fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin
 .privacy-usage-toggle[hidden] { display: none; }
 .recruitment-paused { margin: 0 0 1.5rem; border-left: 4px solid var(--mpb-teal); }
 .recruitment-paused[hidden] { display: none; }
+.recruitment-waitlist { margin: 1rem 0; }
+.recruitment-waitlist label { display: block; font-weight: 700; margin-bottom: .4rem; }
+.recruitment-waitlist__row { display: flex; flex-wrap: wrap; gap: .6rem; }
+.recruitment-waitlist__row[hidden] { display: none; }
+.recruitment-waitlist__row input { flex: 1 1 14rem; min-width: 0; padding: .7rem .8rem; border: 1px solid var(--mpb-line); font: inherit; background: #fff; }
+.recruitment-waitlist__hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.recruitment-waitlist__hint { font-size: .9rem; margin: .5rem 0 0; }
+.recruitment-waitlist__status:empty { display: none; }
 /* Links always look like links (asked for on 7 October 2026): underlined wherever they sit in text, on light or dark backgrounds. Buttons, the menus and whole-card links keep their own look. */
 main :is(p, li, dd, dt, td, th, figcaption, blockquote, h3, h4) a:not(.btn):not([class*="card"]) { text-decoration-line: underline; text-underline-offset: .18em; }
 .contact-card a:not(.btn) { color: var(--mpb-yellow); font-weight: 700; }

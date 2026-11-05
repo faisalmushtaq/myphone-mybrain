@@ -86,6 +86,17 @@ export class FirebaseConsentApi implements ConsentApi {
 
   private recruitmentUrl: string;
 
+  async joinLabWaitlist(email: string, group: 'break' | 'control'): Promise<string | null> {
+    try {
+      const res = await fetch(this.recruitmentUrl.replace(/labRecruitment$/, 'labWaitlist'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, group }) });
+      if (res.ok) return null;
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      return body?.error ?? 'That could not be saved. Please try again.';
+    } catch {
+      return 'We couldn’t reach the server. Check your connection and try again.';
+    }
+  }
+
   async labRecruitment(): Promise<LabRecruitment> {
     const open: LabRecruitment = { break: { open: true, message: null }, control: { open: true, message: null } };
     try {

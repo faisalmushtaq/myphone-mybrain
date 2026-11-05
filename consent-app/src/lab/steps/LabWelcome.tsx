@@ -7,6 +7,7 @@ import { labPages, labStudy } from '../config';
 import { LabShell } from '../LabShell';
 import { resumeStep } from '../reducer';
 import { useLab, useLabGroup } from '../store';
+import { WaitlistForm } from './WaitlistForm';
 
 /**
  * The break study's first page: two equal ways in (decided 7 October 2026),
@@ -65,6 +66,7 @@ export function LabWelcome() {
       {paused && (
         <Callout tone="important" title="Recruitment is paused">
           <p>{pausedMessage || 'We are not taking on new participants at the moment.'}</p>
+          <WaitlistForm group={group} />
           <p>
             If you have already started, choose <strong>Already started?</strong> below to carry on. Questions: {labStudy.contact.name}, <a href={`mailto:${labStudy.contact.email}`}>{labStudy.contact.email}</a>.
           </p>

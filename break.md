@@ -62,9 +62,19 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
     <div class="info-panel info-panel-alt recruitment-paused" data-recruitment-paused="break" role="status" hidden>
       <h3>Recruitment is paused</h3>
       <p data-recruitment-message>We are not taking on new participants at the moment because all our lab visits are full. Recruitment will reopen after the New Year.</p>
+      <form class="recruitment-waitlist" data-waitlist="break" novalidate>
+        <label for="waitlist-email">Email me when it reopens</label>
+        <div class="recruitment-waitlist__row">
+          <input id="waitlist-email" name="email" type="email" autocomplete="email" required aria-describedby="waitlist-hint waitlist-status">
+          <button class="btn btn-primary" type="submit">Let me know</button>
+        </div>
+        <input class="recruitment-waitlist__hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <p class="recruitment-waitlist__hint" id="waitlist-hint">We use this only to tell you when recruitment reopens, then delete it. It is not linked to any study data.</p>
+        <p class="recruitment-waitlist__status" id="waitlist-status" role="status"></p>
+      </form>
       <p>If you have already started, you can carry on as normal.</p>
     </div>
-    <script src="{{ '/assets/js/recruitment.js' | relative_url }}" data-endpoint="{{ site.recruitment_endpoint }}" defer></script>
+    <script src="{{ '/assets/js/recruitment.js' | relative_url }}" data-endpoint="{{ site.recruitment_endpoint }}" data-waitlist-endpoint="{{ site.waitlist_endpoint }}" defer></script>
 
     <div class="participant-next-step">
       <h3>Interested in taking part?</h3>

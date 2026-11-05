@@ -504,6 +504,8 @@ export interface ConsentApi {
   startSession(): Promise<SessionInfo>;
   /** The lab study's sign-up status, set on the staff page. Never fails: if it cannot be read, both groups count as open (the consent is checked again on the server). */
   labRecruitment(): Promise<LabRecruitment>;
+  /** While recruitment is paused: leave an email address to hear when it reopens. Resolves with an error message, or null when saved. */
+  joinLabWaitlist(email: string, group: 'break' | 'control'): Promise<string | null>;
   /** The addresses at a postcode, so a parent can pick theirs instead of typing it. */
   findAddresses(session: SessionInfo, postcode: string): Promise<AddressLookup>;
   /** Addresses matching what the parent has typed so far, near the postcode they have given if any (free). */

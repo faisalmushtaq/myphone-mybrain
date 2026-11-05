@@ -18,7 +18,7 @@ import { countFailure, schoolBySlug, setSchoolPassword } from './schoolUpload.js
 import { readSecret } from './secrets.js';
 import { sendSms, smsReady, ukMobile } from './sms.js';
 import { isObj } from './validate.js';
-import { readRecruitment, setRecruitment } from './recruitment.js';
+import { notifyWaitlist, readRecruitment, setRecruitment, waitingList } from './recruitment.js';
 import { usageSummary } from './usage.js';
 
 /**
@@ -512,11 +512,23 @@ export const staffApi = onCall(callOptions, async (request) => {
     }
 
     case 'recruitment':
-      return readRecruitment(db);
+      return { ...(await readRecruitment(db)), waiting: await waitingList(db) };
 
     case 'set-recruitment': {
       if (data.group !== 'break' && data.group !== 'control') throw bad('Unknown group.');
-      return setRecruitment(db, data.group, data.paused, data.message, 'staff page');
+      return { ...(await setRecruitment(db, data.group, data.paused, data.message, 'staff page')), waiting: await waitingList(db) };
+    }
+
+    case 'notify-waitlist': {
+      if (data.group !== 'break' && data.group !== 'control') throw bad('Unknown group.');
+      const result = await notifyWaitlist(db, data.group);
+      return { ...(await readRecruitment(db)), waiting: await waitingList(db), result };
+    }
+
+    case 'remove-waiting': {
+      if (typeof data.id !== 'string' || !/^[a-f0-9]{32}$/.test(data.id)) throw bad('Unknown entry.');
+      await db.collection('labWaitlist').doc(data.id).delete();
+      return { ...(await readRecruitment(db)), waiting: await waitingList(db) };
     }
 
     case 'schools':

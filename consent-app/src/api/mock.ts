@@ -332,6 +332,11 @@ export class MockConsentApi implements ConsentApi {
     return { participantCode: payload.participantCode, consentId: `labc_${existing.consents.length}_${payload.participantCode}`, receivedAt: new Date().toISOString(), version: existing.consents.length };
   }
 
+  async joinLabWaitlist(email: string): Promise<string | null> {
+    await sleep(300);
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim()) ? null : 'Please enter a valid email address.';
+  }
+
   /** The preview: add ?recruitment=paused to the address to see the paused page. */
   async labRecruitment(): Promise<LabRecruitment> {
     const paused = new URLSearchParams(window.location.search).get('recruitment') === 'paused';
