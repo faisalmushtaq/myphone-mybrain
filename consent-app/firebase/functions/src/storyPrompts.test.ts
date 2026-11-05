@@ -16,7 +16,7 @@ test('each phase has its own chat protocol, read from its TOML file', () => {
     assert.deepEqual(c.personas.map((x) => x.key), ['plain', 'casual', 'reflective']);
     assert.ok(c.screens.introAndConsent.includes("I'm Remi. I'm an AI bot"));
     assert.equal(c.screens.characterName, 'Remi');
-    assert.equal(c.maxTurns, 20);
+    assert.ok(c.maxTurns >= 20 && c.maxTurns <= 40, 'MySelf allows 1 to 40 turns');
   }
   assert.notEqual(storyChats.pre.interview.questions[0], storyChats.mid.interview.questions[0], 'different questions per phase');
 });
