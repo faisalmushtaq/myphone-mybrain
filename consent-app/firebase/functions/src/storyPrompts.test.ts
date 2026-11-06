@@ -168,3 +168,14 @@ test('similarity to their own words, measured as the original team did, by embed
   assert.deepEqual(await openAiEmbedder('sk-test', fake)(['x', 'y']), [[1, 0], [0, 1]], 'in the order sent');
   assert.equal(sent.model, 'text-embedding-3-small');
 });
+
+test('the control group’s chats before and after the 30 days never mention a break (6 November 2026)', async () => {
+  const { storyChatsControl } = await import('./forms.js');
+  for (const phase of ['pre', 'post'] as const) {
+    const c = storyChatsControl[phase];
+    const everything = JSON.stringify(c).toLowerCase();
+    for (const word of ['break', 'abstinence', 'off social media', 'stay off', 'slip']) assert.ok(!everything.includes(word), `control ${phase} mentions “${word}”`);
+    assert.ok(c.interview.questions.length === 7, `control ${phase} has the seven questions`);
+    assert.ok(c.maxTurns >= 20 && c.maxTurns <= 40);
+  }
+});
