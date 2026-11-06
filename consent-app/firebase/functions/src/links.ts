@@ -1,4 +1,4 @@
-import { labPagePaths, storyModes, type StoryPhase } from './forms.js';
+import { labPagePaths, labPagePathsControl, storyModes, type StoryPhase } from './forms.js';
 
 /**
  * Each participant's own links: every page of the study opens ready for
@@ -40,8 +40,7 @@ const withCode = (path: string, code: string, extra: Record<string, string> = {}
 /** MyStory's address for one participant and phase; at the lab, on a shared computer. */
 export function storyLink(phase: StoryPhase, code: string, atLab = false, group: 'break' | 'control' = 'break'): string {
   const mode = storyModes[phase];
-  const g: Record<string, string> = group === 'control' ? { group: 'control' } : {};
-  if (mode.mode === 'native' || mode.mode === 'chat') return withCode(labPagePaths.story, code, atLab ? { phase, at: 'lab', ...g } : { phase, ...g });
+  if (mode.mode === 'native' || mode.mode === 'chat') return withCode(group === 'control' ? labPagePathsControl.story : labPagePaths.story, code, atLab ? { phase, at: 'lab' } : { phase });
   const url = new URL(mode.url);
   url.searchParams.set(mode.idParam, code);
   if (mode.phaseParam) url.searchParams.set(mode.phaseParam, phase);
@@ -49,16 +48,17 @@ export function storyLink(phase: StoryPhase, code: string, atLab = false, group:
 }
 
 /** The control group's first page (21 October 2026); every later page is shared and finds the group from the record. */
-export const CONTROL_PATH = '/break/control/';
+/** The control group's own pages (6 November 2026): /lab/, never /break/. The old /break/ links still work. */
+export const CONTROL_PATH = '/lab/take-part/';
 
 export function participantLinks(code: string, group: 'break' | 'control' = 'break'): ParticipantLinks {
   // The shared pages say the control group's words from the start when the link says so (they also learn it from the record).
-  const g: Record<string, string> = group === 'control' ? { group: 'control' } : {};
+  const pages = group === 'control' ? labPagePathsControl : labPagePaths;
   return {
-    takePart: withCode(group === 'control' ? CONTROL_PATH : labPagePaths.baseline, code),
-    book: withCode(labPagePaths.book, code, g),
-    checkIn: withCode(labPagePaths.checkin, code, g),
-    after: withCode(labPagePaths.after, code, g),
+    takePart: withCode(pages.baseline, code),
+    book: withCode(pages.book, code),
+    checkIn: withCode(pages.checkin, code),
+    after: withCode(pages.after, code),
     story: { pre: storyLink('pre', code, false, group), mid: storyLink('mid', code, false, group), post: storyLink('post', code, false, group) },
     atLab: { pre: storyLink('pre', code, true, group), post: storyLink('post', code, true, group) },
   };

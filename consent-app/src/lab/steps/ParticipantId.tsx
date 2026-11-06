@@ -6,7 +6,7 @@ import { DateField, TextField } from '../../components/ui/Field';
 import { announce } from '../../lib/announce';
 import { formatTimestamp, isoYearsAgo } from '../../lib/dates';
 import { describeError, labSession } from '../api';
-import { ageFrom, buildParticipantId, formatPostcode, idName, isoDateOf, isUkPostcode, labPages, labStudy, normaliseParticipantCode, PARTICIPANT_CODE } from '../config';
+import { ageFrom, buildParticipantId, formatPostcode, idName, isoDateOf, isUkPostcode, labStudy, normaliseParticipantCode, PARTICIPANT_CODE, labPath } from '../config';
 import { LabShell } from '../LabShell';
 import { namesOf } from '../PlatformChecklist';
 import { nextFilesStep, phaseHave, platformsToDo, resumeStep } from '../reducer';
@@ -202,11 +202,11 @@ export function ParticipantId() {
           <p className="mpmb-hint">
             {group === 'control' ? (
               <>
-                About a week before your second visit, we remind you to send your data again on the <a href={labPages.after.path}>second data page</a>.
+                About a week before your second visit, we remind you to send your data again on the <a href={labPath(group, 'after')}>second data page</a>.
               </>
             ) : (
               <>
-                During your break, use the <a href={labPages.checkin.path}>weekly check-in</a>; when it ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+                During your break, use the <a href={labPath(group, 'checkin')}>weekly check-in</a>; when it ends, send your data again on the <a href={labPath(group, 'after')}>after-break page</a>.
               </>
             )}
           </p>
@@ -239,7 +239,7 @@ export function ParticipantId() {
               </>
             ) : (
               <>
-                If you have not signed up yet, <a href={labPages.baseline.path}>start on the first page</a>.
+                If you have not signed up yet, <a href={labPath(group, 'baseline')}>start on the first page</a>.
               </>
             )}{' '}
             Stuck? Contact {contact}.

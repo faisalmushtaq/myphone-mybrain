@@ -1,6 +1,6 @@
 import { useEffect, type ComponentType } from 'react';
 import type { LabPhase } from '../api/types';
-import { labPages, PARTICIPANT_CODE, normaliseParticipantCode, type LabGroup } from './config';
+import { labControlPaths, labPages, PARTICIPANT_CODE, normaliseParticipantCode, type LabGroup } from './config';
 import { labStepTitles, type LabFlow, type LabStepId } from './model';
 import { usage } from '../lib/usage';
 import { labJourney } from './reducer';
@@ -37,7 +37,7 @@ const steps: Record<LabStepId, ComponentType> = {
 
 function Frame() {
   const { state, dispatch } = useLab();
-  const { words } = useLabGroup();
+  const { group, words } = useLabGroup();
   // The shared pages serve both groups: until the person is found (or a link says which), the header names neither.
   const groupKnown = state.flow === 'baseline' || Boolean(state.progress?.group) || state.group === 'control';
   const Step = steps[state.stepId];
@@ -74,7 +74,7 @@ function Frame() {
               <span>MyPhone/MyBrain</span> {groupKnown ? words.study : 'Lab study'}
               {state.flow === 'checkin' ? ` · ${words.midName}` : state.flow === 'after' ? ` · ${groupKnown ? words.After : 'Before your second visit'}` : state.flow !== 'baseline' ? ` · ${labPages[state.flow].label}` : ''}
             </p>
-            <a className="mpmb-band__back" href="/break/">
+            <a className="mpmb-band__back" href={group === 'control' ? labControlPaths.baseline : '/break/'}>
               ← About the study
             </a>
           </div>

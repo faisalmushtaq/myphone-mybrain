@@ -349,6 +349,22 @@ export const labPages = {
   story: { path: '/break/mystory/', phase: 'mid', label: 'MyStory' },
 } as const;
 
+/**
+ * The control group's own addresses (6 November 2026): the same pages under /lab/, so nothing a control participant
+ * is sent or sees says "break". The /break/ addresses still work for them (each page takes the group from their
+ * record), so links already sent keep working.
+ */
+export const labControlPaths: Record<keyof typeof labPages, string> = {
+  baseline: '/lab/take-part/',
+  checkin: '/lab/check-in/',
+  after: '/lab/after/',
+  book: '/lab/book/',
+  story: '/lab/mystory/',
+};
+
+/** A page's address for the participant's group. */
+export const labPath = (group: LabGroup, page: keyof typeof labPages): string => (group === 'control' ? labControlPaths[page] : labPages[page].path);
+
 export type LabCheckInQuestion =
   | { id: string; version: string; type: 'choice'; label: string; text: string; hint?: string; required: boolean; options: { value: string; label: string }[] }
   | { id: string; version: string; type: 'text'; label: string; text: string; hint?: string; required: boolean; maxLength: number };

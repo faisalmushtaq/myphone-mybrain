@@ -9,7 +9,7 @@ export const TEST_PARTICIPANTS: ReadonlySet<string> = new Set([
   'MP9C78C162BB9F', // the team's own, for checking MyStory by hand
   'MPEFE6E0593853', // used to test the AI chat live
   // The control group's (6 November 2026), for trying its chats: Test Control, born 1 January 2004, postcode LS2 9JT,
-  // signed up once on /break/control/.
+  // signed up once on /break/control/ (now /lab/take-part/).
   'MP7569F1E31034',
 ]);
 

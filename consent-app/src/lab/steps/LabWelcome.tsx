@@ -3,7 +3,7 @@ import { getApi } from '../../api';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
 import { Icon } from '../../components/ui/Icon';
-import { labPages, labStudy } from '../config';
+import { labStudy, labPath } from '../config';
 import { LabShell } from '../LabShell';
 import { resumeStep } from '../reducer';
 import { useLab, useLabGroup } from '../store';
@@ -127,10 +127,10 @@ export function LabWelcome() {
       </p>
       <p className="mpmb-hint">
         {group === 'control' ? (
-          <>About a week before your second visit, we remind you to send your data again on the <a href={labPages.after.path}>{words.afterPage}</a>.</>
+          <>About a week before your second visit, we remind you to send your data again on the <a href={labPath(group, 'after')}>{words.afterPage}</a>.</>
         ) : (
           <>
-            During your break, do your <a href={labPages.checkin.path}>weekly check-ins</a>; when the break ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+            During your break, do your <a href={labPath(group, 'checkin')}>weekly check-ins</a>; when the break ends, send your data again on the <a href={labPath(group, 'after')}>after-break page</a>.
           </>
         )}
       </p>

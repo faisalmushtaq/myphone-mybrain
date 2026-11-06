@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { labStudy, storyLimits, storyStructures, type StoryPhase, type StorySignifier, type StoryStructure } from './forms.js';
+import { groupOf, labStudy, storyLimits, storyStructures, type StoryPhase, type StorySignifier, type StoryStructure } from './forms.js';
 import { normaliseCode, rateLimitLookups } from './lab.js';
 import { mayRetellStory } from './testAccounts.js';
 import { sendMail } from './mail.js';
@@ -191,12 +191,14 @@ export const emailLabStory = onCall(callOptions, async (request) => {
   const ref = db.collection('labStories').doc(storyId);
   const story = (await ref.get()).data();
   if (!story || story.participantCode !== code || story.sessionUid !== uid) throw new HttpsError('not-found', 'That story could not be found from this page. Please download it or print it instead.');
-  const phaseWords = { pre: 'before your break', mid: 'during your break', post: 'after your break' }[story.phase as StoryPhase] ?? '';
+  // The control group has no break, so its copy never mentions one (6 November 2026).
+  const control = groupOf((await db.collection('labParticipants').doc(code).get()).data() ?? {}) === 'control';
+  const phaseWords = (control ? { pre: 'before your first visit', mid: 'midway between your visits', post: 'before your second visit' } : { pre: 'before your break', mid: 'during your break', post: 'after your break' })[story.phase as StoryPhase] ?? '';
   const when = (story.receivedAt?.toDate?.() as Date | undefined)?.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/London' }) ?? '';
   const text = [
     'Hello,',
     '',
-    `Here is the story you told for MyStory, ${phaseWords}, in the ${labStudy.name}${when ? `, on ${when}` : ''}.`,
+    `Here is the story you told for MyStory, ${phaseWords}, in the ${control ? 'MyPhone/MyBrain lab study' : labStudy.name}${when ? `, on ${when}` : ''}.`,
     '',
     ...(story.title ? [String(story.title), ''] : []),
     String(story.story ?? ''),

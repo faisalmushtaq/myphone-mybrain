@@ -263,3 +263,33 @@ test('personal links: every page with the ID, MyStory by phase', () => {
   assert.equal(storyLink('post', 'MP2670FF90A5F2'), 'https://myphonemybrain.com/break/mystory/?phase=post&code=MP2670FF90A5F2');
   assert.equal(links.atLab.pre, 'https://myphonemybrain.com/break/mystory/?phase=pre&at=lab&code=MP2670FF90A5F2');
 });
+
+test('nothing the control group is sent mentions a break, and every link is under /lab/ (6 November 2026)', async () => {
+  const { labStatusEmail, labFollowUpEmail } = await import('./lab.js');
+  const code = 'MP7569F1E31034';
+  const contact = { email: 'test@example.com', mobile: '+447700900123', smsReminders: true };
+  const v1 = booking({ participantCode: code, group: 'control' });
+  const v2 = booking({ id: 'b2', visit: 2, slotId: 's2', participantCode: code, group: 'control', start: new Date('2026-11-12T10:00:00Z'), end: new Date('2026-11-12T12:00:00Z') });
+  const plan = dailyPlan(v1.start, v2.start, 'control');
+  const progress = { participantCode: code, consentedAt: '2026-11-06T10:00:00Z', phase: 'pre' as const, screenshots: 1, archives: 0, platforms: [], notUsed: [], group: 'control' as const };
+  const sent: [string, string][] = [
+    ['booked', JSON.stringify(visitsEmail('booked', [v1, v2], contact))],
+    ['moved', JSON.stringify(visitsEmail('moved', [v1, v2], contact, { changed: ['b2'] }))],
+    ['cancelled', JSON.stringify(visitsEmail('cancelled', [v1, v2], contact))],
+    ['booked text', visitsText('booked', [v1, v2])],
+    ['day-before text', bookingText('day-before', v2)],
+    ['same-day text', bookingText('same-day', v2)],
+    ['reminder', JSON.stringify(reminderEmail(v2))],
+    ['calendar', bookingIcs(v1)],
+    ['address changed', JSON.stringify(addressChangedEmail([v1, v2]))],
+    ['progress', JSON.stringify(labStatusEmail(progress))],
+    ['progress after', JSON.stringify(labStatusEmail({ ...progress, phase: 'post' }))],
+    ['follow-up', JSON.stringify(labFollowUpEmail({ ...progress, archives: 0, screenshots: 0 }))],
+    ['links', JSON.stringify(participantLinks(code, 'control'))],
+    ...plan.map((m): [string, string] => [m.id, JSON.stringify(journeyMessage(m, code, { days: 30, visit2: v2, checkInsDone: [], group: 'control' }))]),
+  ];
+  for (const [what, text] of sent) {
+    assert.doesNotMatch(text, /break|abstinence/i, `control ${what} mentions a break: ${text.slice(0, 300)}`);
+    for (const url of text.match(/https:\/\/myphonemybrain\.com\/[^\s"\\]*/g) ?? []) assert.ok(!url.includes('/break/'), `control ${what} links to ${url}`);
+  }
+});

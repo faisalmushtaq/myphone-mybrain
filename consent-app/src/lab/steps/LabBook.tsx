@@ -9,7 +9,7 @@ import { announce } from '../../lib/announce';
 import { describeError, labClientInfo, labSession } from '../api';
 import { labBooking } from '../booking';
 import { byDay, downloadIcs, firstVisitDays, googleCalendarUrl, onDays, placeLine, secondVisitDays, ukDateWords, ukDay, ukDayYear, ukHours, visitName, visitTitle } from '../calendar';
-import { labPages, labStudy } from '../config';
+import { labStudy, labPath } from '../config';
 import { LabShell } from '../LabShell';
 import { useLab, useLabGroup } from '../store';
 import { EMAIL, ukMobile, type FieldError } from '../validation';
@@ -470,7 +470,7 @@ export function LabBook() {
               Tell my story
             </Button>
           ) : (
-            <a className="mpmb-btn mpmb-btn--primary" href={`${labPages.story.path}?phase=pre&code=${encodeURIComponent(state.code)}`}>
+            <a className="mpmb-btn mpmb-btn--primary" href={`${labPath(group, 'story')}?phase=pre&code=${encodeURIComponent(state.code)}`}>
               <span>Tell my story</span>
               <span className="mpmb-btn__arrow" aria-hidden="true">
                 →
@@ -490,7 +490,7 @@ export function LabBook() {
               Send my data
             </Button>
           ) : (
-            <a className="mpmb-btn mpmb-btn--primary" href={labPages.baseline.path}>
+            <a className="mpmb-btn mpmb-btn--primary" href={labPath(group, 'baseline')}>
               <span>Send my data</span>
               <span className="mpmb-btn__arrow" aria-hidden="true">
                 →
@@ -623,10 +623,10 @@ export function LabBook() {
           {!inline && standing.length > 0 && (
             <p className="mpmb-hint">
               {group === 'control' ? (
-                <>About a week before your second visit, we remind you to send your data again on the <a href={labPages.after.path}>{words.afterPage}</a>.</>
+                <>About a week before your second visit, we remind you to send your data again on the <a href={labPath(group, 'after')}>{words.afterPage}</a>.</>
               ) : (
                 <>
-                  On days 8, 15, 22 and 29, we text you a link to your <a href={labPages.checkin.path}>weekly check-in</a>; when the break ends, send your data again on the <a href={labPages.after.path}>after-break page</a>.
+                  On days 8, 15, 22 and 29, we text you a link to your <a href={labPath(group, 'checkin')}>weekly check-in</a>; when the break ends, send your data again on the <a href={labPath(group, 'after')}>after-break page</a>.
                 </>
               )}
             </p>

@@ -6,7 +6,7 @@ import { Callout } from '../../components/ui/Callout';
 import { ChoiceField, FieldWrapper, TextField } from '../../components/ui/Field';
 import { announce } from '../../lib/announce';
 import { describeError, labClientInfo, labSession } from '../api';
-import { labPages, labStudy } from '../config';
+import { labStudy, labPath } from '../config';
 import { clearLabState } from '../persistence';
 import { LabShell } from '../LabShell';
 import { labMyStory, storyLimits, storyStructures, storySurveyUrl, type StoryPhase } from '../mystory';
@@ -14,7 +14,7 @@ import { Dyad, Triad, type Shares } from '../story/Signifiers';
 import { ChatSupport, StoryChat, type ChatFinished } from '../story/StoryChat';
 import { StoryCopy, type StoryToKeep } from '../story/StoryCopy';
 import { formatTimestamp } from '../../lib/dates';
-import { useLab } from '../store';
+import { useLab, useLabGroup } from '../store';
 import type { FieldError } from '../validation';
 
 const SOURCE: Record<string, LabStoryPayload['source']> = { baseline: 'baseline', checkin: 'checkin', after: 'after', story: 'story', book: 'book' };
@@ -29,6 +29,7 @@ const SOURCE: Record<string, LabStoryPayload['source']> = { baseline: 'baseline'
  */
 export function LabStory() {
   const { state, dispatch, atLab } = useLab();
+  const { group } = useLabGroup();
   const phase = state.phase as StoryPhase;
   const mode = labMyStory.phases[phase];
   const structure = storyStructures[phase];
@@ -267,7 +268,7 @@ export function LabStory() {
         </div>
         {ownPage && (
           <p className="mpmb-hint">
-            You can close this page. {phase === 'mid' && canRetell ? <>Your next weekly <a href={labPages.checkin.path}>check-in</a> has a MyStory at the end too.</> : null}
+            You can close this page. {phase === 'mid' && canRetell ? <>Your next weekly <a href={labPath(group, 'checkin')}>check-in</a> has a MyStory at the end too.</> : null}
           </p>
         )}
       </LabShell>

@@ -5,7 +5,7 @@ import { announce } from '../../lib/announce';
 import { formatTimestamp } from '../../lib/dates';
 import { labBooking, labStoryCheckIn } from '../booking';
 import { ukDayYear, ukHours, visitName, visitTitle } from '../calendar';
-import { labPages, labStudy } from '../config';
+import { labStudy, labPath } from '../config';
 import { labFileStore } from '../fileStore';
 import { labMyStory, storySurveyUrl } from '../mystory';
 import { clearLabState } from '../persistence';
@@ -205,11 +205,11 @@ export function LabDone() {
             <p className="mpmb-hint">
               {flow === 'baseline' ? (
                 <>
-                  Pages for later: {group === 'control' ? null : <><a href={labPages.checkin.path}>{words.mid}</a> · </>}<a href={labPages.after.path}>{words.afterPage}</a>.
+                  Pages for later: {group === 'control' ? null : <><a href={labPath(group, 'checkin')}>{words.mid}</a> · </>}<a href={labPath(group, 'after')}>{words.afterPage}</a>.
                 </>
               ) : (
                 <>
-                  When {words.the} {group === 'control' ? 'are' : 'is'} over: <a href={labPages.after.path}>{words.after}</a>.
+                  When {words.the} {group === 'control' ? 'are' : 'is'} over: <a href={labPath(group, 'after')}>{words.after}</a>.
                 </>
               )}
             </p>

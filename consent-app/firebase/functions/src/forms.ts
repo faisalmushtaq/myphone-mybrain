@@ -208,6 +208,8 @@ export const cleaner = {
 
 /** The study's pages, by flow: for the personal links in emails, texts and the staff page. */
 export const labPagePaths: Record<string, string> = generated.labPages;
+/** The control group's addresses for the same pages, under /lab/ (6 November 2026). */
+export const labPagePathsControl: Record<string, string> = (generated as { labPagesControl?: Record<string, string> }).labPagesControl ?? generated.labPages;
 
 export interface BookingReminder {
   id: string;

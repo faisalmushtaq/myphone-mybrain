@@ -21,7 +21,7 @@ type State = Record<Group, GroupState> & { waiting: Record<Group, Waiting[]>; re
 
 const LABELS: Record<Group, { name: string; page: string }> = {
   break: { name: 'Break group', page: '/break/take-part/' },
-  control: { name: 'Control group', page: '/break/control/' },
+  control: { name: 'Control group', page: '/lab/take-part/' },
 };
 
 /**

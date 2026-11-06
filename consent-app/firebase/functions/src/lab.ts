@@ -53,10 +53,14 @@ const PLATFORM_UPDATES_PER_HOUR = 30;
 /** How long after a progress email the one follow-up goes, unless files have arrived. */
 const FOLLOW_UP_AFTER_MS = 48 * 3600_000;
 const SITE = 'https://myphonemybrain.com';
-/** The page each phase's files are sent from. */
+/** The page each phase's files are sent from; the control group's are under /lab/ (6 November 2026). */
 const PAGE: Record<string, string> = { pre: `${SITE}/break/take-part/`, mid: `${SITE}/break/check-in/`, post: `${SITE}/break/after/` };
+const CONTROL_PAGE: Record<string, string> = { pre: `${SITE}/lab/take-part/`, mid: `${SITE}/lab/check-in/`, post: `${SITE}/lab/after/` };
 /** A link that opens the right page ready for this code, on any device. */
-const pageFor = (phase: string, code: string) => `${PAGE[phase] ?? PAGE.pre}?code=${encodeURIComponent(code)}`;
+const pageFor = (phase: string, code: string, group: LabGroup = 'break') => {
+  const pages = group === 'control' ? CONTROL_PAGE : PAGE;
+  return `${pages[phase] ?? pages.pre}?code=${encodeURIComponent(code)}`;
+};
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /** Bytes an archive may expand to, in total. The cleaned files are small; anything near this was not made by the cleaner. */
 const MAX_UNPACKED = 400 * 1024 * 1024;
@@ -895,6 +899,8 @@ export interface LabProgress {
   platforms: string[];
   /** The apps the participant has said they do not use. */
   notUsed: string[];
+  /** The control group has no break, so its emails never mention one (6 November 2026). */
+  group?: LabGroup;
 }
 
 /** What a participant still owes for this page, in plain words; empty when everything is in: each app they use is sent or set aside. */
@@ -916,17 +922,18 @@ export function appsToCome(p: LabProgress): string[] {
 const notUsedNote = (p: LabProgress) => (appsToCome(p).length ? `If you don’t use ${appsToCome(p).length === 1 ? 'that app' : 'one of these apps'}, open the page and press “I don’t use it”, and we will stop asking for it.` : '');
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-const whenOf = (p: LabProgress) => (p.phase === 'post' ? 'after your break' : 'before your break');
+const whenOf = (p: LabProgress) => (p.group === 'control' ? (p.phase === 'post' ? 'before your second visit' : 'before your first visit') : p.phase === 'post' ? 'after your break' : 'before your break');
+const studyName = (p: LabProgress) => (p.group === 'control' ? 'MyPhone/MyBrain lab study' : labStudy.name);
 
 /** The email sent when someone presses "I'll come back later": where they are and how to carry on. */
 export function labStatusEmail(p: LabProgress): { subject: string; text: string } {
   const owed = outstanding(p);
-  const link = pageFor(p.phase, p.participantCode);
+  const link = pageFor(p.phase, p.participantCode, p.group);
   const received = [p.screenshots ? plural(p.screenshots, 'screen-time screenshot', 'screen-time screenshots') : '', p.archives ? `${plural(p.archives, 'cleaned file', 'cleaned files')}${p.platforms.length ? ` (${p.platforms.map((pl) => PLATFORM_NAMES[pl] ?? pl).join(', ')})` : ''}` : ''].filter(Boolean);
   const text = [
     `Hello,`,
     ``,
-    `Thank you for taking part in the ${labStudy.name}. Here is where your data donation ${whenOf(p)} stands.`,
+    `Thank you for taking part in the ${studyName(p)}. Here is where your data donation ${whenOf(p)} stands.`,
     ``,
     `Participant ID: ${p.participantCode}`,
     `Consent: ${p.consentedAt ? `recorded on ${p.consentedAt.slice(0, 10)}` : 'not yet given'}`,
@@ -957,10 +964,10 @@ export function labFollowUpEmail(p: LabProgress): { subject: string; text: strin
   const text = [
     `Hello,`,
     ``,
-    `A quick reminder from the ${labStudy.name}: we have not yet received ${list(owed)} from ${whenOf(p)} for participant ID ${p.participantCode}.`,
+    `A quick reminder from the ${studyName(p)}: we have not yet received ${list(owed)} from ${whenOf(p)} for participant ID ${p.participantCode}.`,
     ``,
     `If your data download has arrived, open the link below on the device that has the file and follow the steps; your participant ID is filled in for you. If it has not arrived yet, or anything is unclear, reply to this email and we will help.`,
-    pageFor(p.phase, p.participantCode),
+    pageFor(p.phase, p.participantCode, p.group),
     ...(notUsedNote(p) ? [``, notUsedNote(p)] : []),
     ``,
     `This is the only reminder we will send.`,
@@ -998,7 +1005,7 @@ async function progressOf(db: Firestore, code: string, phase: 'pre' | 'post'): P
       for (const pl of (f.platforms ?? []) as string[]) platforms.add(pl);
     }
   }
-  return { participantCode: code, consentedAt: toIso(participant.consentedAt), phase, screenshots, archives, platforms: Array.from(platforms).sort(), notUsed: notUsedOf(participant) };
+  return { participantCode: code, consentedAt: toIso(participant.consentedAt), phase, screenshots, archives, platforms: Array.from(platforms).sort(), notUsed: notUsedOf(participant), group: groupOf(participant) };
 }
 
 /**
