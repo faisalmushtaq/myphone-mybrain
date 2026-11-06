@@ -187,6 +187,9 @@ async function spendCall(db: Firestore, n = 1): Promise<void> {
 /** How many records the day's count of model calls is spread over. */
 const CALL_SHARDS = 10;
 
+/** The last failed call's stage and reason, shown to the team's test accounts when a chat falls back (6 November 2026). */
+let lastFailure = '';
+
 /** One model call, recorded on the conversation whatever happens. */
 async function call<T>(db: Firestore, ref: DocumentReference, model: ModelCall, prompt: Prompt, protocol: ChatProtocol, stage: string): Promise<T> {
   const at = new Date().toISOString();
@@ -198,7 +201,9 @@ async function call<T>(db: Firestore, ref: DocumentReference, model: ModelCall, 
   } catch (error) {
     const kind = error instanceof ModelError ? error.kind : 'unknown';
     await ref.update({ calls: FieldValue.arrayUnion({ stage, prompt: prompt.key, at, ok: false, error: kind }), updatedAt: FieldValue.serverTimestamp() });
-    logger.warn('MyStory chat model call failed', { stage, prompt: prompt.key, kind });
+    // The provider's own message says why (a key, a region, a quota, a refused request); it carries nothing the participant wrote.
+    logger.warn('MyStory chat model call failed', { stage, prompt: prompt.key, kind, detail: error instanceof Error ? error.message.slice(0, 300) : String(error).slice(0, 300) });
+    lastFailure = `${stage}: ${kind}${error instanceof Error ? ` (${error.message.slice(0, 200)})` : ''}`;
     throw error;
   }
 }
@@ -425,11 +430,15 @@ export const labStoryChat = onCall(callOptions, async (request) => {
         }
         await ref.update({ interviewDone: true, interviewClosed: turns >= protocol.maxTurns ? 'turn_limit' : 'model', ...(covered ? { questionsCovered: covered } : {}) });
         const { extraction, candidates } = await retell(db, ref, model, protocol, transcript);
-        if (!candidates.length) return await fallback(ref, protocol, 'no retelling could be generated', extraction);
+        if (!candidates.length) {
+          const answer = await fallback(ref, protocol, 'no retelling could be generated', extraction);
+          return mayRetellStory(chat.participantCode) ? { ...answer, why: `no retelling: ${lastFailure}` } : answer;
+        }
         await ref.update({ extraction, candidates, status: 'choose', updatedAt: FieldValue.serverTimestamp() });
         return { stage: 'choose', candidates: candidates.map(({ index, text: t }) => ({ index, text: t })) };
       } catch {
-        return await fallback(ref, protocol, 'the model could not be reached');
+        const answer = await fallback(ref, protocol, 'the model could not be reached');
+        return mayRetellStory(chat.participantCode) ? { ...answer, why: lastFailure } : answer;
       }
     }
     case 'choose': {
