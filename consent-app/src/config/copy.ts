@@ -74,14 +74,15 @@ export const aboutStudy = {
  */
 // 0.8: linking now and in the future, only for research, never to make decisions about the child, and how to stop it (5 November 2026).
 // 0.9: nothing that could identify the child will ever appear in any report, publication or presentation (5 November 2026).
-export const parentInformationVersion = { version: '0.9-draft', date: '2026-11-05' };
+// 0.10: some questions are of an emotional nature, and safeguarding concerns go to the school's designated safeguarding lead (6 November 2026).
+export const parentInformationVersion = { version: '0.10-draft', date: '2026-11-06' };
 
 /**
  * Earlier versions the server still accepts, so a family who read one of them
  * and signed before an update reached the site can still save. List only
  * recent ones; the version a family saw is stored with their permission.
  */
-export const earlierInformationVersions: string[] = ['0.8-draft', '0.7-draft', '0.6-draft', '0.5-draft'];
+export const earlierInformationVersions: string[] = ['0.9-draft', '0.8-draft', '0.7-draft', '0.6-draft', '0.5-draft'];
 
 /** The information for parents and carers, shown before their permission. */
 export const parentInformation: InfoSection[] = [
@@ -102,6 +103,7 @@ export const parentInformation: InfoSection[] = [
     summary: 'Separate from this form: every young person in the classes taking part is invited, unless a parent or carer opts them out, by email or through the school.',
     detail: [
       'In the workshop, young people wear a lightweight headset that records brain activity (EEG) while they do simple tasks on a computer. It doesn’t hurt, and they can stop at any time.',
+      'They also answer short questionnaires. Some questions are about feelings and emotions, which a few young people may find difficult; they can skip any question. If anything they say or write makes the researchers worried about their safety, or someone else’s, it is passed on to the school’s designated safeguarding lead, following the school’s safeguarding procedures.',
       'As part of the same study, information about young people who take part may be linked, through Connected West Yorkshire, with records already held about them (NHS health records, and education records such as attendance and results, held by the Department for Education), using a code rather than a name and only with the approvals in place. This can happen now and at times in the future, as they grow up, for as long as the research goes on. It is only for research, never to make decisions about them, and nothing that could identify them will ever appear in any report. You can stop it at any time by emailing brainpop@leeds.ac.uk.',
       'To opt your child out of the workshop, and so out of the linking, a parent or carer emails the team or tells the school, which passes it on: see “Opt out of the workshop” at the start of this form. This form does not change anything about the workshop.',
     ],

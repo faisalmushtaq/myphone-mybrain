@@ -74,7 +74,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
           <li>Watch a live demonstration of EEG.</li>
           <li>Wear a lightweight EEG headset that records the brain’s natural activity, while sitting quietly with their eyes open or closed.</li>
           <li>Do a simple computer task.</li>
-          <li>Answer short questionnaires about their background, wellbeing and everyday life, including their phone use: about 10 minutes.</li>
+          <li>Answer short questionnaires about their background, wellbeing and everyday life, including their phone use: about 10 minutes. Some questions are about feelings and emotions, and a few young people may find these difficult. They can skip any question.</li>
         </ul>
       </div>
       <div class="info-panel info-panel-alt">
@@ -98,6 +98,8 @@ page_intro: "You’re reading this because your child’s school is taking part 
           <li>Headsets are cleaned and disinfected between sessions.</li>
           <li>In extremely rare cases, an EEG recording may trigger a seizure in someone with epilepsy, so young people with a known history of epilepsy or seizures do not do the EEG recording. They can still join the rest of the workshop. If this applies to your child, please tell the school or email us before the workshop.</li>
           <li>Researchers hold enhanced DBS certificates and follow the school’s safeguarding procedures. At least two are there at all times, and no researcher is ever alone with a young person.</li>
+          <li>Some questionnaire questions are of a personal or emotional nature, about feelings, mood and wellbeing, and some young people may find them difficult or upsetting. Your child can skip any question, take a break or stop at any time, and a researcher or their teacher is there if they would like to talk to someone.</li>
+          <li>If anything your child says or writes during the study makes us worried about their safety or wellbeing, or someone else’s, we will pass it on through your school’s safeguarding procedures, to its designated safeguarding lead.</li>
         </ul>
       </div>
       <div class="info-panel info-panel-alt">
@@ -155,7 +157,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <ul class="info-checklist">
         <li><strong>What is collected:</strong> at the workshop, the EEG recording, the computer task and the questionnaire answers. The workshop questionnaire also asks for your child’s name, date of birth and home address, so that their answers can be kept together and linked. From the school, a class list with your child’s Unique Pupil Number, names and date of birth, so that their information can be matched and linked. If you opt your child out, we keep only their name, school and Unique Pupil Number, so that we can make sure they are left out. If you use the online form, the details and answers you give there (including your home address and its UPRN), and any screenshots.</li>
         <li><strong>How it is labelled:</strong> research data carry a study code, never a name. Names, dates of birth, addresses, Unique Pupil Numbers, UPRNs, contact details and opt-out records are kept separately, and only the few people who need them can see them.</li>
-        <li><strong>Who sees it:</strong> only the research team and approved collaborators, through secure systems. Teachers, the school and other pupils never see your child’s answers, recordings or screenshots.</li>
+        <li><strong>Who sees it:</strong> only the research team and approved collaborators, through secure systems. Teachers, the school and other pupils never see your child’s answers, recordings or screenshots. The one exception is a safeguarding concern: if something your child says or writes makes us worried about their safety or someone else’s, we pass it on to your school’s designated safeguarding lead, following the school’s safeguarding procedures.</li>
         <li><strong>How long it is kept:</strong> up to 10 years after the project ends, as the University’s research data rules require. Identifying information is then securely deleted; fully anonymous data may be kept for future research.</li>
         <li><strong>How results are shared:</strong> in scientific journals, at conferences, in reports and in future research, and as general findings for the schools taking part. Results are about groups of young people, never individuals: nothing that could identify your child will ever appear in any report, publication or presentation, or in the findings we share with schools. Fully anonymous EEG recordings, with no names or other identifying details, may be shared with other researchers through open research data platforms such as G-Node, EEGNet and OpenNeuro. Study data may also be made available to approved researchers through the Born in Bradford Executive (BiB Exec) and the Born in Bradford data dictionary, and linked data can be used only within Connected West Yorkshire’s secure environment.</li>
         <li><strong>Never sold:</strong> we do not sell data or give it to social media or other commercial companies.</li>
@@ -224,7 +226,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <p>Email Dr Sarmad Ali, the study’s contact, at <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>; we aim to reply within five working days. You can also contact the study lead, Professor Faisal Mushtaq, at <a href="mailto:F.Mushtaq@leeds.ac.uk">F.Mushtaq@leeds.ac.uk</a>, both at the School of Psychology, University of Leeds. To opt out, please email Dr Sarmad Ali at S.A.Ali1@leeds.ac.uk, or tell your child’s school, which passes it on.</p>
       <p>Need this information in another language, in an easier-to-read version or on paper? <a href="{{ '/contact/?topic=Participant%20information' | relative_url }}">Contact us</a> and we will send you what works for you. There are also <a href="{{ '/faq/' | relative_url }}">questions and answers</a>.</p>
       <p>This study has been approved by the University of Leeds School of Psychology Research Ethics Committee, reference SoPREC - 2026 4202-7027, on 11 June 2026. The University’s data protection team signed off its data protection impact assessment in May 2026.</p>
-      <p class="info-sheet__updated">Last updated 5 November 2026.</p>
+      <p class="info-sheet__updated">Last updated 6 November 2026.</p>
     </div>
       </div>
     </details>
