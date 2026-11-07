@@ -177,8 +177,7 @@ p { max-width: 70ch; }
 .pathway-card--mist { background: var(--mpb-mist); }
 .pathway-card > span { color: var(--mpb-pink); font-family: var(--f-mono); font-size: .75rem; letter-spacing: .08em; }
 .pathway-card h3 { margin: 1.3rem 0 .8rem; color: var(--mpb-teal); font-size: clamp(1.7rem, 3vw, 2.3rem); }
-.pathway-card p, .meet-sam-copy { color: #416368; line-height: 1.48; }
-.meet-sam-copy { max-width: 66ch; margin: 2rem 0; font-size: 1.1rem; }
+.pathway-card p { color: #416368; line-height: 1.48; }
 .participant-linkline { margin-top: 1.5rem; color: #416368; }
 .participant-linkline a { color: var(--mpb-teal); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
 .contact-form { margin-top: 2rem; display: grid; gap: .55rem; max-width: 560px; padding: 1.4rem; border: 1px solid rgba(255,255,255,.35); background: rgba(0, 48, 53, .26); }
