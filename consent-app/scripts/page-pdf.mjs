@@ -76,26 +76,55 @@ const PRINT_CSS = `
   details.faq-item .prose p { margin: 0 0 1.5mm !important; }
   a { color: inherit !important; text-decoration: none !important; }
   .pdf-version { margin-top: 8mm; font-size: 8.5pt; color: #555; }
+  .pdf-included-heading { break-before: page; font-size: 20pt !important; margin: 0 0 4mm !important; }
+  .info-sheet__more-hint { display: none !important; }
+  details.info-fold > summary { list-style: none; pointer-events: none; padding: 0 !important; }
+  details.info-fold > summary h2 { font-size: 16pt !important; margin: 5mm 0 2mm !important; break-after: avoid; }
+  details.info-fold { border: 0 !important; margin: 0 0 3mm !important; }
+  details.info-fold > summary::after, details.info-fold > summary::before { display: none !important; content: none !important; }
 `;
 
 for (const p of pages) {
   await page.goto(`${base}${p.path}`, { waitUntil: 'networkidle' });
   await page.addStyleTag({ content: PRINT_CSS });
-  await page.evaluate(({ made, title, path }) => {
+  await page.evaluate(async ({ made, title, path, include }) => {
+    const SITE = 'https://myphonemybrain.com';
+    // A page that points readers to the information sheet (the families page) carries the whole sheet in its PDF
+    // (7 November 2026): on paper, a list of links to its sections is no use.
+    if (include) {
+      const html = await (await fetch(include)).text();
+      const sheet = new DOMParser().parseFromString(html, 'text/html').querySelector('.info-sheet');
+      if (sheet) {
+        sheet.querySelector('.info-sheet__start')?.remove();
+        const heading = document.createElement('h2');
+        heading.className = 'pdf-included-heading';
+        heading.textContent = 'The information sheet';
+        const main = document.querySelector('main');
+        main?.append(heading, document.importNode(sheet, true));
+      }
+    }
     for (const d of document.querySelectorAll('details')) d.open = true;
-    // Links elsewhere get their address, so they can be typed from paper.
-    for (const a of document.querySelectorAll('main a[href]')) {
+    for (const a of document.querySelectorAll('a[href]')) {
       const href = a.getAttribute('href');
-      if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:') || getComputedStyle(a).display === 'none') continue;
-      const url = new URL(href, 'https://myphonemybrain.com');
-      if (a.textContent.includes(url.host)) continue;
-      a.insertAdjacentText('afterend', ` (${(url.host + url.pathname).replace(/\/$/, '')})`);
+      if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) continue;
+      const url = new URL(href, location.href);
+      // A link to a section that is now in this PDF jumps to it inside the PDF.
+      if (url.origin === location.origin && url.hash && url.pathname === (include ?? '\u0000') && document.getElementById(url.hash.slice(1))) {
+        a.setAttribute('href', url.hash);
+        continue;
+      }
+      // Every other link goes to the live site, never to the copy this PDF was made from.
+      const live = url.origin === location.origin ? new URL(url.pathname + url.search + url.hash, SITE) : url;
+      a.setAttribute('href', live.href);
+      // Links elsewhere get their address, so they can be typed from paper.
+      if (!a.closest('main') || getComputedStyle(a).display === 'none' || a.textContent.includes(live.host)) continue;
+      a.insertAdjacentText('afterend', ` (${(live.host + live.pathname).replace(/\/$/, '')})`);
     }
     const end = document.createElement('p');
     end.className = 'pdf-version';
     end.textContent = `${title}, made ${made}. The latest version is always at myphonemybrain.com${path.replace(/\/$/, '')}. Questions: brainpop@leeds.ac.uk.`;
     document.querySelector('main')?.append(end);
-  }, { made, title: p.title, path: p.path });
+  }, { made, title: p.title, path: p.path, include: p.include ?? null });
   await page.emulateMedia({ media: 'print' });
   const out = path.join(site, p.path, p.file);
   fs.mkdirSync(path.dirname(out), { recursive: true });

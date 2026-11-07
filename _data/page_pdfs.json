@@ -7,7 +7,8 @@
   {
     "path": "/families/",
     "file": "myphone-mybrain-for-families.pdf",
-    "title": "For parents and carers"
+    "title": "For parents and carers, with the information sheet",
+    "include": "/information/"
   },
   {
     "path": "/young-people/",

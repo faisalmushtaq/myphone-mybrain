@@ -106,10 +106,19 @@ for (const v of variants) {
       const more = document.querySelector('.info-sheet__more-heading');
       if (more) more.textContent = 'More about the study';
       // Links inside the page point to sections that are all here; links elsewhere get their address.
-      for (const a of document.querySelectorAll('main a[href]')) {
+      for (const a of document.querySelectorAll('a[href]')) {
         const href = a.getAttribute('href');
-        if (!href || href.startsWith('#') || href.startsWith('mailto:') || a.closest('.pdf-start') || getComputedStyle(a).display === 'none') continue;
-        const url = new URL(href, 'https://myphonemybrain.com');
+        if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) continue;
+        // A link to a section of this sheet jumps to it inside the PDF; every other link goes to the live site,
+        // never to the copy this PDF was made from (7 November 2026: they pointed at 127.0.0.1).
+        const here = new URL(href, location.href);
+        if (here.origin === location.origin && here.pathname === location.pathname && here.hash && document.getElementById(here.hash.slice(1))) {
+          a.setAttribute('href', here.hash);
+          continue;
+        }
+        a.setAttribute('href', here.origin === location.origin ? new URL(here.pathname + here.search + here.hash, 'https://myphonemybrain.com').href : here.href);
+        if (!a.closest('main') || a.closest('.pdf-start') || getComputedStyle(a).display === 'none') continue;
+        const url = new URL(a.getAttribute('href'));
         if (a.textContent.includes(url.host)) continue;
         const shown = (url.host + url.pathname).replace(/\/$/, '');
         a.insertAdjacentText('afterend', ` (${shown})`);
