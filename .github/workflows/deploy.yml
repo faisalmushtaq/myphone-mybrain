@@ -48,23 +48,32 @@ jobs:
         env:
           JEKYLL_ENV: production
 
-      # The information sheet as PDFs (one for everyone, one per school), made from the built information page
-      # with the runner's Chrome, so the PDF always says what the page says (consent-app/scripts/info-sheet-pdf.mjs).
+      # Every PDF on the site is made here, from the pages just built, on every publish (7 November 2026: "any time
+      # changes are made to the web pages the PDFs are updated"). So a PDF can never be older than its page, a failure
+      # stops the publish (the live site and its PDFs stay as they were, together); each step tries twice first, in
+      # case Chrome stumbles.
+      # The information sheet: one for everyone, one per school (consent-app/scripts/info-sheet-pdf.mjs).
       - name: Information sheet PDFs
-        # A failure here must not stop the website going out: the step shows red, and the PDF links 404 until it is fixed.
-        continue-on-error: true
-        run: node scripts/info-sheet-pdf.mjs ../_site
+        run: node scripts/info-sheet-pdf.mjs ../_site || { echo "retrying"; sleep 5; node scripts/info-sheet-pdf.mjs ../_site; }
         working-directory: consent-app
         env:
           CHROME_CHANNEL: chrome
 
+      # The main information pages (_data/page_pdfs.json, consent-app/scripts/page-pdf.mjs).
       - name: Page PDFs
-        # The main information pages as PDFs (_data/page_pdfs.json). As above: a failure shows red but does not stop the website going out.
-        continue-on-error: true
-        run: node scripts/page-pdf.mjs ../_site
+        run: node scripts/page-pdf.mjs ../_site || { echo "retrying"; sleep 5; node scripts/page-pdf.mjs ../_site; }
         working-directory: consent-app
         env:
           CHROME_CHANNEL: chrome
+
+      # Every PDF the site links to must exist, and be newer than this build's pages.
+      - name: Check the PDFs
+        run: |
+          missing=0
+          for f in $(grep -rhoE 'href="/[^"]+\.pdf"' _site --include=*.html | sed -E 's/href="(.*)"/\1/' | sort -u); do
+            if [ ! -s "_site$f" ]; then echo "missing: $f"; missing=1; elif [ "_site$f" -ot "_site/index.html" ]; then echo "older than the pages: $f"; missing=1; else echo "ok: $f"; fi
+          done
+          exit $missing
 
       - uses: actions/upload-pages-artifact@v3
 
