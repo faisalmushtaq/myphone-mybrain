@@ -58,6 +58,14 @@ jobs:
         env:
           CHROME_CHANNEL: chrome
 
+      - name: Questions and answers PDF
+        # As above: a failure shows red but does not stop the website going out.
+        continue-on-error: true
+        run: node scripts/faq-pdf.mjs ../_site
+        working-directory: consent-app
+        env:
+          CHROME_CHANNEL: chrome
+
       - uses: actions/upload-pages-artifact@v3
 
   deploy:
