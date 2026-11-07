@@ -98,8 +98,6 @@ page_intro: "You’re reading this because your child’s school is taking part 
           <li>Headsets are cleaned and disinfected between sessions.</li>
           <li>In extremely rare cases, an EEG recording may trigger a seizure in someone with epilepsy, so young people with a known history of epilepsy or seizures do not do the EEG recording. They can still join the rest of the workshop. If this applies to your child, please tell the school or email us before the workshop.</li>
           <li>Researchers hold enhanced DBS certificates and follow the school’s safeguarding procedures. At least two are there at all times, and no researcher is ever alone with a young person.</li>
-          <li>Some questionnaire questions are of a personal or emotional nature, about feelings, mood and wellbeing, and some young people may find them difficult or upsetting. Your child can skip any question, take a break or stop at any time, and a researcher or their teacher is there if they would like to talk to someone.</li>
-          <li>If anything your child says or writes during the study makes us worried about their safety or wellbeing, or someone else’s, we will pass it on through your school’s safeguarding procedures, to its designated safeguarding lead.</li>
         </ul>
       </div>
       <div class="info-panel info-panel-alt">
@@ -111,6 +109,19 @@ page_intro: "You’re reading this because your child’s school is taking part 
           <li>The headset sits directly on the head, so head coverings (such as a hijab, turban, patka or cap) need to be taken off for the brain recording. We have a private room for anyone who would like to take theirs off there. If your child would rather keep their head covering on, they can still do the computer task without the headset, if they would like to, and join the rest of the workshop with their class. If you would like to talk this through, tell the school or email us before the workshop.</li>
         </ul>
       </div>
+    </div>
+      </div>
+    </details>
+
+    <details class="info-fold" id="wellbeing">
+      <summary><h2>Difficult questions and safeguarding</h2></summary>
+      <div class="info-fold__body">
+    <div class="info-panel">
+      <ul class="info-checklist">
+        <li>Some questionnaire questions are of a personal or emotional nature, about feelings, mood and wellbeing, and some young people may find them difficult or upsetting. Your child can skip any question, take a break or stop at any time, and a researcher or their teacher is there if they would like to talk to someone.</li>
+        <li>If anything your child says or writes during the study makes us worried about their safety or wellbeing, or someone else’s, we will pass it on through your school’s safeguarding procedures, to its designated safeguarding lead.</li>
+        <li>If your child is upset by anything, or you are worried about them, please talk to their school. Young people can also call Childline free, any time, on 0800 1111.</li>
+      </ul>
     </div>
       </div>
     </details>
@@ -226,7 +237,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <p>Email Dr Sarmad Ali, the study’s contact, at <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>; we aim to reply within five working days. You can also contact the study lead, Professor Faisal Mushtaq, at <a href="mailto:F.Mushtaq@leeds.ac.uk">F.Mushtaq@leeds.ac.uk</a>, both at the School of Psychology, University of Leeds. To opt out, please email Dr Sarmad Ali at S.A.Ali1@leeds.ac.uk, or tell your child’s school, which passes it on.</p>
       <p>Need this information in another language, in an easier-to-read version or on paper? <a href="{{ '/contact/?topic=Participant%20information' | relative_url }}">Contact us</a> and we will send you what works for you. There are also <a href="{{ '/faq/' | relative_url }}">questions and answers</a>.</p>
       <p>This study has been approved by the University of Leeds School of Psychology Research Ethics Committee, reference SoPREC - 2026 4202-7027, on 11 June 2026. The University’s data protection team signed off its data protection impact assessment in May 2026.</p>
-      <p class="info-sheet__updated">Last updated 6 November 2026.</p>
+      <p class="info-sheet__updated">Last updated 7 November 2026.</p>
     </div>
       </div>
     </details>

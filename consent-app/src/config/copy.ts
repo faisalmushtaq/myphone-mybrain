@@ -75,14 +75,15 @@ export const aboutStudy = {
 // 0.8: linking now and in the future, only for research, never to make decisions about the child, and how to stop it (5 November 2026).
 // 0.9: nothing that could identify the child will ever appear in any report, publication or presentation (5 November 2026).
 // 0.10: some questions are of an emotional nature, and safeguarding concerns go to the school's designated safeguarding lead (6 November 2026).
-export const parentInformationVersion = { version: '0.10-draft', date: '2026-11-06' };
+// 0.11: "Difficult questions and safeguarding" is its own section, with where to find support (7 November 2026).
+export const parentInformationVersion = { version: '0.11-draft', date: '2026-11-07' };
 
 /**
  * Earlier versions the server still accepts, so a family who read one of them
  * and signed before an update reached the site can still save. List only
  * recent ones; the version a family saw is stored with their permission.
  */
-export const earlierInformationVersions: string[] = ['0.9-draft', '0.8-draft', '0.7-draft', '0.6-draft', '0.5-draft'];
+export const earlierInformationVersions: string[] = ['0.10-draft', '0.9-draft', '0.8-draft', '0.7-draft', '0.6-draft', '0.5-draft'];
 
 /** The information for parents and carers, shown before their permission. */
 export const parentInformation: InfoSection[] = [

@@ -555,6 +555,11 @@ fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin
 .yp-next__help a { color: var(--mpb-yellow); font-weight: 700; }
 .parents-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
 .parents-actions__note { margin: 1rem 0 0; color: #45666b; }
+.parents-safeguarding { margin: 1.5rem 0; padding: 1.25rem 1.5rem; background: #fff; border-left: 4px solid var(--mpb-teal); }
+.parents-safeguarding h3 { margin: 0 0 .6rem; }
+.parents-safeguarding p { margin: 0 0 .6rem; }
+.parents-safeguarding p:last-child { margin-bottom: 0; }
+.parents-safeguarding a { text-decoration: underline; text-underline-offset: .18em; }
 .parents-optout { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid rgba(13, 59, 64, .18); }
 .parents-optout p { margin: 0 0 .9rem; }
 .participant-next-step .parents-optout .btn { margin: 0; }
