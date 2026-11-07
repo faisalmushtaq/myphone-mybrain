@@ -60,7 +60,8 @@ const PRINT_CSS = `
   .page-hero * { color: #0d3b40 !important; }
   .page-hero h1 { font-size: 24pt !important; margin: 0 0 3mm !important; max-width: none !important; }
   .page-hero::after { display: none !important; }
-  .section { padding: 0 0 4mm !important; background: #fff !important; }
+  .section { padding: 4mm 0 !important; }
+  .section-dark, [class*="section-dark"] { padding: 6mm 5mm !important; }
   img { max-height: 70mm !important; width: auto !important; max-width: 100% !important; object-fit: contain !important; }
   details { break-inside: auto; }
   details > summary { list-style: none; }
