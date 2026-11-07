@@ -3,5 +3,9 @@
   <div class="container">
     <h1>{{ page.title_main }}{% if page.title_accent %}<span>{{ page.title_accent }}</span>{% endif %}</h1>
     <p>{{ page.page_intro }}</p>
+    {%- assign pdf = site.data.page_pdfs | where: "path", page.url | first %}
+    {%- if pdf %}
+    <p class="page-hero__pdf"><a href="{{ pdf.path | append: pdf.file | relative_url }}" download>Download this page as a PDF</a> to print or share.</p>
+    {%- endif %}
   </div>
 </section>

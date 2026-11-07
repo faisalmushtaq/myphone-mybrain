@@ -1,0 +1,12 @@
+[
+  { "path": "/study/", "file": "myphone-mybrain-the-study.pdf", "title": "About the study" },
+  { "path": "/families/", "file": "myphone-mybrain-for-families.pdf", "title": "For parents and carers" },
+  { "path": "/young-people/", "file": "myphone-mybrain-for-young-people.pdf", "title": "For young people" },
+  { "path": "/schools/", "file": "myphone-mybrain-for-schools.pdf", "title": "For schools" },
+  { "path": "/participation/", "file": "myphone-mybrain-the-session.pdf", "title": "What happens at the session" },
+  { "path": "/faq/", "file": "myphone-mybrain-questions.pdf", "title": "Questions and answers" },
+  { "path": "/privacy/", "file": "myphone-mybrain-privacy.pdf", "title": "Privacy" },
+  { "path": "/meet-sam/", "file": "myphone-mybrain-meet-sam.pdf", "title": "Meet Sam" },
+  { "path": "/myself/", "file": "myphone-mybrain-myself.pdf", "title": "MySelf" },
+  { "path": "/break/", "file": "myphone-mybrain-social-media-break-study.pdf", "title": "The social media break study" }
+]

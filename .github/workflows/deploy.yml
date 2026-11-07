@@ -58,10 +58,10 @@ jobs:
         env:
           CHROME_CHANNEL: chrome
 
-      - name: Questions and answers PDF
-        # As above: a failure shows red but does not stop the website going out.
+      - name: Page PDFs
+        # The main information pages as PDFs (_data/page_pdfs.json). As above: a failure shows red but does not stop the website going out.
         continue-on-error: true
-        run: node scripts/faq-pdf.mjs ../_site
+        run: node scripts/page-pdf.mjs ../_site
         working-directory: consent-app
         env:
           CHROME_CHANNEL: chrome
