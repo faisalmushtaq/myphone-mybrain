@@ -7,7 +7,11 @@
       <div class="parents-actions">
         <a href="{{ '/take-part/consent/?who=parent' | relative_url }}" class="btn btn-primary">Start now &nbsp;&rarr;</a>
       </div>
-      <p class="parents-actions__note">If your child’s school sent you a link, use it: the form opens with the school filled in. Started already? <a href="{{ '/take-part/consent/?finish' | relative_url }}">Finish with your reference</a>. Don’t want your child to take part? <a href="{{ '/take-part/consent/?optout=1' | relative_url }}">How to opt out</a>.</p>
+      <p class="parents-actions__note">If your child’s school sent you a link, use it: the form opens with the school filled in. Started already? <a href="{{ '/take-part/consent/?finish' | relative_url }}">Finish with your reference</a>.</p>
+      <div class="parents-optout">
+        <p><strong>Don’t want your child to take part?</strong> You can opt them out of the workshop, or let them join in with none of their information used.</p>
+        <a href="{{ '/take-part/consent/?optout=1' | relative_url }}" class="btn btn-secondary">How to opt out &nbsp;&rarr;</a>
+      </div>
     </div>
 
     <h2 id="read">Everything about the study, in one place.</h2>

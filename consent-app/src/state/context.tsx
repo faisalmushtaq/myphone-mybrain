@@ -16,8 +16,23 @@ const StoreContext = createContext<Store | null>(null);
 
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'touchstart', 'scroll'] as const;
 
+/**
+ * "How to opt out" on the website (?optout=1) always opens the opt-out page (7 November 2026): before, it did only on
+ * a fresh visit, so a parent who had used the form before on that device was taken back to where they left off. What
+ * they had filled in is kept, and "Back" on the opt-out page returns them to it.
+ */
+function withOptOutLink(state: AppState): AppState {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('optout') !== '1') return state;
+  params.delete('optout');
+  const rest = params.toString();
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
+  if (state.stepId === 'opt-out') return state;
+  return { ...state, stepId: 'opt-out', returnTo: state.stepId === 'welcome' ? null : state.stepId, handover: null };
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, () => loadState()?.state ?? initialState());
+  const [state, dispatch] = useReducer(reducer, undefined, () => withOptOutLink(loadState()?.state ?? initialState()));
 
   // Persist progress (debounced) on every change.
   useEffect(() => saveState(state), [state]);

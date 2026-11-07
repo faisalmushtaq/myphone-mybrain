@@ -35,7 +35,7 @@ function mailtoLink(kind: Kind): string {
  * here; the team logs each email on the staff page.
  */
 export function OptOut() {
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
   const [stage, setStage] = useState<Stage>('first');
   const [kind, setKind] = useState<Kind | null>(null);
   const [copied, setCopied] = useState<boolean | null>(null);
@@ -49,10 +49,10 @@ export function OptOut() {
     headingRef.current?.focus({ preventScroll: true });
   }, [stage]);
 
-  // Back to the start: any ?optout=1 still in the address is dropped, so the welcome screen does not send them straight back here.
+  // Back to where they were (a form already under way), or to the start: any ?optout=1 still in the address is dropped, so the welcome screen does not send them straight back here.
   const stay = () => {
     takeEntryLink();
-    dispatch({ type: 'go-to', stepId: 'welcome', returnTo: null });
+    dispatch({ type: 'go-to', stepId: state.returnTo ?? 'welcome', returnTo: null });
   };
   const copy = async () => {
     try {
