@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addressChangedEmail, bookingIcs, bookingState, offerWindows, bookingText, journeyAction, journeyMessage, maskedContact, maskEmail, nextTextTime, reminderAction, reminderEmail, slotProblem, validateBookingPayload, visitsEmail, visitsText, visitWindow, type BookingRecord } from './booking.js';
+import { addressChangedEmail, applyBookingRules, changeable, bookingIcs, bookingState, offerWindows, bookingText, journeyAction, journeyMessage, maskedContact, maskEmail, nextTextTime, reminderAction, reminderEmail, slotProblem, validateBookingPayload, visitsEmail, visitsText, visitWindow, type BookingRecord } from './booking.js';
 import { dailyPlan } from './dailyMessages.js';
 import { labBooking } from './forms.js';
 import { foldLine, icsFor } from './ics.js';
@@ -121,7 +121,7 @@ test('a slot can take a visit only when open, not full, for that visit, with not
   assert.match(slotProblem(slot({ booked: 1 }), 1, window, now)!, /just been taken/);
   assert.equal(slotProblem(slot({ booked: 1, capacity: 2 }), 1, window, now), null);
   assert.match(slotProblem(slot({ visit: 2 }), 1, window, now)!, /second lab visit/);
-  assert.match(slotProblem(slot({ start: new Date(now.getTime() + 2 * H) }), 1, window, now)!, /24 hours ahead/);
+  assert.match(slotProblem(slot({ start: new Date(now.getTime() + 2 * H) }), 1, window, now)!, /closes 24 hours before/);
   assert.equal(slotProblem(slot({ start: new Date(now.getTime() + 2 * H) }), 1, window, now, true), null, 'the team may book at short notice');
   assert.match(slotProblem(slot({ start: new Date(now.getTime() - H) }), 1, window, now, true)!, /passed/);
   assert.equal(slotProblem(slot({ start: new Date('2026-11-13T10:00:00Z') }), 2, { from: '2026-11-11', to: '2026-11-18' }, now), null);
@@ -291,5 +291,25 @@ test('nothing the control group is sent mentions a break, and every link is unde
   for (const [what, text] of sent) {
     assert.doesNotMatch(text, /break|abstinence/i, `control ${what} mentions a break: ${text.slice(0, 300)}`);
     for (const url of text.match(/https:\/\/myphonemybrain\.com\/[^\s"\\]*/g) ?? []) assert.ok(!url.includes('/break/'), `control ${what} links to ${url}`);
+  }
+});
+
+test('staff can set how close to a visit people book and change online', () => {
+  const now = new Date('2026-11-09T12:00:00Z');
+  const tomorrow = new Date('2026-11-10T10:00:00Z'); // 22 hours away
+  const slot = { status: 'open', booked: 0, capacity: 1, visit: null, start: tomorrow };
+  const visit = { status: 'booked', start: tomorrow } as unknown as BookingRecord;
+  try {
+    applyBookingRules(undefined);
+    assert.match(slotProblem(slot, 1, null, now)!, /closes 24 hours before/);
+    assert.equal(changeable(visit, now), false);
+    applyBookingRules({ minNoticeHours: 12, changeUntilHours: 12 });
+    assert.equal(slotProblem(slot, 1, null, now), null);
+    assert.equal(changeable(visit, now), true);
+    // Values out of range or not whole hours fall back to the usual ones.
+    const r = applyBookingRules({ minNoticeHours: -1, changeUntilHours: 2.5 });
+    assert.deepEqual(r, { minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours });
+  } finally {
+    applyBookingRules(undefined);
   }
 });

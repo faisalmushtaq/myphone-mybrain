@@ -204,7 +204,7 @@ export function slotProblem(slot: DocumentData, visit: Visit, window: { from: st
   const start = toDate(slot.start);
   if (start.getTime() <= now.getTime()) return 'That time has passed. Please choose another.';
   if (byStaff) return null;
-  if (start.getTime() < now.getTime() + labBooking.minNoticeHours * HOUR) return `Times can be booked online up to ${labBooking.minNoticeHours} hours ahead. For anything sooner, contact ${labStudy.contactName} at ${labStudy.contactEmail}.`;
+  if (start.getTime() < now.getTime() + liveRules.minNoticeHours * HOUR) return `Online booking closes ${liveRules.minNoticeHours} hours before a visit. For anything sooner, contact ${labStudy.contactName} at ${labStudy.contactEmail}.`;
   if (window && (ukDate(start) < window.from || ukDate(start) > window.to)) {
     const between = `between ${ukLongDate(atUkTime(window.from, 12))} and ${ukLongDate(atUkTime(window.to, 12))}`;
     return visit === 2 ? `Your second visit needs to be ${GAP.min} to ${GAP.max} days after your first: ${between}.` : `Your first visit needs to be ${GAP.min} to ${GAP.max} days before your second: ${between}.`;
@@ -228,7 +228,24 @@ export async function bookingsOf(db: Firestore, code: string): Promise<BookingRe
 }
 
 /** Whether the participant may still change or cancel this booking online. */
-export const changeable = (b: BookingRecord, now: Date) => b.status === 'booked' && b.start.getTime() - now.getTime() >= labBooking.changeUntilHours * HOUR;
+/**
+ * How much notice online booking needs, and how close to a visit it can still be changed or cancelled online
+ * (9 November 2026: set on the staff page, Lab times; before, both were fixed at 24 hours). Read from
+ * meta/labBookingRules at the start of every booking call; the defaults are the study's (labBooking).
+ */
+export const liveRules = { minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours };
+export const RULE_LIMITS = { min: 0, max: 168 };
+const ruleHours = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isInteger(v) && v >= RULE_LIMITS.min && v <= RULE_LIMITS.max ? v : fallback);
+export function applyBookingRules(stored: { minNoticeHours?: unknown; changeUntilHours?: unknown } | undefined): typeof liveRules {
+  liveRules.minNoticeHours = ruleHours(stored?.minNoticeHours, labBooking.minNoticeHours);
+  liveRules.changeUntilHours = ruleHours(stored?.changeUntilHours, labBooking.changeUntilHours);
+  return liveRules;
+}
+export async function loadBookingRules(db: Firestore): Promise<typeof liveRules> {
+  return applyBookingRules((await db.collection('meta').doc('labBookingRules').get()).data());
+}
+
+export const changeable = (b: BookingRecord, now: Date) => b.status === 'booked' && b.start.getTime() - now.getTime() >= liveRules.changeUntilHours * HOUR;
 
 /* ── Calendar files and messages ───────────────────────────────────────── */
 
@@ -327,7 +344,7 @@ export function visitsEmail(kind: 'booked' | 'moved' | 'cancelled', visits: Book
       '',
       `The attached calendar file${both ? 's add the visits' : ' adds the visit'} to your calendar${kind === 'moved' ? ', replacing the earlier times' : ''}, with a reminder the day before. ${reminderPromise(contact)}`,
       '',
-      `To change or cancel, up to ${labBooking.changeUntilHours} hours before a visit: ${links.book}`,
+      `To change or cancel, up to ${liveRules.changeUntilHours} hours before a visit: ${links.book}`,
       `After that, or if anything is unclear, ${contactLine}.`,
       ...signOff,
     ].join('\n'),
@@ -523,7 +540,7 @@ export async function placeVisits(db: Firestore, req: PlaceRequest, now = new Da
       if (previous) {
         if (previous.status !== 'booked') throw new HttpsError('failed-precondition', `Your ${visitWords(c.visit)} has already happened.`);
         if (previous.slotId === c.slotId) throw new HttpsError('failed-precondition', `That is the time you already have for your ${visitWords(c.visit)}.`);
-        if (!byStaff && !changeable(previous, now)) throw new HttpsError('failed-precondition', `Visits can be changed online up to ${labBooking.changeUntilHours} hours before. Please contact ${labStudy.contactName} at ${labStudy.contactEmail}.`);
+        if (!byStaff && !changeable(previous, now)) throw new HttpsError('failed-precondition', `Visits can be changed online up to ${liveRules.changeUntilHours} hours before. Please contact ${labStudy.contactName} at ${labStudy.contactEmail}.`);
         replaced.push(previous);
       }
       plan[c.visit] = { start: toDate(snap.data()!.start), end: toDate(snap.data()!.end) };
@@ -613,7 +630,7 @@ export async function cancelVisits(db: Firestore, req: { code: string | null; bo
       targets = mine.docs.map((d) => bookingFrom(d.id, d.data())).filter((b) => b.status === 'booked' && b.start.getTime() > now.getTime());
       if (!targets.length) throw new HttpsError('failed-precondition', 'There are no visits to cancel.');
     }
-    if (req.by === 'participant' && targets.some((b) => !changeable(b, now))) throw new HttpsError('failed-precondition', `Visits can be cancelled online up to ${labBooking.changeUntilHours} hours before. Please contact ${labStudy.contactName} at ${labStudy.contactEmail}.`);
+    if (req.by === 'participant' && targets.some((b) => !changeable(b, now))) throw new HttpsError('failed-precondition', `Visits can be cancelled online up to ${liveRules.changeUntilHours} hours before. Please contact ${labStudy.contactName} at ${labStudy.contactEmail}.`);
     const slotDelta = new Map<string, number>();
     for (const b of targets) {
       // The cancellation's calendar file must be newer than the booking's, and the next booking's newer still.
@@ -672,6 +689,7 @@ export const labBookingOptions = onCall(callOptions, async (request) => {
   const code = normaliseCode((request.data as { participantCode?: unknown } | undefined)?.participantCode);
   if (!code) throw new HttpsError('invalid-argument', 'The participant ID is malformed.');
   const db = getFirestore();
+  await loadBookingRules(db);
   await rateLimitLookups(db, uid);
   const now = new Date();
   const participant = (await db.collection('labParticipants').doc(code).get()).data();
@@ -693,7 +711,7 @@ export const labBookingOptions = onCall(callOptions, async (request) => {
     slots: { 1: first, 2: second },
     gap: { min: GAP.min, max: GAP.max },
     smsAvailable: await smsReady(),
-    rules: { minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours },
+    rules: { minNoticeHours: liveRules.minNoticeHours, changeUntilHours: liveRules.changeUntilHours },
     // Where confirmations go now, masked: a change can keep it without typing it again.
     contact: maskedContact(await contactOf(db, code)),
   };
@@ -708,6 +726,7 @@ export const bookLabSlot = onCall(callOptions, async (request) => {
   const p = request.data as { participantCode: string; visits: VisitChoice[]; email: string | null; mobile: string | null; smsReminders: boolean; client: ClientInfo };
   const code = normaliseCode(p.participantCode)!;
   const db = getFirestore();
+  await loadBookingRules(db);
   await rateLimitLookups(db, uid, 'lab-booking', BOOKINGS_PER_HOUR);
   const onFile = await contactOf(db, code);
   const email = p.email === null ? onFile.email : p.email.trim();
@@ -753,6 +772,7 @@ export const cancelLabBooking = onCall(callOptions, async (request) => {
   const ids = data?.bookingIds === undefined || data?.bookingIds === null ? null : data.bookingIds;
   if (ids !== null && (!Array.isArray(ids) || ids.length > 2 || ids.some((x) => typeof x !== 'string' || !DOC_ID.test(x)))) throw new HttpsError('invalid-argument', 'The bookings are malformed.');
   const db = getFirestore();
+  await loadBookingRules(db);
   await rateLimitLookups(db, uid, 'lab-booking', BOOKINGS_PER_HOUR);
   const cancelled = await cancelVisits(db, { code, bookingIds: ids as string[] | null, by: 'participant', reason: null }, new Date());
   const outcome = await notifyVisits('cancelled', cancelled, await contactOf(db, code));
@@ -808,6 +828,7 @@ async function record(ref: DocumentReference, field: string, key: string, value:
 
 export async function runLabMessages(now = new Date()): Promise<{ reminders: number; messages: number; skipped: number }> {
   const db = getFirestore();
+  await loadBookingRules(db);
   let reminders = 0;
   let messages = 0;
   let skipped = 0;

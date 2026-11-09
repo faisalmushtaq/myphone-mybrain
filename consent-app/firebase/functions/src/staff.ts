@@ -4,7 +4,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { bookingFrom, bookingsOf, bookingState, bookingView, cancelVisits, contactOf, notifyVisits, placeVisits, toDate, visitWindow, type BookingState, type Contact, type Visit } from './booking.js';
+import { applyBookingRules, bookingFrom, bookingsOf, bookingState, liveRules, loadBookingRules, RULE_LIMITS, bookingView, cancelVisits, contactOf, notifyVisits, placeVisits, toDate, visitWindow, type BookingState, type Contact, type Visit } from './booking.js';
 import { dailyPlan } from './dailyMessages.js';
 import { groupOf, labBooking, schools } from './forms.js';
 import { normaliseCode, notUsedOf, phaseCountsOf, toIso } from './lab.js';
@@ -160,7 +160,7 @@ async function overview(db: Firestore) {
     bookings: bookingSnap.docs.map((d) => bookingRow(d.id, d.data(), contacts.get(String(d.data().participantCode)) ?? null)),
     ready: { email: Boolean(settingsFromEnv()), sms: await smsReady() },
     lastExportAt: exportedAt,
-    rules: { minutes: labBooking.minutes, minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours, visit2AfterDays: labBooking.visit2AfterDays, location: labBooking.location.name, messages: dailyPlan(new Date(), null).map((m) => ({ id: m.id, day: m.day })), reminders: labBooking.reminders },
+    rules: { minutes: labBooking.minutes, minNoticeHours: liveRules.minNoticeHours, changeUntilHours: liveRules.changeUntilHours, defaults: { minNoticeHours: labBooking.minNoticeHours, changeUntilHours: labBooking.changeUntilHours }, limits: RULE_LIMITS, visit2AfterDays: labBooking.visit2AfterDays, location: labBooking.location.name, messages: dailyPlan(new Date(), null).map((m) => ({ id: m.id, day: m.day })), reminders: labBooking.reminders },
   };
 }
 
@@ -384,6 +384,7 @@ export const staffApi = onCall(callOptions, async (request) => {
   const data = (isObj(request.data) ? request.data : {}) as Record<string, unknown>;
   const db = getFirestore();
   await checkStaff(db, uid, data.staffKey);
+  await loadBookingRules(db);
   const action = String(data.action ?? '');
   const now = new Date();
   switch (action) {
@@ -504,6 +505,16 @@ export const staffApi = onCall(callOptions, async (request) => {
 
     case 'participant':
       return participantDetail(db, codeOf(data.participantCode));
+
+    case 'set-booking-rules': {
+      // How much notice online booking needs, and how close to a visit it can still be changed online (9 November 2026).
+      const hours = (v: unknown) => Number.isInteger(v) && (v as number) >= RULE_LIMITS.min && (v as number) <= RULE_LIMITS.max;
+      if (!hours(data.minNoticeHours) || !hours(data.changeUntilHours)) throw bad(`Hours must be whole numbers from ${RULE_LIMITS.min} to ${RULE_LIMITS.max}.`);
+      const stored = { minNoticeHours: data.minNoticeHours as number, changeUntilHours: data.changeUntilHours as number };
+      await db.collection('meta').doc('labBookingRules').set({ ...stored, updatedAt: FieldValue.serverTimestamp() });
+      applyBookingRules(stored);
+      return overview(db);
+    }
 
     case 'pause-messages': {
       const code = codeOf(data.participantCode);

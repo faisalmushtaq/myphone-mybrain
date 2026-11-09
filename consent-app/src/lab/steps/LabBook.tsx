@@ -129,6 +129,8 @@ export function LabBook() {
   const { state, dispatch } = useLab();
   const { group, words } = useLabGroup();
   const { options, confirmed } = state.booking;
+  // Staff can change this on the Lab times page; the server sends the current value.
+  const changeHours = options?.rules?.changeUntilHours ?? labBooking.changeUntilHours;
   const [load, setLoad] = useState<{ kind: 'idle' | 'loading' } | { kind: 'failed'; message: string }>({ kind: 'idle' });
   const [choice, setChoice] = useState<Record<LabVisit, string | null>>({ 1: null, 2: null });
   const [changing, setChanging] = useState(false);
@@ -325,7 +327,7 @@ export function LabBook() {
           <h3 className="mpmb-h3">{heading}</h3>
           <p>
             <strong>{ukDayYear(b.start)}</strong>, {ukHours(b.start, b.end)}
-            {b.status === 'attended' ? ' (done)' : changing ? ` (less than ${labBooking.changeUntilHours} hours away, so it stays as it is)` : ' (booked)'}.
+            {b.status === 'attended' ? ' (done)' : changing ? ` (less than ${changeHours} hours away, so it stays as it is)` : ' (booked)'}.
           </p>
         </div>
       );
@@ -437,7 +439,7 @@ export function LabBook() {
               </div>
               {toCome.some((b) => !b.canChange) && (
                 <p className="mpmb-hint">
-                  A visit less than {labBooking.changeUntilHours} hours away can no longer be changed here. To change it, {contactThem}.
+                  A visit less than {changeHours} hours away can no longer be changed here. To change it, {contactThem}.
                 </p>
               )}
               {cancelling && (

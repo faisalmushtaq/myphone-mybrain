@@ -60,6 +60,11 @@ export function Times({ staff }: { staff: Staff }) {
   const [message, setMessage] = useState<{ tone: 'success' | 'important'; text: string } | null>(null);
   const [testEmail, setTestEmail] = useState('');
   const [testMobile, setTestMobile] = useState('');
+  const rules = staff.overview?.rules;
+  const noticeNow = rules?.minNoticeHours ?? labBooking.minNoticeHours;
+  const changeNow = rules?.changeUntilHours ?? labBooking.changeUntilHours;
+  const [notice, setNotice] = useState<string | null>(null);
+  const [changeUntil, setChangeUntil] = useState<string | null>(null);
 
   const times = readTimes(timesText);
   // A visit at 00:00 or 05:00 is a slip ("00:00", "12am"), never a plan: refused here and on the server.
@@ -108,6 +113,16 @@ export function Times({ staff }: { staff: Staff }) {
   const update = (s: StaffSlot, patch: Record<string, unknown>, label: string) => run(s.slotId, async () => (await staff.ask('update-slot', { slotId: s.slotId, ...patch }), label));
   const remove = (s: StaffSlot) => run(s.slotId, async () => (await staff.ask('delete-slot', { slotId: s.slotId }), 'Time removed.'));
 
+  const saveRules = () =>
+    run('rules', async () => {
+      const n = Number(notice ?? noticeNow);
+      const c = Number(changeUntil ?? changeNow);
+      await staff.ask('set-booking-rules', { minNoticeHours: n, changeUntilHours: c });
+      setNotice(null);
+      setChangeUntil(null);
+      return `Saved. Participants can now book from ${n} hours ahead and change or cancel up to ${c} hours before a visit.`;
+    });
+
   const test = () =>
     run('test', async () => {
       const r = await staff.ask<{ email: string | null; sms: string | null }>('test-message', { email: testEmail, mobile: testMobile });
@@ -128,6 +143,23 @@ export function Times({ staff }: { staff: Staff }) {
           </Button>
         ))}
       </div>
+      <section className="mpmb-card" aria-labelledby="times-rules">
+        <h2 className="mpmb-h3" id="times-rules">
+          Online booking rules
+        </h2>
+        <p className="mpmb-hint">
+          How close to a visit participants can book, change or cancel on the website. Staff can always book or move a visit for someone below, whatever these say. Usual values: {rules?.defaults?.minNoticeHours ?? labBooking.minNoticeHours} and {rules?.defaults?.changeUntilHours ?? labBooking.changeUntilHours} hours. For next-day visits, use 12 or less.
+        </p>
+        <div className="mpmb-tools__grid">
+          <TextField id="rules-notice" label="Book from (hours ahead)" type="number" min={rules?.limits?.min ?? 0} max={rules?.limits?.max ?? 168} value={notice ?? String(noticeNow)} onChange={(e) => setNotice(e.target.value)} hint="Open times sooner than this are not shown." />
+          <TextField id="rules-change" label="Change or cancel until (hours before)" type="number" min={rules?.limits?.min ?? 0} max={rules?.limits?.max ?? 168} value={changeUntil ?? String(changeNow)} onChange={(e) => setChangeUntil(e.target.value)} hint="After this, participants must contact the team." />
+        </div>
+        <div className="mpmb-actions">
+          <Button variant="secondary" disabled={busy !== null || (notice === null && changeUntil === null)} onClick={saveRules}>
+            {busy === 'rules' ? 'Saving…' : 'Save booking rules'}
+          </Button>
+        </div>
+      </section>
       <section className="mpmb-card" aria-labelledby="times-add">
         <h2 className="mpmb-h3" id="times-add">
           Add session {session} times
@@ -136,7 +168,7 @@ export function Times({ staff }: { staff: Staff }) {
           {session === 1
             ? 'Session 1 is the first lab visit. '
             : `Session 2 is the second lab visit, ${labBooking.visit2AfterDays.min} to ${labBooking.visit2AfterDays.max} days after each participant's first, so offer times across the weeks after your session 1 times. `}
-          Participants see open times from {labBooking.minNoticeHours} hours ahead. All times are UK times.
+          Participants see open times from {noticeNow} hours ahead (set under Online booking rules below). All times are UK times.
         </p>
         <div className="mpmb-tools__grid">
           <TextField id="times-from" label="First date" type="date" value={from} min={today()} onChange={(e) => setFrom(e.target.value)} />
