@@ -17,6 +17,15 @@
 
     We don't read your questionnaire answers at the time, and they may not be looked at for a long time. So if something is worrying you, please tell a researcher, your teacher or an adult you trust. If we do later find an answer that makes us seriously worried about someone's safety, we may find out whose it is so we can pass it on to your school's safeguarding contact.
 
+- question: "Can this be used to diagnose me?"
+  group: young
+  answer: |
+    No. MyPhone/MyBrain is research, not a medical or school test. The headset, the computer task and the survey can't tell whether you have a health condition, and we don't use them to find out anything about you on your own.
+
+    We can't give you, your parents or your school a score or a result for you. Your answers and recordings are looked at together with lots of other young people's, under a code instead of your name, to find patterns across big groups.
+
+    Remember: we don't read your survey answers at the time. If something is worrying you, please tell a researcher, your teacher or an adult you trust. If you tell us something during the session that makes us worried about your safety, or someone else's, we pass it on to the person at your school who looks after safeguarding. You can also call Childline free, any time, on 0800 1111.
+
 - question: "What happens at the school session?"
   group: young
   answer: |
@@ -61,6 +70,14 @@
 - question: "Can EEG read thoughts or diagnose anything?"
   answer: |
     No. EEG records patterns of activity at the scalp. It cannot read thoughts, feelings, intentions or personality. The study does not diagnose health conditions, check pupils for difficulties or give individual brain profiles to schools or families.
+
+- question: "Can the study diagnose my child, or tell me their results?"
+  answer: |
+    No. The workshop is research, not a medical, psychological or school assessment. The brain recording, the computer task and the survey are not designed to diagnose anything, or to say anything about one young person on their own.
+
+    So we can't give individual scores, results or feedback for any child, to you, your child or the school. Everything is analysed under a study code, together with many other young people's data, and we only report findings about groups. If you are worried about your child's health or wellbeing, please talk to their GP or their school.
+
+    On safeguarding: if your child tells us something during the session that makes us worried about their safety, or someone else's, we pass it on to the school's designated safeguarding lead. Survey answers are not read at the time, so anyone who needs help should tell a researcher, a teacher or an adult they trust. [More in the information sheet](/information/#wellbeing).
 
 - question: "Do pupils have to share phone data?"
   answer: |
