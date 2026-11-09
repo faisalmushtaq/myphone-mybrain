@@ -34,7 +34,7 @@ const words = {
   baseline: {
     kicker: 'About you',
     title: 'Tell us who you are.',
-    lead: 'Your first name, last name, date of birth and postcode make your participant ID: the label on everything you send, instead of your name. The study’s questionnaire asks for the same four details, so your answers there and your data here can be matched. We also ask for your mobile number, so the team can contact you.',
+    lead: 'Your first name, last name, date of birth and postcode make your participant ID: the label on everything you send, instead of your name. The study’s survey asks for the same four details, so your answers there and your data here can be matched. We also ask for your mobile number, so the team can contact you.',
     leadKnown: 'Your participant ID is the label on everything you send, instead of your name.',
   },
   checkin: {
@@ -335,7 +335,7 @@ export function ParticipantId() {
           )}
           {signingUp ? (
             <p className="mpmb-hint">
-              Use exactly the same details whenever you come back, and in the questionnaire, so everything matches up.{' '}
+              Use exactly the same details whenever you come back, and in the survey, so everything matches up.{' '}
               <Button variant="link" onClick={() => dispatch({ type: 'carry-on', on: true })}>
                 Already started? Carry on where you left off
               </Button>

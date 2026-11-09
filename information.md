@@ -30,7 +30,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <div class="info-fold__body">
     <p class="section-subheading">We are researchers from the University of Leeds. We are visiting your child’s school to run a neuroscience workshop, during normal school hours, as part of a research study.</p>
     <div class="prose">
-      <p>MyPhone/MyBrain looks at how young people’s phones and digital lives relate to brain development, attention, learning and wellbeing as they grow up. In the workshop, young people learn how the brain works and how scientists study it, and can take part in a short, safe brain recording, a simple computer task and some questionnaires.</p>
+      <p>MyPhone/MyBrain looks at how young people’s phones and digital lives relate to brain development, attention, learning and wellbeing as they grow up. In the workshop, young people learn how the brain works and how scientists study it, and can take part in a short, safe brain recording, a simple computer task and some surveys.</p>
     </div>
       </div>
     </details>
@@ -74,7 +74,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
           <li>Watch a live demonstration of EEG.</li>
           <li>Wear a lightweight EEG headset that records the brain’s natural activity, while sitting quietly with their eyes open or closed.</li>
           <li>Do a simple computer task.</li>
-          <li>Answer short questionnaires about their background, wellbeing and everyday life, including their phone use: about 10 minutes. Some questions are about feelings and emotions, and a few young people may find these difficult. They can skip any question.</li>
+          <li>Answer short surveys about their background, wellbeing and everyday life, including their phone use: about 10 minutes. Some questions are about feelings and emotions, and a few young people may find these difficult. They can skip any question.</li>
         </ul>
       </div>
       <div class="info-panel info-panel-alt">
@@ -118,9 +118,9 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <div class="info-fold__body">
     <div class="info-panel">
       <ul class="info-checklist">
-        <li>Some questionnaire questions are of a personal or emotional nature, about feelings, mood and wellbeing, and some young people may find them difficult or upsetting. Your child can skip any question, take a break or stop at any time, and a researcher or their teacher is there if they would like to talk to someone.</li>
+        <li>Some survey questions are of a personal or emotional nature, about feelings, mood and wellbeing, and some young people may find them difficult or upsetting. Your child can skip any question, take a break or stop at any time, and a researcher or their teacher is there if they would like to talk to someone.</li>
         <li><strong>During the session:</strong> if your child tells a researcher something, or something happens, that makes us worried about their safety or someone else’s, we pass it on straight away to your school’s designated safeguarding lead, following the school’s safeguarding procedures.</li>
-        <li><strong>The questionnaire answers</strong> are not read during the session or checked one by one. They are research data, kept under a study code instead of a name, and may not be looked at for a long time. So if your child is worried about something, they should tell a researcher, a teacher or another adult they trust, not only write it down. If, when we analyse the answers, we come across one that suggests your child, or someone else, is at serious risk of harm now (for example, that someone is being hurt, or plans to seriously harm themselves or someone else), we may use the study code to find out whose it is and pass the concern to your school’s designated safeguarding lead. Apart from this, the research team does not link answers back to a child’s name.</li>
+        <li><strong>The survey answers</strong> are not read during the session or checked one by one. They are research data, kept under a study code instead of a name, and may not be looked at for a long time. So if your child is worried about something, they should tell a researcher, a teacher or another adult they trust, not only write it down. If, when we analyse the answers, we come across one that suggests your child, or someone else, is at serious risk of harm now (for example, that someone is being hurt, or plans to seriously harm themselves or someone else), we may use the study code to find out whose it is and pass the concern to your school’s designated safeguarding lead. Apart from this, the research team does not link answers back to a child’s name.</li>
         <li>If your child is upset by anything, or you are worried about them, please talk to their school. Young people can also call Childline free, any time, on 0800 1111.</li>
       </ul>
     </div>
@@ -154,7 +154,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <div class="info-fold__body">
     <p class="section-subheading">For young people who take part in the workshop, the study links their information with records that already exist about them, to look at longer-term patterns in learning, health and wellbeing.</p>
     <div class="prose">
-      <p>The records are education records, such as attendance and results, held by the Department for Education, and NHS health records. The linking is done through Connected West Yorkshire, using your child’s Unique Pupil Number, which the school gives us, together with their name, date of birth and home address from the workshop questionnaire. If you use the online form, the address finder also adds your home’s Unique Property Reference Number (UPRN), which helps match records more reliably. Linking happens only with the approvals in place.</p>
+      <p>The records are education records, such as attendance and results, held by the Department for Education, and NHS health records. The linking is done through Connected West Yorkshire, using your child’s Unique Pupil Number, which the school gives us, together with their name, date of birth and home address from the workshop survey. If you use the online form, the address finder also adds your home’s Unique Property Reference Number (UPRN), which helps match records more reliably. Linking happens only with the approvals in place.</p>
       <p>It happens inside a secure research environment: names and other details that identify someone directly are removed before researchers see anything, the analysis stays inside that environment, and only results about groups of people come out. Linking is part of the workshop, so opting out, either way, also opts your child out of linking.</p>
       <p>Linking can happen now and again at times in the future, including as your child grows up and becomes an adult, for as long as the research goes on. The information is only ever used for research into health, wellbeing and learning, never to make decisions about your child, and nothing that could identify your child will ever appear in any report or publication. You can stop the linking at any time, without giving a reason, by emailing <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a> or Dr Sarmad Ali at <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>.</p>
     </div>
@@ -167,7 +167,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <p class="section-subheading">It is kept securely by the University of Leeds, labelled with a study code instead of a name, and used only for research, including research using machine learning (computers finding patterns in data).</p>
     <div class="info-panel">
       <ul class="info-checklist">
-        <li><strong>What is collected:</strong> at the workshop, the EEG recording, the computer task and the questionnaire answers. The workshop questionnaire also asks for your child’s name, date of birth and home address, so that their answers can be kept together and linked. From the school, a class list with your child’s Unique Pupil Number, names and date of birth, so that their information can be matched and linked. If you opt your child out, we keep only their name, school and Unique Pupil Number, so that we can make sure they are left out. If you use the online form, the details and answers you give there (including your home address and its UPRN), and any screenshots.</li>
+        <li><strong>What is collected:</strong> at the workshop, the EEG recording, the computer task and the survey answers. The workshop survey also asks for your child’s name, date of birth and home address, so that their answers can be kept together and linked. From the school, a class list with your child’s Unique Pupil Number, names and date of birth, so that their information can be matched and linked. If you opt your child out, we keep only their name, school and Unique Pupil Number, so that we can make sure they are left out. If you use the online form, the details and answers you give there (including your home address and its UPRN), and any screenshots.</li>
         <li><strong>How it is labelled:</strong> research data carry a study code, never a name. Names, dates of birth, addresses, Unique Pupil Numbers, UPRNs, contact details and opt-out records are kept separately, and only the few people who need them can see them.</li>
         <li><strong>Who sees it:</strong> only the research team and approved collaborators, through secure systems. Teachers, the school and other pupils never see your child’s answers, recordings or screenshots. The one exception is a safeguarding concern: see “Difficult questions and safeguarding” above.</li>
         <li><strong>How long it is kept:</strong> up to 10 years after the project ends, as the University’s research data rules require. Identifying information is then securely deleted; fully anonymous data may be kept for future research.</li>
@@ -238,7 +238,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <p>Email Dr Sarmad Ali, the study’s contact, at <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>; we aim to reply within five working days. You can also contact the study lead, Professor Faisal Mushtaq, at <a href="mailto:F.Mushtaq@leeds.ac.uk">F.Mushtaq@leeds.ac.uk</a>, both at the School of Psychology, University of Leeds. To opt out, please email Dr Sarmad Ali at S.A.Ali1@leeds.ac.uk, or tell your child’s school, which passes it on.</p>
       <p>Need this information in another language, in an easier-to-read version or on paper? <a href="{{ '/contact/?topic=Participant%20information' | relative_url }}">Contact us</a> and we will send you what works for you. There are also <a href="{{ '/faq/' | relative_url }}">questions and answers</a>.</p>
       <p>This study has been approved by the University of Leeds School of Psychology Research Ethics Committee, reference SoPREC - 2026 4202-7027, on 11 June 2026. The University’s data protection team signed off its data protection impact assessment in May 2026.</p>
-      <p class="info-sheet__updated">Last updated 7 November 2026.</p>
+      <p class="info-sheet__updated">Last updated 9 November 2026.</p>
     </div>
       </div>
     </details>

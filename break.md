@@ -24,7 +24,7 @@ page_intro: "A University of Leeds study for adults aged 18 to 24 who use social
           <li>Attend two sessions of about two hours in our lab, before and after the break.</li>
           <li>Take a 30-day break from social media, using a small device called Brick that restricts the apps you agree with us in advance. Calls, messages, WhatsApp and essential apps keep working.</li>
           <li>Share screenshots of your phone’s screen-time summary straight away, then your own data download from each of TikTok, YouTube and Instagram that you use, starting with the one you use most. Each is a separate request and can take a few days to arrive. This site reduces each one on your device to when you watched, liked or searched, the links, your search words and simple totals, plus YouTube video titles and channels, the YouTube channels you follow and the Instagram accounts you searched for.</li>
-          <li>Complete simple computer-based tasks and short questionnaires, and a brief check-in each week of the break.</li>
+          <li>Complete simple computer-based tasks and short surveys, and a brief check-in each week of the break.</li>
         </ul>
       </div>
       <div class="info-panel info-panel-alt">
