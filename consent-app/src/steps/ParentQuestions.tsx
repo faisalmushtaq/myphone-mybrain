@@ -158,8 +158,8 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
   );
   const kicker = 'Questions';
   const intro = noPhone
-    ? `${childName} doesn’t have a phone of their own, so these are about what you think of phones and social media, and what ${childName} uses instead. About a minute. You can skip any question. Your answers are kept with ${childName}’s code, not your name.`
-    : `About ${childName}’s phone and social media: how they use it, time and apps, night-time and sleep, and how it affects them. About ${withLonger ? 'three minutes' : 'a minute'}. Tap an answer to go to the next question. You can skip any of them, or all of them if ${childName} is next to you. Your answers are kept with ${childName}’s code, not your name.`;
+    ? `${childName} doesn’t have a phone of their own, so these are about what you think of phones and social media, including the planned ban for under-16s, and what ${childName} uses instead. About a minute. You can skip any question. Your answers are kept with ${childName}’s code, not your name.`
+    : `About ${childName}’s phone and social media: how they use it, time and apps, night-time and sleep, how it affects them, and what you think of the planned social media ban. About ${withLonger ? 'three minutes' : 'a minute'}. Tap an answer to go to the next question. You can skip any of them, or all of them if ${childName} is next to you. Your answers are kept with ${childName}’s code, not your name.`;
 
   if (gate) {
     const answer = (has: boolean) => {
@@ -222,6 +222,15 @@ function QuestionsStep({ which }: { which: 'quick' | 'more' }) {
         <p className="mpmb-quiz__count">
           {topic ? `${topic} · ` : ''}Question {index + 1} of {total}
         </p>
+        {q.context && (
+          <p className="mpmb-quiz__context">
+            {q.context.text}{' '}
+            <a href={q.context.link.href} target="_blank" rel="noopener noreferrer">
+              {q.context.link.label}
+              <span className="mpmb-sr-only"> (opens in a new tab)</span>
+            </a>
+          </p>
+        )}
         <h2 className="mpmb-h3 mpmb-quiz__question" id="mpmb-quiz-question" tabIndex={-1} ref={questionRef}>
           {shown(q)}
         </h2>

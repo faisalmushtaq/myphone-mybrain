@@ -588,12 +588,12 @@ export function participantsDictionary(): Record<string, unknown> {
 /** The data dictionary for the questions when the young person has no phone of their own (phenotype/parent_no_phone.tsv). */
 export function noPhoneDictionary(): Record<string, unknown> {
   const out: Record<string, unknown> = {
-    MeasurementToolMetadata: { Description: `MyPhone/MyBrain parent questions when the young person has no phone of their own (${parentNoPhoneForm.id} ${parentNoPhoneForm.version}): why not, what they use instead, and what the parent or carer thinks of phones and social media. Asked instead of the quick and the longer questions, from 9 October 2026. Wording is draft until approved by ethics.`, TermURL: CODE_URL },
+    MeasurementToolMetadata: { Description: `MyPhone/MyBrain parent questions when the young person has no phone of their own (${parentNoPhoneForm.id} ${parentNoPhoneForm.version}): why not, what they use instead, and what the parent or carer thinks of phones and social media (from 10 November 2026, version 0.3, also of the planned social media ban for under-16s). Asked instead of the quick and the longer questions, from 9 October 2026. Wording is draft until approved by ethics.`, TermURL: CODE_URL },
     participant_id: { Description: 'Participant label; see participants.tsv' },
   };
   for (const q of parentNoPhoneForm.questions) {
     const wording = noPhoneQuestionWording[q.id];
-    const entry: Record<string, unknown> = { Description: `${(wording?.text ?? q.id).replace(/\{child\}/g, 'the young person')}${q.type === 'multi' ? ' More than one answer can be given: the values are separated by semicolons.' : ''}` };
+    const entry: Record<string, unknown> = { Description: `${(wording?.text ?? q.id).replace(/\{child\}/g, 'the young person')}${wording?.context ? ` Shown with: “${wording.context}”` : ''}${q.type === 'multi' ? ' More than one answer can be given: the values are separated by semicolons.' : ''}` };
     if (q.type !== 'text') entry.Levels = Object.fromEntries(q.options.map((o) => [o, wording?.labels?.[o] ?? o]));
     out[snake(q.id)] = entry;
   }
@@ -606,12 +606,12 @@ export function noPhoneDictionary(): Record<string, unknown> {
 /** The data dictionary for the longer questions (phenotype/parent_phone_use.tsv). */
 export function phoneUseDictionary(): Record<string, unknown> {
   const out: Record<string, unknown> = {
-    MeasurementToolMetadata: { Description: `MyPhone/MyBrain parent questions on phone use (${parentMoreForm.id} ${parentMoreForm.version}): time and apps, night-time and sleep, and effects, asked of the parent or carer when the young person’s screen time was not shared. Wording is draft until approved by ethics.`, TermURL: CODE_URL },
+    MeasurementToolMetadata: { Description: `MyPhone/MyBrain parent questions on phone use (${parentMoreForm.id} ${parentMoreForm.version}): time and apps, night-time and sleep, effects, and (from 10 November 2026, version 0.9) views on the planned social media ban for under-16s, asked of the parent or carer when the young person’s screen time was not shared. Wording is draft until approved by ethics.`, TermURL: CODE_URL },
     participant_id: { Description: 'Participant label; see participants.tsv' },
   };
   for (const q of parentMoreForm.questions) {
     const wording = moreQuestionWording[q.id];
-    const entry: Record<string, unknown> = { Description: `${moreQuestionTopics[q.id] ? `${moreQuestionTopics[q.id]}: ` : ''}${(wording?.text ?? q.id).replace(/\{child\}/g, 'the young person')}${q.type === 'multi' ? ' More than one answer can be given: the values are separated by semicolons.' : ''}` };
+    const entry: Record<string, unknown> = { Description: `${moreQuestionTopics[q.id] ? `${moreQuestionTopics[q.id]}: ` : ''}${(wording?.text ?? q.id).replace(/\{child\}/g, 'the young person')}${wording?.context ? ` Shown with: “${wording.context}”` : ''}${q.type === 'multi' ? ' More than one answer can be given: the values are separated by semicolons.' : ''}` };
     if (q.type !== 'text') entry.Levels = Object.fromEntries(q.options.map((o) => [o, wording?.labels?.[o] ?? o]));
     out[snake(q.id)] = entry;
   }
@@ -628,7 +628,7 @@ export function phenotypeDictionary(): Record<string, unknown> {
   };
   for (const q of parentQuestionsForm.questions) {
     const wording = questionWording[q.id];
-    const entry: Record<string, unknown> = { Description: `${(wording?.text ?? q.id).replace(/\{child\}/g, 'the young person')}${q.type === 'multi' ? ' More than one answer can be given: the values are separated by semicolons.' : ''}` };
+    const entry: Record<string, unknown> = { Description: `${(wording?.text ?? q.id).replace(/\{child\}/g, 'the young person')}${wording?.context ? ` Shown with: “${wording.context}”` : ''}${q.type === 'multi' ? ' More than one answer can be given: the values are separated by semicolons.' : ''}` };
     if (q.type !== 'text') entry.Levels = Object.fromEntries(q.options.map((o) => [o, wording?.labels?.[o] ?? o]));
     out[snake(q.id)] = entry;
   }

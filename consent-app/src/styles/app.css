@@ -2500,6 +2500,14 @@
 .mpmb-app .mpmb-quiz__question {
   margin: 0 0 0.9rem;
 }
+/* A sentence of background above a question, with a link to read more (the planned social media ban, 10 November 2026). */
+.mpmb-app .mpmb-quiz__context {
+  margin: 0.2rem 0 0.8rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--mpmb-deep, #003f46);
+  background: rgba(0, 63, 70, 0.06);
+  font-size: 0.95rem;
+}
 .mpmb-app .mpmb-quiz__question:focus {
   outline: none;
 }

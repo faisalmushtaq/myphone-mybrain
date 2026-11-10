@@ -208,7 +208,7 @@ function validateSurvey(sv: unknown, form: ServedQuestionForm, what: string, pro
     problems.push(`The ${what} record is malformed.`);
     return;
   }
-  if (sv.formId !== form.id || sv.formVersion !== form.version) problems.push(`The ${what} form must be ${form.id} ${form.version}.`);
+  if (sv.formId !== form.id || (sv.formVersion !== form.version && !form.earlierVersions.includes(String(sv.formVersion)))) problems.push(`The ${what} form must be ${form.id} ${form.version}.`);
   if (!['not-started', 'in-progress', 'completed', 'skipped'].includes(String(sv.status))) problems.push(`Unknown ${what} status.`);
   if (!isObj(sv.responses)) problems.push(`The ${what} responses are missing.`);
   else {

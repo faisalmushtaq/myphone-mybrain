@@ -42,9 +42,10 @@ const form = (f) => ({
 const questionForm = (f) => ({
   id: f.id,
   version: f.version,
+  earlierVersions: f.earlierVersions ?? [],
   questions: f.questions.map((q) =>
     q.type === 'choice' || q.type === 'multi'
-      ? { id: q.id, version: q.version, type: q.type, label: q.label, topic: q.topic ?? null, text: q.text, options: q.options.map((o) => ({ value: o.value, label: o.label })) }
+      ? { id: q.id, version: q.version, type: q.type, label: q.label, topic: q.topic ?? null, text: q.text, context: q.context ? `${q.context.text} (${q.context.link.href})` : null, options: q.options.map((o) => ({ value: o.value, label: o.label })) }
       : { id: q.id, version: q.version, type: 'text', label: q.label, topic: q.topic ?? null, text: q.text, maxLength: q.maxLength },
   ),
 });

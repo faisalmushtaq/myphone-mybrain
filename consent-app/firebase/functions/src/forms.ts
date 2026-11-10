@@ -56,17 +56,20 @@ export type ServedQuestion = { id: string; version: string; type: 'choice' | 'mu
 export interface ServedQuestionForm {
   id: string;
   version: string;
+  /** Earlier versions whose answers are still accepted: versions that only added questions, so the questions they hold are unchanged. */
+  earlierVersions: string[];
   questions: ServedQuestion[];
 }
 
-type GeneratedQuestion = { id: string; version: string; type: string; text: string; options?: readonly { value: string; label: string }[]; maxLength?: number };
-const questionForm = (f: { id: string; version: string; questions: readonly GeneratedQuestion[] }): ServedQuestionForm => ({
+type GeneratedQuestion = { id: string; version: string; type: string; text: string; context?: string | null; options?: readonly { value: string; label: string }[]; maxLength?: number };
+const questionForm = (f: { id: string; version: string; earlierVersions?: readonly string[]; questions: readonly GeneratedQuestion[] }): ServedQuestionForm => ({
   id: f.id,
   version: f.version,
+  earlierVersions: [...(f.earlierVersions ?? [])],
   questions: f.questions.map((q): ServedQuestion => (q.type === 'choice' || q.type === 'multi' ? { id: q.id, version: q.version, type: q.type === 'multi' ? 'multi' : 'choice', options: (q.options ?? []).map((o) => o.value) } : { id: q.id, version: q.version, type: 'text', maxLength: Number(q.maxLength) })),
 });
-const wordingOf = (f: { questions: readonly GeneratedQuestion[] }): Record<string, { text: string; labels?: Record<string, string> }> =>
-  Object.fromEntries(f.questions.map((q) => [q.id, { text: q.text, labels: q.type === 'choice' || q.type === 'multi' ? Object.fromEntries((q.options ?? []).map((o) => [o.value, o.label])) : undefined }]));
+const wordingOf = (f: { questions: readonly GeneratedQuestion[] }): Record<string, { text: string; context?: string; labels?: Record<string, string> }> =>
+  Object.fromEntries(f.questions.map((q) => [q.id, { text: q.text, ...(q.context ? { context: q.context } : {}), labels: q.type === 'choice' || q.type === 'multi' ? Object.fromEntries((q.options ?? []).map((o) => [o.value, o.label])) : undefined }]));
 
 /** The quick questions every parent or carer is asked. */
 export const parentQuestionsForm = questionForm(generated.parentQuestionsForm as unknown as { id: string; version: string; questions: GeneratedQuestion[] });

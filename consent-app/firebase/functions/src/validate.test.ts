@@ -351,3 +351,18 @@ test('the parent’s form with linking spelled out (0.10) is accepted, and so is
   p.consent!.responses.answers = r('answers', 'agreed', 'group', '0.5-draft');
   assert.deepEqual(validateConsentPayload(p), []);
 });
+
+test('the planned social media ban questions (10 November 2026), with answers saved before them still accepted', () => {
+  const p = valid();
+  p.route = 'parent';
+  p.phoneSource = 'none';
+  p.assent = notAsked();
+  const ban = { 'ban-support': { questionId: 'ban-support', version: '0.1-draft', value: 'support', answeredAt: now }, 'ban-effect': { questionId: 'ban-effect', version: '0.1-draft', value: 'unsure', answeredAt: now } };
+  p.more = { formId: 'mpmb-parent-phone-use', formVersion: '0.9-draft', status: 'completed', responses: ban, startedAt: now, completedAt: now };
+  assert.deepEqual(validateConsentPayload(p), []);
+  assert.deepEqual(validateConsentPayload({ ...p, more: { ...p.more, formVersion: '0.8-draft', responses: {} } }), [], 'saved under the version before');
+  assert.ok(validateConsentPayload({ ...p, more: { ...p.more, formVersion: '0.7-draft' } }).some((m) => m.includes('form must be')), 'older ones are not');
+  assert.ok(validateConsentPayload({ ...p, more: { ...p.more, responses: { 'ban-support': { ...ban['ban-support'], value: 'love-it' } } } }).some((m) => m.includes('Malformed answer')));
+  const noPhone = { ...p, phoneSource: 'no-phone' as const, more: { formId: 'mpmb-parent-no-phone', formVersion: '0.3-draft', status: 'completed', responses: ban, startedAt: now, completedAt: now } };
+  assert.deepEqual(validateConsentPayload(noPhone as typeof p), []);
+});

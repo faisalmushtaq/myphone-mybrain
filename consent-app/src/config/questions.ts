@@ -25,6 +25,8 @@ interface QuestionBase {
   text: string;
   /** Words in the text shown in bold, to tell similar questions apart ("social media" against "phone"). Display only. */
   emphasis?: string;
+  /** A sentence of background shown above the question, with a link to read more (10 November 2026: the planned social media ban). */
+  context?: { text: string; link: { label: string; href: string } };
 }
 
 export interface ChoiceQuestion extends QuestionBase {
@@ -136,6 +138,54 @@ export const parentQuestionsForm: { id: string; version: string; draft: boolean;
   ],
 };
 
+/**
+ * The planned UK ban on social media for under-16s (10 November 2026): what the parent or carer thinks of it, and what they expect it
+ * to do for their child. Asked near the end, after the questions about the young person's own use and before "anything else", so the
+ * news does not colour the earlier answers. One sentence of background, with a link, for anyone who has not heard of it.
+ */
+const banTopic = 'The planned social media ban';
+const banContext = {
+  text: 'The UK government plans to stop under-16s using major social media apps, such as TikTok, Snapchat and Instagram. It is expected to start in spring 2027.',
+  link: { label: 'Read more on BBC Newsround', href: 'https://www.bbc.co.uk/newsround/articles/cqn8md79j420o' },
+};
+const banQuestions: Question[] = [
+  {
+    id: 'ban-support',
+    version: '0.1-draft',
+    type: 'choice',
+    topic: banTopic,
+    label: 'Support for the ban',
+    text: 'How much do you support or oppose the planned ban on social media for under-16s?',
+    emphasis: 'support or oppose',
+    context: banContext,
+    options: [
+      { value: 'strongly-oppose', label: 'Strongly oppose' },
+      { value: 'oppose', label: 'Oppose' },
+      { value: 'neither', label: 'Neither support nor oppose' },
+      { value: 'support', label: 'Support' },
+      { value: 'strongly-support', label: 'Strongly support' },
+      { value: 'unsure', label: 'I don’t know' },
+    ],
+  },
+  {
+    id: 'ban-effect',
+    version: '0.1-draft',
+    type: 'choice',
+    topic: banTopic,
+    label: 'Expected effect of the ban',
+    text: 'If the ban goes ahead, what effect do you think it will have on {child}?',
+    emphasis: 'what effect',
+    options: [
+      { value: 'very-bad', label: 'A very bad effect' },
+      { value: 'quite-bad', label: 'A quite bad effect' },
+      { value: 'none', label: 'No real effect' },
+      { value: 'quite-good', label: 'A quite good effect' },
+      { value: 'very-good', label: 'A very good effect' },
+      { value: 'unsure', label: 'I don’t know' },
+    ],
+  },
+];
+
 const dontKnow = { value: 'unsure', label: 'I don’t know' };
 /** Hours that do not overlap (15 October 2026): each answer is "more than" the one before and "up to" its own, so 2 hours has one place. */
 const hours = [
@@ -162,15 +212,18 @@ const hours = [
  * 5", year by year, with "I can't remember / I don't know"; more than one
  * app can be chosen.
  */
-export const parentMoreForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
+export const parentMoreForm: { id: string; version: string; earlierVersions: string[]; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-phone-use',
+  // 0.9: two questions on the planned social media ban for under-16s (10 November 2026).
   // 0.8: how often they use AI chatbots (15 October 2026).
   // 0.7: the hours do not overlap (15 October 2026).
   // 0.6: the social media question names the apps (15 October 2026).
   // 0.5: the age at their own smartphone without "They don't have their own" (9 October 2026).
   // 0.4: when they started on social media (8 October 2026).
   // 0.3: without the questions the quick questions already ask (8 October 2026): the effect on sleep ("gets in the way of sleep, schoolwork or family time"), good or bad overall ("how concerned are you"), and a second "anything else".
-  version: '0.8-draft',
+  version: '0.9-draft',
+  // Answers saved under these are still accepted: the questions they hold have not changed.
+  earlierVersions: ['0.8-draft'],
   draft: true,
   questions: [
     {
@@ -310,6 +363,7 @@ export const parentMoreForm: { id: string; version: string; draft: boolean; ques
         dontKnow,
       ],
     },
+    ...banQuestions,
   ],
 };
 
@@ -333,10 +387,12 @@ const goodBad = [
   dontKnow,
 ];
 
-export const parentNoPhoneForm: { id: string; version: string; draft: boolean; questions: Question[] } = {
+export const parentNoPhoneForm: { id: string; version: string; earlierVersions: string[]; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-no-phone',
+  // 0.3: two questions on the planned social media ban for under-16s (10 November 2026).
   // 0.2: the social media good-or-bad question names the apps, and "social media" and "phone" are marked apart (15 October 2026).
-  version: '0.2-draft',
+  version: '0.3-draft',
+  earlierVersions: ['0.2-draft'],
   draft: true,
   questions: [
     {
@@ -413,6 +469,7 @@ export const parentNoPhoneForm: { id: string; version: string; draft: boolean; q
     },
     { id: 'phones-good-bad', version: '0.1-draft', type: 'choice', label: 'Phones: good or bad', text: 'For young people of {child}’s age, do you think having a phone is good or bad?', emphasis: 'having a phone', options: goodBad },
     { id: 'social-media-good-bad', version: '0.2-draft', type: 'choice', label: 'Social media: good or bad', text: 'For young people of {child}’s age, do you think social media, like TikTok, Snapchat, Instagram or YouTube, is good or bad?', emphasis: 'social media', options: goodBad },
+    ...banQuestions,
     {
       id: 'anything-else',
       version: '0.1-draft',
@@ -446,6 +503,8 @@ export const parentQuestionOrder: { id: string; topic: string }[] = [
   { id: 'helps', topic: 'How it affects them' },
   { id: 'gets-in-the-way', topic: 'How it affects them' },
   { id: 'concern', topic: 'How it affects them' },
+  { id: 'ban-support', topic: banTopic },
+  { id: 'ban-effect', topic: banTopic },
   { id: 'anything-else', topic: 'Anything else' },
 ];
 

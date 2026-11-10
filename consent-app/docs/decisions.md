@@ -197,3 +197,7 @@ Every PDF on the site (the information sheet, one per school, and the page PDFs 
 ## Staff set how close to a visit people book or change online (9 November 2026)
 
 The break study's online booking used fixed limits: open times shown from 24 hours ahead, and visits changed or cancelled up to 24 hours before. A participant could not move her visit to the next day. Staff now set both on Lab times, under "Online booking rules" (whole hours, 0 to 168), stored in `meta/labBookingRules`. Without a stored value the usual 24 and 24 apply. Staff booking or moving a visit for someone is not limited by either.
+
+## Parents asked about the planned social media ban (10 November 2026)
+
+Two questions on the UK government's planned ban on social media for under-16s: how much the parent or carer supports or opposes it (`ban-support`), and what effect they think it will have on their child (`ban-effect`). One sentence of background sits above the first, with a link to the BBC Newsround article for anyone who has not heard of it. Both are optional like the rest. They come after the questions about the young person's own use and before "anything else", so the news does not colour the earlier answers. Both routes ask them: the longer questions (`mpmb-parent-phone-use 0.9-draft`, topic "The planned social media ban") and the no-phone questions (`mpmb-parent-no-phone 0.3-draft`). Answers saved under 0.8 or 0.2 are still accepted, as those versions only lacked the new questions (`earlierVersions`). The data dictionaries record the background sentence with each question.

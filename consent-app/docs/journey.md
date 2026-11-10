@@ -42,7 +42,7 @@ Decided by the study lead (`decisions.md`):
 * Whenever the screen time is not coming through the form (the parent said
   no or chose neither, could not send it, or the young person said no, was not
   there, put it off or skipped it), the parent answers **longer questions**
-  (`parent-more`: time and apps, night-time and sleep, effects). Every parent
+  (`parent-more`: time and apps, night-time and sleep, effects, the planned social media ban). Every parent
   answers the **quick questions**.
 
 | Route | Steps (`buildJourney`) |
