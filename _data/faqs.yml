@@ -101,7 +101,7 @@
 
 - question: "What is Connected West Yorkshire?"
   answer: |
-    **Connected West Yorkshire** is a research data programme that provides access to linked information through more than one dataset. This can include health, care and education records. Linking is part of the study for young people who take part in the workshop, using a code rather than a name and only with the approvals in place. Opting out of the workshop also opts out of linking: without the workshop there is nothing to link.
+    **Connected West Yorkshire** is a research data programme that provides access to linked information through more than one dataset. Linking is part of the study for young people who take part in the workshop, only with the approvals in place. The study's information (the EEG recording, the attention task results, the survey answers and, from the online form, a parent's answers and any screenshots) can be linked with GP records, hospital records, community and mental health services records (including CAMHS), and Department for Education records of attendance, attainment and special educational needs. The University of Leeds team keeps names, dates of birth and addresses separately; an independent organisation does the matching; researchers see only a study code. Opting out of the workshop also opts out of linking: without the workshop there is nothing to link. If the details of the linking ever need to change, we would like to contact you about it first, if you say yes on the online form. The [information sheet](/information/#linking) has the details.
 
 - question: "Can parents or carers say no?"
   answer: |

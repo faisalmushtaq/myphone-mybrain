@@ -165,8 +165,9 @@ export function validateConsent(consent: ConsentRecord, form: StatementForm, gro
 }
 
 /** The young person's agreement is their signature. */
-export function validateAssent(assent: AssentRecord): FieldError[] {
-  return signatureErrors(assent.signature, 'assent-signature', 'Sign your name in the box to say yes, or choose one of the other options below.');
+export function validateAssent(assent: AssentRecord, choices: { id: string; label: string }[] = []): FieldError[] {
+  const unanswered = choices.filter((s) => !assent.responses[s.id]).map((s) => ({ field: `assent-${s.id}`, message: `Choose Yes or No for “${s.label}”.` }));
+  return [...unanswered, ...signatureErrors(assent.signature, 'assent-signature', 'Sign your name in the box to say yes, or choose one of the other options below.')];
 }
 
 function signatureErrors(signature: ConsentRecord['signature'], field: string, missing: string): FieldError[] {

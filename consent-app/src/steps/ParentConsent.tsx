@@ -4,7 +4,7 @@ import { SignaturePad } from '../components/SignaturePad';
 import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
-import { CheckboxField, TextField } from '../components/ui/Field';
+import { CheckboxField, ChoiceField, TextField } from '../components/ui/Field';
 import { Disclosure } from '../components/ui/Disclosure';
 import { Draft } from '../components/ui/Draft';
 import { parentInformation, parentInformationVersion } from '../config/copy';
@@ -38,6 +38,7 @@ export function ParentConsent() {
   const age = childAge(state);
   const asked = statementsFor(parentConsentForm, age, study.selfConsentAge);
   const required = asked.filter((s) => s.kind === 'required');
+  const optional = asked.filter((s) => s.kind === 'optional');
   const allRequiredAgreed = required.every((s) => consent.responses[s.id]?.response === 'agreed');
   const grouped = study.groupRequiredStatements;
 
@@ -125,6 +126,30 @@ export function ParentConsent() {
           </div>
         )}
       </section>
+
+      {optional.length > 0 && (
+        <section className="mpmb-optional" aria-labelledby="optional-heading">
+          <h2 className="mpmb-h3" id="optional-heading">
+            Your choice <Draft />
+          </h2>
+          {optional.map((s) => (
+            <ChoiceField
+              key={s.id}
+              id={`stmt-${s.id}-agreed`}
+              name={`stmt-${s.id}`}
+              legend={s.text}
+              hint={s.more}
+              value={consent.responses[s.id]?.response ?? null}
+              onChange={(v) => dispatch({ type: 'consent-response', statementId: s.id, version: s.version, response: v === 'agreed' ? 'agreed' : 'declined' })}
+              options={[
+                { value: 'agreed', label: 'Yes' },
+                { value: 'declined', label: 'No' },
+              ]}
+              error={errs[`stmt-${s.id}-agreed`]}
+            />
+          ))}
+        </section>
+      )}
 
       {decidesAlone(state) && <p className="mpmb-hint">{childName} is 16 or over, so they decide for themselves about sharing their screen time: we ask them after your part.</p>}
 

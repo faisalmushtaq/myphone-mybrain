@@ -128,7 +128,7 @@ test('rejects a missing required statement, and the statements no longer asked',
 test('the current information, or a recent earlier version for a family who signed before an update', () => {
   const p = valid();
   assert.deepEqual(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.6-draft' } }), []);
-  assert.ok(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.4-draft' } }).some((m) => m.includes('information shown must be version 0.14-draft')));
+  assert.ok(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.4-draft' } }).some((m) => m.includes('information shown must be version 0.15-draft')));
 });
 
 test('rejects an old statement version', () => {
@@ -344,7 +344,7 @@ test('the parent’s form with linking spelled out (0.10) is accepted, and so is
   delete p.consent!.responses.linking;
   assert.ok(validateConsentPayload(p).some((m) => m.includes('"linking"')), 'the new form needs the linking statement');
   p.consent!.formVersion = '0.8-draft';
-  assert.ok(validateConsentPayload(p).some((m) => m.includes('must be mpmb-parent-consent 0.11-draft')), 'older forms are refused');
+  assert.ok(validateConsentPayload(p).some((m) => m.includes('must be mpmb-parent-consent 0.12-draft')), 'older forms are refused');
   // 0.11, the current form: "My answers" also says nothing that could identify the child will appear in any report.
   p.consent!.formVersion = '0.11-draft';
   p.consent!.responses.linking = r('linking', 'agreed', 'group', '0.1-draft');
@@ -365,4 +365,49 @@ test('the planned social media ban questions (10 November 2026), with answers sa
   assert.ok(validateConsentPayload({ ...p, more: { ...p.more, responses: { 'ban-support': { ...ban['ban-support'], value: 'love-it' } } } }).some((m) => m.includes('Malformed answer')));
   const noPhone = { ...p, phoneSource: 'no-phone' as const, more: { formId: 'mpmb-parent-no-phone', formVersion: '0.3-draft', status: 'completed', responses: ban, startedAt: now, completedAt: now } };
   assert.deepEqual(validateConsentPayload(noPhone as typeof p), []);
+});
+
+test('0.12 and 0.9 (11 November 2026): the opt-in choice about changes to linking, and the statement agreed with Connected West Yorkshire', () => {
+  const p = valid();
+  p.consent!.formVersion = '0.12-draft';
+  p.consent!.informationVersion = '0.15-draft';
+  p.consent!.responses = {
+    'read-information': r('read-information', 'agreed', 'group', '0.5-draft'),
+    answers: r('answers', 'agreed', 'group', '0.5-draft'),
+    linking: r('linking', 'agreed', 'group', '0.2-draft'),
+    'understand-withdraw': r('understand-withdraw', 'agreed', 'group', '0.6-draft'),
+    'records-checked': r('records-checked', 'agreed', 'group', '0.4-draft'),
+    'recontact-linkage': r('recontact-linkage', 'declined', 'individual', '0.1-draft'),
+  };
+  p.assent!.formVersion = '0.9-draft';
+  p.assent!.responses = {
+    understand: r('understand', 'agreed', 'signature', '0.8-draft'),
+    'identifiers-separate': r('identifiers-separate', 'agreed', 'signature', '0.1-draft'),
+    'can-stop': r('can-stop', 'agreed', 'signature', '0.4-draft'),
+    'take-part': r('take-part', 'agreed', 'signature', '0.4-draft'),
+    'recontact-linkage': r('recontact-linkage', 'agreed', 'individual', '0.1-draft'),
+  };
+  assert.deepEqual(validateConsentPayload(p), []);
+  // Saying no is fine; not answering is not.
+  const noParentChoice = structuredClone(p);
+  delete noParentChoice.consent!.responses['recontact-linkage'];
+  assert.ok(validateConsentPayload(noParentChoice).some((m) => m.includes('"recontact-linkage" was not answered')));
+  const noChildChoice = structuredClone(p);
+  delete noChildChoice.assent!.responses['recontact-linkage'];
+  assert.ok(validateConsentPayload(noChildChoice).some((m) => m.includes('Agreement choice "recontact-linkage"')));
+  const unsigned = structuredClone(p);
+  delete unsigned.assent!.responses['identifiers-separate'];
+  assert.ok(validateConsentPayload(unsigned).some((m) => m.includes('"identifiers-separate" was not signed')));
+});
+
+test('the ban effect question in its first wording ("quite") is still accepted, recorded at the version shown', () => {
+  const p = valid();
+  p.route = 'parent';
+  p.phoneSource = 'none';
+  p.assent = { formId: 'mpmb-child-assent', formVersion: '0.9-draft', status: 'not-started', deferredBy: null, responses: {}, signature: null, startedAt: null, completedAt: null } as unknown as typeof p.assent;
+  const answer = (version: string) => ({ 'ban-effect': { questionId: 'ban-effect', version, value: 'quite-good', answeredAt: now } });
+  p.more = { formId: 'mpmb-parent-phone-use', formVersion: '0.10-draft', status: 'completed', responses: answer('0.2-draft'), startedAt: now, completedAt: now };
+  assert.deepEqual(validateConsentPayload(p).filter((m) => /question|form must be/i.test(m)), []);
+  assert.deepEqual(validateConsentPayload({ ...p, more: { ...p.more, formVersion: '0.9-draft', responses: answer('0.1-draft') } }).filter((m) => /question|form must be/i.test(m)), []);
+  assert.ok(validateConsentPayload({ ...p, more: { ...p.more, responses: answer('0.0-draft') } }).some((m) => m.includes('"ban-effect" was shown as version')));
 });

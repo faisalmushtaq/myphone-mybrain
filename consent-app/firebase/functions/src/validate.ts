@@ -225,7 +225,7 @@ function validateSurvey(sv: unknown, form: ServedQuestionForm, what: string, pro
       }
       const valueOk = q.type === 'text' ? typeof r.value === 'string' && !blank(r.value) && r.value.length <= q.maxLength : q.type === 'multi' ? validMulti(r.value, q.options) : q.options.includes(String(r.value));
       if (r.questionId !== key || !valueOk || !validTime(r.answeredAt)) problems.push(`Malformed answer for "${key}".`);
-      else if (r.version !== q.version) problems.push(`Question "${key}" was shown as version ${String(r.version)} but the current version is ${q.version}.`);
+      else if (r.version !== q.version && !(q.type !== 'text' && q.earlierVersions?.includes(String(r.version)))) problems.push(`Question "${key}" was shown as version ${String(r.version)} but the current version is ${q.version}.`);
     }
   }
   if (sv.startedAt !== null && !validTime(sv.startedAt)) problems.push(`The ${what} record has no valid start time.`);
@@ -344,6 +344,10 @@ export function validateConsentPayload(input: unknown): string[] {
     if (a.status === 'completed') {
       for (const sid of agreedForm.signed) {
         if (responses[sid]?.response !== 'agreed' || responses[sid]?.via !== 'signature') problems.push(`Agreement statement "${sid}" was not signed.`);
+      }
+      // Opt-in choices answered with Yes or No when signing (from 0.9: being contacted if the linking needs to change).
+      for (const sid of agreedForm.choices ?? []) {
+        if (!responses[sid]) problems.push(`Agreement choice "${sid}" was not answered.`);
       }
       validateSignature(a.signature, 'Agreement', problems);
       if (!validTime(a.completedAt)) problems.push('The agreement has no completion time.');

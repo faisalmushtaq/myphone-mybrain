@@ -25,6 +25,8 @@ interface QuestionBase {
   text: string;
   /** Words in the text shown in bold, to tell similar questions apart ("social media" against "phone"). Display only. */
   emphasis?: string;
+  /** Earlier versions of this question whose answers are still accepted (the values are the same; only the wording changed). */
+  earlierVersions?: string[];
   /** A sentence of background shown above the question, with a link to read more (10 November 2026: the planned social media ban). */
   context?: { text: string; link: { label: string; href: string } };
 }
@@ -169,7 +171,9 @@ const banQuestions: Question[] = [
   },
   {
     id: 'ban-effect',
-    version: '0.1-draft',
+    // 0.2: "fairly" instead of "quite", to match the young people's version (11 November 2026).
+    version: '0.2-draft',
+    earlierVersions: ['0.1-draft'],
     type: 'choice',
     topic: banTopic,
     label: 'Expected effect of the ban',
@@ -177,9 +181,9 @@ const banQuestions: Question[] = [
     emphasis: 'what effect',
     options: [
       { value: 'very-bad', label: 'A very bad effect' },
-      { value: 'quite-bad', label: 'A quite bad effect' },
+      { value: 'quite-bad', label: 'A fairly bad effect' },
       { value: 'none', label: 'No real effect' },
-      { value: 'quite-good', label: 'A quite good effect' },
+      { value: 'quite-good', label: 'A fairly good effect' },
       { value: 'very-good', label: 'A very good effect' },
       { value: 'unsure', label: 'I don’t know' },
     ],
@@ -214,6 +218,7 @@ const hours = [
  */
 export const parentMoreForm: { id: string; version: string; earlierVersions: string[]; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-phone-use',
+  // 0.10: the ban's effect question says "fairly" (ban-effect 0.2, 11 November 2026).
   // 0.9: two questions on the planned social media ban for under-16s (10 November 2026).
   // 0.8: how often they use AI chatbots (15 October 2026).
   // 0.7: the hours do not overlap (15 October 2026).
@@ -221,9 +226,9 @@ export const parentMoreForm: { id: string; version: string; earlierVersions: str
   // 0.5: the age at their own smartphone without "They don't have their own" (9 October 2026).
   // 0.4: when they started on social media (8 October 2026).
   // 0.3: without the questions the quick questions already ask (8 October 2026): the effect on sleep ("gets in the way of sleep, schoolwork or family time"), good or bad overall ("how concerned are you"), and a second "anything else".
-  version: '0.9-draft',
-  // Answers saved under these are still accepted: the questions they hold have not changed.
-  earlierVersions: ['0.8-draft'],
+  version: '0.10-draft',
+  // Answers saved under these are still accepted, each question at the version it was shown.
+  earlierVersions: ['0.9-draft', '0.8-draft'],
   draft: true,
   questions: [
     {
@@ -389,10 +394,11 @@ const goodBad = [
 
 export const parentNoPhoneForm: { id: string; version: string; earlierVersions: string[]; draft: boolean; questions: Question[] } = {
   id: 'mpmb-parent-no-phone',
+  // 0.4: the ban's effect question says "fairly" (ban-effect 0.2, 11 November 2026).
   // 0.3: two questions on the planned social media ban for under-16s (10 November 2026).
   // 0.2: the social media good-or-bad question names the apps, and "social media" and "phone" are marked apart (15 October 2026).
-  version: '0.3-draft',
-  earlierVersions: ['0.2-draft'],
+  version: '0.4-draft',
+  earlierVersions: ['0.3-draft', '0.2-draft'],
   draft: true,
   questions: [
     {

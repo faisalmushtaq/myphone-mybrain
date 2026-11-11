@@ -3,6 +3,7 @@ import { SignaturePad } from '../components/SignaturePad';
 import { StepShell } from '../components/StepShell';
 import { Button } from '../components/ui/Button';
 import { Disclosure } from '../components/ui/Disclosure';
+import { ChoiceField } from '../components/ui/Field';
 import { Draft } from '../components/ui/Draft';
 import { youngRecap } from '../config/copy';
 import { childAssentForm } from '../config/statements';
@@ -25,13 +26,15 @@ export function ChildAssent() {
   const assent = state.assent;
   const childName = state.identity.firstName.trim();
   const covered = childAssentForm.statements.filter((s) => s.coveredBySignature);
+  // Opt-in choices answered with Yes or No before signing (not the screenshots, which are recorded by sending them).
+  const choices = childAssentForm.statements.filter((s) => s.kind === 'optional' && !s.affects);
 
   useEffect(() => {
     dispatch({ type: 'assent-started' });
   }, [dispatch]);
 
   const sign = () => {
-    const found = validateAssent(assent);
+    const found = validateAssent(assent, choices);
     setErrors(found);
     if (found.length) return;
     dispatch({ type: 'assent-sign' });
@@ -82,6 +85,23 @@ export function ChildAssent() {
           <p>It is the page in your phone’s Settings that shows how long you have spent on each app. It does not show what you did in the apps, your messages, photos or posts. You can hide anything before you send it.</p>
         </Disclosure>
       </div>
+
+      {choices.map((s) => (
+        <ChoiceField
+          key={s.id}
+          id={`assent-${s.id}`}
+          name={`assent-${s.id}`}
+          legend={s.text}
+          hint={s.more}
+          value={assent.responses[s.id]?.response ?? null}
+          onChange={(v) => dispatch({ type: 'assent-response', statementId: s.id, version: s.version, response: v === 'agreed' ? 'agreed' : 'declined' })}
+          options={[
+            { value: 'agreed', label: 'Yes' },
+            { value: 'declined', label: 'No' },
+          ]}
+          error={errs[`assent-${s.id}`]}
+        />
+      ))}
 
       <div className={`mpmb-field mpmb-assent-sign${errs['assent-signature'] ? ' has-error' : ''}`}>
         <p className="mpmb-label mpmb-label--large" id="assent-sign-label">

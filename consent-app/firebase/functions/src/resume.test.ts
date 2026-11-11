@@ -51,7 +51,7 @@ test('the young person’s answer given later: a signed yes, or a no', () => {
   assert.deepEqual(validateLateAgreement(no), []);
   assert.match(validateLateAgreement({ ...yes, assent: { ...yes.assent, status: 'deferred' } }).join(' '), /answer is missing/, 'putting it off again sends nothing');
   assert.match(validateLateAgreement({ ...yes, assent: { ...yes.assent, signature: null } }).join(' '), /signature/i);
-  assert.match(validateLateAgreement({ ...yes, assent: { ...yes.assent, formVersion: '0.4-draft' } }).join(' '), /must be mpmb-child-assent 0\.8-draft/);
+  assert.match(validateLateAgreement({ ...yes, assent: { ...yes.assent, formVersion: '0.4-draft' } }).join(' '), /must be mpmb-child-assent 0\.9-draft/);
   // The current form (0.7, linking spelled out), as well as the one just before (0.6, above).
   const current = { understand: r('understand', 'agreed', 'signature', '0.6-draft'), 'can-stop': r('can-stop', 'agreed', 'signature', '0.4-draft'), 'take-part': r('take-part', 'agreed', 'signature', '0.4-draft') };
   assert.deepEqual(validateLateAgreement({ ...yes, assent: { ...yes.assent, formVersion: '0.7-draft', responses: current } }), []);

@@ -23,7 +23,7 @@ const apply = (s: AppState, ...actions: Action[]) => actions.reduce(reducer, s);
 
 /** The parent's permission, signed. Since 7 October 2026 it has no screenshots question: the parent's yes or no is their answer to where the screen time comes from. */
 function permission(s: AppState): AppState {
-  return apply(s, { type: 'consent-required-group', agreed: true }, { type: 'consent-typed-name', name: 'Sam Patel' }, { type: 'consent-signature', signature }, { type: 'consent-complete', informationVersion: '0.4-draft' });
+  return apply(s, { type: 'consent-required-group', agreed: true }, { type: 'consent-response', statementId: 'recontact-linkage', version: '0.1-draft', response: 'declined' }, { type: 'consent-typed-name', name: 'Sam Patel' }, { type: 'consent-signature', signature }, { type: 'consent-complete', informationVersion: '0.4-draft' });
 }
 
 describe('the family form after 7 October 2026: who decides, and where the screen time comes from', () => {

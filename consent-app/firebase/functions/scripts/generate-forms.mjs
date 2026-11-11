@@ -37,7 +37,7 @@ const schools = JSON.parse(fs.readFileSync(path.resolve(here, '../../../../_data
 const form = (f) => ({
   id: f.id,
   version: f.version,
-  statements: f.statements.map((s) => ({ id: s.id, version: s.version, kind: s.kind, label: s.label, text: s.text, coveredBySignature: Boolean(s.coveredBySignature), underSelfConsentAge: Boolean(s.underSelfConsentAge) })),
+  statements: f.statements.map((s) => ({ id: s.id, version: s.version, kind: s.kind, label: s.label, text: s.text, coveredBySignature: Boolean(s.coveredBySignature), underSelfConsentAge: Boolean(s.underSelfConsentAge), affects: s.affects ?? null })),
 });
 const questionForm = (f) => ({
   id: f.id,
@@ -45,7 +45,7 @@ const questionForm = (f) => ({
   earlierVersions: f.earlierVersions ?? [],
   questions: f.questions.map((q) =>
     q.type === 'choice' || q.type === 'multi'
-      ? { id: q.id, version: q.version, type: q.type, label: q.label, topic: q.topic ?? null, text: q.text, context: q.context ? `${q.context.text} (${q.context.link.href})` : null, options: q.options.map((o) => ({ value: o.value, label: o.label })) }
+      ? { id: q.id, version: q.version, earlierVersions: q.earlierVersions ?? [], type: q.type, label: q.label, topic: q.topic ?? null, text: q.text, context: q.context ? `${q.context.text} (${q.context.link.href})` : null, options: q.options.map((o) => ({ value: o.value, label: o.label })) }
       : { id: q.id, version: q.version, type: 'text', label: q.label, topic: q.topic ?? null, text: q.text, maxLength: q.maxLength },
   ),
 });

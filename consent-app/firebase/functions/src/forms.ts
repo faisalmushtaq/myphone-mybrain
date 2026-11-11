@@ -26,18 +26,25 @@ export const parentConsentForm = {
   statements: generated.parentConsentForm.statements.map(served),
 };
 
+/** A form's opt-in choices answered with Yes or No: optional, not covered by the signature, and not recorded by an action (the screenshots). */
+function choicesOf(statements: readonly { id: string; kind: string; coveredBySignature?: boolean; affects?: string | null }[]): string[] {
+  return statements.filter((s) => s.kind === 'optional' && !s.coveredBySignature && !s.affects).map((s) => s.id);
+}
+
 export const childAssentForm = {
   id: generated.childAssentForm.id,
   version: generated.childAssentForm.version,
   /** Agreed to by the young person's signature. */
   signed: generated.childAssentForm.statements.filter((s) => s.coveredBySignature).map((s) => s.id as string),
   /** Agreed to by sending screenshots. */
-  byAction: generated.childAssentForm.statements.filter((s) => !s.coveredBySignature).map((s) => s.id as string),
+  byAction: generated.childAssentForm.statements.filter((s) => !s.coveredBySignature && (s as { affects?: string | null }).affects).map((s) => s.id as string),
+  /** Opt-in choices answered with Yes or No when signing (from 0.9). */
+  choices: choicesOf(generated.childAssentForm.statements),
   statements: generated.childAssentForm.statements.map(served),
 };
 
-type GeneratedForm = { readonly id: string; readonly version: string; readonly statements: readonly { readonly id: string; readonly version: string; readonly kind: string; readonly underSelfConsentAge?: boolean; readonly coveredBySignature?: boolean }[] };
-const earlier = (forms: readonly GeneratedForm[] | undefined) => (forms ?? []).map((f) => ({ id: f.id, version: f.version, statements: f.statements.map(served), signed: f.statements.filter((s) => s.coveredBySignature).map((s) => s.id) }));
+type GeneratedForm = { readonly id: string; readonly version: string; readonly statements: readonly { readonly id: string; readonly version: string; readonly kind: string; readonly underSelfConsentAge?: boolean; readonly coveredBySignature?: boolean; readonly affects?: string | null }[] };
+const earlier = (forms: readonly GeneratedForm[] | undefined) => (forms ?? []).map((f) => ({ id: f.id, version: f.version, statements: f.statements.map(served), signed: f.statements.filter((s) => s.coveredBySignature).map((s) => s.id), choices: choicesOf(f.statements) }));
 const earlierParent = earlier((generated as { earlierParentConsentForms?: readonly GeneratedForm[] }).earlierParentConsentForms);
 const earlierChild = earlier((generated as { earlierChildAssentForms?: readonly GeneratedForm[] }).earlierChildAssentForms);
 
@@ -52,7 +59,7 @@ export const earlierInformationVersions: readonly string[] = (generated as { ear
 
 /** The parent's question forms (src/config/questions.ts in the app). */
 /** 'multi': more than one answer, the values joined by ";" ('unsure' stands alone). */
-export type ServedQuestion = { id: string; version: string; type: 'choice' | 'multi'; options: string[] } | { id: string; version: string; type: 'text'; maxLength: number };
+export type ServedQuestion = { id: string; version: string; earlierVersions?: string[]; type: 'choice' | 'multi'; options: string[] } | { id: string; version: string; type: 'text'; maxLength: number };
 export interface ServedQuestionForm {
   id: string;
   version: string;
@@ -61,12 +68,12 @@ export interface ServedQuestionForm {
   questions: ServedQuestion[];
 }
 
-type GeneratedQuestion = { id: string; version: string; type: string; text: string; context?: string | null; options?: readonly { value: string; label: string }[]; maxLength?: number };
+type GeneratedQuestion = { id: string; version: string; earlierVersions?: readonly string[]; type: string; text: string; context?: string | null; options?: readonly { value: string; label: string }[]; maxLength?: number };
 const questionForm = (f: { id: string; version: string; earlierVersions?: readonly string[]; questions: readonly GeneratedQuestion[] }): ServedQuestionForm => ({
   id: f.id,
   version: f.version,
   earlierVersions: [...(f.earlierVersions ?? [])],
-  questions: f.questions.map((q): ServedQuestion => (q.type === 'choice' || q.type === 'multi' ? { id: q.id, version: q.version, type: q.type === 'multi' ? 'multi' : 'choice', options: (q.options ?? []).map((o) => o.value) } : { id: q.id, version: q.version, type: 'text', maxLength: Number(q.maxLength) })),
+  questions: f.questions.map((q): ServedQuestion => (q.type === 'choice' || q.type === 'multi' ? { id: q.id, version: q.version, earlierVersions: [...(q.earlierVersions ?? [])], type: q.type === 'multi' ? 'multi' : 'choice', options: (q.options ?? []).map((o) => o.value) } : { id: q.id, version: q.version, type: 'text', maxLength: Number(q.maxLength) })),
 });
 const wordingOf = (f: { questions: readonly GeneratedQuestion[] }): Record<string, { text: string; context?: string; labels?: Record<string, string> }> =>
   Object.fromEntries(f.questions.map((q) => [q.id, { text: q.text, ...(q.context ? { context: q.context } : {}), labels: q.type === 'choice' || q.type === 'multi' ? Object.fromEntries((q.options ?? []).map((o) => [o.value, o.label])) : undefined }]));
