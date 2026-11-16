@@ -4,7 +4,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { applyBookingRules, bookingFrom, bookingsOf, bookingState, liveRules, loadBookingRules, RULE_LIMITS, bookingView, cancelVisits, contactOf, notifyVisits, placeVisits, toDate, visitWindow, type BookingState, type Contact, type Visit } from './booking.js';
+import { applyBookingRules, bookingFrom, dailyMessagesOffFor, bookingsOf, bookingState, liveRules, loadBookingRules, RULE_LIMITS, bookingView, cancelVisits, contactOf, notifyVisits, placeVisits, toDate, visitWindow, type BookingState, type Contact, type Visit } from './booking.js';
 import { dailyPlan } from './dailyMessages.js';
 import { groupOf, labBooking, schools } from './forms.js';
 import { normaliseCode, notUsedOf, phaseCountsOf, toIso } from './lab.js';
@@ -200,8 +200,9 @@ async function participantDetail(db: Firestore, code: string) {
     progressEmail: typeof reminder?.email === 'string' ? reminder.email : null,
     messages: plainOf(p?.messages) ?? {},
     messagesPaused: Boolean(p?.messagesPaused),
-    dailyMessagesOff: Boolean(p?.dailyMessagesOff),
-    dailyMessagesOffBy: p?.dailyMessagesOff ? (p.dailyMessagesOffBy === 'staff' ? 'staff' : 'participant') : null,
+    dailyMessagesOff: dailyMessagesOffFor(p),
+    /** Who chose: the participant, staff, or nobody yet (the default). */
+    dailyMessagesBy: typeof p?.dailyMessagesOff === 'boolean' ? (p.dailyMessagesOffBy === 'staff' ? 'staff' : 'participant') : 'default',
     links: participantLinks(code, groupOf(p)),
   };
 }
@@ -234,7 +235,7 @@ async function participantsList(db: Firestore) {
         toBook: state.toBook,
         missing: state.missing,
         messagesPaused: Boolean(p.messagesPaused),
-        dailyMessagesOff: Boolean(p.dailyMessagesOff),
+        dailyMessagesOff: dailyMessagesOffFor(p),
       };
     })
     .sort((a, b) => String(b.consentedAt).localeCompare(String(a.consentedAt)));

@@ -332,3 +332,13 @@ test('the daily messages can be turned off: the everyday ones say how, and the c
   assert.equal(checkIn.kind, 'check-in');
   assert.doesNotMatch(checkIn.text, /Turn them off/);
 });
+
+
+test('daily messages are off unless turned on; people who joined before 16 November keep them unless they turned them off', async () => {
+  const { dailyMessagesOffFor } = await import('./booking.js');
+  assert.equal(dailyMessagesOffFor({ consentedAt: new Date('2026-11-20T10:00:00Z') }), true, 'new: off by default');
+  assert.equal(dailyMessagesOffFor({ consentedAt: new Date('2026-11-01T10:00:00Z') }), false, 'joined before: on');
+  assert.equal(dailyMessagesOffFor({ consentedAt: new Date('2026-11-20T10:00:00Z'), dailyMessagesOff: false }), false, 'turned on');
+  assert.equal(dailyMessagesOffFor({ consentedAt: new Date('2026-11-01T10:00:00Z'), dailyMessagesOff: true }), true, 'turned off');
+  assert.equal(dailyMessagesOffFor(undefined), true);
+});

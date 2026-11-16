@@ -144,12 +144,10 @@ function Detail({ staff, code, onClose }: { staff: Staff; code: string; onClose:
           {detail.group !== 'control' && (
             <>
               <Button variant="secondary" loading={busy} onClick={() => void setDaily(!detail.dailyMessagesOff)}>
-                {detail.dailyMessagesOff ? 'Turn the daily messages back on' : 'Turn off the daily messages only'}
+                {detail.dailyMessagesOff ? 'Turn on the daily messages' : 'Turn off the daily messages'}
               </Button>
               <p className="mpmb-hint">
-                {detail.dailyMessagesOff
-                  ? `Daily messages off (${detail.dailyMessagesOffBy === 'staff' ? 'by staff' : 'by the participant'}). The check-ins and visit reminders still go.`
-                  : 'For someone who asks: the everyday messages stop; the check-ins and visit reminders still go. Participants can do this themselves from the link in each daily email.'}
+                {`Daily messages ${detail.dailyMessagesOff ? 'off' : 'on'} (${detail.dailyMessagesBy === 'staff' ? 'set by staff' : detail.dailyMessagesBy === 'participant' ? 'chosen by the participant' : 'the default'}). Off unless the participant asks for them (from 16 November 2026; on for those who joined before). The check-ins and visit reminders go either way.`}
               </p>
             </>
           )}
@@ -165,7 +163,7 @@ function Detail({ staff, code, onClose }: { staff: Staff; code: string; onClose:
         <CopyLine label="Before the break: consent and data" value={detail.links.takePart} />
         <CopyLine label="Book or change lab visits" value={detail.links.book} />
         <CopyLine label="Weekly check-in" value={detail.links.checkIn} />
-        {detail.links.messages && detail.group !== 'control' && <CopyLine label="Turn daily messages off or on" value={detail.links.messages} />}
+        {detail.links.messages && detail.group !== 'control' && <CopyLine label="Turn daily messages on or off" value={detail.links.messages} />}
         <CopyLine label="After the break: data again" value={detail.links.after} />
         <CopyLine label="MyStory during the break (also after the first check-in)" value={detail.links.story.mid} />
       </ul>
@@ -230,7 +228,7 @@ export function Participants({ staff }: { staff: Staff }) {
                 </Button>{' '}
                 consent {when(r.consentedAt)} · before: {files(r.pre)} · visit 1: {r.visit1 ? `${when(r.visit1.start)} (${r.visit1.status})` : r.toBook.includes(1) ? 'to book' : 'n/a'} · visit 2: {r.visit2 ? `${when(r.visit2.start)} (${r.visit2.status})` : r.toBook.includes(2) ? 'to book' : 'n/a'} · {r.checkIns} check-ins · after: {files(r.post)}
                 {r.missing.length && !r.visit1 ? ` · waiting for ${r.missing.join(', ')}` : ''}
-                {r.messagesPaused ? ' · messages stopped' : r.dailyMessagesOff ? ' · daily messages off' : ''}
+                {r.messagesPaused ? ' · messages stopped' : r.dailyMessagesOff === false ? ' · daily messages on' : ''}
               </span>
             </li>
           ))}

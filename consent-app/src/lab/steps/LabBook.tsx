@@ -123,7 +123,7 @@ const both = (xs: { start: string; end: string }[]) => xs.map((b) => `${ukDayYea
 /** What the booking page says about the messages (wording from the team, 20 October 2026). */
 /** The control group's (22 October 2026): no daily messages and no check-in. */
 export const LAB_MESSAGES_NOTE_CONTROL = 'You will receive reminders before and on the day of each lab visit, and a reminder about a week before your second visit to send your screen-time screenshots and app data again.';
-export const LAB_MESSAGES_NOTE = 'You will receive reminders before and on the day of each lab visit. We will also send you a short message every day. No action is needed for these daily messages, except on days 8, 15, 22 and 29, when we will send you a link to that week’s check-in (on day 15, with your story for MyStory). You can turn the daily messages off at any time, from the link in each one or by emailing us; the check-ins and visit reminders still come.';
+export const LAB_MESSAGES_NOTE = 'You will receive reminders before and on the day of each lab visit. On days 8, 15, 22 and 29 we will send you a link to that week’s check-in (on day 15, with your story for MyStory). We can also send you a short, encouraging message every day of your break: these are off unless you turn them on.';
 
 export function LabBook() {
   const { state, dispatch } = useLab();
@@ -599,7 +599,18 @@ export function LabBook() {
                   )}
                 </>
               )}
-              <p>{group === 'control' ? LAB_MESSAGES_NOTE_CONTROL : LAB_MESSAGES_NOTE}</p>
+              <p>
+                {group === 'control' ? LAB_MESSAGES_NOTE_CONTROL : LAB_MESSAGES_NOTE}
+                {group !== 'control' && (
+                  <>
+                    {' '}
+                    <a href={`/break/messages/?code=${encodeURIComponent(state.code)}`} target="_blank" rel="noopener noreferrer">
+                      Turn on daily messages
+                    </a>
+                    .
+                  </>
+                )}
+              </p>
               <p className="mpmb-hint">Used to send you your bookings and reminders, and for the research team to contact you about the study. Kept with your consent record, not with your data.</p>
             </div>
           )}

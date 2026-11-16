@@ -342,6 +342,7 @@ export function visitsEmail(kind: 'booked' | 'moved' | 'cancelled', visits: Book
       `Participant ID: ${code}`,
       '',
       ...bringLines(),
+      ...(kind === 'booked' && links.messages ? ['', `Would you like a short, encouraging message every day of your break? They are off unless you turn them on: ${links.messages}`] : []),
       '',
       `The attached calendar file${both ? 's add the visits' : ' adds the visit'} to your calendar${kind === 'moved' ? ', replacing the earlier times' : ''}, with a reminder the day before. ${reminderPromise(contact)}`,
       '',
@@ -907,7 +908,7 @@ export async function runLabMessages(now = new Date()): Promise<{ reminders: num
       }
       const message = journeyMessage(m, code, { days, visit2, checkInsDone: done_, group: groupOf(participant) });
       // Turned off by the participant or by staff (16 November 2026): the check-ins still come.
-      if (participant.dailyMessagesOff && canTurnOff(message.kind)) {
+      if (dailyMessagesOffFor(participant) && canTurnOff(message.kind)) {
         await record(ref, 'messages', m.id, { at: now, dueAt: m.dueAt, kind: message.kind, skipped: 'turned-off' });
         skipped += 1;
         continue;
@@ -941,7 +942,18 @@ export const labMessagesNow =
 
 
 /**
- * Turning the daily messages off, or on again, from the link in each one (16 November 2026). POST { code } reads the
+ * Daily messages are off unless the participant turns them on (16 November 2026). Someone who consented before then was told
+ * they would get them, so for them they stay on unless turned off. An explicit choice, by the participant or staff, always wins.
+ */
+export const DAILY_MESSAGES_OPT_IN_FROM = new Date('2026-11-16T13:00:00Z');
+export function dailyMessagesOffFor(p: DocumentData | undefined): boolean {
+  if (typeof p?.dailyMessagesOff === 'boolean') return p.dailyMessagesOff;
+  const consented = p?.consentedAt ? toDate(p.consentedAt) : null;
+  return !(consented && consented.getTime() < DAILY_MESSAGES_OPT_IN_FROM.getTime());
+}
+
+/**
+ * Turning the daily messages on, or off again, from the link in each one (16 November 2026). POST { code } reads the
  * setting; POST { code, off } changes it. Only for someone in the break group who has given consent; says nothing else.
  */
 export const labDailyMessages = onRequest({ region: REGION, cors: ALLOWED_ORIGINS, memory: '256MiB', timeoutSeconds: 15 }, async (req, res) => {
@@ -959,7 +971,7 @@ export const labDailyMessages = onRequest({ region: REGION, cors: ALLOWED_ORIGIN
   const ref = db.collection('labParticipants').doc(code);
   const p = (await ref.get()).data();
   if (!p?.consentId || groupOf(p) !== 'break') {
-    res.status(404).json({ ok: false, error: 'We could not find this participant ID. Please email us and we will turn the messages off for you.' });
+    res.status(404).json({ ok: false, error: 'We could not find this participant ID. Please email us and we will do it for you.' });
     return;
   }
   if (typeof body.off === 'boolean') {
@@ -968,5 +980,5 @@ export const labDailyMessages = onRequest({ region: REGION, cors: ALLOWED_ORIGIN
     res.json({ ok: true, off: body.off });
     return;
   }
-  res.json({ ok: true, off: Boolean(p.dailyMessagesOff) });
+  res.json({ ok: true, off: dailyMessagesOffFor(p) });
 });

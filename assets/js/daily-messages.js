@@ -1,7 +1,7 @@
 /* ── Daily messages on or off (16 November 2026) ───────────
    The page /break/messages/?code=… reads and changes one setting for the
-   participant in the link: whether the everyday messages are sent. The
-   check-ins and the visit reminders are not affected. */
+   participant in the link: whether the everyday messages are sent (off
+   unless turned on). The check-ins and the visit reminders are not affected. */
 (() => {
   const box = document.querySelector('[data-daily-messages]');
   const script = document.currentScript;
@@ -15,7 +15,7 @@
   const show = (off) => {
     status.textContent = off
       ? 'Your daily messages are off. You will still get your weekly check-ins and your visit reminders.'
-      : 'Your daily messages are on.';
+      : 'Your daily messages are on: you will get a short message every day of your break.';
     offButton.hidden = off;
     onButton.hidden = !off;
   };
@@ -27,7 +27,7 @@
   };
 
   if (!code) {
-    status.textContent = 'Please open this page from the link in one of your daily messages, or email us and we will turn them off for you.';
+    status.textContent = 'Please open this page from the link on the booking page or in your booking email, or email us and we will do it for you.';
     return;
   }
   ask({ code })

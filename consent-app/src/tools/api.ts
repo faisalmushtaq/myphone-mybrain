@@ -125,7 +125,7 @@ export interface ParticipantDetail {
   messages: Record<string, { at?: string; dueAt?: string; email?: string; sms?: string; skipped?: string }>;
   messagesPaused: boolean;
   dailyMessagesOff?: boolean;
-  dailyMessagesOffBy?: 'participant' | 'staff' | null;
+  dailyMessagesBy?: 'participant' | 'staff' | 'default';
   links: { takePart: string; messages?: string; book: string; checkIn: string; after: string; story: Record<'pre' | 'mid' | 'post', string>; atLab: Record<'pre' | 'post', string> };
 }
 
