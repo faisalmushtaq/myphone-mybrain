@@ -313,3 +313,22 @@ test('staff can set how close to a visit people book and change online', () => {
     applyBookingRules(undefined);
   }
 });
+
+test('the daily messages can be turned off: the everyday ones say how, and the check-ins are not affected', async () => {
+  const { canTurnOff, dailyPlan: plan } = await import('./dailyMessages.js');
+  assert.equal(canTurnOff('daily'), true);
+  assert.equal(canTurnOff('thank-you'), true);
+  assert.equal(canTurnOff('check-in'), false);
+  assert.equal(canTurnOff('check-in-reminder'), false);
+  assert.equal(canTurnOff('follow-up'), false);
+  const visit1 = new Date('2026-11-02T10:00:00Z');
+  const [day1, day2] = plan(visit1, null);
+  const ctx = { days: 30, visit2: null, checkInsDone: [] as number[] };
+  const first = journeyMessage(day1, 'MP9C78C162BB9F', ctx);
+  assert.match(first.text, /Turn them off here: https:\/\/myphonemybrain\.com\/break\/messages\/\?code=MP9C78C162BB9F/);
+  assert.match(first.sms, /Don't want daily texts\? https:\/\/myphonemybrain\.com\/break\/messages\//);
+  assert.doesNotMatch(journeyMessage(day2, 'MP9C78C162BB9F', ctx).sms, /daily texts/, 'texts say it on day 1 only');
+  const checkIn = journeyMessage(plan(visit1, null).find((m) => m.day === 15)!, 'MP9C78C162BB9F', ctx);
+  assert.equal(checkIn.kind, 'check-in');
+  assert.doesNotMatch(checkIn.text, /Turn them off/);
+});

@@ -201,3 +201,9 @@ export function dailyMessage(day: number, ctx: DailyContext): { kind: DailyKind;
 
 /** Whether a message asks the person to do something, so it goes by email as well as by text. */
 export const asksSomething = (kind: DailyKind) => kind === 'check-in' || kind === 'check-in-reminder' || kind === 'follow-up';
+
+/**
+ * The messages someone can turn off (16 November 2026): the everyday ones that ask for nothing. The check-ins and their reminders
+ * still come, as do the visit reminders before each lab visit (sent separately).
+ */
+export const canTurnOff = (kind: DailyKind) => kind === 'daily' || kind === 'visit-soon' || kind === 'visit-tomorrow' || kind === 'thank-you';

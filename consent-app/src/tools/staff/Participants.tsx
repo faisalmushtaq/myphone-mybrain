@@ -46,6 +46,17 @@ function Detail({ staff, code, onClose }: { staff: Staff; code: string; onClose:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
 
+  const setDaily = async (off: boolean) => {
+    setBusy(true);
+    try {
+      await staff.ask('daily-messages', { participantCode: code, off });
+      await load();
+    } catch (e) {
+      setError(messageOf(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   const pause = async (paused: boolean) => {
     setBusy(true);
     try {
@@ -130,6 +141,18 @@ function Detail({ staff, code, onClose }: { staff: Staff; code: string; onClose:
           ) : (
             <p className="mpmb-hint">None sent yet. They start the day after the first visit.</p>
           )}
+          {detail.group !== 'control' && (
+            <>
+              <Button variant="secondary" loading={busy} onClick={() => void setDaily(!detail.dailyMessagesOff)}>
+                {detail.dailyMessagesOff ? 'Turn the daily messages back on' : 'Turn off the daily messages only'}
+              </Button>
+              <p className="mpmb-hint">
+                {detail.dailyMessagesOff
+                  ? `Daily messages off (${detail.dailyMessagesOffBy === 'staff' ? 'by staff' : 'by the participant'}). The check-ins and visit reminders still go.`
+                  : 'For someone who asks: the everyday messages stop; the check-ins and visit reminders still go. Participants can do this themselves from the link in each daily email.'}
+              </p>
+            </>
+          )}
           <Button variant="secondary" loading={busy} onClick={() => void pause(!detail.messagesPaused)}>
             {detail.messagesPaused ? 'Restart the automatic reminders and messages' : 'Stop the automatic reminders and messages'}
           </Button>
@@ -142,6 +165,7 @@ function Detail({ staff, code, onClose }: { staff: Staff; code: string; onClose:
         <CopyLine label="Before the break: consent and data" value={detail.links.takePart} />
         <CopyLine label="Book or change lab visits" value={detail.links.book} />
         <CopyLine label="Weekly check-in" value={detail.links.checkIn} />
+        {detail.links.messages && detail.group !== 'control' && <CopyLine label="Turn daily messages off or on" value={detail.links.messages} />}
         <CopyLine label="After the break: data again" value={detail.links.after} />
         <CopyLine label="MyStory during the break (also after the first check-in)" value={detail.links.story.mid} />
       </ul>
@@ -206,7 +230,7 @@ export function Participants({ staff }: { staff: Staff }) {
                 </Button>{' '}
                 consent {when(r.consentedAt)} · before: {files(r.pre)} · visit 1: {r.visit1 ? `${when(r.visit1.start)} (${r.visit1.status})` : r.toBook.includes(1) ? 'to book' : 'n/a'} · visit 2: {r.visit2 ? `${when(r.visit2.start)} (${r.visit2.status})` : r.toBook.includes(2) ? 'to book' : 'n/a'} · {r.checkIns} check-ins · after: {files(r.post)}
                 {r.missing.length && !r.visit1 ? ` · waiting for ${r.missing.join(', ')}` : ''}
-                {r.messagesPaused ? ' · messages stopped' : ''}
+                {r.messagesPaused ? ' · messages stopped' : r.dailyMessagesOff ? ' · daily messages off' : ''}
               </span>
             </li>
           ))}

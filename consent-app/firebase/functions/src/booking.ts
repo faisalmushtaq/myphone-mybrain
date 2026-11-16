@@ -2,9 +2,10 @@ import { FieldValue, getFirestore, Timestamp, type DocumentData, type DocumentRe
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
-import { asksSomething, dailyMessage, dailyPlan, breakLength, type DailyKind, type PlannedMessage } from './dailyMessages.js';
+import { asksSomething, canTurnOff, dailyMessage, dailyPlan, breakLength, type DailyKind, type PlannedMessage } from './dailyMessages.js';
 import { groupOf, labBooking, labCheckInDay, labCheckInReminderDays, labStudy, type LabGroup } from './forms.js';
 import { checkInsDone } from './checkIns.js';
+import { ALLOWED_ORIGINS } from './enquiry.js';
 import { icsFor } from './ics.js';
 import { normaliseCode, phaseCountsOf, rateLimitLookups } from './lab.js';
 import { participantLinks } from './links.js';
@@ -417,11 +418,13 @@ export function journeyMessage(m: PlannedMessage, code: string, ctx: { days: num
   const links = participantLinks(code, group);
   const { kind, line } = dailyMessage(m.day, { days: ctx.days, visit2: ctx.visit2 ? { start: ctx.visit2.start, place: placeShort(ctx.visit2) } : null, checkInsDone: ctx.checkInsDone, checkInLink: links.checkIn, afterLink: links.after, contactEmail: labStudy.contactEmail, group });
   const nothingToDo = kind === 'daily' || kind === 'thank-you';
+  // Every message that can be turned off says how (16 November 2026); a text says it on the first day only, to keep texts short.
+  const turnOff = group === 'break' && canTurnOff(kind);
   return {
     kind,
     subject: journeySubjects[kind](m.day, group),
-    text: ['Hello,', '', line, ...(nothingToDo ? ['', 'There is nothing you need to do: no need to reply.'] : []), '', `${group === 'control' ? 'Questions about the study?' : 'Questions, or problems with Brick or the break?'} ${Contact_(contactLine)}.`, ...signOff].join('\n'),
-    sms: `MyPhone/MyBrain: ${line}`,
+    text: ['Hello,', '', line, ...(nothingToDo ? ['', 'There is nothing you need to do: no need to reply.'] : []), '', `${group === 'control' ? 'Questions about the study?' : 'Questions, or problems with Brick or the break?'} ${Contact_(contactLine)}.`, ...(turnOff ? ['', `Don't want these daily messages? Turn them off here: ${links.messages} (or email ${labStudy.contactEmail} and we will do it for you). You will still get your check-ins and your visit reminders.`] : []), ...signOff].join('\n'),
+    sms: `MyPhone/MyBrain: ${line}${turnOff && m.day === 1 ? ` Don't want daily texts? ${links.messages}` : ''}`,
   };
 }
 
@@ -903,6 +906,12 @@ export async function runLabMessages(now = new Date()): Promise<{ reminders: num
         continue;
       }
       const message = journeyMessage(m, code, { days, visit2, checkInsDone: done_, group: groupOf(participant) });
+      // Turned off by the participant or by staff (16 November 2026): the check-ins still come.
+      if (participant.dailyMessagesOff && canTurnOff(message.kind)) {
+        await record(ref, 'messages', m.id, { at: now, dueAt: m.dueAt, kind: message.kind, skipped: 'turned-off' });
+        skipped += 1;
+        continue;
+      }
       const contact = await contactFor(code);
       // A text when there is a mobile number and texts are set up, otherwise an email (20 October 2026); the check-in
       // messages go by email as well, so the link is not lost.
@@ -929,3 +938,35 @@ export const labMessagesNow =
         res.json(await runLabMessages(Number.isNaN(at.getTime()) ? new Date() : at));
       })
     : undefined;
+
+
+/**
+ * Turning the daily messages off, or on again, from the link in each one (16 November 2026). POST { code } reads the
+ * setting; POST { code, off } changes it. Only for someone in the break group who has given consent; says nothing else.
+ */
+export const labDailyMessages = onRequest({ region: REGION, cors: ALLOWED_ORIGINS, memory: '256MiB', timeoutSeconds: 15 }, async (req, res) => {
+  if (req.method !== 'POST') {
+    res.status(405).json({ ok: false, error: 'Use POST.' });
+    return;
+  }
+  const body = (isObj(req.body) ? req.body : {}) as Record<string, unknown>;
+  const code = normaliseCode(body.code);
+  if (!code) {
+    res.status(400).json({ ok: false, error: 'This link is not complete. Please use the link in your message, or email us.' });
+    return;
+  }
+  const db = getFirestore();
+  const ref = db.collection('labParticipants').doc(code);
+  const p = (await ref.get()).data();
+  if (!p?.consentId || groupOf(p) !== 'break') {
+    res.status(404).json({ ok: false, error: 'We could not find this participant ID. Please email us and we will turn the messages off for you.' });
+    return;
+  }
+  if (typeof body.off === 'boolean') {
+    await ref.set({ dailyMessagesOff: body.off, dailyMessagesOffAt: body.off ? FieldValue.serverTimestamp() : null, dailyMessagesOffBy: 'participant', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    logger.info('Daily messages changed by the participant', { off: body.off });
+    res.json({ ok: true, off: body.off });
+    return;
+  }
+  res.json({ ok: true, off: Boolean(p.dailyMessagesOff) });
+});

@@ -101,6 +101,8 @@ export interface ParticipantRow {
   toBook: (1 | 2)[];
   missing: string[];
   messagesPaused: boolean;
+  /** The everyday messages turned off (16 November 2026); the check-ins and visit reminders still go. */
+  dailyMessagesOff?: boolean;
 }
 
 export interface ParticipantDetail {
@@ -122,7 +124,9 @@ export interface ParticipantDetail {
   progressEmail: string | null;
   messages: Record<string, { at?: string; dueAt?: string; email?: string; sms?: string; skipped?: string }>;
   messagesPaused: boolean;
-  links: { takePart: string; book: string; checkIn: string; after: string; story: Record<'pre' | 'mid' | 'post', string>; atLab: Record<'pre' | 'post', string> };
+  dailyMessagesOff?: boolean;
+  dailyMessagesOffBy?: 'participant' | 'staff' | null;
+  links: { takePart: string; messages?: string; book: string; checkIn: string; after: string; story: Record<'pre' | 'mid' | 'post', string>; atLab: Record<'pre' | 'post', string> };
 }
 
 export interface SchoolRow {

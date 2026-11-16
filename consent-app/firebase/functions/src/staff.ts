@@ -200,6 +200,8 @@ async function participantDetail(db: Firestore, code: string) {
     progressEmail: typeof reminder?.email === 'string' ? reminder.email : null,
     messages: plainOf(p?.messages) ?? {},
     messagesPaused: Boolean(p?.messagesPaused),
+    dailyMessagesOff: Boolean(p?.dailyMessagesOff),
+    dailyMessagesOffBy: p?.dailyMessagesOff ? (p.dailyMessagesOffBy === 'staff' ? 'staff' : 'participant') : null,
     links: participantLinks(code, groupOf(p)),
   };
 }
@@ -232,6 +234,7 @@ async function participantsList(db: Firestore) {
         toBook: state.toBook,
         missing: state.missing,
         messagesPaused: Boolean(p.messagesPaused),
+        dailyMessagesOff: Boolean(p.dailyMessagesOff),
       };
     })
     .sort((a, b) => String(b.consentedAt).localeCompare(String(a.consentedAt)));
@@ -514,6 +517,14 @@ export const staffApi = onCall(callOptions, async (request) => {
       await db.collection('meta').doc('labBookingRules').set({ ...stored, updatedAt: FieldValue.serverTimestamp() });
       applyBookingRules(stored);
       return overview(db);
+    }
+
+    // Only the everyday messages (16 November 2026), for someone who asked by email: the check-ins and visit reminders still go.
+    case 'daily-messages': {
+      const code = codeOf(data.participantCode);
+      const off = Boolean(data.off);
+      await db.collection('labParticipants').doc(code).set({ dailyMessagesOff: off, dailyMessagesOffAt: off ? now : null, dailyMessagesOffBy: 'staff', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      return { ok: true, dailyMessagesOff: off };
     }
 
     case 'pause-messages': {

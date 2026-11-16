@@ -212,3 +212,12 @@ Two questions on the UK government's planned ban on social media for under-16s: 
 - **Families page and FAQ "What is Connected West Yorkshire?"** mention linking, the record types and the recontact choice.
 - **Not on this site:** the young person's agreement on the day of the workshop. The Connected West Yorkshire statement needs adding wherever that agreement is given (the workshop survey).
 - **Parent survey:** the ban effect question says "fairly" (`ban-effect` 0.2; forms phone-use 0.10, no-phone 0.4). Answers given to 0.1 are still accepted, recorded at that version.
+
+## Daily messages can be turned off (16 November 2026)
+
+Break-group participants can stop the everyday messages and keep everything the study needs. Turned off, they no longer get the daily lines, the "coming up" and "tomorrow" notes or the thank-you (`canTurnOff` in `dailyMessages.ts`). They still get every weekly check-in link and its reminders, and the reminders before each lab visit. Two ways:
+
+- **Themselves:** every daily email ends with a link to `/break/messages/?code=…` (on texts, the day 1 text only, to keep texts short). The page reads and changes one setting through the public `labDailyMessages` function. It only works for a break-group participant who has given consent, and says nothing else about them.
+- **Staff,** for someone who emails: Staff, Social media break study, Participants, open the person, "Turn off the daily messages only". The detail says whether the participant or staff turned them off. The older "Stop the automatic reminders and messages" still stops everything, visit reminders included.
+
+Stored as `dailyMessagesOff` (with when, and by whom) on `labParticipants/{code}`. A skipped message is logged as `turned-off`. The booking page's note about messages says they can be turned off.

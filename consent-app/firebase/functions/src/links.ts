@@ -18,6 +18,8 @@ export const SITE = 'https://myphonemybrain.com';
 export interface ParticipantLinks {
   /** Before the break: consent, screenshots, app data. */
   takePart: string;
+  /** Turning the daily messages off or on again (16 November 2026): the break group only, as the control group has none. */
+  messages?: string;
   /** Booking, changing or cancelling the lab visits. */
   book: string;
   /** The weekly check-ins during the break. */
@@ -50,6 +52,8 @@ export function storyLink(phase: StoryPhase, code: string, atLab = false, group:
 /** The control group's first page (21 October 2026); every later page is shared and finds the group from the record. */
 /** The control group's own pages (6 November 2026): /lab/, never /break/. The old /break/ links still work. */
 export const CONTROL_PATH = '/lab/take-part/';
+/** Where someone turns the daily messages off (the break group only: the control group has none). */
+export const DAILY_MESSAGES_PATH = '/break/messages/';
 
 export function participantLinks(code: string, group: 'break' | 'control' = 'break'): ParticipantLinks {
   // The shared pages say the control group's words from the start when the link says so (they also learn it from the record).
@@ -57,6 +61,7 @@ export function participantLinks(code: string, group: 'break' | 'control' = 'bre
   return {
     takePart: withCode(pages.baseline, code),
     book: withCode(pages.book, code),
+    ...(group === 'break' ? { messages: withCode(DAILY_MESSAGES_PATH, code) } : {}),
     checkIn: withCode(pages.checkin, code),
     after: withCode(pages.after, code),
     story: { pre: storyLink('pre', code, false, group), mid: storyLink('mid', code, false, group), post: storyLink('post', code, false, group) },

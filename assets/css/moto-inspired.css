@@ -658,3 +658,6 @@ fieldset legend span { font-weight: 400; color: #48676b; font-size: .9em; margin
 main :is(p, li, dd, dt, td, th, figcaption, blockquote, h3, h4) a:not(.btn):not([class*="card"]) { text-decoration-line: underline; text-underline-offset: .18em; }
 .contact-card a:not(.btn) { color: var(--mpb-yellow); font-weight: 700; }
 .privacy-facts a { color: var(--mpb-teal); font-weight: 700; }
+/* Daily messages on or off (/break/messages/, 16 November 2026). */
+.daily-messages__status { margin: 1.25rem 0 1rem; padding: 1rem 1.25rem; background: #fff; border-left: 4px solid var(--mpb-teal); font-weight: 600; }
+.daily-messages__actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: 0 0 1.5rem; }

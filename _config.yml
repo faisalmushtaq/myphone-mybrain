@@ -10,6 +10,7 @@ enquiry_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/enqui
 usage_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/usage"
 recruitment_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/labRecruitment"
 waitlist_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/labWaitlist"
+daily_messages_endpoint: "https://europe-west2-myphone-mybrain.cloudfunctions.net/labDailyMessages"
 
 baseurl: ""
 url: "https://myphonemybrain.com"
