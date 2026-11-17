@@ -8,7 +8,6 @@ import { normaliseCode, rateLimitLookups } from './lab.js';
 import { readSecret } from './secrets.js';
 import {
   adaptPrompt,
-  checkPrompt,
   cleanAdaptation,
   cosine,
   endedEarly,
@@ -19,17 +18,13 @@ import {
   ModelError,
   openAiEmbedder,
   openAiModel,
-  revisePrompt,
-  unfaithful,
-  withoutSentences,
   safeguardingHits,
   scenarioPrompt,
   type ChatMessage,
-  type CheckedSentence,
   type Embedder,
   type ModelCall,
   type Prompt,
-  openAiBase, askNowNote, unaskedQuestion
+  openAiBase
 } from './storyPrompts.js';
 import { isObj, validateClient, type ClientInfo } from './validate.js';
 import { alreadyToldMessage } from './story.js';
@@ -149,28 +144,6 @@ async function similarities(db: Firestore, ref: DocumentReference, transcript: C
   }
 }
 
-/**
- * A retelling is checked against the interview, sentence by sentence, before
- * it is shown. Sentences that are not what the participant said are fixed
- * once by the model and checked again; any still not right are cut, word for
- * word. A check that cannot run leaves the draft as it is (it is still the
- * participant's to choose, rate and correct, as in the original).
- */
-async function faithful(db: Firestore, ref: DocumentReference, model: ModelCall, protocol: ChatProtocol, transcript: ChatMessage[], draft: string) {
-  try {
-    const check = async (story: string) => unfaithful((await call<{ sentences: CheckedSentence[] }>(db, ref, model, checkPrompt(transcript, story), protocol, 'check')).sentences);
-    const first = await check(draft);
-    if (!first.length) return { text: draft, added: [], stillAdded: [] };
-    const added = first.map((x) => `"${x.sentence.trim()}": ${x.problem}`);
-    const revised = (await call<{ scenario: string }>(db, ref, model, revisePrompt(draft, added), protocol, 'revise')).scenario.trim() || draft;
-    const again = await check(revised);
-    const text = again.length ? withoutSentences(revised, again.map((x) => x.sentence)) : revised;
-    return { text, added, stillAdded: again.map((x) => `"${x.sentence.trim()}": ${x.problem}`), draft, ...(again.length ? { beforeCut: revised } : {}) };
-  } catch {
-    // Recorded, so the team knows this one was not checked; the failed call is in calls.
-    return { text: draft, checkFailed: true };
-  }
-}
 
 /** Counts a model call against the study's daily ceiling; refuses once it is reached. */
 async function spendCall(db: Firestore, n = 1): Promise<void> {
@@ -226,9 +199,8 @@ async function retell(db: Firestore, ref: DocumentReference, model: ModelCall, p
         const out = await call<{ scenario: string; confidence: string }>(db, ref, model, scenarioPrompt(protocol, persona, extraction, transcript), protocol, 'generate');
         const draft = out.scenario.trim();
         if (!draft) return null;
-        const checked = await faithful(db, ref, model, protocol, transcript, draft);
-        // Nothing left once what they did not say is cut: this voice is not offered.
-        return checked.text ? { index, persona: persona.key, confidence: out.confidence, ...checked } : null;
+        // The story as the protocol's persona wrote it (17 November 2026): nothing of ours checks or rewrites it.
+        return { index, persona: persona.key, confidence: out.confidence, text: draft };
       } catch {
         return null;
       }
@@ -414,19 +386,6 @@ export const labStoryChat = onCall(callOptions, async (request) => {
         if (!done) {
           const turn = await call<{ reply: string; interviewDone: boolean; questionsCovered?: number[] }>(db, ref, model, interviewerPrompt(protocol, transcript), protocol, 'collect');
           // The closing turn's reply is discarded, as MySelf does: the app says what happens next, not the model.
-          // Said to be done with a question still to ask (17 November 2026): one more turn to ask it, once.
-          if (turn.interviewDone) {
-            const missing = unaskedQuestion(protocol, transcript, turn.questionsCovered);
-            const distressNow = (chat.flags ?? []).some((f) => f.tier === 'safeguarding_review') || safeguardingHits(protocol, said).some((h) => h.tier === 'safeguarding_review');
-            if (missing !== null && !endedEarly(protocol, turn.questionsCovered, distressNow) && turns < protocol.maxTurns) {
-              const prompt = interviewerPrompt(protocol, transcript);
-              const again = await call<{ reply: string; interviewDone: boolean; questionsCovered?: number[] }>(db, ref, model, { ...prompt, system: `${prompt.system}\n${askNowNote(missing, protocol.interview.questions[missing - 1]!)}` }, protocol, 'collect');
-              if (!again.interviewDone && again.reply.trim()) {
-                await ref.update({ transcript: FieldValue.arrayUnion({ role: 'assistant', content: again.reply, at: new Date().toISOString() }) });
-                return { stage: 'interview', reply: again.reply };
-              }
-            }
-          }
           if (turn.interviewDone) {
             const distress = (chat.flags ?? []).some((f) => f.tier === 'safeguarding_review') || safeguardingHits(protocol, said).some((h) => h.tier === 'safeguarding_review');
             if (endedEarly(protocol, turn.questionsCovered, distress)) {
@@ -488,18 +447,8 @@ export const labStoryChat = onCall(callOptions, async (request) => {
       try {
         const out = await call<{ newScenario: string; changed: boolean }>(db, ref, model, adaptPrompt(base, ask), protocol, 'adapt');
         const rewritten = cleanAdaptation(out.newScenario) || base;
-        // A rewrite is checked like a retelling: against everything they have said, asked for or written themselves.
-        const said: ChatMessage[] = [
-          ...chat.transcript.map(({ role, content }) => ({ role, content })),
-          ...((chat.requests ?? []) as { request: string }[]).map((r) => ({ role: 'user' as const, content: r.request })),
-          ...((chat.edits ?? []) as { after: string }[]).map((e) => ({ role: 'user' as const, content: e.after })),
-          ...(base !== chat.finalScenario ? [{ role: 'user' as const, content: base }] : []),
-          { role: 'user', content: ask },
-        ];
-        const checked = rewritten === base ? { text: base } : await faithful(db, ref, model, protocol, said, rewritten);
-        const { text: kept, ...found } = checked;
-        const revised = kept || base;
-        await ref.update({ requests: FieldValue.arrayUnion({ request: ask, before: base, after: revised, changed: out.changed, ...found, at: new Date().toISOString() }), finalScenario: revised, updatedAt: FieldValue.serverTimestamp() });
+        const revised = rewritten;
+        await ref.update({ requests: FieldValue.arrayUnion({ request: ask, before: base, after: revised, changed: out.changed, at: new Date().toISOString() }), finalScenario: revised, updatedAt: FieldValue.serverTimestamp() });
         return { stage: 'adapt', story: revised, unchanged: out.changed === false };
       } catch {
         return { stage: 'adapt', story: base, failed: true };

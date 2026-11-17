@@ -55,7 +55,7 @@ export const ADAPT_SCHEMA = {
   required: ['newScenario', 'changed'],
   properties: {
     newScenario: { type: 'string', description: 'The retelling, revised as the participant asked.' },
-    changed: { type: 'boolean', description: 'False if the request could not be honoured from their words alone.' },
+    changed: { type: 'boolean', description: 'False if the scenario is unchanged.' },
   },
 } as const;
 
@@ -120,8 +120,6 @@ export const ADAPT_SYSTEM = [
   "You're a helpful assistant, helping a participant adapt a scenario to their liking.",
   'Suggest an alternative version of the scenario.',
   "Keep the language and content as similar as possible, while fulfilling the participant's request.",
-  'You may only use what they have said, here or earlier. If their request cannot be honoured from their own',
-  'words, return the scenario unchanged and set changed to false.',
 ].join('\n');
 
 export const numberedQuestions = (questions: string[]): string => questions.map((q, i) => `${i + 1}. ${q}`).join('\n');
@@ -569,19 +567,3 @@ export const mockModel: ModelCall = async <T>(prompt: Prompt, protocol: ChatProt
   return { output: output as T, raw: JSON.stringify(output), model: 'mock', usage: { input: 0, output: 0 } };
 };
 
-/**
- * A question the interviewer has not yet asked when it says it is done (17 November 2026): one it did not mark as covered,
- * or, when the protocol's last question opens "Last one", that question if no message so far has asked it. Null if none.
- */
-export function unaskedQuestion(protocol: ChatProtocol, transcript: ChatMessage[], questionsCovered: unknown): number | null {
-  const questions = protocol.interview.questions;
-  const covered = new Set(Array.isArray(questionsCovered) ? questionsCovered.filter((n) => Number.isInteger(n)) : []);
-  const last = questions.length;
-  if (/^last one\b/i.test(questions[last - 1] ?? '') && !transcript.some((m) => m.role === 'assistant' && /\blast one\b/i.test(m.content))) return last;
-  for (let n = 1; n <= last; n += 1) if (!covered.has(n)) return n;
-  return null;
-}
-
-/** The instruction added for one more turn when a question is still to be asked. */
-export const askNowNote = (n: number, question: string): string =>
-  `You have not yet asked question ${n} ("${question}"). Do not finish yet: ask it now, following the instructions above, and set interviewDone to false.`;
