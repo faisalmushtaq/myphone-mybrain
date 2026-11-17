@@ -94,8 +94,6 @@ export const INTERVIEWER_SYSTEM = [
   'Ask each question one at a time.',
   '{language_style}',
   'Ensure you get at least a basic answer to each question before moving to the next.',
-  'Talk like a person in a chat: react to what they just said before you ask the next thing.',
-  'A one or two word answer is not a basic answer — ask them to say a bit more about that same thing before moving on.',
   'Never answer for the human. If you are unsure what the human meant, ask again.',
   '{topic_restriction}',
   '{collection_complete}, set interviewDone to true. Whatever you write in reply on that turn is discarded and ' +
@@ -189,14 +187,17 @@ export function extractionPrompt(protocol: ChatProtocol, transcript: ChatMessage
   };
 }
 
-export function scenarioPrompt(protocol: ChatProtocol, persona: { key: string; text: string }, extraction: Record<string, string | null>): Prompt {
+export function scenarioPrompt(protocol: ChatProtocol, persona: { key: string; text: string }, extraction: Record<string, string | null>, transcript: ChatMessage[] = []): Prompt {
   // Only what they said. Listing every question they did not answer (MySelf's "(they did not say)") invited the
   // retellings to fill the gaps or to recite them; the original builds the story from the answers given.
   const answers =
     protocol.extractionKeys
       .filter(({ key }) => typeof extraction[key] === 'string' && extraction[key]!.trim())
       .map(({ key, question }) => `Question: ${question}\nAnswer: ${extraction[key]}`)
-      .join('\n') + `\n\n${SCENARIO_CLOSE}`;
+      .join('\n') +
+    // The chat itself (17 November 2026): the team's personas check the story against every main question in the chat.
+    (transcript.length ? `\n\nThe chat:\n${transcript.map((m) => `${m.role === 'user' ? 'Human' : 'AI'}: ${m.content}`).join('\n')}` : '') +
+    `\n\n${SCENARIO_CLOSE}`;
   return {
     key: `pt.scenario.${persona.key}`,
     system: SCENARIO_SYSTEM.replace('{persona}', persona.text).replace('{one_shot}', oneShot(protocol)),

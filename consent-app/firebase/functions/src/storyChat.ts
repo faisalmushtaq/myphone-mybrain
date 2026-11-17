@@ -223,7 +223,7 @@ async function retell(db: Firestore, ref: DocumentReference, model: ModelCall, p
   const settled = await Promise.all(
     protocol.personas.map(async (persona, index) => {
       try {
-        const out = await call<{ scenario: string; confidence: string }>(db, ref, model, scenarioPrompt(protocol, persona, extraction), protocol, 'generate');
+        const out = await call<{ scenario: string; confidence: string }>(db, ref, model, scenarioPrompt(protocol, persona, extraction, transcript), protocol, 'generate');
         const draft = out.scenario.trim();
         if (!draft) return null;
         const checked = await faithful(db, ref, model, protocol, transcript, draft);

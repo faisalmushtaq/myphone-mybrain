@@ -51,12 +51,13 @@ test('each persona writes from the answers given, and only those: no list of wha
   assert.ok(p.system.includes('The scenario based on these responses:'), 'the one-shot example sets the register');
   assert.ok(p.messages[0]!.content.includes('Answer: Sleeping better'));
   assert.ok(!p.messages[0]!.content.includes('(they did not say)') && !p.messages[0]!.content.includes(c.extractionKeys[1]!.question), 'unanswered questions are left out');
+  // The team's rules (protocols of 17 November 2026): only what they said, every question's answer in the story, in order.
   for (const persona of c.personas) {
-    assert.ok(persona.text.includes('Do not add feelings, details, outcomes'), `${persona.key}: adds nothing`);
-    assert.ok(persona.text.includes('differ only in the tone'), `${persona.key}: tone only, as in the original`);
-    assert.ok(persona.text.includes('UK spelling'), `${persona.key}: British English`);
+    assert.ok(persona.text.includes('Use only what they actually said. Do not add feelings'), `${persona.key}: adds nothing`);
+    assert.ok(persona.text.includes('check the story against every main question'), `${persona.key}: leaves no answer out`);
+    assert.ok(persona.text.includes('Tell the story in this order'), `${persona.key}: in order`);
   }
-  assert.ok(c.interview.languageStyle.includes('UK spelling') && c.interview.topicRestriction.includes('Never ask about something they have already told you anywhere'));
+  assert.ok(c.interview.topicRestriction.includes('Never ask for something they have already told you anywhere in the chat'));
   assert.ok(p.messages[0]!.content.endsWith('Create a scenario based on these responses.'));
   assert.ok(adaptPrompt('The story.', 'Shorter').messages[0]!.content.includes('What they want changed:\nShorter'));
 });
@@ -173,9 +174,19 @@ test('the control group’s chats before and after the 30 days never mention a b
   const { storyChatsControl } = await import('./forms.js');
   for (const phase of ['pre', 'post'] as const) {
     const c = storyChatsControl[phase];
-    const everything = JSON.stringify(c).toLowerCase();
+    // The one mention allowed is the interviewer's instruction never to bring it up.
+    const everything = JSON.stringify(c).toLowerCase().replace('do not mention study groups, other participants or taking a break from social media.', '');
     for (const word of ['break', 'abstinence', 'off social media', 'stay off', 'slip']) assert.ok(!everything.includes(word), `control ${phase} mentions “${word}”`);
-    assert.ok(c.interview.questions.length === 7, `control ${phase} has the seven questions`);
+    assert.ok(c.interview.questions.length === (phase === 'pre' ? 7 : 8), `control ${phase} has the team's questions`);
     assert.ok(c.maxTurns >= 20 && c.maxTurns <= 40);
   }
+});
+
+test('the story writer sees the chat as well as the answers, so every main question can be checked (17 November 2026)', () => {
+  const c = storyChats.pre;
+  const transcript: ChatMessage[] = [{ role: 'assistant', content: 'What made you want to take part?' }, { role: 'user', content: 'My flatmate did it.' }];
+  const p = scenarioPrompt(c, c.personas[0]!, { motivation_for_taking_part: 'Their flatmate did it' }, transcript);
+  assert.ok(p.messages[0]!.content.includes('The chat:\nAI: What made you want to take part?\nHuman: My flatmate did it.'));
+  assert.ok(p.messages[0]!.content.endsWith('Create a scenario based on these responses.'));
+  assert.ok(!interviewerPrompt(c, []).system.includes('react to what they just said'), 'nothing in the template invites praise');
 });
