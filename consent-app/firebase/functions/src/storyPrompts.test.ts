@@ -190,3 +190,16 @@ test('the story writer sees the chat as well as the answers, so every main quest
   assert.ok(p.messages[0]!.content.endsWith('Create a scenario based on these responses.'));
   assert.ok(!interviewerPrompt(c, []).system.includes('react to what they just said'), 'nothing in the template invites praise');
 });
+
+test('the chat does not end before every question is asked (17 November 2026)', async () => {
+  const { unaskedQuestion, askNowNote, INTERVIEWER_SCHEMA } = await import('./storyPrompts.js');
+  const c = (await import('./forms.js')).storyChatsControl.post;
+  const n = c.interview.questions.length;
+  const asked: ChatMessage[] = [{ role: 'assistant', content: 'Last one. Is there anything you will take forward?' }];
+  assert.equal(unaskedQuestion(c, [], Array.from({ length: n }, (_, i) => i + 1)), n, 'the last question, never asked, is still to come');
+  assert.equal(unaskedQuestion(c, asked, Array.from({ length: n }, (_, i) => i + 1)), null);
+  assert.equal(unaskedQuestion(c, asked, [1, 2, 3]), 4);
+  assert.match(askNowNote(n, c.interview.questions[n - 1]!), /ask it now/);
+  const reply = JSON.stringify(INTERVIEWER_SCHEMA.properties.reply);
+  assert.ok(!/warm|one or two words|never a summary/i.test(reply), 'the reply field adds no rules of its own');
+});

@@ -29,7 +29,7 @@ import {
   type Embedder,
   type ModelCall,
   type Prompt,
-  openAiBase,
+  openAiBase, askNowNote, unaskedQuestion
 } from './storyPrompts.js';
 import { isObj, validateClient, type ClientInfo } from './validate.js';
 import { alreadyToldMessage } from './story.js';
@@ -414,6 +414,19 @@ export const labStoryChat = onCall(callOptions, async (request) => {
         if (!done) {
           const turn = await call<{ reply: string; interviewDone: boolean; questionsCovered?: number[] }>(db, ref, model, interviewerPrompt(protocol, transcript), protocol, 'collect');
           // The closing turn's reply is discarded, as MySelf does: the app says what happens next, not the model.
+          // Said to be done with a question still to ask (17 November 2026): one more turn to ask it, once.
+          if (turn.interviewDone) {
+            const missing = unaskedQuestion(protocol, transcript, turn.questionsCovered);
+            const distressNow = (chat.flags ?? []).some((f) => f.tier === 'safeguarding_review') || safeguardingHits(protocol, said).some((h) => h.tier === 'safeguarding_review');
+            if (missing !== null && !endedEarly(protocol, turn.questionsCovered, distressNow) && turns < protocol.maxTurns) {
+              const prompt = interviewerPrompt(protocol, transcript);
+              const again = await call<{ reply: string; interviewDone: boolean; questionsCovered?: number[] }>(db, ref, model, { ...prompt, system: `${prompt.system}\n${askNowNote(missing, protocol.interview.questions[missing - 1]!)}` }, protocol, 'collect');
+              if (!again.interviewDone && again.reply.trim()) {
+                await ref.update({ transcript: FieldValue.arrayUnion({ role: 'assistant', content: again.reply, at: new Date().toISOString() }) });
+                return { stage: 'interview', reply: again.reply };
+              }
+            }
+          }
           if (turn.interviewDone) {
             const distress = (chat.flags ?? []).some((f) => f.tier === 'safeguarding_review') || safeguardingHits(protocol, said).some((h) => h.tier === 'safeguarding_review');
             if (endedEarly(protocol, turn.questionsCovered, distress)) {

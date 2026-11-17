@@ -31,11 +31,9 @@ export const INTERVIEWER_SCHEMA = {
     reply: {
       type: 'string',
       description:
-        'What to say next, as a message in a chat. React briefly to what they just said first — a few words, warm and ' +
-        'specific to their answer, never a compliment on the answer itself — and then ask. If their last answer was ' +
-        'one or two words, do not move on: ask them to say a bit more about that same thing. Never advice, never a ' +
-        'diagnosis, never a summary of what they have told you so far. When interviewDone is true this field is ' +
-        'discarded without being shown, so nothing written there reaches anybody.',
+        // How to word it is the protocol's (its language and follow-up rules, 17 November 2026): nothing here may add to them.
+        'What to say next, as a message in the chat, following the instructions above. When interviewDone is true this ' +
+        'field is discarded without being shown, so nothing written there reaches anybody.',
     },
     interviewDone: {
       type: 'boolean',
@@ -290,7 +288,7 @@ export const REVISE_SYSTEM = [
   "You are given a short first-person story written from a participant's answers, and a list of things in it that they did not say.",
   'Rewrite the story so that each of those things is taken out, or put back the way they actually said it, changing as',
   'little else as possible: the same voice, tone and first person,',
-  'and their own words wherever they are used. Do not add anything new. Write in British English, with UK spelling.',
+  'and their own words wherever they are used. Do not add anything new.',
 ].join('\n');
 
 export const REVISE_SCHEMA = {
@@ -570,3 +568,20 @@ export const mockModel: ModelCall = async <T>(prompt: Prompt, protocol: ChatProt
   } else output = {};
   return { output: output as T, raw: JSON.stringify(output), model: 'mock', usage: { input: 0, output: 0 } };
 };
+
+/**
+ * A question the interviewer has not yet asked when it says it is done (17 November 2026): one it did not mark as covered,
+ * or, when the protocol's last question opens "Last one", that question if no message so far has asked it. Null if none.
+ */
+export function unaskedQuestion(protocol: ChatProtocol, transcript: ChatMessage[], questionsCovered: unknown): number | null {
+  const questions = protocol.interview.questions;
+  const covered = new Set(Array.isArray(questionsCovered) ? questionsCovered.filter((n) => Number.isInteger(n)) : []);
+  const last = questions.length;
+  if (/^last one\b/i.test(questions[last - 1] ?? '') && !transcript.some((m) => m.role === 'assistant' && /\blast one\b/i.test(m.content))) return last;
+  for (let n = 1; n <= last; n += 1) if (!covered.has(n)) return n;
+  return null;
+}
+
+/** The instruction added for one more turn when a question is still to be asked. */
+export const askNowNote = (n: number, question: string): string =>
+  `You have not yet asked question ${n} ("${question}"). Do not finish yet: ask it now, following the instructions above, and set interviewDone to false.`;
