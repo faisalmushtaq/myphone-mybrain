@@ -10,7 +10,7 @@ test('each phase has its own chat protocol, read from its TOML file', () => {
   );
   for (const p of ['pre', 'mid', 'post'] as const) {
     const c = storyChats[p];
-    assert.equal(c.model, 'gpt-4o');
+    assert.equal(c.model, 'gpt-4.1');
     assert.ok(c.interview.questions.length >= 4);
     assert.ok(c.extractionKeys.length >= 10);
     assert.deepEqual(c.personas.map((x) => x.key), ['plain', 'casual', 'reflective']);
@@ -96,7 +96,7 @@ test('the OpenAI call sends the protocol’s model, structured output and no sto
   }) as unknown as typeof fetch;
   const out = await openAiModel('sk-test', fake)<{ reply: string }>(interviewerPrompt(c, []), c);
   assert.equal(out.output.reply, 'Hi! Which apps?');
-  assert.equal(sent.model, 'gpt-4o');
+  assert.equal(sent.model, 'gpt-4.1');
   assert.equal(sent.store, false);
   assert.equal((sent.response_format as { type: string }).type, 'json_schema');
   assert.equal(out.usage.output, 5);
