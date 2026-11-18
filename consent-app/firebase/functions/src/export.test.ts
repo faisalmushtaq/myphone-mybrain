@@ -386,6 +386,13 @@ test('MyStory’s chat: every conversation keeps the participant’s words, ends
   assert.deepEqual(rows.map((r) => [r.chat_id, r.chat_n, r.status, r.ending]), [['c2', 1, 'stopped', 'stopped-early'], ['c3', 2, 'stopped', 'model-unavailable'], ['c4', 3, 'choose', 'abandoned'], ['c1', 4, 'done', 'edited']], 'numbered by start, one set of ending levels');
   assert.equal(rows[0].own_words, 'Can we stop here please', 'a stopped chat keeps what they said');
   assert.equal(rows[2].own_words, 'One. / Two.');
+  // The whole conversation and each style's story, readable in the table (18 November 2026).
+  assert.equal(rows[2].conversation, 'Remi: A question? | Participant: One. | Remi: A question? | Participant: Two.');
+  const withStories = labStoryChatTable('post', [{ id: 'c5', data: { participantCode: code, phase: 'post', startedAt: '2026-11-18T09:00:00.000Z', status: 'choose', transcript: said('Fine.'), candidates: [{ index: 0, persona: 'plain', text: 'I slept better.' }, { index: 1, persona: 'reflective', text: 'Looking back, I slept better.' }], calls: [] } }])[0]!;
+  assert.equal(withStories.story_plain, 'I slept better.');
+  assert.equal(withStories.story_casual, null);
+  assert.equal(withStories.story_reflective, 'Looking back, I slept better.');
+  for (const c of ['conversation', 'story_plain', 'story_casual', 'story_reflective']) assert.ok(columns.includes(c) && (labStoryChatDictionary('post') as Record<string, unknown>)[c], c);
   assert.equal(rows[0].interview_closed, 'stopped_early');
   assert.deepEqual(rows[3].questions_covered, [1, 2, 3]);
   assert.equal(rows[3].retellings_check_failed, 2, 'one retelling and one change shown unchecked');

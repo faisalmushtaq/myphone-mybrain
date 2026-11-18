@@ -259,7 +259,7 @@ export function labStoryTable(phase: StoryPhase, stories: Doc[]): Row[] {
 /* ── MyStory's AI chat ─────────────────────────────────────────────────── */
 
 export function labStoryChatColumns(phase: StoryPhase, group: LabGroup = 'break'): string[] {
-  return ['participant_id', 'session_id', 'chat_id', 'chat_n', 'story_id', 'started_at', 'finished_at', 'protocol', 'protocol_version', 'model', 'source', 'check_in_id', 'status', 'ending', 'turns', 'interview_closed', 'questions_covered', 'own_words', ...storyChatsFor(group)[phase].extractionKeys.map((k) => `said_${k.key}`), 'candidates_n', 'retellings_added', 'retellings_still_added', 'retellings_check_failed', 'chosen_persona', 'chosen_similarity', 'rating', 'requests_n', 'edited', 'voice_clips', 'final_story', 'final_similarity', 'flags', 'model_calls', 'failed_calls', 'input_tokens', 'output_tokens'];
+  return ['participant_id', 'session_id', 'chat_id', 'chat_n', 'story_id', 'started_at', 'finished_at', 'protocol', 'protocol_version', 'model', 'source', 'check_in_id', 'status', 'ending', 'turns', 'interview_closed', 'questions_covered', 'own_words', ...storyChatsFor(group)[phase].extractionKeys.map((k) => `said_${k.key}`), 'conversation', 'candidates_n', ...storyChatsFor(group)[phase].personas.map((x) => `story_${x.key}`), 'retellings_added', 'retellings_still_added', 'retellings_check_failed', 'chosen_persona', 'chosen_similarity', 'rating', 'requests_n', 'edited', 'voice_clips', 'final_story', 'final_similarity', 'flags', 'model_calls', 'failed_calls', 'input_tokens', 'output_tokens'];
 }
 
 /**
@@ -310,7 +310,10 @@ export function labStoryChatTable(phase: StoryPhase, chats: Doc[], group: LabGro
         questions_covered: Array.isArray(d.questionsCovered) ? d.questionsCovered : null,
         // Everything they typed (or spoke and sent), whatever became of the chat: the words are kept even when no story was filed.
         own_words: transcript.filter((m) => m.role === 'user').map((m) => m.content).join(' / ') || null,
+        // The whole conversation and the three stories offered, readable in the table (18 November 2026).
+        conversation: transcript.map((m) => `${m.role === 'user' ? 'Participant' : 'Remi'}: ${m.content}`).join(' | ') || null,
         candidates_n: candidates.length,
+        ...Object.fromEntries(p.personas.map((x) => [`story_${x.key}`, ((candidates as { persona: string; text?: string }[]).find((c) => c.persona === x.key)?.text) ?? null])),
         retellings_added: candidates.reduce((n, c) => n + (c.added?.length ?? 0), 0),
         retellings_still_added: candidates.reduce((n, c) => n + (c.stillAdded?.length ?? 0), 0),
         retellings_check_failed: [...candidates, ...((d.requests ?? []) as { checkFailed?: boolean }[])].filter((c) => c.checkFailed === true).length,
@@ -356,8 +359,9 @@ export function labStoryChatDictionary(phase: StoryPhase, group: LabGroup = 'bre
     interview_closed: { Description: 'What ended the questions; empty while they were still going', Levels: { model: 'The interviewer judged every question answered', turn_limit: 'The protocol’s turn limit', stopped_early: 'The interviewer closed before every question was answered and the participant had answered fewer than half, or said something the safeguarding rules flag for review: no retellings were written (ending stopped-early)' } },
     questions_covered: { Description: 'The protocol’s questions (numbered from 1, in the order of the said_ columns) the interviewer judged answered when it closed the questions; empty if the questions never closed, or closed at the turn limit, or before 16 October 2026 unless the participant stopped early' },
     own_words: { Description: 'Everything the participant typed (or spoke and sent) in the interview, in order, separated by " / ": kept for every conversation, finished or not' },
+    conversation: { Description: 'The whole interview, in order: each message as "Remi: …" or "Participant: …", separated by " | "' },
     candidates_n: { Description: 'Retellings offered' },
-    retellings_added: { Description: 'Sentences in the retellings’ first drafts that were not what the participant said, found by the check before they were shown and fixed (each retelling’s draft, what was found and the version shown are in labStoryChats.jsonl, candidates)' },
+    retellings_added: { Description: 'Until 17 November 2026 only (the site no longer checks the retellings; 0 since): sentences in the retellings’ first drafts that were not what the participant said, found by the check before they were shown and fixed (each retelling’s draft, what was found and the version shown are in labStoryChats.jsonl, candidates)' },
     retellings_still_added: { Description: 'Sentences still not what they said after one fix, and so cut from the retelling before it was shown (the version before the cut is kept in labStoryChats.jsonl)' },
     retellings_check_failed: { Description: 'Retellings and rewrites asked for whose check could not run (the model call failed), and so were shown unchecked: candidates and requests with checkFailed in labStoryChats.jsonl' },
     chosen_similarity: { Description: 'Semantic similarity (cosine, text-embedding-3-small) between everything the participant said and the retelling they chose, as the original team measured it (Skeggs et al. 2025: real pairs M = 0.79, chance 0.37, with their embedding). For reviewing the lowest by hand; it decided nothing' },
@@ -374,6 +378,7 @@ export function labStoryChatDictionary(phase: StoryPhase, group: LabGroup = 'bre
     input_tokens: { Description: 'Tokens sent to the model, all calls' },
     output_tokens: { Description: 'Tokens returned by the model, all calls' },
   };
+  for (const x of p.personas) out[`story_${x.key}`] = { Description: `The retelling offered in the ${x.key} style (${x.text.split('\n')[0]}), as it was shown; empty if none was written` };
   for (const k of p.extractionKeys) out[`said_${k.key}`] = { Description: `${k.question} (extracted from the conversation in the participant's own words; empty if they did not say)` };
   return out;
 }
