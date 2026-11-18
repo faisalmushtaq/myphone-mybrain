@@ -123,7 +123,14 @@ function chatProtocol(phase, name = phase) {
     },
     extractionKeys: keys.map(([key, question]) => ({ key, question: question.trim() })),
     personas: personas.map(([key, value]) => ({ key, text: value.trim() })),
-    example: t.example?.conversation && t.example?.scenario ? { conversation: String(t.example.conversation).trim(), scenario: String(t.example.scenario).trim() } : null,
+    // A story style's own example story (18 November 2026): [example] scenario_<style>, e.g. scenario_casual; the shared one otherwise.
+    example: t.example?.conversation && t.example?.scenario
+      ? {
+          conversation: String(t.example.conversation).trim(),
+          scenario: String(t.example.scenario).trim(),
+          byPersona: Object.fromEntries(personas.filter(([k]) => typeof t.example[`scenario_${k}`] === 'string' && t.example[`scenario_${k}`].trim()).map(([k]) => [k, t.example[`scenario_${k}`].trim()])),
+        }
+      : null,
     screens: {
       introAndConsent: text(t.consent?.intro_and_consent, '[consent] intro_and_consent'),
       intro: text(t.collection?.intro, '[collection] intro'),

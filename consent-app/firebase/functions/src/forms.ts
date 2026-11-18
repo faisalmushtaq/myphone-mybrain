@@ -309,7 +309,7 @@ export interface ChatProtocol {
   interview: { persona: string; languageStyle: string; topicRestriction: string; questions: string[] };
   extractionKeys: { key: string; question: string }[];
   personas: { key: string; text: string }[];
-  example: { conversation: string; scenario: string } | null;
+  example: { conversation: string; scenario: string; byPersona?: Record<string, string> } | null;
   screens: Record<'introAndConsent' | 'intro' | 'outro' | 'selectText' | 'selectLede' | 'rateText' | 'rateLede' | 'adaptText' | 'adaptLede' | 'debriefText' | 'debriefLede' | 'fallbackText' | 'characterName' | 'disclosure', string> & { characterAbout: string[] };
   safeguarding: { key: string; tier: string; terms: string[] }[];
 }

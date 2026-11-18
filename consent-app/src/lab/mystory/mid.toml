@@ -1,6 +1,6 @@
 # The team's file of 17 November 2026, with changes asked for by the PI: model gpt-6.1-sol (17 Nov: gpt-4.1; was gpt-4o),
 # temperature 0.3 (was 0.7), UK spelling, and (18 Nov) tighter story instructions and moving on when an answer repeats.
-# Version 0.9.0 (18 Nov: each story style asked for its own voice, and only its own version).
+# Version 0.10.0 (18 Nov: each story style has its own example story, scenario_casual and scenario_reflective, drafts for Michelle to review).
 model = "gpt-6.1-sol"
 quality_control_flagging = false
 
@@ -96,10 +96,12 @@ Answer: "Reading a bit more, and I've been going to the gym with my flatmate. I'
 Question: Have there been any times when you've found yourself wanting to go on social media?
 Answer: "There was a party and everyone was posting. I felt left out so I checked Instagram for like five minutes.""""
 scenario = "Reading and going to the gym with my flatmate have filled some of the gap, though I've been watching a lot more Netflix. The hardest moment was a party when everyone was posting. I felt left out, so I checked Instagram for about five minutes."
+scenario_casual = "I've been reading a bit more and going to the gym with my flatmate, though I've been watching loads more Netflix. There was a party where everyone was posting, and I felt left out, so I checked Instagram for like five minutes."
+scenario_reflective = "Without social media, I've found myself reading a bit more and going to the gym with my flatmate, though I've also been watching a lot more Netflix. At a party, everyone was posting. I felt left out, so I checked Instagram for about five minutes."
 
 [myself]
 key = "np.sm_abstinence_mid"
-version = "0.9.0"
+version = "0.10.0"
 name = "30-day social media abstinence: Mid-point"
 research_question = "How do first-year undergraduates experience a 30-day break from social media?"
 owner = "michellewain"

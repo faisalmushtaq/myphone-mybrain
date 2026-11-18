@@ -213,3 +213,12 @@ test('a model that refuses a temperature is asked again without it (18 November 
   assert.equal(reasonsFirst('gpt-4.1'), false);
   assert.equal(reasonsFirst('gpt-6.1-sol'), true);
 });
+
+test('each story style is shown its own example story when the protocol gives one (18 November 2026)', () => {
+  for (const c of [storyChats.pre, storyChats.mid, storyChats.post]) {
+    const by = (key: string) => scenarioPrompt(c, c.personas.find((p) => p.key === key)!, {}).system;
+    assert.ok(by('plain').includes(c.example!.scenario), 'plain: the shared example');
+    assert.ok(by('casual').includes(c.example!.byPersona!.casual!) && !by('casual').includes(c.example!.scenario), 'casual: its own');
+    assert.ok(by('reflective').includes(c.example!.byPersona!.reflective!), 'diary: its own');
+  }
+});

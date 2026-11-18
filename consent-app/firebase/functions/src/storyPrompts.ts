@@ -136,10 +136,12 @@ export function keyQuestions(keys: { question: string }[]): string {
   return [heading, ...keys.map((k, i) => `${i + 1}: ${k.question}`)].join('\n');
 }
 
-export function oneShot(protocol: ChatProtocol): string {
+export function oneShot(protocol: ChatProtocol, personaKey?: string): string {
   const example = protocol.example;
   if (!example) return '';
-  return ['', 'Example:', example.conversation.trim(), '', 'The scenario based on these responses:', `"${example.scenario.trim()}"`, ''].join('\n');
+  // The style's own example story when the protocol gives one (18 November 2026), else the shared one.
+  const scenario = (personaKey && example.byPersona?.[personaKey]) || example.scenario;
+  return ['', 'Example:', example.conversation.trim(), '', 'The scenario based on these responses:', `"${scenario.trim()}"`, ''].join('\n');
 }
 
 /* ── The four prompts, assembled for one protocol ───────────────────────── */
@@ -196,7 +198,7 @@ export function scenarioPrompt(protocol: ChatProtocol, persona: { key: string; t
     `\n\n${SCENARIO_CLOSE}`;
   return {
     key: `pt.scenario.${persona.key}`,
-    system: SCENARIO_SYSTEM.replace('{persona}', persona.text).replace('{one_shot}', oneShot(protocol)),
+    system: SCENARIO_SYSTEM.replace('{persona}', persona.text).replace('{one_shot}', oneShot(protocol, persona.key)),
     messages: [{ role: 'user', content: answers }],
     schema: { name: 'scenario', schema: SCENARIO_SCHEMA as unknown as Record<string, unknown> },
   };

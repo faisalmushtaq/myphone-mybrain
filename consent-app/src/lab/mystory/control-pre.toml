@@ -1,6 +1,6 @@
 # The team's file of 17 November 2026, with changes asked for by the PI: model gpt-6.1-sol (17 Nov: gpt-4.1; was gpt-4o),
 # temperature 0.3 (was 0.7), UK spelling, and (18 Nov) tighter story instructions and moving on when an answer repeats.
-# Version 0.8.0 (18 Nov: each story style asked for its own voice, and only its own version).
+# Version 0.9.0 (18 Nov: each story style has its own example story, scenario_casual and scenario_reflective, drafts for Michelle to review).
 model = "gpt-6.1-sol"
 quality_control_flagging = false
 
@@ -93,10 +93,12 @@ Answer: "Probably at night in bed, and on the bus. Mostly Instagram to keep up w
 Question: Last one. Thinking about the next 30 days, how do you think social media will fit into them?
 Answer: "Probably the same really. Still on it at night, and messaging my friends from home.""""
 scenario = "I use social media most at night in bed and on the bus. Instagram is how I keep up with people from home, and TikTok is really just scrolling. I think social media will fit into the next 30 days the same way it does now: I'll still be on it at night and messaging my friends from home."
+scenario_casual = "Honestly, I'm mostly on social media at night in bed and on the bus. Instagram's for keeping up with people from home, and TikTok's just scrolling. The next 30 days will probably be the same really: still on social media at night, and messaging my friends from home."
+scenario_reflective = "When I think about when I use social media most, it's at night in bed and on the bus. Instagram is how I keep up with people from home; TikTok is just scrolling. As for the next 30 days, I think social media will probably fit in the same way: I'll still be on it at night, and messaging my friends from home."
 
 [myself]
 key = "np.sm_control_pre"
-version = "0.8.0"
+version = "0.9.0"
 name = "Social media use, control group: Pre"
 research_question = "How do first-year undergraduates experience a 30-day break from social media?"
 owner = "michellewain"
