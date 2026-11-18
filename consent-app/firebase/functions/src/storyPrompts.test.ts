@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { storyChats } from './forms.js';
-import { adaptPrompt, checkPrompt, unfaithful, withoutSentences, type CheckedSentence, cleanAdaptation, cosine, endedEarly, mockEmbedder, openAiEmbedder, revisePrompt, extractionPrompt, interviewerPrompt, matchesSchema, mockModel, openAiModel, safeguardingHits, scenarioPrompt, type ChatMessage } from './storyPrompts.js';
+import { adaptPrompt, checkPrompt, unfaithful, withoutSentences, type CheckedSentence, cleanAdaptation, cosine, endedEarly, mockEmbedder, openAiEmbedder, revisePrompt, extractionPrompt, interviewerPrompt, matchesSchema, mockModel, openAiModel, safeguardingHits, scenarioPrompt, type ChatMessage, REASONING_ROOM, reasonsFirst
+} from './storyPrompts.js';
 
 test('each phase has its own chat protocol, read from its TOML file', () => {
   assert.deepEqual(
@@ -10,7 +11,7 @@ test('each phase has its own chat protocol, read from its TOML file', () => {
   );
   for (const p of ['pre', 'mid', 'post'] as const) {
     const c = storyChats[p];
-    assert.equal(c.model, 'gpt-4.1');
+    assert.equal(c.model, 'gpt-6.1-sol');
     assert.ok(c.interview.questions.length >= 4);
     assert.ok(c.extractionKeys.length >= 10);
     assert.deepEqual(c.personas.map((x) => x.key), ['plain', 'casual', 'reflective']);
@@ -96,7 +97,12 @@ test('the OpenAI call sends the protocol’s model, structured output and no sto
   }) as unknown as typeof fetch;
   const out = await openAiModel('sk-test', fake)<{ reply: string }>(interviewerPrompt(c, []), c);
   assert.equal(out.output.reply, 'Hi! Which apps?');
-  assert.equal(sent.model, 'gpt-4.1');
+  assert.equal(sent.model, 'gpt-6.1-sol');
+  // A model that reasons first (18 November 2026): room for the reasoning, briefly, and the protocol's temperature.
+  assert.equal(sent.max_completion_tokens, c.maxOutputTokens + REASONING_ROOM);
+  assert.equal(sent.reasoning_effort, 'low');
+  assert.ok(!('max_tokens' in sent));
+  assert.equal(sent.temperature, c.temperature);
   assert.equal(sent.store, false);
   assert.equal((sent.response_format as { type: string }).type, 'json_schema');
   assert.equal(out.usage.output, 5);
@@ -189,4 +195,21 @@ test('the story writer sees the chat as well as the answers, so every main quest
   assert.ok(p.messages[0]!.content.includes('The chat:\nAI: What made you want to take part?\nHuman: My flatmate did it.'));
   assert.ok(p.messages[0]!.content.endsWith('Create a scenario based on these responses.'));
   assert.ok(!interviewerPrompt(c, []).system.includes('react to what they just said'), 'nothing in the template invites praise');
+});
+
+
+test('a model that refuses a temperature is asked again without it (18 November 2026)', async () => {
+  const c = storyChats.post;
+  const bodies: Record<string, unknown>[] = [];
+  const fake = (async (_url: string, init: { body: string }) => {
+    bodies.push(JSON.parse(init.body));
+    if ('temperature' in bodies.at(-1)!) return new Response(JSON.stringify({ error: { message: "Unsupported parameter: 'temperature' is not supported with this model." } }), { status: 400 });
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ reply: 'Hi', interviewDone: false, questionsCovered: [] }) }, finish_reason: 'stop' }] }), { status: 200 });
+  }) as unknown as typeof fetch;
+  const out = await openAiModel('sk-test', fake)<{ reply: string }>(interviewerPrompt(c, []), c);
+  assert.equal(out.output.reply, 'Hi');
+  assert.equal(bodies.length, 2);
+  assert.ok(!('temperature' in bodies[1]!));
+  assert.equal(reasonsFirst('gpt-4.1'), false);
+  assert.equal(reasonsFirst('gpt-6.1-sol'), true);
 });

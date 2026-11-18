@@ -433,6 +433,29 @@ export function openAiModel(apiKey: string, fetchImpl: typeof fetch = fetch): Mo
   };
 }
 
+/**
+ * Models that reason before they answer (OpenAI's o-series and GPT-5 and GPT-6 families, 18 November 2026) count their
+ * reasoning against the output limit, so they get room for it on top of the protocol's limit for the answer itself
+ * (max_completion_tokens, not max_tokens), and reason briefly, to keep the chat quick. The protocol's temperature is
+ * sent as written; a model that refuses it is asked again without it, and remembered.
+ */
+export const reasonsFirst = (model: string): boolean => /^(o\d|gpt-5|gpt-6)/i.test(model);
+export const REASONING_ROOM = 6000;
+const noTemperature = new Set<string>();
+
+export function requestBody(prompt: Prompt, protocol: ChatProtocol): Record<string, unknown> {
+  const answer = prompt.maxTokens ?? protocol.maxOutputTokens;
+  const reasoning = reasonsFirst(protocol.model);
+  return {
+    model: protocol.model,
+    ...(noTemperature.has(protocol.model) ? {} : { temperature: prompt.temperature ?? protocol.temperature }),
+    ...(reasoning ? { max_completion_tokens: answer + REASONING_ROOM, reasoning_effort: 'low' } : { max_tokens: answer }),
+    messages: [{ role: 'system', content: prompt.system }, ...prompt.messages],
+    response_format: { type: 'json_schema', json_schema: { name: prompt.schema.name, schema: prompt.schema.schema, strict: true } },
+    store: false,
+  };
+}
+
 async function callOnce<T>(apiKey: string, prompt: Prompt, protocol: ChatProtocol, fetchImpl: typeof fetch): Promise<ModelResult<T>> {
   const controller = new AbortController();
   const seconds = prompt.timeoutSeconds ?? protocol.timeoutSeconds;
@@ -442,14 +465,7 @@ async function callOnce<T>(apiKey: string, prompt: Prompt, protocol: ChatProtoco
     response = await fetchImpl(`${openAiBase()}/v1/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: protocol.model,
-        temperature: prompt.temperature ?? protocol.temperature,
-        max_tokens: prompt.maxTokens ?? protocol.maxOutputTokens,
-        messages: [{ role: 'system', content: prompt.system }, ...prompt.messages],
-        response_format: { type: 'json_schema', json_schema: { name: prompt.schema.name, schema: prompt.schema.schema, strict: true } },
-        store: false,
-      }),
+      body: JSON.stringify(requestBody(prompt, protocol)),
       signal: controller.signal,
     });
   } catch (error) {
@@ -465,6 +481,11 @@ async function callOnce<T>(apiKey: string, prompt: Prompt, protocol: ChatProtoco
   };
   if (!response.ok) {
     const message = data.error?.message ?? `HTTP ${response.status}`;
+    // A model that does not take a temperature: ask again without it (once; remembered for the model).
+    if (response.status === 400 && /temperature/i.test(message) && !noTemperature.has(protocol.model)) {
+      noTemperature.add(protocol.model);
+      return callOnce<T>(apiKey, prompt, protocol, fetchImpl);
+    }
     if (response.status === 401 || response.status === 403) throw new ModelError('auth', message, false);
     if (response.status === 429) throw new ModelError('rate_limit', message);
     if (response.status >= 500) throw new ModelError('transport', message);
