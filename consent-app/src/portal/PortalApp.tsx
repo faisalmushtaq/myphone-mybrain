@@ -3,7 +3,7 @@ import type { User } from 'firebase/auth';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { TextField } from '../components/ui/Field';
-import { ask, checkVerified, completeLink, connection, createPasswordAccount, finishGoogleRedirect, leave, messageOf, MIN_PASSWORD, needsVerifying, pendingLink, refreshToken, resendVerification, sendLink, sendPasswordReset, setOwnPassword, signInWithGoogle, signInWithPassword, watchUser } from './api';
+import { ask, checkVerified, completeLink, connection, createPasswordAccount, finishGoogleRedirect, hasPassword, leave, messageOf, MIN_PASSWORD, needsVerifying, pendingLink, refreshToken, resendVerification, sendPasswordReset, setOwnPassword, signInWithPassword, watchUser } from './api';
 import { canInstall, disablePush, enablePush, installPortal, isAndroid, isFirefox, isIos, isMacSafari, isStandalone, onInstallOffer, pushState, registerPortalWorker, type PushState } from './push';
 import { AvailabilityView, Documents, MyVisits, Offers, RaHome, Training } from './RaViews';
 import { Reports } from './Reports';
@@ -15,8 +15,8 @@ import { Linkage } from './LinkageViews';
 import { LogProblem, LogProblemButton, Notebook, useIssueQueue } from './IssueViews';
 
 /**
- * The staff portal (myphonemybrain.com/portal/): sign in with an email link,
- * ask for an account, then one section per study. The schools study is the
+ * The staff portal (myphonemybrain.com/portal/): sign in with an email address
+ * and password (the only way since 20 November 2026), ask for an account, then one section per study. The schools study is the
  * first built: research assistants' documents, training, availability and
  * offers; the team's people, visits and staffing. See docs/portal.md.
  */
@@ -295,7 +295,7 @@ function PasswordSignIn({ initialEmail }: { initialEmail: string }) {
   );
 }
 
-/** Your details: set a password (signed in by link or Google), or change it. */
+/** Your details: change your password (or set one, for an account made with Google or an emailed link before 20 November 2026). */
 function PasswordSettings() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -307,7 +307,7 @@ function PasswordSettings() {
     try {
       await setOwnPassword(password);
       setPassword('');
-      setMessage({ tone: 'success', text: 'Password saved. You can now sign in with it, as well as with the email link.' });
+      setMessage({ tone: 'success', text: 'Password saved. Use it with your email address to sign in.' });
     } catch (err) {
       setMessage({ tone: 'warning', text: messageOf(err) });
     } finally {
@@ -316,8 +316,8 @@ function PasswordSettings() {
   };
   return (
     <form className="mpmb-card mpmb-portal__narrow" onSubmit={(e) => void save(e)}>
-      <h2 className="mpmb-h2">Set or change your password</h2>
-      <p className="mpmb-hint">Optional: a password lets you sign in without waiting for an email link. At least {MIN_PASSWORD} characters.</p>
+      <h2 className="mpmb-h2">{hasPassword(connection()?.auth.currentUser ?? null) ? 'Change your password' : 'Set your password'}</h2>
+      <p className="mpmb-hint">You sign in with your email address and this password. At least {MIN_PASSWORD} characters.</p>
       <TextField id="set-password" label="New password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
       {message && (
         <Callout tone={message.tone} role="status">
@@ -330,6 +330,19 @@ function PasswordSettings() {
         </Button>
       </div>
     </form>
+  );
+}
+
+/** For someone signed in with Google before 20 November 2026 and no password yet: the portal now signs in with a password only. */
+function SetPasswordPrompt({ go }: { go: (h: string) => void }) {
+  if (hasPassword(connection()?.auth.currentUser ?? null)) return null;
+  return (
+    <Callout tone="important" title="Set a password">
+      <p>The portal now signs in with an email address and password only. Set your password now, so you can sign in next time.</p>
+      <Button variant="secondary" onClick={() => go('#profile')}>
+        Set my password
+      </Button>
+    </Callout>
   );
 }
 
@@ -365,11 +378,8 @@ function SignIn() {
     setBusy(true);
     setError(null);
     try {
-      if (finishing) await completeLink(email);
-      else {
-        await sendLink(email);
-        setSent(true);
-      }
+      // Only a link sent before 20 November 2026 is finished here: no new links are sent.
+      await completeLink(email);
     } catch (err) {
       setError(messageOf(err));
     } finally {
@@ -401,32 +411,9 @@ function SignIn() {
       ) : (
         <>
           <p className="mpmb-lead">For the research team and research assistants.</p>
-          {/* 1. A password: the quickest (5 November 2026). */}
+          {/* Email and password only (20 November 2026): Google and the emailed link are gone. */}
           <PasswordSignIn initialEmail={email} />
-          {/* 2. Google. */}
-          <div className="mpmb-card">
-            <p className="mpmb-hint">Or, if your email is a Google account (Gmail or Google Workspace):</p>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={busy}
-              onClick={() => {
-                setError(null);
-                void signInWithGoogle().catch((err) => setError(messageOf(err)));
-              }}
-            >
-              Sign in with Google
-            </Button>
-          </div>
-          {/* 3. The email link: slowest, so last. */}
-          <form className="mpmb-card" onSubmit={(e) => void submit(e)} noValidate>
-            <p className="mpmb-hint">Or get a one-time link by email (can take a few minutes to arrive).</p>
-            <TextField id="portal-email" label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} error={error ?? undefined} />
-            <Button type="submit" variant="secondary" loading={busy}>
-              Email me a sign-in link
-            </Button>
-          </form>
-          <p className="mpmb-hint">New here? Create an account with a password above, or use Google or the email link, then ask for an account. Use the email address the team knows you by.</p>
+          <p className="mpmb-hint">New here? Choose Create an account, using the email address the team knows you by, then ask for an account. Used Google or an emailed link before? Choose Forgot your password? to set a password for the same email address.</p>
         </>
       )}
     </Shell>
@@ -573,6 +560,7 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
         default:
           return (
             <>
+              <SetPasswordPrompt go={go} />
               <RaHome summary={summary} go={go} />
               <HomeScreenHelp />
             </>
@@ -616,6 +604,7 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
       default:
         return (
           <>
+            <SetPasswordPrompt go={go} />
             <TeamHome role={role} go={go} />
             <HomeScreenHelp />
           </>

@@ -93,12 +93,19 @@ async function inner() {
     const r = await (await fetch(`${AUTH}/emulator/v1/projects/${PROJECT}/oobCodes`)).json();
     return (r.oobCodes ?? []).filter((c) => c.email === email && c.requestType === 'EMAIL_SIGNIN').at(-1)?.oobCode;
   };
+  // Email and password only (20 November 2026): the account is made in the auth emulator, verified, with a password.
+  const E2E_PASSWORD = 'portal-e2e-password-1';
   const signIn = async (page, email) => {
+    await fetch(`${AUTH}/identitytoolkit.googleapis.com/v1/projects/${PROJECT}/accounts`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer owner' }, body: JSON.stringify({ email, password: E2E_PASSWORD, emailVerified: true }) }).catch(() => undefined);
+    await fetch(`${AUTH}/identitytoolkit.googleapis.com/v1/projects/${PROJECT}/accounts:update`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer owner' }, body: JSON.stringify({ localId: await uidFor(email), password: E2E_PASSWORD, emailVerified: true }) }).catch(() => undefined);
     await page.goto(BASE);
-    await page.locator('#portal-email').fill(email);
-    await page.getByRole('button', { name: 'Email me a sign-in link' }).click();
-    await page.getByText('Check your email').waitFor();
-    await page.goto(`${BASE}&mode=signIn&oobCode=${await codeFor(email)}&apiKey=demo-key&lang=en`);
+    await page.locator('#pw-email').fill(email);
+    await page.locator('#pw-password').fill(E2E_PASSWORD);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  };
+  const uidFor = async (email) => {
+    const r = await (await fetch(`${AUTH}/identitytoolkit.googleapis.com/v1/projects/${PROJECT}/accounts:lookup`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer owner' }, body: JSON.stringify({ email: [email] }) })).json();
+    return r.users?.[0]?.localId;
   };
   const tokenFor = async (email) => {
     await fetch(`${AUTH}/identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=demo-key`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ requestType: 'EMAIL_SIGNIN', email, continueUrl: BASE }) });

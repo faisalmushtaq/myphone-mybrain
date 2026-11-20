@@ -64,11 +64,11 @@ function mapError(error: unknown): PortalError {
     // Passwords (4 November 2026), in plain words.
     if (code === 'weak-password') return new PortalError(`That password is too easy to guess. Use at least ${MIN_PASSWORD} characters.`, 'invalid');
     if (code === 'wrong-password' || code === 'invalid-credential' || code === 'invalid-login-credentials' || code === 'user-not-found') return new PortalError('That email and password do not match. Check them, or use “Forgot your password?”.', 'invalid');
-    if (code === 'too-many-requests') return new PortalError('Too many tries. Wait a few minutes, or sign in with the email link instead.', 'invalid');
-    if (code === 'email-already-in-use' || code === 'credential-already-in-use' || code === 'provider-already-linked') return new PortalError('There is already an account with that email. Sign in with the email link or your password, or use “Forgot your password?”.', 'invalid');
+    if (code === 'too-many-requests') return new PortalError('Too many tries. Wait a few minutes, or use “Forgot your password?”.', 'invalid');
+    if (code === 'email-already-in-use' || code === 'credential-already-in-use' || code === 'provider-already-linked') return new PortalError('There is already an account with that email. Sign in with your password, or use “Forgot your password?”.', 'invalid');
     if (code === 'requires-recent-login') return new PortalError('For your security, sign out, sign in again, then set your password.', 'invalid');
-    if (code === 'operation-not-allowed') return new PortalError('Password sign-in is not switched on yet. Use the email link for now.', 'server');
-    if (code === 'invalid-action-code' || code === 'expired-action-code') return new PortalError('That sign-in link has expired or was already used. Ask for a new one.', 'invalid');
+    if (code === 'operation-not-allowed') return new PortalError('Password sign-in is not available right now. Please tell the team.', 'server');
+    if (code === 'invalid-action-code' || code === 'expired-action-code') return new PortalError('That link has expired or was already used. Sign in with your email and password, or use “Forgot your password?”.', 'invalid');
     if (['unavailable', 'deadline-exceeded', 'network-request-failed', 'retry-limit-exceeded'].includes(code)) return new PortalError('Could not reach the server. Check the connection and try again.', 'network');
     return new PortalError(message || 'Something went wrong. Please try again.', 'server');
   }

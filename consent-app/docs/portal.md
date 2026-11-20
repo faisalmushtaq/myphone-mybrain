@@ -8,21 +8,21 @@ here; the **online study** is a placeholder until it goes live.
 
 ## Signing in
 
-Three ways, all matched to the same account by email address:
-
-* **Email link** (Firebase Authentication, "Email link (passwordless
-  sign-in)"): someone types their email, gets a one-time link, and opens it
-  on the same device.
-* **Google** (4 November 2026), for Google accounts.
-* **A password** (4 November 2026): "Sign in with a password", with
-  "Forgot your password?" (a reset email that brings them back to /portal/).
-  Someone new can "Create an account with a password" (at least 10
-  characters); Firebase then emails them to verify the address, and the
-  portal stays closed ("Check your email to verify your address", with a
-  button to send it again) until they have, because the server only accepts
-  verified addresses. Anyone signed in by link or Google can set a password,
-  or change it, under Your details. Firebase's errors are put in plain words
-  (wrong password, too easy to guess, too many tries: wait, or use the link).
+**Email address and password only** (since 20 November 2026; before, Google
+and a one-time emailed link were offered too). "Sign in", with "Forgot your
+password?" (a reset email that brings them back to /portal/). Someone new
+chooses "Create an account" (at least 10 characters); Firebase then emails
+them to verify the address, and the portal stays closed ("Check your email
+to verify your address", with a button to send it again) until they have,
+because the server only accepts verified addresses. Anyone who signed up
+with Google or a link sets a password with "Forgot your password?" for the
+same address; anyone still signed in that way without a password sees "Set
+a password" on their first page. Your details has "Change your password".
+Firebase's errors are put in plain words (wrong password, too easy to guess,
+too many tries: wait, or reset it). A link sent before the change still
+finishes signing in, but no new links are sent. To make it final, turn off
+Google and "Email link (passwordless sign-in)" in the Firebase console
+(Authentication, Sign-in method), leaving Email/Password on.
 
  The portal uses its own Firebase app
 instance, so a portal sign-in never mixes with the anonymous sessions the
