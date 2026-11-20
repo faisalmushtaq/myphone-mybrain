@@ -413,7 +413,7 @@ function SignIn() {
           <p className="mpmb-lead">For the research team and research assistants.</p>
           {/* Email and password only (20 November 2026): Google and the emailed link are gone. */}
           <PasswordSignIn initialEmail={email} />
-          <p className="mpmb-hint">New here? Choose Create an account, using the email address the team knows you by, then ask for an account. Used Google or an emailed link before? Choose Forgot your password? to set a password for the same email address.</p>
+          <p className="mpmb-hint">Use the email address the team knows you by. Signed in with Google or an emailed link before? Choose Forgot your password? to set a password for the same address.</p>
         </>
       )}
     </Shell>
