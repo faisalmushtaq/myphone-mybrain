@@ -1,15 +1,17 @@
 ---
 layout: default
-title: "New Year social media break (preview) | MyPhone/MyBrain"
-description: "Preview of a self-run New Year break from social media, with a tracker, daily check-ins and short memory and attention checks. Not open yet; nothing leaves your device."
+title: "Online study (preview) | MyPhone/MyBrain"
+description: "Preview of the MyPhone/MyBrain online study: a break from your phone for as long as you like, with check-ins, screen-time screenshots and short memory and attention checks. Not open yet; nothing leaves your device."
 permalink: /new-year/
 noindex: true
+webmanifest: /new-year/manifest.webmanifest
+app_title: MyPhone/MyBrain
 ---
 
 <div id="mpmb-newyear-app" class="mpmb-app-mount">
   <noscript>
     <div class="container" style="padding: 3rem 0;">
-      <h1>New Year social media break</h1>
+      <h1>MyPhone/MyBrain online study</h1>
       <p>This preview needs JavaScript, which is switched off in your browser. It is not open to take part in yet. Questions: <a href="mailto:{{ site.email }}">{{ site.email }}</a>.</p>
     </div>
   </noscript>

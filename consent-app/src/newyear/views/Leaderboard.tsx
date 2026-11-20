@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Button } from '../../components/ui/Button';
 import { Icon } from '../../components/ui/Icon';
 import { exampleEntries, rankEntries } from '../leaderboard';
 import { NyDraft, NyShell } from '../NyShell';
@@ -11,17 +12,26 @@ import { ownEntry, summarise } from '../summary';
  * lists and labelled as such.
  */
 export function Leaderboard() {
-  const { state, today } = useNy();
+  const { state, dispatch, today } = useNy();
   const summary = useMemo(() => summarise(state, today), [state, today]);
   const rows = useMemo(() => {
     if (!summary) return [];
     const you = ownEntry(summary);
-    return rankEntries([you, ...exampleEntries(summary.dayNumber, 9, [you.name])]);
+    const others = exampleEntries(Math.max(summary.dayNumber, 14), 9, [you.name]);
+    return rankEntries(summary.participant.onLeaderboard ? [you, ...others] : others);
   }, [summary]);
   if (!summary) return null;
 
   return (
-    <NyShell kicker="Leaderboard" title="Keeping each other going." intro={<p>Ranked by current streak, then by check-ins. It’s all self-reported, so it’s here for encouragement, not as a contest.</p>}>
+    <NyShell kicker="Leaderboard" title="Keeping each other going." intro={<p>Ranked by the days off that screenshots prove, then by current streak. It’s here for encouragement, not as a contest.</p>}>
+      {!summary.participant.onLeaderboard && (
+        <p className="mpmb-hint">
+          You’ve chosen to stay off the leaderboard.{' '}
+          <Button variant="link" onClick={() => dispatch({ type: 'go', route: { view: 'settings' } })}>
+            Change this in Settings
+          </Button>
+        </p>
+      )}
       <div className="ny-board-wrap">
         {/* Explicit roles keep this a table for screen readers when narrow screens lay each row out on two lines. */}
         <table className="ny-board" role="table">
@@ -37,6 +47,9 @@ export function Leaderboard() {
               <th scope="col" role="columnheader" className="ny-board__name">
                 Name
               </th>
+              <th scope="col" role="columnheader" className="ny-board__num ny-board__verified">
+                Proven days
+              </th>
               <th scope="col" role="columnheader" className="ny-board__num ny-board__streak">
                 Streak
               </th>
@@ -44,7 +57,7 @@ export function Leaderboard() {
                 Check-ins
               </th>
               <th scope="col" role="columnheader" className="ny-board__badge">
-                Brain check
+                Validated
               </th>
             </tr>
           </thead>
@@ -58,6 +71,13 @@ export function Leaderboard() {
                   <span className="ny-board__fun">{row.name}</span>
                   {row.isYou ? <span className="ny-tag ny-tag--you">You</span> : <span className="ny-tag">Example</span>}
                 </th>
+                <td role="cell" className="ny-board__num ny-board__verified">
+                  <span className="ny-board__narrow" aria-hidden="true">
+                    Proven:{' '}
+                  </span>
+                  {row.verified}
+                  <span className="ny-board__unit"> {row.verified === 1 ? 'day' : 'days'}</span>
+                </td>
                 <td role="cell" className="ny-board__num ny-board__streak">
                   <span className="ny-board__narrow" aria-hidden="true">
                     Streak:{' '}
@@ -73,8 +93,8 @@ export function Leaderboard() {
                   </span>
                 </td>
                 <td role="cell" className="ny-board__badge">
-                  {row.brainCheckDone ? (
-                    <span className="ny-badge" title="Latest brain check done">
+                  {row.validated ? (
+                    <span className="ny-badge" title="Latest brain check validated by a screenshot">
                       <Icon name="check" size={16} />
                       <span className="mpmb-sr-only">Done</span>
                     </span>
@@ -91,7 +111,7 @@ export function Leaderboard() {
         <span className="ny-badge ny-badge--inline" aria-hidden="true">
           <Icon name="check" size={14} />
         </span>{' '}
-        means the latest brain check is done. The leaderboard never shows the apps you chose, your notes, your moods or your scores.
+        means the latest brain check came with a screenshot. Proven days are days a screen-time screenshot shows were off. The leaderboard never shows the apps you chose, your answers, your scores or your screenshots.
       </p>
     </NyShell>
   );

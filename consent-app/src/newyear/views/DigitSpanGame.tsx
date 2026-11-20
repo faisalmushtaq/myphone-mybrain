@@ -132,6 +132,7 @@ export function DigitSpanGame({ onDone, onQuit }: Props) {
   const practiceCorrect = useRef(false);
   const startedAt = useRef<string | null>(null);
   const nextRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   /** Set once an answer is sent, so a double tap on Done (or a held Enter) cannot record it twice. */
   const answered = useRef(false);
 
@@ -196,13 +197,18 @@ export function DigitSpanGame({ onDone, onQuit }: Props) {
 
   useEffect(() => {
     if (phase.kind === 'next') nextRef.current?.querySelector('button')?.focus();
+    else if (phase.kind !== 'intro') {
+      // Keep keyboard and screen-reader users in the game, and the digits in view below the site's header.
+      rootRef.current?.focus({ preventScroll: true });
+      if (phase.kind === 'show' || phase.kind === 'answer') rootRef.current?.scrollIntoView({ block: 'center' });
+    }
   }, [phase.kind]);
 
   const trialNumber = progress.trials.length + 1;
 
   if (phase.kind === 'intro') {
     return (
-      <div className="ny-game">
+      <div className="ny-game" ref={rootRef} tabIndex={-1}>
         <h2 className="mpmb-h3">How it works</h2>
         <ol className="ny-howto" role="list">
           <li>Digits appear one at a time in the middle of the screen.</li>
@@ -224,7 +230,7 @@ export function DigitSpanGame({ onDone, onQuit }: Props) {
 
   if (phase.kind === 'practice-result') {
     return (
-      <div className="ny-game">
+      <div className="ny-game" ref={rootRef} tabIndex={-1}>
         <h2 className="mpmb-h2">{phase.correct ? 'Right!' : 'Not quite.'}</h2>
         <p>{phase.correct ? 'That’s how it works. Now the real thing, starting with 3 digits.' : `The digits were ${phase.sequence.join(' ')}. You can try the practice again, or start the real thing.`}</p>
         <div className="mpmb-actions">
@@ -241,7 +247,7 @@ export function DigitSpanGame({ onDone, onQuit }: Props) {
 
   if (phase.kind === 'next') {
     return (
-      <div className="ny-game">
+      <div className="ny-game" ref={rootRef} tabIndex={-1}>
         <p className="ny-game__meta">
           Round {trialNumber} · {progress.length} digits
         </p>
@@ -258,7 +264,7 @@ export function DigitSpanGame({ onDone, onQuit }: Props) {
 
   if (phase.kind === 'paused') {
     return (
-      <div className="ny-game">
+      <div className="ny-game" ref={rootRef} tabIndex={-1}>
         <h2 className="mpmb-h2">Paused.</h2>
         <p>The page went out of view while the digits were showing, so that round won’t count. You’ll get a new set of digits.</p>
         <div className="mpmb-actions">
@@ -272,7 +278,7 @@ export function DigitSpanGame({ onDone, onQuit }: Props) {
 
   const practice = phase.practice;
   return (
-    <div className="ny-game">
+    <div className="ny-game" ref={rootRef} tabIndex={-1}>
       <p className="ny-game__meta">{practice ? 'Practice · 2 digits' : `Round ${trialNumber} · ${phase.sequence.length} digits`}</p>
       {phase.kind === 'show' ? (
         <>
@@ -287,6 +293,12 @@ export function DigitSpanGame({ onDone, onQuit }: Props) {
           <Keypad typed={typed} onDigit={addDigit} onDelete={deleteDigit} onDone={submit} />
         </>
       )}
+      <div className="mpmb-actions ny-game__stop">
+        <Button variant="ghost" onClick={onQuit}>
+          Stop for now
+        </Button>
+        <p className="mpmb-hint">The memory game starts again from the beginning next time.</p>
+      </div>
     </div>
   );
 }

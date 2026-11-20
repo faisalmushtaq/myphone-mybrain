@@ -14,13 +14,13 @@ interface Props {
 /** Focus moves to each new screen's heading, except when the page first loads (so screen readers start at the top as usual). */
 let pageJustLoaded = true;
 
-/** The card every screen of the New Year break sits in: kicker, focused heading, intro, content. */
+/** The card every screen of the online study sits in: kicker, focused heading, intro, content. */
 export function NyShell({ kicker, title, pageTitle, intro, children, width = 'wide', className = '' }: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    const name = pageTitle ?? (typeof title === 'string' ? title : 'New Year break');
-    document.title = `${name.replace(/\.$/, '')} – New Year break (preview) – MyPhone/MyBrain`;
+    const name = pageTitle ?? (typeof title === 'string' ? title : 'Online study');
+    document.title = `${name.replace(/\.$/, '')} – Online study (preview) – MyPhone/MyBrain`;
     if (pageJustLoaded) {
       pageJustLoaded = false;
       return;

@@ -15,7 +15,7 @@ describe('results in plain words', () => {
       'Your reaction time was 412 ms, 43 ms faster than before your break.',
       'You remembered up to 7 digits, 1 digit more than before your break.',
       'You spotted 19 of 20 targets, 1 more than before your break.',
-      'You tapped by mistake once, 2 times fewer than before your break.',
+      'You tapped by mistake once, 2 fewer than before your break.',
     ]);
     const slower = compareScores({ ...before, medianRtMs: 480.4, span: 4, hits: 15 }, before, 'at halfway');
     expect(slower[0]).toBe('Your reaction time was 480 ms, 25 ms slower than at halfway.');

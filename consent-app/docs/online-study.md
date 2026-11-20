@@ -196,3 +196,45 @@ Exported hourly like the other studies, BIDS-style, by participant id.
 3. **Ethics pack:** information sheet, consent form, DPIA notes, drafted
    from this design for the committee.
 4. **Open** when approved: switch the home page box on.
+
+## Build status (20 November 2026)
+
+**Stage 1 is built: the preview, rebuilt around this design** (`src/newyear/`,
+still at `/new-year/`, still keeping everything on the device and sending
+nothing).
+
+| Part | Where |
+|---|---|
+| Joining in seven steps: age (month and year of birth, 16 or over), draft consent with optional email and text reminders, about you (the demographics above), the break (pause chosen apps, or a daily limit for total phone time; any start day), fun name, leaderboard on or off, reminder frequency and mobile number, the account (a placeholder in the preview), and saving it to the phone | `views/Join.tsx` |
+| Saving as an app and turning on reminders (one-tap install where the browser offers it; steps for iPhone, Android and computers; a test notification) | `views/SaveApp.tsx`, `install.ts`, `/new-year/manifest.webmanifest`, `/new-year/sw.js` |
+| Check-ins any time, about the time since the last one: still going strong, slipped (and on which day), or stopped for now; mood and urge 1 to 5; a note | `views/CheckIn.tsx` |
+| Visits: start and end (SWEMWBS, the brain check, a screenshot; the end adds "why now" and "again?"), return visits (a screenshot, then the brain check if they like), follow-ups 1 and 3 months after the end. Each saves as it goes and can be finished later | `views/Visit.tsx`, `views/Visits.tsx` |
+| Results compared with the start and the visit before, marked validated when a screenshot came with them, with the practice-effect caveat beside the comparison | `views/Results.tsx` |
+| The days: kept (said), proven or over (screenshot), slipped, paused, not reported; streaks; proven days; a screenshot due once a week of the break isn't covered | `progress.ts` (tested in `progress.test.ts`) |
+| Leaderboard by proven days, then streak; opt-out | `leaderboard.ts`, `views/Leaderboard.tsx` |
+| Settings: reminders, email, texts, leaderboard, saving the app | `views/Settings.tsx` |
+| Device at every opening and visit (type, system, browser, screen, saved app or not, time zone) | `device.ts` |
+
+**The rules as built:**
+* A check-in after any gap is accepted; nobody is locked out. "Still going
+  strong" counts the days since the last check-in as kept. After "slipped",
+  the slip day is a slip, the days after it kept, and the days before it
+  not reported (there may have been other slips). "Stopped for now" pauses
+  those days.
+* A screenshot outranks what was said for the days it covers: proven when
+  the chosen apps show 5 minutes a day or less (or total time is under the
+  limit), over otherwise. One screenshot covers up to 28 days.
+* A new screenshot is asked for once 7 days of the break are uncovered.
+* Scores are validated when the visit has a screenshot.
+
+**Fixed from the test of the old prototype:** the attention game's shapes
+were hidden under the site's header on phones (the game now scrolls itself
+into view); two open tabs overwrote each other's answers (each save now has
+a revision; a tab takes another tab's newer save and never writes it back);
+the results said "At halfway" on the wrong check; the tracker praised a
+lapsed participant; impossible example leaderboard rows; focus lost in the
+memory game and no way to stop it; "too quick" taps in the practice got the
+wrong message; "1 time fewer".
+
+**Next:** stage 2 (the backend on a test setup), once the team has listed the
+lab study's questionnaires and agreed what "validated" requires.

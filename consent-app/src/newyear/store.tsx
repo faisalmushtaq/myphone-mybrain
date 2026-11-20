@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, useState, type Dispatch, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState, type Dispatch, type ReactNode } from 'react';
 import { addDays, localIsoDate, type IsoDate } from './dates';
 import type { NyState } from './model';
-import { flushNyState, loadNyState, saveNyState } from './persistence';
+import { deviceInfo } from './device';
+import { flushNyState, loadNyState, onOtherTabSave, saveNyState } from './persistence';
 import { initialNyState, nyReducer, type NyAction } from './reducer';
 import { hashToRoute } from './routes';
 
@@ -44,7 +45,31 @@ export function NyStoreProvider({ children }: { children: ReactNode }) {
   const deviceDate = useDeviceDate();
   const today = addDays(deviceDate, state.preview.dayOffset);
 
-  useEffect(() => saveNyState(state), [state]);
+  // Data just taken from another tab is already saved: writing it back would start the two tabs saving at each other.
+  const fromOtherTab = useRef(false);
+  useEffect(() => {
+    if (fromOtherTab.current) {
+      fromOtherTab.current = false;
+      return;
+    }
+    saveNyState(state);
+  }, [state]);
+
+  // Another tab saved: take its answers, so this tab never writes over them.
+  useEffect(
+    () =>
+      onOtherTabSave((saved) => {
+        fromOtherTab.current = true;
+        dispatch({ type: 'synced', saved });
+      }),
+    [],
+  );
+
+  // Each opening of the study is recorded with the device (once someone has joined).
+  const joined = Boolean(state.participant);
+  useEffect(() => {
+    if (joined) dispatch({ type: 'session', session: { at: new Date().toISOString(), device: deviceInfo() } });
+  }, [joined]);
 
   // A check-in saved just before the tab is closed is written at once rather than lost.
   useEffect(() => {

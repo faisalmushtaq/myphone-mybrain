@@ -1,5 +1,10 @@
 # New Year social media break: prototype and backend plan
 
+> **Superseded on 20 November 2026** by the online study (`docs/online-study.md`):
+> the prototype was rebuilt as an open-ended break with check-ins any time,
+> visits validated by screenshots, and demographics. The backend plan below
+> (collections, validation, rate limits, ethics) still applies, adapted.
+
 A strand of MyPhone/MyBrain that anyone aged 18 or over, anywhere in the
 world, can join: a self-run break from the social media apps they choose,
 for 7, 14 or 30 days, starting on 1 January or any other day. Each person

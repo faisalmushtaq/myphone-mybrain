@@ -28,9 +28,9 @@ export function Leave() {
   };
 
   return (
-    <NyShell kicker="Leave or start again" title="Leave or start again." intro={<p>You can stop at any time, for any reason.</p>}>
+    <NyShell kicker="Leave the study" title="Leave the study." intro={<p>You can stop at any time, for any reason. If you only want to stop your break, end it from your tracker instead: your follow-ups still help the research.</p>}>
       <ul className="mpmb-list" role="list">
-        <li>Deleting removes your fun name, check-ins and brain check scores from this device. It can’t be undone.</li>
+        <li>Deleting removes your fun name, check-ins, visits and scores from this device. It can’t be undone.</li>
         <li>To start again, delete everything, then join again with new choices.</li>
         <li>
           In the real study you could also ask the research team to remove what you had sent. <NyDraft />
@@ -51,7 +51,7 @@ export function Leave() {
             <p className="mpmb-callout__title" id="ny-confirm-title">
               Delete everything for {state.participant?.name ?? 'you'}?
             </p>
-            <p id="ny-confirm-body">Your check-ins and brain check scores will be gone for good.</p>
+            <p id="ny-confirm-body">Your check-ins, visits and scores will be gone for good.</p>
             <div className="mpmb-callout__actions">
               <Button variant="danger" onClick={remove}>
                 Yes, delete everything

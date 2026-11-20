@@ -366,20 +366,34 @@
     display: block;
   }
 }
-.mpmb-app .mpmb-ny .ny-cal__day.is-kept,
-.mpmb-app .mpmb-ny .ny-cal__swatch.is-kept {
+.mpmb-app .mpmb-ny .ny-cal__day.is-verified,
+.mpmb-app .mpmb-ny .ny-cal__swatch.is-verified {
   background: var(--mpb-teal);
   border-color: var(--mpb-teal);
   color: #fff;
 }
-.mpmb-app .mpmb-ny .ny-cal__day.is-slipped,
-.mpmb-app .mpmb-ny .ny-cal__swatch.is-slipped {
+.mpmb-app .mpmb-ny .ny-cal__day.is-kept,
+.mpmb-app .mpmb-ny .ny-cal__swatch.is-kept {
+  background: var(--mpb-mist);
+  border-color: var(--mpb-teal);
+  color: var(--mpb-deep);
+}
+.mpmb-app .mpmb-ny .ny-cal__day.is-paused,
+.mpmb-app .mpmb-ny .ny-cal__swatch.is-paused {
+  background: #ece9e0;
+  border-color: var(--mpb-border);
+  color: var(--mpb-ink);
+}
+.mpmb-app .mpmb-ny .ny-cal__day.is-slip,
+.mpmb-app .mpmb-ny .ny-cal__swatch.is-slip,
+.mpmb-app .mpmb-ny .ny-cal__day.is-over,
+.mpmb-app .mpmb-ny .ny-cal__swatch.is-over {
   background: var(--mpb-yellow);
   border-color: #b98a00;
   color: var(--mpb-ink);
 }
-.mpmb-app .mpmb-ny .ny-cal__day.is-not-checked,
-.mpmb-app .mpmb-ny .ny-cal__swatch.is-not-checked {
+.mpmb-app .mpmb-ny .ny-cal__day.is-unreported,
+.mpmb-app .mpmb-ny .ny-cal__swatch.is-unreported {
   background: #fff;
   border-style: dashed;
   border-color: var(--mpb-border);
@@ -998,10 +1012,10 @@
   }
   .mpmb-app .mpmb-ny .ny-board tbody tr {
     display: grid;
-    grid-template-columns: 2rem minmax(0, 1fr) minmax(0, 1fr) 2.25rem;
+    grid-template-columns: 2rem minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 2.25rem;
     grid-template-areas:
-      'rank name name badge'
-      'rank streak count badge';
+      'rank name name name badge'
+      'rank verified streak count badge';
     align-items: center;
     column-gap: 0.5rem;
     padding: 0.6rem 0.35rem 0.6rem 0.5rem;
@@ -1022,6 +1036,10 @@
   }
   .mpmb-app .mpmb-ny .ny-board tbody .ny-board__name {
     grid-area: name;
+  }
+  .mpmb-app .mpmb-ny .ny-board tbody .ny-board__verified {
+    grid-area: verified;
+    margin-top: 0.2rem;
   }
   .mpmb-app .mpmb-ny .ny-board tbody .ny-board__streak {
     grid-area: streak;
@@ -1060,4 +1078,67 @@
   .mpmb-app .mpmb-ny .ny-confirm .mpmb-btn {
     width: 100%;
   }
+}
+
+/* The online study (20 November 2026): the join steps, screenshots, saving as an app. */
+.mpmb-app .mpmb-ny .ny-stepper {
+  margin: 0 0 0.4rem;
+  color: var(--mpb-muted);
+}
+.mpmb-app .mpmb-ny .ny-stepper__bar {
+  height: 6px;
+  margin-bottom: 1.25rem;
+  background: var(--mpb-line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.mpmb-app .mpmb-ny .ny-stepper__bar span {
+  display: block;
+  height: 100%;
+  background: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+.mpmb-app .mpmb-ny .ny-row > * {
+  flex: 1 1 10rem;
+}
+.mpmb-app .mpmb-ny .ny-help {
+  margin: 0.75rem 0 1rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--mpb-line);
+  border-radius: 8px;
+  background: #fff;
+}
+.mpmb-app .mpmb-ny .ny-help summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-shot__preview {
+  display: block;
+  max-width: min(100%, 16rem);
+  max-height: 22rem;
+  margin-top: 0.75rem;
+  border: 1px solid var(--mpb-line);
+  border-radius: 8px;
+}
+.mpmb-app .mpmb-ny .ny-saveapp .mpmb-list {
+  margin-top: 0.5rem;
+}
+.mpmb-app .mpmb-ny .ny-saveapp-card {
+  margin-bottom: 1.25rem;
+}
+.mpmb-app .mpmb-ny .ny-game__stop {
+  margin-top: 1.5rem;
+  align-items: center;
+}
+.mpmb-app .mpmb-ny .ny-game__stop .mpmb-hint {
+  margin: 0;
+}
+.mpmb-app .mpmb-ny .ny-game:focus {
+  outline: none;
 }

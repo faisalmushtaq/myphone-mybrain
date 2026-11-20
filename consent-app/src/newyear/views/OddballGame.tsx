@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/Button';
 import { announce } from '../../lib/announce';
 import type { OddballResult, OddballTiming } from '../model';
 import { mulberry32, randomSeed } from '../rng';
-import { expectedDurationMs, makeOddballSequence, ODDBALL_MAIN, ODDBALL_PRACTICE, practiceFeedback, scoreOddball, trialOutcome, withOutcomes, type OddballScores, type OddballSettings, type OddballTrialPlan, type OddballTrialRecord } from '../tasks/oddball';
+import { ANTICIPATION_MS, expectedDurationMs, makeOddballSequence, ODDBALL_MAIN, ODDBALL_PRACTICE, practiceFeedback, scoreOddball, trialOutcome, withOutcomes, type OddballScores, type OddballSettings, type OddballTrialPlan, type OddballTrialRecord } from '../tasks/oddball';
 
 type StopReason = 'hidden' | 'escape' | 'button';
 type Input = OddballResult['input'];
@@ -56,6 +56,8 @@ function OddballBlock({ settings, plan, onFinish, onStop }: BlockProps) {
     const feedback = feedbackRef.current;
     if (!stage || !feedback) return;
     regionRef.current?.focus({ preventScroll: true });
+    // The shapes must be in view, clear of the site's sticky header (phones especially).
+    regionRef.current?.scrollIntoView({ block: 'center' });
 
     const records: OddballTrialRecord[] = plan.map((p) => ({ type: p.type, itiMs: p.itiMs, onsetMs: null, presses: [] }));
     const onsets: number[] = [];
@@ -123,7 +125,10 @@ function OddballBlock({ settings, plan, onFinish, onStop }: BlockProps) {
           if (practice) {
             open = -1;
             phase = 'feedback';
-            const fb = practiceFeedback(trialOutcome(records[i]));
+            const presses = records[i].presses;
+            // Only taps too quick to count (under 150 ms): say so, rather than "you missed it" or "right".
+            const early = presses.length > 0 && presses.every((rt) => rt < ANTICIPATION_MS);
+            const fb = early ? { ok: false, text: 'Too quick: wait until you see the shape, then tap.' } : practiceFeedback(trialOutcome(records[i]));
             feedback.textContent = fb.text;
             show(fb.ok ? 'good' : 'oops');
             phaseEnd = t + settings.feedbackMs;

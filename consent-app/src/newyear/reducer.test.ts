@@ -1,100 +1,75 @@
 import { describe, expect, it } from 'vitest';
-import type { CheckIn, DigitSpanResult, OddballResult, Participant } from './model';
+import type { CheckIn, Participant, Visit } from './model';
 import { readSaved } from './persistence';
 import { initialNyState, nyReducer, shownRoute } from './reducer';
-import { hashToRoute, routeToHash } from './routes';
-import { scoreOddball } from './tasks/oddball';
 
-const participant: Participant = { name: 'Calm Otter 42', apps: ['tiktok', 'other'], otherApp: 'Strava', lengthDays: 14, startDate: '2027-01-01', joinedOn: '2026-12-20', joinedAt: '2026-12-20T10:00:00.000Z' };
-const checkIn = (day: string, kept: CheckIn['kept'] = 'yes'): CheckIn => ({ day, kept, slipMinutes: null, mood: 4, craving: 2, note: '', savedOn: day, savedAt: `${day}T09:00:00.000Z` });
-const memory: DigitSpanResult = { score: { span: 6, correctTrials: 7, totalTrials: 10 }, trials: [], practiceCorrect: true, seed: 1, startedAt: 'a', finishedAt: 'b' };
-const attention: OddballResult = { scores: scoreOddball([]), trials: [], seed: 2, settings: { trials: 100, stimulusMs: 500, itiMinMs: 1000, itiMaxMs: 1400 }, timing: { maxFrameGapMs: 17, longFrames: 0 }, input: 'touch', startedAt: 'c', finishedAt: '2027-01-01T08:00:00.000Z' };
+const P: Participant = {
+  name: 'Calm Otter 42',
+  onLeaderboard: true,
+  mode: 'apps',
+  apps: ['tiktok'],
+  otherApp: '',
+  goalMinutes: null,
+  startDate: '2027-01-01',
+  joinedOn: '2026-12-30',
+  joinedAt: '2026-12-30T10:00:00Z',
+  demographics: { birthMonth: '2000-01', sex: 'female', gender: 'woman', genderText: '', ethnicity: 'prefer-not', ethnicityText: '', countryOfBirth: 'GB', countryOfResidence: 'GB', education: 'isced6', firstLanguage: 'English', otherLanguages: '', work: 'student', job: '' },
+  reminders: { email: true, sms: false, phone: '', frequency: 'weekly' },
+  consent: { version: '0.1-draft', statements: { 'take-part': true }, at: '' },
+  savedAsApp: false,
+  endedOn: null,
+};
+const C: CheckIn = { id: 'c1', date: '2027-01-02', at: '2027-01-02T20:00:00Z', status: 'on-track', slipDate: null, minutes: null, mood: 4, urge: 2, note: '' };
+const V: Visit = { id: 'v1', kind: 'end', startedOn: '2027-02-01', startedAt: '', device: { deviceType: 'phone', os: 'iOS 18', browser: 'Safari', screen: '', standalone: true, timeZone: 'Europe/London' }, scales: null, digitSpan: null, oddball: null, skippedBrainCheck: false, screenshot: null, reflection: null, completedOn: null, completedAt: null };
 
-describe('the New Year break state', () => {
-  it('shows only the landing and join pages before joining, and the tracker after', () => {
-    const fresh = initialNyState();
-    expect(shownRoute({ ...fresh, route: { view: 'leaderboard' } })).toEqual({ view: 'about' });
-    expect(shownRoute({ ...fresh, route: { view: 'join' } })).toEqual({ view: 'join' });
-    const joined = nyReducer({ ...fresh, route: { view: 'join' } }, { type: 'join', participant });
+describe('the online study state', () => {
+  it('shows only the landing and join pages before joining', () => {
+    expect(shownRoute({ ...initialNyState(), route: { view: 'tracker' } })).toEqual({ view: 'about' });
+    const joined = nyReducer(initialNyState(), { type: 'join', participant: P });
     expect(joined.route).toEqual({ view: 'tracker' });
     expect(shownRoute({ ...joined, route: { view: 'join' } })).toEqual({ view: 'tracker' });
-    expect(shownRoute({ ...joined, route: { view: 'brain' } })).toEqual({ view: 'checks' });
   });
 
-  it('keeps the first answer for a day: a check-in cannot be overwritten', () => {
-    let s = nyReducer(initialNyState(), { type: 'join', participant });
-    s = nyReducer(s, { type: 'check-in', checkIn: checkIn('2027-01-01') });
-    s = nyReducer(s, { type: 'check-in', checkIn: checkIn('2027-01-01', 'lot') });
-    expect(s.checkIns['2027-01-01'].kept).toBe('yes');
-    expect(Object.keys(s.checkIns)).toHaveLength(1);
+  it('keeps every check-in, any number a day, and never the same one twice', () => {
+    let s = nyReducer(initialNyState(), { type: 'join', participant: P });
+    s = nyReducer(s, { type: 'check-in', checkIn: C });
+    s = nyReducer(s, { type: 'check-in', checkIn: { ...C, id: 'c2' } });
+    s = nyReducer(s, { type: 'check-in', checkIn: C });
+    expect(s.checkIns.map((c) => c.id)).toEqual(['c1', 'c2']);
   });
 
-  it('completes a stage only when the memory game is followed by the attention game, once', () => {
-    let s = nyReducer(initialNyState(), { type: 'join', participant });
-    s = nyReducer(s, { type: 'attention-done', stage: 'baseline', result: attention, today: '2026-12-31' });
-    expect(s.stages.baseline).toBeUndefined();
-    s = nyReducer(s, { type: 'memory-done', stage: 'baseline', result: memory });
-    s = nyReducer(s, { type: 'attention-done', stage: 'baseline', result: attention, today: '2026-12-31' });
-    expect(s.stages.baseline?.completedOn).toBe('2026-12-31');
-    expect(s.route).toEqual({ view: 'results', stage: 'baseline' });
-    const again = nyReducer(s, { type: 'memory-done', stage: 'baseline', result: { ...memory, seed: 99 } });
-    expect(again.stages.baseline?.digitSpan?.seed).toBe(1);
+  it('ends the break when the end visit is completed, and opens its results', () => {
+    let s = nyReducer(initialNyState(), { type: 'join', participant: P });
+    s = nyReducer(s, { type: 'visit-begin', visit: V });
+    expect(s.route).toEqual({ view: 'visit', visitId: 'v1' });
+    s = nyReducer(s, { type: 'visit-complete', id: 'v1', today: '2027-02-01', at: '2027-02-01T10:00:00Z' });
+    expect(s.participant?.endedOn).toBe('2027-02-01');
+    expect(s.route).toEqual({ view: 'results', visitId: 'v1' });
+    // A finished visit can't be changed afterwards.
+    expect(nyReducer(s, { type: 'visit-update', id: 'v1', patch: { skippedBrainCheck: true } }).visits[0].skippedBrainCheck).toBe(false);
   });
 
-  it('forgets everything on delete', () => {
-    let s = nyReducer(initialNyState(), { type: 'join', participant });
-    s = nyReducer(s, { type: 'check-in', checkIn: checkIn('2027-01-01') });
-    s = nyReducer(s, { type: 'delete-all' });
-    expect(s.participant).toBeNull();
-    expect(s.checkIns).toEqual({});
-    expect(s.flash).toEqual({ kind: 'deleted' });
-  });
-});
-
-describe('saved progress', () => {
-  const saved = { v: 1, participant, checkIns: { '2027-01-01': checkIn('2027-01-01') }, stages: { baseline: { digitSpan: memory, oddball: attention, completedOn: '2026-12-31', completedAt: 'x' } }, preview: { dayOffset: 3 } };
-
-  it('reads back what was saved', () => {
-    const back = readSaved(JSON.parse(JSON.stringify(saved)));
-    expect(back?.participant).toEqual(participant);
-    expect(Object.keys(back?.checkIns ?? {})).toEqual(['2027-01-01']);
-    expect(back?.stages.baseline?.completedOn).toBe('2026-12-31');
-    expect(back?.preview.dayOffset).toBe(3);
+  it('sends an unknown visit back to the list of visits', () => {
+    const s = nyReducer(initialNyState(), { type: 'join', participant: P });
+    expect(shownRoute({ ...s, route: { view: 'results', visitId: 'nope' } })).toEqual({ view: 'visits' });
+    expect(shownRoute({ ...s, route: { view: 'visit', kind: 'return' } })).toEqual({ view: 'visit', kind: 'return' });
   });
 
-  it('refuses a name that is not from the lists, and anything malformed', () => {
-    expect(readSaved({ ...saved, participant: { ...participant, name: 'Jane Smith' } })).toBeNull();
-    expect(readSaved({ ...saved, participant: { ...participant, apps: ['myspace'] } })).toBeNull();
-    expect(readSaved({ ...saved, participant: { ...participant, lengthDays: 21 } })).toBeNull();
-    expect(readSaved({ ...saved, v: 2 })).toBeNull();
-    expect(readSaved('nonsense')).toBeNull();
-    const messy = readSaved({
-      ...saved,
-      checkIns: { '2027-01-02': { ...checkIn('2027-01-02'), mood: 9 }, 'not-a-date': checkIn('2027-01-03'), '2027-01-04': { ...checkIn('2027-01-04', 'little'), slipMinutes: 30, note: 'x'.repeat(400) } },
-      stages: { baseline: { digitSpan: null, oddball: attention }, halfway: { digitSpan: memory, oddball: null } },
-      preview: { dayOffset: -5 },
-    });
-    expect(Object.keys(messy?.checkIns ?? {})).toEqual(['2027-01-04']);
-    expect(messy?.checkIns['2027-01-04'].note).toHaveLength(280);
-    expect(messy?.checkIns['2027-01-04'].slipMinutes).toBe(30);
-    expect(messy?.stages.baseline).toBeUndefined();
-    expect(messy?.stages.halfway?.completedOn).toBeNull();
-    expect(messy?.preview.dayOffset).toBe(0);
-  });
-});
-
-describe('screen addresses', () => {
-  it('round-trips every screen through the address', () => {
-    for (const route of [{ view: 'tracker' }, { view: 'checkin' }, { view: 'checks' }, { view: 'leaderboard' }, { view: 'leave' }, { view: 'brain', stage: 'halfway' }, { view: 'results', stage: 'followup' }] as const) {
-      expect(hashToRoute(routeToHash(route))).toEqual(route);
-    }
-    expect(routeToHash({ view: 'brain', stage: 'end' })).toBe('#/brain-check/end');
+  it('reads back what it saved, and drops what does not fit', () => {
+    const saved = { v: 2, rev: 3, participant: P, checkIns: [C, { ...C, id: 'bad', mood: 9 }], visits: [V, { id: 'x' }], sessions: [], preview: { dayOffset: 5 } };
+    const read = readSaved(JSON.parse(JSON.stringify(saved)));
+    expect(read?.participant?.name).toBe('Calm Otter 42');
+    expect(read?.checkIns.map((c) => c.id)).toEqual(['c1']);
+    expect(read?.visits.map((v) => v.id)).toEqual(['v1']);
+    expect(read?.preview.dayOffset).toBe(5);
+    expect(readSaved({ ...saved, v: 1 })).toBeNull();
+    expect(readSaved({ ...saved, participant: { ...P, name: 'Real Name' } })).toBeNull();
   });
 
-  it('ignores addresses that are not screens, such as the site’s skip link', () => {
-    expect(hashToRoute('#main-content')).toBeNull();
-    expect(hashToRoute('#/nowhere')).toBeNull();
-    expect(hashToRoute('#/brain-check/someday')).toEqual({ view: 'checks' });
-    expect(hashToRoute('')).toBeNull();
+  it('takes another tab’s saved data as it is', () => {
+    const s = nyReducer(initialNyState(), { type: 'join', participant: P });
+    const synced = nyReducer(s, { type: 'synced', saved: { participant: P, checkIns: [C], visits: [], sessions: [], preview: { dayOffset: 0 } } });
+    expect(synced.checkIns).toEqual([C]);
+    expect(nyReducer(s, { type: 'synced', saved: null }).participant).toBeNull();
   });
 });

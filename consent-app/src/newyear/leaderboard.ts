@@ -2,15 +2,20 @@ import { funName } from './names';
 import { mulberry32, randomInt } from './rng';
 
 /**
- * The leaderboard holds only a fun name, the current streak, the number of
- * check-ins and whether the latest brain check is done. Never the apps
- * chosen, notes, moods or test scores: the entry type has no room for them.
+ * The leaderboard holds only a fun name, the days a screenshot proves, the
+ * current streak, the number of check-ins and whether the latest visit's
+ * scores are validated. Never the apps chosen, notes, moods, scores or
+ * screenshots: the entry type has no room for them.
  */
 export interface LeaderboardEntry {
   name: string;
+  /** Days off proven by a screen-time screenshot. */
+  verified: number;
+  /** Current streak (self-report and screenshots). */
   streak: number;
   checkIns: number;
-  brainCheckDone: boolean;
+  /** The latest visit came with a screenshot. */
+  validated: boolean;
   /** The person using this device. */
   isYou?: boolean;
   /** An invented example for the preview. */
@@ -18,16 +23,16 @@ export interface LeaderboardEntry {
 }
 
 export interface RankedEntry extends LeaderboardEntry {
-  /** Equal streaks and check-ins share a rank (1, 2, 2, 4). */
+  /** Equal verified days and streaks share a rank (1, 2, 2, 4). */
   rank: number;
 }
 
-/** Longest current streak first, then most check-ins; names alphabetically within a tie so the order is stable. */
+/** Most proven days first, then the longest current streak; names alphabetically within a tie so the order is stable. */
 export function rankEntries(entries: readonly LeaderboardEntry[]): RankedEntry[] {
-  const sorted = [...entries].sort((a, b) => b.streak - a.streak || b.checkIns - a.checkIns || a.name.localeCompare(b.name, 'en-GB'));
+  const sorted = [...entries].sort((a, b) => b.verified - a.verified || b.streak - a.streak || a.name.localeCompare(b.name, 'en-GB'));
   return sorted.map((entry, i) => {
     let rank = i + 1;
-    for (let j = i - 1; j >= 0 && sorted[j].streak === entry.streak && sorted[j].checkIns === entry.checkIns; j -= 1) rank = j + 1;
+    for (let j = i - 1; j >= 0 && sorted[j].verified === entry.verified && sorted[j].streak === entry.streak; j -= 1) rank = j + 1;
     return { ...entry, rank };
   });
 }
@@ -35,23 +40,26 @@ export function rankEntries(entries: readonly LeaderboardEntry[]): RankedEntry[]
 export const EXAMPLE_SEED = 20270101;
 
 /**
- * Invented entries for the preview, made from the same word lists. The same
- * seed and day always give the same entries; streaks and check-ins fit a break
- * that is `day` days in (at least 10, so the example is never empty).
+ * Invented entries for the preview, made from the same word lists. Each is a
+ * break that started on a different day, up to `maxDays` days ago (at least
+ * 14, so the example is never empty), with counts that fit it: verified days
+ * and the streak never exceed the days so far. The same seed always gives the
+ * same entries.
  */
-export function exampleEntries(day: number, count = 9, exclude: readonly string[] = [], seed = EXAMPLE_SEED): LeaderboardEntry[] {
+export function exampleEntries(maxDays: number, count = 9, exclude: readonly string[] = [], seed = EXAMPLE_SEED): LeaderboardEntry[] {
   const rng = mulberry32(seed);
-  const days = Math.max(10, Math.floor(day));
+  const span = Math.max(14, Math.floor(maxDays));
   const names = new Set<string>();
   const entries: LeaderboardEntry[] = [];
   while (entries.length < count) {
     const name = funName(rng);
-    const checkIns = randomInt(rng, Math.floor(days / 3), days);
-    const streak = randomInt(rng, 0, checkIns);
-    const brainCheckDone = rng() < 0.7;
+    const daysSoFar = randomInt(rng, 1, span);
+    const streak = randomInt(rng, 0, daysSoFar);
+    const verified = randomInt(rng, 0, Math.max(0, daysSoFar - 1));
+    const checkIns = randomInt(rng, Math.ceil(daysSoFar / 4), daysSoFar + 3);
     if (names.has(name) || exclude.includes(name)) continue;
     names.add(name);
-    entries.push({ name, streak, checkIns, brainCheckDone, isExample: true });
+    entries.push({ name, verified, streak, checkIns, validated: verified > 0 && rng() < 0.8, isExample: true });
   }
   return entries;
 }

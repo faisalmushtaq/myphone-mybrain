@@ -5,23 +5,26 @@ import { shownRoute } from './reducer';
 import { hashToRoute, routeToHash } from './routes';
 import { NyStoreProvider, useNy } from './store';
 import { About } from './views/About';
-import { BrainCheck } from './views/BrainCheck';
+import { registerWorker } from './install';
 import { CheckIn } from './views/CheckIn';
-import { Checks } from './views/Checks';
 import { Join } from './views/Join';
 import { Leaderboard } from './views/Leaderboard';
 import { Leave } from './views/Leave';
 import { Results } from './views/Results';
+import { Settings } from './views/Settings';
 import { Tracker } from './views/Tracker';
+import { Visit } from './views/Visit';
+import { Visits } from './views/Visits';
 
 const NAV: { view: View; label: string }[] = [
   { view: 'tracker', label: 'My tracker' },
-  { view: 'checks', label: 'Brain checks' },
+  { view: 'visits', label: 'Visits' },
   { view: 'leaderboard', label: 'Leaderboard' },
+  { view: 'settings', label: 'Settings' },
 ];
 
 /** Which nav item a screen belongs under. */
-const SECTION: Partial<Record<View, View>> = { tracker: 'tracker', checkin: 'tracker', leave: 'tracker', checks: 'checks', brain: 'checks', results: 'checks', leaderboard: 'leaderboard' };
+const SECTION: Partial<Record<View, View>> = { tracker: 'tracker', checkin: 'tracker', leave: 'settings', visits: 'visits', visit: 'visits', results: 'visits', leaderboard: 'leaderboard', settings: 'settings' };
 
 /** Keeps the address in step with the screen, so the back button and reloads work. */
 function useHistorySync(shown: Route) {
@@ -64,12 +67,14 @@ function Screen({ route }: { route: Route }) {
       return <Tracker />;
     case 'checkin':
       return <CheckIn />;
-    case 'checks':
-      return <Checks />;
-    case 'brain':
-      return <BrainCheck stage={route.stage ?? 'baseline'} />;
+    case 'visits':
+      return <Visits />;
+    case 'visit':
+      return <Visit visitId={route.visitId} kind={route.kind} />;
     case 'results':
-      return <Results stage={route.stage ?? 'baseline'} />;
+      return <Results visitId={route.visitId ?? ''} />;
+    case 'settings':
+      return <Settings />;
     case 'leaderboard':
       return <Leaderboard />;
     case 'leave':
@@ -84,7 +89,8 @@ function Frame() {
   const shown = shownRoute(state);
   useHistorySync(shown);
   const participant = state.participant;
-  const inGame = shown.view === 'brain';
+  const inGame = shown.view === 'visit';
+  useEffect(() => registerWorker(), []);
   const section = SECTION[shown.view];
 
   return (
@@ -93,7 +99,7 @@ function Frame() {
         <div className="mpmb-band__inner">
           <div className="mpmb-band__row">
             <p className="mpmb-band__kicker">
-              New Year social media break
+              MyPhone/MyBrain online study
             </p>
             {participant && (
               <p className="ny-band__who">
@@ -103,7 +109,7 @@ function Frame() {
             )}
           </div>
           {participant && !inGame && (
-            <nav className="ny-nav" aria-label="New Year break">
+            <nav className="ny-nav" aria-label="Online study">
               <ul>
                 {NAV.map((item) => (
                   <li key={item.view}>
@@ -127,7 +133,7 @@ function Frame() {
       </div>
       {/* Not a <main>: the site's page already has one around the app. */}
       <div className="mpmb-main ny-main">
-        <Screen key={`${shown.view}-${shown.stage ?? ''}`} route={shown} />
+        <Screen key={`${shown.view}-${shown.visitId ?? shown.kind ?? ''}`} route={shown} />
       </div>
       {/* One permanent live region for announcements (see lib/announce.ts). */}
       <div id="mpmb-live" className="mpmb-sr-only" aria-live="polite" aria-atomic="true" />

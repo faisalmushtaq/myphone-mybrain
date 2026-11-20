@@ -49,7 +49,7 @@ export function compareScores(now: ComparableScores, then: ComparableScores, whe
   }
   if (now.falseAlarms !== null && then.falseAlarms !== null) {
     const diff = now.falseAlarms - then.falseAlarms;
-    lines.push(`${mistakes(now.falseAlarms)}, ${diff === 0 ? `the same as ${when}` : `${plural(Math.abs(diff), 'time')} ${diff < 0 ? 'fewer' : 'more'} than ${when}`}.`);
+    lines.push(`${mistakes(now.falseAlarms)}, ${diff === 0 ? `the same as ${when}` : `${Math.abs(diff)} ${diff < 0 ? 'fewer' : 'more'} than ${when}`}.`);
   }
   return lines;
 }
