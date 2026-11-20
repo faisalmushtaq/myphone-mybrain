@@ -27,6 +27,11 @@ Decided by the PI on 20 November 2026:
   same anti-spam checks as the staff portal, so people can carry on from
   any device.
 * **Leaderboard** of generated fun names, as in the prototype.
+* **Saved as an app on the phone.** Straight after joining, people are
+  asked to sign in on their phone and save the study to their Home Screen,
+  then turn on notifications. On an iPhone, web notifications only work
+  from a Home Screen app, so without this they get no reminders (only
+  emails).
 
 ## A participant's journey
 
@@ -44,9 +49,20 @@ Join ─▶ Start visit ─▶ Break (as long as they like) ──────�
    lab study's (`labConsentForm`), with the age statement (18+).
 2. Create an account (email and password; the server makes it; the address
    is verified).
-3. Choose the apps to pause and a start date (today or later); get a fun
+3. **Save it as an app and turn on notifications** (a step of its own,
+   not skippable without a clear "I'll do this later"): steps for the
+   device in hand (iPhone or iPad in Safari: Share, Add to Home Screen;
+   Android in Chrome: Install app; a computer: sign in on your phone
+   instead, with a QR code to open the study there), then "Turn on
+   reminders", which asks for notification permission and sends a test.
+   Until it is done, the tracker shows a reminder card, and the reminder
+   settings say "Email only: save the app to get notifications". The same
+   pattern as the staff portal's "Save the portal to your Home Screen"
+   (`src/portal/push.ts`, `HomeScreenHelp`), with its own manifest and
+   service worker scoped to the online study.
+4. Choose the apps to pause and a start date (today or later); get a fun
    name; choose leaderboard on or off, and reminder frequency.
-4. Full scales, brain check, screen-time screenshot (the week before the
+5. Full scales, brain check, screen-time screenshot (the week before the
    break: the baseline).
 
 ### During the break
@@ -111,7 +127,8 @@ Exported hourly like the other studies, BIDS-style, by participant id.
 1. **Now (preview, nothing sent):** rebuild the prototype around this
    design: open-ended break, any-time check-ins including after a lapse,
    return visits with a screenshot step, start/end scales (SWEMWBS built in;
-   lab scales once listed), reminders setting, and a test pass on phones.
+   lab scales once listed), the "save as an app" step with its manifest and
+   service worker, reminders setting, and a test pass on phones.
 2. **Backend (staging only):** accounts, consent, the collections above,
    screenshot upload and reading, server-side scoring and streaks,
    leaderboard snapshot, push and email reminders, export.
