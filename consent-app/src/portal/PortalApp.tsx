@@ -4,7 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { TextField } from '../components/ui/Field';
 import { ask, checkVerified, completeLink, connection, createPasswordAccount, finishGoogleRedirect, leave, messageOf, MIN_PASSWORD, needsVerifying, pendingLink, refreshToken, resendVerification, sendLink, sendPasswordReset, setOwnPassword, signInWithGoogle, signInWithPassword, watchUser } from './api';
-import { disablePush, enablePush, isAndroid, isIos, isStandalone, pushState, registerPortalWorker, type PushState } from './push';
+import { canInstall, disablePush, enablePush, installPortal, isAndroid, isFirefox, isIos, isMacSafari, isStandalone, onInstallOffer, pushState, registerPortalWorker, type PushState } from './push';
 import { AvailabilityView, Documents, MyVisits, Offers, RaHome, Training } from './RaViews';
 import { Reports } from './Reports';
 import { Audit, People, Person, Schools, Sessions, SettingsView, TeamHome, Visits } from './TeamViews';
@@ -616,7 +616,12 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
       case 'audit':
         return role === 'pm' ? <Audit /> : null;
       default:
-        return <TeamHome role={role} go={go} />;
+        return (
+          <>
+            <TeamHome role={role} go={go} />
+            <HomeScreenHelp />
+          </>
+        );
     }
   };
   const title = nav.find((n) => n.hash === current)?.label ?? (route === 'notifications' ? 'Notifications' : route === 'profile' ? 'Your details' : route === 'person' ? 'Person' : route === 'visit' ? 'Visit' : nav[0].label);
@@ -860,44 +865,106 @@ function PushSettings() {
 }
 
 /**
- * How to save the portal to the Home Screen, so it opens like an app and
- * (on iPhone) can show notifications. Shown when the portal is open in a
- * browser tab; `always` shows it in "Your details" even then.
+ * How to save the portal to the Home Screen or install it on a computer, so it opens like an app and (on iPhone) can
+ * show notifications (20 November 2026: everyone's first page, a one-tap Install where the browser offers it, steps for
+ * computers, and a way to hide it). Shown while the portal is open in a browser; `always` shows it in "Your details"
+ * whatever, even once hidden.
  */
+const HOMESCREEN_HIDDEN = 'mpmb-portal-homescreen-hidden';
 export function HomeScreenHelp({ always = false }: { always?: boolean }) {
-  if (isStandalone()) return always ? <p className="mpmb-hint">You’re using the portal from your Home Screen.</p> : null;
+  const [installable, setInstallable] = useState(canInstall);
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem(HOMESCREEN_HIDDEN) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => onInstallOffer(() => setInstallable(canInstall())), []);
+  if (isStandalone()) return always ? <p className="mpmb-hint">You’re using the portal as an app.</p> : null;
+  if (hidden && !always) return null;
   const ios = isIos();
   const android = isAndroid();
+  const computer = !ios && !android;
+  const hide = () => {
+    try {
+      localStorage.setItem(HOMESCREEN_HIDDEN, '1');
+    } catch {
+      /* not kept: it shows again next time */
+    }
+    setHidden(true);
+  };
   return (
     <section className="mpmb-card mpmb-portal__homescreen" aria-labelledby="home-h">
       <h2 className="mpmb-h3" id="home-h">
-        Save the portal to your Home Screen
+        {computer ? 'Install the portal on this computer' : 'Save the portal to your Home Screen'}
       </h2>
-      <p>It then opens like an app, and can tell you about new school dates and offers straight away.</p>
-      {(ios || !android) && (
+      <p>It then opens like an app, from its own icon, and can tell you about new school dates and offers straight away.</p>
+      {installable && (
+        <div className="mpmb-actions">
+          <Button type="button" variant="primary" onClick={() => void installPortal().then((ok) => setNote(ok ? 'Installed. Open it from its icon from now on.' : null))}>
+            Install the portal
+          </Button>
+        </div>
+      )}
+      {note && <p role="status">{note}</p>}
+      {(ios || (!android && !computer)) && (
         <>
           <h3 className="mpmb-label">iPhone or iPad</h3>
           <ol className="mpmb-list">
-            <li>Open this page in Safari.</li>
+            <li>Open myphonemybrain.com/portal in Safari.</li>
             <li>
-              Tap the Share button <span aria-hidden="true">(the square with an arrow)</span>, then <strong>Add to Home Screen</strong>, then <strong>Add</strong>.
+              Tap the Share button <span aria-hidden="true">(the square with an arrow pointing up)</span>, scroll down, then tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.
             </li>
-            <li>Open the portal from the new icon, sign in, and go to Your details and choose Turn on notifications.</li>
+            <li>Open the portal from the new MPMB staff icon and sign in.</li>
+            <li>To get notifications, go to Your details and choose Turn on notifications.</li>
           </ol>
-          <p className="mpmb-hint">Notifications need iOS 16.4 or later, and only work from the Home Screen icon.</p>
+          <p className="mpmb-hint">Notifications need iOS 16.4 or later, and only work from the Home Screen icon, not from Safari.</p>
         </>
       )}
-      {(android || !ios) && (
+      {android && (
         <>
           <h3 className="mpmb-label">Android</h3>
           <ol className="mpmb-list">
-            <li>Open this page in Chrome.</li>
+            <li>Open myphonemybrain.com/portal in Chrome.</li>
             <li>
-              Tap the menu (the three dots at the top right), then <strong>Add to Home screen</strong> or <strong>Install app</strong>.
+              {installable ? 'Tap Install the portal above, or tap' : 'Tap'} the menu <span aria-hidden="true">(the three dots at the top right)</span>, then <strong>Add to Home screen</strong> or <strong>Install app</strong>.
             </li>
-            <li>Then go to Your details and choose Turn on notifications.</li>
+            <li>Open the portal from the new MPMB staff icon and sign in.</li>
+            <li>To get notifications, go to Your details and choose Turn on notifications.</li>
           </ol>
         </>
+      )}
+      {computer && (
+        <>
+          <h3 className="mpmb-label">On a computer</h3>
+          {isMacSafari() ? (
+            <ol className="mpmb-list">
+              <li>
+                In Safari, choose <strong>File</strong>, then <strong>Add to Dock</strong>, then <strong>Add</strong>.
+              </li>
+              <li>Open the portal from its icon in the Dock.</li>
+            </ol>
+          ) : isFirefox() ? (
+            <p>Firefox can’t install the portal as an app. Bookmark this page, or open it in Chrome, Edge or Safari to install it.</p>
+          ) : (
+            <ol className="mpmb-list">
+              <li>
+                {installable ? 'Click Install the portal above, or click' : 'Click'} the install icon at the right of the address bar <span aria-hidden="true">(a screen with a down arrow)</span>.
+              </li>
+              <li>
+                Or use the browser’s menu: in Chrome, <strong>Cast, save and share</strong>, then <strong>Install page as app</strong>; in Edge, <strong>Apps</strong>, then <strong>Install this site as an app</strong>.
+              </li>
+              <li>The portal then opens in its own window, and you can pin it to your taskbar or Dock.</li>
+            </ol>
+          )}
+        </>
+      )}
+      {!always && (
+        <Button type="button" variant="link" onClick={hide}>
+          I’ve done this, hide it
+        </Button>
       )}
     </section>
   );

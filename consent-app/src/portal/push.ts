@@ -84,3 +84,41 @@ export async function disablePush(): Promise<PushState> {
 export function registerPortalWorker() {
   void registration();
 }
+
+/*
+ * Installing the portal as an app (20 November 2026). Chrome and Edge (Android and computers) offer a one-tap install:
+ * the offer is kept when the browser makes it, so the portal's own Install button can use it. iPhones and Safari never
+ * offer it; their steps are shown instead.
+ */
+type InstallOffer = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
+let offer: InstallOffer | null = null;
+const offerListeners = new Set<() => void>();
+const tell = () => offerListeners.forEach((f) => f());
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    offer = e as InstallOffer;
+    tell();
+  });
+  window.addEventListener('appinstalled', () => {
+    offer = null;
+    tell();
+  });
+}
+export const canInstall = (): boolean => offer !== null;
+export function onInstallOffer(f: () => void): () => void {
+  offerListeners.add(f);
+  return () => offerListeners.delete(f);
+}
+/** Shows the browser's install question; true if they installed it. */
+export async function installPortal(): Promise<boolean> {
+  if (!offer) return false;
+  const o = offer;
+  await o.prompt();
+  const { outcome } = await o.userChoice;
+  offer = null;
+  tell();
+  return outcome === 'accepted';
+}
+export const isMacSafari = () => /Macintosh/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg\//.test(navigator.userAgent) && !isIos();
+export const isFirefox = () => /Firefox\//.test(navigator.userAgent);
