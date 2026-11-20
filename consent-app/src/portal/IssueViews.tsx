@@ -138,6 +138,14 @@ export function LogProblem({ role, pressedAt, onClose, editing, onSaved }: { rol
   const [impact, setImpact] = useState(editing?.impact ?? '');
   const [note, setNote] = useState(editing?.note ?? '');
   const [recordings, setRecordings] = useState<string[]>(editing?.recordings ?? []);
+  // While the sheet is open the page behind it stays still (20 November 2026: on an iPhone it scrolled and bounced).
+  useEffect(() => {
+    const before = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = before;
+    };
+  }, []);
   const [q, setQ] = useState('');
   const [typed, setTyped] = useState('');
   const [found, setFound] = useState<Pupils | null>(null);
