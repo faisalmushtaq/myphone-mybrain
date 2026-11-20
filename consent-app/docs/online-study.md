@@ -23,6 +23,11 @@ Decided by the PI on 20 November 2026:
   locks anyone out; they can carry on, restart, or end.
 * **Reminders:** notifications asking "still going strong?" (push to the
   phone, email as a fallback), at a frequency the person chooses.
+* **Reminder consent at sign-up:** two optional statements, "I agree to
+  be sent reminder emails" and "I agree to be sent reminder text messages"
+  (which asks for a mobile number), recorded with the consent and changeable
+  any time in settings and from every message. Contact details are kept
+  apart from the research data. Texts use the lab study's sender (`sms.ts`).
 * **Accounts:** email address and password, made by the server with the
   same anti-spam checks as the staff portal, so people can carry on from
   any device.
@@ -84,6 +89,16 @@ Join ─▶ Start visit ─▶ Break (as long as they like) ──────�
 * Optional follow-ups 1 and 3 months after the end: the same full set.
 
 ## Screenshots and validation
+* **Every day must be covered.** A day counts as a verified day off only if
+  a screenshot covers it. Phones keep limited history (iPhone Screen Time
+  roughly the last few weeks; Android Digital Wellbeing about 10 days on
+  most phones; both to be tested), so people send **a screen-time
+  screenshot at least once a week**. The weekly reminder asks for it; the
+  brain check is offered with it but is optional each week. Gaps stay
+  self-report only, and the tracker shows which days are verified and which
+  still need a screenshot (while the phone still holds them).
+* People stay signed in once the study is saved as an app, so coming back
+  is opening the app, not typing a password.
 * Re-use the school study's screen-time screenshot reader (on-device OCR
   and the server's Vision check, `images.ts`), which already handles
   iPhone Screen Time and Android Digital Wellbeing.
