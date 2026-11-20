@@ -1,4 +1,6 @@
 [
   { "slug": "dua", "id": "DUA", "name": "Dixons Unity Academy", "area": "Leeds" },
-  { "slug": "gsal", "id": "GSAL", "name": "The Grammar School at Leeds", "area": "Leeds" }
+  { "slug": "gsal", "id": "GSAL", "name": "The Grammar School at Leeds", "area": "Leeds" },
+  { "slug": "immanuel", "id": "IMMANUEL", "name": "Immanuel College", "area": "Bradford" },
+  { "slug": "bgs", "id": "BGS", "name": "Bradford Grammar School", "area": "Bradford" }
 ]

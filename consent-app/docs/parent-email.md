@@ -4,7 +4,9 @@ For the school to send to parents and carers of the classes taking part,
 two to three weeks before the workshop. Fill in the parts in [square
 brackets]. Each school has its own link: Dixons Unity Academy
 `myphonemybrain.com/dua`, The Grammar School at Leeds
-`myphonemybrain.com/gsal`. The link takes parents straight to the form with
+`myphonemybrain.com/gsal`, Immanuel College (Bradford)
+`myphonemybrain.com/immanuel`, Bradford Grammar School
+`myphonemybrain.com/bgs`. The link takes parents straight to the form with
 the school already filled in.
 
 Updated 19 October 2026 with the two kinds of opt-out (`opt-outs.md`):
