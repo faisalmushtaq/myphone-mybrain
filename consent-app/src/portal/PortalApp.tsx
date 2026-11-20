@@ -677,9 +677,9 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
         </nav>
         {study === 'lab' && (
           <Callout title="Lab study (social media break)">
-            <p>The lab study’s tools (times, bookings and participants) are on the staff page for now, behind the staff key. They will move here next.</p>
-            <a className="mpmb-btn mpmb-btn--secondary" href="/staff/">
-              <span>Open the staff page</span>
+            <p>The lab study’s tools (times, bookings and participants) are on the dashboard for now, behind the staff key. They will move here next.</p>
+            <a className="mpmb-btn mpmb-btn--secondary" href="/dashboard/">
+              <span>Open the dashboard</span>
             </a>
           </Callout>
         )}

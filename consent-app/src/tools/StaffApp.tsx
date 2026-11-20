@@ -128,7 +128,7 @@ export function StaffApp() {
   };
 
   useEffect(() => {
-    document.title = 'Staff – MyPhone/MyBrain';
+    document.title = 'Dashboard – MyPhone/MyBrain';
     if (key) void signIn(key);
     // Once, with a key remembered in this tab.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,7 +155,7 @@ export function StaffApp() {
       <form className="mpmb-step mpmb-tools" onSubmit={submit}>
         <header className="mpmb-step__header">
           <p className="mpmb-kicker">MyPhone/MyBrain research team</p>
-          <h1 className="mpmb-h1">Staff page</h1>
+          <h1 className="mpmb-h1">Dashboard</h1>
           <p className="mpmb-lead">Lab times and bookings for the social media break study, participants’ links, and the schools’ upload passwords.</p>
           <p>
             Research assistants, school visits, documents and availability are in the <a href="/portal/">staff portal</a>, with your own sign-in.
@@ -184,7 +184,7 @@ export function StaffApp() {
       <header className="mpmb-tools__head">
         <div>
           <p className="mpmb-kicker">MyPhone/MyBrain research team</p>
-          <h1 className="mpmb-h1">Staff page</h1>
+          <h1 className="mpmb-h1">Dashboard</h1>
           {overview && (
             <p className={`mpmb-tools__export${exportStale ? ' is-stale' : ''}`} role={exportStale ? 'status' : undefined}>
               Data export last ran: {exportedAt ? when(exportedAt) : 'not known'}

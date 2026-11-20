@@ -249,7 +249,7 @@ export const schoolUpload = onCall({ ...callOptions }, async (request) => {
     : 'a file the website could not read automatically, so the research team will read it by hand';
   const team = await sendTeamMail({
     subject: `MyPhone/MyBrain: ${school.name} sent its UPN list`,
-    text: [`${uploader.name}${uploader.role ? ` (${uploader.role})` : ''} at ${school.name} sent a UPN list: ${summary}.`, ...(unreadable ? ['', `TO READ BY HAND: ${unreadable} The file is in the export under schools/upn-uploads/, and on the staff page.`] : []), '', `File: ${fileName}`, `Upload: ${uploadId}`, ...(p.note?.trim() ? ['', `Their note: ${p.note.trim()}`] : []), '', 'It is in the export within the hour, under schools/upn-uploads/.'].join('\n'),
+    text: [`${uploader.name}${uploader.role ? ` (${uploader.role})` : ''} at ${school.name} sent a UPN list: ${summary}.`, ...(unreadable ? ['', `TO READ BY HAND: ${unreadable} The file is in the export under schools/upn-uploads/, and on the dashboard.`] : []), '', `File: ${fileName}`, `Upload: ${uploadId}`, ...(p.note?.trim() ? ['', `Their note: ${p.note.trim()}`] : []), '', 'It is in the export within the hour, under schools/upn-uploads/.'].join('\n'),
     replyTo: uploader.email,
   });
   const receipt = await sendMail({

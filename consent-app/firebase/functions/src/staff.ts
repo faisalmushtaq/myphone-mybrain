@@ -22,7 +22,7 @@ import { notifyWaitlist, readRecruitment, setRecruitment, waitingList } from './
 import { usageSummary } from './usage.js';
 
 /**
- * The research team's page (myphonemybrain.com/staff/), behind the
+ * The research team's page (myphonemybrain.com/dashboard/; /staff/ until 20 November 2026), behind the
  * staff key: a long random password kept in Secret Manager
  * (scripts/set-staff-key.sh makes it), shared only within the team. One
  * callable, staffApi, does everything the page needs:
@@ -539,7 +539,7 @@ export const staffApi = onCall(callOptions, async (request) => {
 
     case 'set-recruitment': {
       if (data.group !== 'break' && data.group !== 'control') throw bad('Unknown group.');
-      return { ...(await setRecruitment(db, data.group, data.paused, data.message, 'staff page')), waiting: await waitingList(db) };
+      return { ...(await setRecruitment(db, data.group, data.paused, data.message, 'dashboard')), waiting: await waitingList(db) };
     }
 
     case 'notify-waitlist': {
@@ -611,8 +611,8 @@ export const staffApi = onCall(callOptions, async (request) => {
       const mobile = typeof data.mobile === 'string' && data.mobile.trim() ? data.mobile.trim() : null;
       if (!email && !mobile) throw bad('Enter an email address or a mobile number to test.');
       return {
-        email: email ? await sendMail({ to: email, subject: 'MyPhone/MyBrain: test email', text: 'This is a test from the MyPhone/MyBrain staff page. Booking confirmations and reminders will arrive like this.' }) : null,
-        sms: mobile ? await sendSms(mobile, 'MyPhone/MyBrain: this is a test text from the staff page. Reminders will arrive like this.') : null,
+        email: email ? await sendMail({ to: email, subject: 'MyPhone/MyBrain: test email', text: 'This is a test from the MyPhone/MyBrain dashboard. Booking confirmations and reminders will arrive like this.' }) : null,
+        sms: mobile ? await sendSms(mobile, 'MyPhone/MyBrain: this is a test text from the dashboard. Reminders will arrive like this.') : null,
       };
     }
 

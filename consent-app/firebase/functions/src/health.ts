@@ -161,8 +161,8 @@ export function healthOf(c: Pick<Collections, 'submissions' | 'donations' | 'par
   add('break', 'The same file is stored twice', 'Tell the developer; count it once in the analysis.', labTwice);
   add('break', 'A participant’s consent record is missing', 'Tell the developer.', labNoConsent);
   add('break', 'A participant’s MyStory stories and their record disagree', 'Tell the developer.', storyOff);
-  add('break', 'A lab time’s bookings do not match its count, or it is booked past its spaces', 'Check the times on the staff page; tell the developer.', slotOff);
-  add('break', 'A participant has the same visit booked twice', 'Cancel one of the two on the staff page.', visitTwice);
+  add('break', 'A lab time’s bookings do not match its count, or it is booked past its spaces', 'Check the times on the dashboard; tell the developer.', slotOff);
+  add('break', 'A participant has the same visit booked twice', 'Cancel one of the two on the dashboard.', visitTwice);
 
   // ---- Uploads never saved ------------------------------------------------------------------------------------------
   const hour = 3600_000;
