@@ -6,7 +6,24 @@ over, anywhere, take a break from the social media apps they choose for as
 long as they like, and come back whenever they want. **Not open:** it needs
 ethics approval first, and the home page shows it as "Opening soon".
 
+## Key message (the PI, 20 November 2026)
+
+> Contribute to this global study of phone abstinence. Want to stop the
+> habit? Join us and help us better understand the impact of phone use on
+> our brain health.
+
+"Any age" in the PI's first wording became **16 and over** (decided the
+same day): 16 and 17 year olds consent for themselves, and under-16s are
+pointed to the school study.
+
 Decided by the PI on 20 November 2026:
+* **Who:** aged 16 and over, anywhere. 16 and 17 year olds consent for
+  themselves; ethics to agree, with safeguarding and signposting suited to
+  them (see "Still to decide").
+* **Two ways to take part, chosen at joining:** *pause chosen apps* (the
+  social media apps they pick; calls, messages and maps carry on), or *cut
+  total phone time* to a daily goal they set. Screenshots prove either: the
+  chosen apps at (almost) zero, or the daily total under the goal.
 
 * **Open-ended.** No fixed length. People start when they like and end when
   they decide to (or stop answering).
@@ -51,7 +68,7 @@ Join ─▶ Start visit ─▶ Break (as long as they like) ──────�
 
 ### Join and start visit
 1. Information sheet (section by section) and consent, versioned like the
-   lab study's (`labConsentForm`), with the age statement (18+).
+   lab study's (`labConsentForm`), with the age statement (16 or over).
 2. Create an account (email and password; the server makes it; the address
    is verified).
 3. **Save it as an app and turn on notifications** (a step of its own,
@@ -136,7 +153,9 @@ Exported hourly like the other studies, BIDS-style, by participant id.
    apart from the research data (as for the portal)?
 5. Worldwide, or a list of countries (DPO advice), and the ethics route
    (new application or amendment).
-6. Safeguarding for the notes and mood (adults, international signposting).
+6. Safeguarding for the notes and mood: 16 and 17 year olds as well as
+   adults, with international signposting, and what happens if a note
+   raises a concern about someone under 18.
 
 ## Build plan
 1. **Now (preview, nothing sent):** rebuild the prototype around this
