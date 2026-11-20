@@ -55,6 +55,33 @@ Decided by the PI on 20 November 2026:
   from a Home Screen app, so without this they get no reminders (only
   emails).
 
+## What is recorded about the person and their device (the PI, 20 November 2026)
+
+**Device and place, at every sign-in and visit** (`olSessions`): device type
+(phone, tablet, computer), operating system and version, browser, screen
+size, saved app or browser, time zone, and the country (and region where
+known) worked out from the connection at that moment. The IP address itself
+is not stored: it is personal data and the country is what the analysis
+needs.
+
+**Demographics at joining**, each with "Prefer not to say":
+
+| Item | How it is asked |
+|---|---|
+| Age | Month and year of birth (checks 16 or over; exact age at each visit) |
+| Sex | Sex registered at birth: female, male, intersex, prefer not to say |
+| Gender | Woman, man, non-binary, prefer to self-describe (text), prefer not to say |
+| Ethnicity | UK census groups plus self-describe (country of birth carries the international picture) |
+| Country of birth | Full country list |
+| Country of residence | Full country list |
+| Highest education | ISCED levels in plain words (for example "Secondary school", "Bachelor's degree") |
+| Languages | First language, and other languages spoken well |
+| Profession | Student, employed, self-employed, not working, retired; then the job in their own words |
+
+Ethnicity is special category data (lawful basis and DPIA). Demographics
+with country can identify people in small groups, so the export bands or
+merges rare combinations before anyone outside the core team sees them.
+
 ## A participant's journey
 
 ```
