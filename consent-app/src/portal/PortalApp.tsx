@@ -3,6 +3,7 @@ import type { User } from 'firebase/auth';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { TextField } from '../components/ui/Field';
+import { Safeguarding, SafeguardingPrompt } from './safeguarding';
 import { ask, checkVerified, completeLink, connection, createPasswordAccount, finishGoogleRedirect, hasPassword, leave, messageOf, MIN_PASSWORD, needsVerifying, pendingLink, refreshToken, resendVerification, sendPasswordReset, setOwnPassword, signInWithPassword, watchUser } from './api';
 import { canInstall, disablePush, enablePush, installPortal, isAndroid, isFirefox, isIos, isMacSafari, isStandalone, onInstallOffer, pushState, registerPortalWorker, type PushState } from './push';
 import { AvailabilityView, Documents, MyVisits, Offers, RaHome, Training } from './RaViews';
@@ -496,6 +497,7 @@ function navFor(role: Role): NavItem[] {
       { hash: '#availability', label: 'Availability' },
       { hash: '#documents', label: 'Documents' },
       { hash: '#training', label: 'Training' },
+      { hash: '#safeguarding', label: 'Safeguarding' },
       { hash: '#notebook', label: 'Notebook' },
     ];
   return [
@@ -508,6 +510,7 @@ function navFor(role: Role): NavItem[] {
     { hash: '#reports', label: 'Reports' },
     { hash: '#linkage', label: 'Linkage' },
     { hash: '#notebook', label: 'Notebook' },
+    { hash: '#safeguarding', label: 'Safeguarding' },
     // The team lead on visit days (5 November 2026): their own days free and documents.
     { hash: '#my-days', label: 'My days' },
     { hash: '#my-documents', label: 'My documents' },
@@ -552,6 +555,7 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
     if (route === 'notifications') return <Notifications go={go} reloadMe={reloadMe} />;
     if (route === 'profile') return <Profile me={me} reload={reloadMe} />;
     if (route === 'notebook') return <Notebook role={role} entryId={arg} go={go} />;
+    if (route === 'safeguarding') return <Safeguarding me={me} reload={reload} />;
     if (role === 'ra') {
       if (!summary) return summaryError ? <Callout tone="warning">{summaryError}</Callout> : <p>Loading…</p>;
       switch (route) {
@@ -569,6 +573,7 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
           return (
             <>
               <SetPasswordPrompt go={go} />
+              <SafeguardingPrompt me={me} go={go} />
               <RaHome summary={summary} go={go} />
               <HomeScreenHelp />
             </>
@@ -613,6 +618,7 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
         return (
           <>
             <SetPasswordPrompt go={go} />
+            <SafeguardingPrompt me={me} go={go} />
             <TeamHome role={role} go={go} />
             <HomeScreenHelp />
           </>

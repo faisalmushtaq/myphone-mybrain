@@ -26,6 +26,7 @@ import {
   docState,
   docTypeOf,
   eligibilityFor,
+  SAFEGUARDING_VERSION,
   includedDays,
   expiryWarnings,
   isIsoDate,
@@ -487,7 +488,7 @@ function personFacts(x: DocumentData, schools: School[] = []) {
 /** What eligibility needs beyond documents and sessions: whether they lead, their sign-off, and the school's approval when it asks for one. */
 function extrasFor(x: DocumentData, school: School | null): EligibilityExtras {
   const facts = personFacts(x);
-  return { lead: x.role !== 'ra', signOff: facts.signOff, ...(school ? { schoolApproval: { required: school.requireApproval, approved: facts.approvals.some((a) => a.schoolId === school.id), schoolName: school.name } } : {}) };
+  return { lead: x.role !== 'ra', signOff: facts.signOff, safeguardingRead: safeguardingOf(x)?.version === SAFEGUARDING_VERSION, ...(school ? { schoolApproval: { required: school.requireApproval, approved: facts.approvals.some((a) => a.schoolId === school.id), schoolName: school.name } } : {}) };
 }
 
 /** Each person's DBS as the project manager checked it (the latest checked one), or nothing. */
@@ -560,8 +561,14 @@ async function announce(db: Firestore, v: PortalVisit, schools: School[], kind: 
   return { people: everyone.length, pushed, emailed };
 }
 
+/** Which version of the safeguarding procedure they confirmed reading, and when; null if never. */
+function safeguardingOf(x: DocumentData): { version: string; at: string | null } | null {
+  const a = x.safeguardingAck as { version?: unknown; at?: unknown } | undefined;
+  return a && typeof a.version === 'string' ? { version: a.version, at: iso(a.at) } : null;
+}
+
 function userRow(id: string, x: DocumentData) {
-  return { uid: id, name: String(x.name ?? ''), email: String(x.email ?? ''), phone: String(x.phone ?? ''), role: isRole(x.role) ? x.role : null, requested: x.requested === 'team' ? 'team' : 'ra', status: (x.status ?? 'pending') as UserStatus, smsOptIn: x.smsOptIn === true, notifyPrefs: notifyPrefsOf(x.notifyPrefs), createdAt: iso(x.createdAt), archivedAt: iso(x.archivedAt) };
+  return { safeguarding: safeguardingOf(x), uid: id, name: String(x.name ?? ''), email: String(x.email ?? ''), phone: String(x.phone ?? ''), role: isRole(x.role) ? x.role : null, requested: x.requested === 'team' ? 'team' : 'ra', status: (x.status ?? 'pending') as UserStatus, smsOptIn: x.smsOptIn === true, notifyPrefs: notifyPrefsOf(x.notifyPrefs), createdAt: iso(x.createdAt), archivedAt: iso(x.archivedAt) };
 }
 
 /** Each document someone needs, with where it stands today. `withDetails` adds the certificate details (the project manager and the person themselves). */
@@ -609,7 +616,7 @@ export const portalApi = onCall(callOptions, async (request) => {
     case 'me': {
       const snap = await db.collection('portalUsers').doc(me.uid).get();
       const unread = me.status === 'active' ? (await db.collection('portalNotifications').where('uid', '==', me.uid).where('read', '==', false).count().get()).data().count : 0;
-      return { email: me.email, user: snap.exists ? userRow(snap.id, snap.data()!) : null, unread };
+      return { email: me.email, user: snap.exists ? userRow(snap.id, snap.data()!) : null, unread, safeguardingVersion: SAFEGUARDING_VERSION };
     }
     case 'request-access': {
       const ref = db.collection('portalUsers').doc(me.uid);
@@ -641,6 +648,13 @@ export const portalApi = onCall(callOptions, async (request) => {
       const smsOptIn = data.smsOptIn === true && Boolean(phone);
       const notifyPrefs = notifyPrefsOf(data.notifyPrefs);
       await db.collection('portalUsers').doc(me.uid).set({ name, phone, smsOptIn, notifyPrefs, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      return { ok: true };
+    }
+    case 'safeguarding-ack': {
+      // "I have read and understand": only for the version shown now, so a changed procedure is confirmed again.
+      if (data.version !== SAFEGUARDING_VERSION) throw bad('The safeguarding procedure has changed since the page was opened. Please reload and read it again.');
+      await db.collection('portalUsers').doc(me.uid).set({ safeguardingAck: { version: SAFEGUARDING_VERSION, at: FieldValue.serverTimestamp() }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await audit(db, me, 'safeguarding-ack', me.uid, { version: SAFEGUARDING_VERSION });
       return { ok: true };
     }
     case 'notifications': {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../components/ui/Icon';
 import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
+import { SAFEGUARDING_VERSION } from './safeguarding';
 import { ACCEPT, ask, messageOf, uploadDocument } from './api';
 import { SelectField, TextField } from '../components/ui/Field';
 import { ASSIGNMENT_LABEL, AVAILABILITY_LABEL, CANVASS_LABEL, clock, DAY_ROLE_LABEL, DBS_STATUS_LABEL, dayLines, daysOn, DOC_STATE_LABEL, longDate, todayIso, travelOn, visitWhen, type Availability, type CanvassAnswer, type Contact, type DayRole, type DocRow, type MySummary, type TrainingClaim, type Visit } from './types';
@@ -23,6 +24,7 @@ export function RaHome({ summary, go }: { summary: MySummary; go: (hash: string)
   const items = [
     { done: Boolean(summary.user.name && summary.user.phone), title: 'Your details', text: summary.user.phone ? `${summary.user.name}, ${summary.user.phone}` : 'Add a mobile number so the team can reach you on the day.', hash: '#profile' },
     { done: docsDone === general.length, title: 'Your documents', text: `${docsDone} of ${general.length} checked${general.some((d) => d.state === 'rejected' || d.state === 'expired') ? ': one needs uploading again' : general.some((d) => d.state === 'uploaded') ? ': waiting for the project manager to check' : ''}.`, hash: '#documents' },
+    { done: summary.user.safeguarding?.version === SAFEGUARDING_VERSION, title: 'Safeguarding procedure', text: summary.user.safeguarding?.version === SAFEGUARDING_VERSION ? 'Read and confirmed. Come back to it whenever you need it.' : summary.user.safeguarding ? 'It has changed: please read it again and confirm.' : 'Read it and confirm you understand it.', hash: '#safeguarding', link: summary.user.safeguarding?.version === SAFEGUARDING_VERSION ? 'Read it again' : 'Read it now' },
     { done: summary.counts.training >= minTraining, title: 'Training', text: `${summary.counts.training} of ${minTraining} sessions confirmed${summary.waiting?.training ? `, ${summary.waiting.training} waiting for the team` : ''}. Log each one you attend.`, hash: '#training', link: 'Log training' },
     { done: summary.counts.pilots >= minPilots, title: 'Pilots', text: `${summary.counts.pilots} of ${minPilots} confirmed${summary.waiting?.pilots ? `, ${summary.waiting.pilots} waiting for the team` : ''}. Log each one you do.`, hash: '#training', link: 'Log a pilot' },
     { done: summary.availability.length > 0, title: 'Your availability', text: summary.availability.length ? `${summary.availability.filter((a) => a.value !== 'no').length} days marked available ahead.` : 'Mark the days you can help at schools.', hash: '#availability' },

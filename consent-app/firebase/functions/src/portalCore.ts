@@ -63,7 +63,7 @@ const TEAM_ACTIONS = new Set([
 ]);
 const PM_ACTIONS = new Set(['requests', 'approve', 'reject', 'set-role', 'archive', 'restore', 'verify-document', 'settings', 'save-settings', 'audit', 'override', 'remove-confirmed', 'save-doc-details', 'make-dbs-password', 'close-dbs-access', 'approve-for-school', 'save-sheet', 'sync-sheet', ...LINK_PM_ACTIONS, ...ISSUE_PM_ACTIONS]);
 /** Every active user, for themselves. */
-const SELF_ACTIONS = new Set(['me', 'my-summary', 'my-training', 'claim-session', 'delete-claim', 'update-profile', 'notifications', 'mark-read', 'register-document', 'document-url', 'set-availability', 'open-visits', 'set-interest', 'respond-offer', 'canvass-answer', 'push-key', 'push-subscribe', 'push-unsubscribe', 'push-test', 'set-dbs-applied', ...ISSUE_SELF_ACTIONS]);
+const SELF_ACTIONS = new Set(['me', 'my-summary', 'my-training', 'claim-session', 'delete-claim', 'update-profile', 'notifications', 'mark-read', 'register-document', 'document-url', 'set-availability', 'open-visits', 'set-interest', 'respond-offer', 'canvass-answer', 'push-key', 'push-subscribe', 'push-unsubscribe', 'push-test', 'set-dbs-applied', 'safeguarding-ack', ...ISSUE_SELF_ACTIONS]);
 /** Anyone signed in with a checked email, active or not: asking for an account, and seeing where the request stands. */
 const OPEN_ACTIONS = new Set(['me', 'request-access']);
 
@@ -404,7 +404,16 @@ export interface Eligibility {
  * the visit's day, every required document (the school's too) verified and in
  * date, and at least the set number of training sessions and pilots.
  */
+/**
+ * The version of the safeguarding procedure everyone confirms they have read
+ * (the portal's Safeguarding page, src/portal/safeguarding.tsx, shows the same
+ * version). Changing it asks everyone to read and confirm it again.
+ */
+export const SAFEGUARDING_VERSION = '7 November 2026';
+
 export interface EligibilityExtras {
+  /** Whether they have confirmed they read and understand the current safeguarding procedure; left out, it is not checked. */
+  safeguardingRead?: boolean;
   /** A member of the research team booked as a lead: documents count, training numbers do not. */
   lead?: boolean;
   signOff?: SignOff;
@@ -428,6 +437,7 @@ export function eligibilityFor(uid: string, docs: Map<string, PortalDoc>, requir
     if (counts.pilots < settings.minPilots) reasons.push(`Pilots: ${counts.pilots} of ${settings.minPilots}`);
     if (settings.requireSignOff && (extras.signOff ?? 'not-trained') !== 'signed-off') reasons.push(`Training sign-off: ${SIGN_OFF_LABEL[extras.signOff ?? 'not-trained'].toLowerCase()}`);
   }
+  if (extras.safeguardingRead === false) reasons.push('Safeguarding procedure: not yet read and confirmed');
   if (extras.schoolApproval?.required && !extras.schoolApproval.approved) reasons.push(`Not yet approved by ${extras.schoolApproval.schoolName}`);
   return { eligible: reasons.length === 0, reasons };
 }

@@ -4660,3 +4660,39 @@ button.mpmb-link__stat { cursor: pointer; }
   height: 1px;
   overflow: hidden;
 }
+
+/* The portal's Safeguarding page (src/portal/safeguarding.tsx). */
+.mpmb-sg { max-width: 52rem; }
+.mpmb-sg__lead { font-size: 1.08rem; color: var(--mpb-ink); }
+.mpmb-sg__h { margin-top: 2rem; padding-top: 0.75rem; border-top: 1px solid var(--mpb-line); scroll-margin-top: 5rem; }
+.mpmb-sg__h:focus { outline: none; }
+.mpmb-sg ul, .mpmb-sg ol { padding-left: 1.3rem; }
+.mpmb-sg li + li { margin-top: 0.35rem; }
+.mpmb-sg__spaced li + li { margin-top: 0.7rem; }
+.mpmb-sg__toc ol { columns: 2 16rem; margin: 0; }
+.mpmb-sg__toc li { break-inside: avoid; }
+.mpmb-sg__principles > li { padding-left: 0.2rem; }
+.mpmb-sg__cards { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); margin: 0.75rem 0; }
+.mpmb-sg__cards .mpmb-card { margin: 0; }
+.mpmb-sg__threshold { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); margin: 1rem 0; }
+.mpmb-sg__threshold section { border-radius: 10px; padding: 0.9rem 1rem; border: 1px solid var(--mpb-line); }
+.mpmb-sg__meets { background: var(--mpb-error-bg); border-color: var(--mpb-pink) !important; }
+.mpmb-sg__notmeets { background: var(--mpb-white); }
+.mpmb-sg__threshold h3 { margin-top: 0; }
+.mpmb-sg__flow { list-style: none; padding: 0 !important; margin: 0.5rem 0 0; }
+.mpmb-sg__flow li { position: relative; border: 1px solid var(--mpb-line); border-radius: 8px; padding: 0.6rem 0.8rem; background: var(--mpb-white); }
+.mpmb-sg__flow li + li { margin-top: 1.6rem !important; }
+.mpmb-sg__flow li + li::before { content: '↓'; position: absolute; top: -1.45rem; left: 1rem; color: var(--mpb-teal); font-weight: 700; }
+.mpmb-sg__flow li.is-final { border-color: var(--mpb-teal); background: var(--mpb-mist); }
+.mpmb-sg__roles th[scope='row'] { white-space: nowrap; }
+.mpmb-sg__support dt { font-weight: 700; color: var(--mpb-ink); margin-top: 0.7rem; }
+.mpmb-sg__support dd { margin: 0.15rem 0 0; }
+.mpmb-sg__ack { margin-top: 2rem; border: 2px solid var(--mpb-teal); }
+@media (max-width: 40rem) {
+  /* The roles table as one card per role on a phone. */
+  .mpmb-sg__roles thead { position: absolute; left: -10000px; }
+  .mpmb-sg__roles, .mpmb-sg__roles tbody, .mpmb-sg__roles tr, .mpmb-sg__roles th, .mpmb-sg__roles td { display: block; width: auto; }
+  .mpmb-sg__roles tr { border: 1px solid var(--mpb-line); border-radius: 8px; padding: 0.4rem 0.2rem; margin-bottom: 0.6rem; }
+  .mpmb-sg__roles th[scope='row'] { white-space: normal; font-size: 1rem; color: var(--mpb-ink); }
+  .mpmb-sg__roles th, .mpmb-sg__roles td { border-bottom: 0; padding: 0.2rem 0.5rem; }
+}

@@ -20,12 +20,16 @@ export interface PortalUser {
   notifyPrefs: { newDatesPush: boolean; newDatesEmail: boolean };
   createdAt: string | null;
   archivedAt: string | null;
+  /** The safeguarding procedure they confirmed reading (its version), and when; null if never. */
+  safeguarding?: { version: string; at: string | null } | null;
 }
 
 export interface Me {
   email: string;
   user: PortalUser | null;
   unread: number;
+  /** The current version of the safeguarding procedure. */
+  safeguardingVersion?: string;
 }
 
 export interface DocRow {

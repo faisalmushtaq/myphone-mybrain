@@ -101,6 +101,21 @@ document (the school's too) checked and in date, at least the set number of
 training sessions (default 2) and pilots (default 1). The team sees the
 reasons for anyone who is not ready.
 
+**Safeguarding procedure.** Everyone has a Safeguarding page in the menu
+(`src/portal/safeguarding.tsx`): the schools study's safeguarding procedure
+(the team's draft of 7 November 2026), with the essentials first, a contents
+list, the threshold and the two routes to the school's DSL laid out as cards,
+and phone numbers and emails that can be tapped. At the end, "I have read …,
+I understand it, and I will follow it" and Confirm, which records the version
+and the time on the person (`portalUsers/{uid}.safeguardingAck`, and the audit
+log). Until the current version is confirmed, a reminder shows on the first
+page, the research assistants' checklist has it as a step, and the person is
+not ready for visits ("Safeguarding procedure: not yet read and confirmed"),
+team leads included. The page stays there to come back to. When the procedure
+changes, edit the page and change `SAFEGUARDING_VERSION` in both
+`safeguarding.tsx` and `firebase/functions/src/portalCore.ts` (a test checks
+they match): everyone is asked to read and confirm it again.
+
 **Training and pilots.** The team records each session (training or pilot,
 date, title, who attended); each person's counts follow.
 

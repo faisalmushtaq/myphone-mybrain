@@ -217,3 +217,13 @@ test('UK times: a visit’s start in winter and in summer', () => {
   assert.equal(ukDateTime('2026-11-20', '08:30').toISOString(), '2026-11-20T08:30:00.000Z');
   assert.equal(ukDateTime('2027-06-10', '08:30').toISOString(), '2027-06-10T07:30:00.000Z');
 });
+
+test('safeguarding: the portal page and the server show the same version, and not having confirmed it means not ready', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { SAFEGUARDING_VERSION, eligibilityFor: elig, DEFAULT_SETTINGS: S } = await import('./portalCore.js');
+  const page = readFileSync(require('node:path').join(__dirname, '../../../src/portal/safeguarding.tsx'), 'utf8');
+  assert.ok(page.includes(`export const SAFEGUARDING_VERSION = '${SAFEGUARDING_VERSION}';`), 'src/portal/safeguarding.tsx and portalCore.ts disagree on the version');
+  const none = { training: 0, pilots: 0 };
+  assert.deepEqual(elig('u', new Map(), [], none, S, '2026-12-01', { lead: true, safeguardingRead: false }).reasons, ['Safeguarding procedure: not yet read and confirmed']);
+  assert.deepEqual(elig('u', new Map(), [], none, S, '2026-12-01', { lead: true, safeguardingRead: true }).reasons, []);
+});
