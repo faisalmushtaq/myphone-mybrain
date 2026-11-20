@@ -26,6 +26,7 @@ import { SCHOOL_QUARANTINE } from './schoolUpload.js';
 export { staffApi } from './staff.js';
 export { labRecruitment, labWaitlist } from './recruitment.js';
 export { portalApi, portalHousekeeping, portalSheetSync } from './portal.js';
+export { portalSignUp } from './portalSignUp.js';
 export { linkageHourly, linkageOnNewData } from './linkageJobs.js';
 export { issuesDigest } from './issuesStore.js';
 export { schoolDbs } from './schoolDbs.js';

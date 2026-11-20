@@ -1,5 +1,5 @@
 import { FirebaseError, getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
-import { connectAuthEmulator, createUserWithEmailAndPassword, EmailAuthProvider, getAuth, getRedirectResult, GoogleAuthProvider, isSignInWithEmailLink, linkWithCredential, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, sendSignInLinkToEmail, signInWithEmailAndPassword, signInWithEmailLink, signInWithPopup, signInWithRedirect, signOut, updatePassword, type Auth, type User } from 'firebase/auth';
+import { connectAuthEmulator, EmailAuthProvider, getAuth, getRedirectResult, GoogleAuthProvider, isSignInWithEmailLink, linkWithCredential, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, sendSignInLinkToEmail, signInWithEmailAndPassword, signInWithEmailLink, signInWithPopup, signInWithRedirect, signOut, updatePassword, type Auth, type User } from 'firebase/auth';
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, getStorage, ref, uploadBytesResumable, type FirebaseStorage } from 'firebase/storage';
 import { backendName } from '../api';
@@ -64,6 +64,8 @@ function mapError(error: unknown): PortalError {
     // Passwords (4 November 2026), in plain words.
     if (code === 'weak-password') return new PortalError(`That password is too easy to guess. Use at least ${MIN_PASSWORD} characters.`, 'invalid');
     if (code === 'wrong-password' || code === 'invalid-credential' || code === 'invalid-login-credentials' || code === 'user-not-found') return new PortalError('That email and password do not match. Check them, or use “Forgot your password?”.', 'invalid');
+    if (code === 'resource-exhausted') return new PortalError(message, 'invalid');
+    if (code === 'already-exists') return new PortalError('There is already an account with that email. Sign in with your password, or use “Forgot your password?”.', 'invalid');
     if (code === 'too-many-requests') return new PortalError('Too many tries. Wait a few minutes, or use “Forgot your password?”.', 'invalid');
     if (code === 'email-already-in-use' || code === 'credential-already-in-use' || code === 'provider-already-linked') return new PortalError('There is already an account with that email. Sign in with your password, or use “Forgot your password?”.', 'invalid');
     if (code === 'requires-recent-login') return new PortalError('For your security, sign out, sign in again, then set your password.', 'invalid');
@@ -141,13 +143,48 @@ export async function signInWithPassword(email: string, password: string): Promi
   }
 }
 
-/** A new account with a password; the address must then be verified from the email sent, before the portal opens. */
-export async function createPasswordAccount(email: string, password: string): Promise<void> {
+/** The proof of work the sign-up asks for (firebase/functions/src/portalSignUp.ts): a nonce so that sha256(email|ts|nonce) starts with this many zero bits. */
+const POW_BITS = 18;
+
+function zeroBits(bytes: Uint8Array): number {
+  let bits = 0;
+  for (const b of bytes) {
+    if (b === 0) {
+      bits += 8;
+      continue;
+    }
+    return bits + Math.clz32(b) - 24;
+  }
+  return bits;
+}
+
+async function proofOfWork(email: string): Promise<{ ts: number; nonce: string }> {
+  const ts = Date.now();
+  const enc = new TextEncoder();
+  // Hashed in batches, so the page stays responsive; a second or two on a phone.
+  for (let start = 0; ; start += 512) {
+    const nonces = Array.from({ length: 512 }, (_, i) => (start + i).toString(36));
+    const digests = await Promise.all(nonces.map((n) => crypto.subtle.digest('SHA-256', enc.encode(`${email}|${ts}|${n}`))));
+    const hit = digests.findIndex((d) => zeroBits(new Uint8Array(d)) >= POW_BITS);
+    if (hit >= 0) return { ts, nonce: nonces[hit] };
+  }
+}
+
+/**
+ * A new account with a password; the address must then be verified from the email sent, before the portal opens.
+ * The account is made by the server (portalSignUp), which checks a hidden field, a proof of work and rate limits;
+ * the browser cannot make accounts itself.
+ */
+export async function createPasswordAccount(email: string, password: string, website = ''): Promise<void> {
   const c = connection();
   if (!c) throw new PortalError('The portal is not connected in this build.', 'server');
   checkPassword(password);
+  const address = email.trim().toLowerCase();
   try {
-    const { user } = await createUserWithEmailAndPassword(c.auth, email.trim(), password);
+    const { ts, nonce } = await proofOfWork(address);
+    await httpsCallable(c.functions, 'portalSignUp')({ email: address, password, ts, nonce, website });
+    if (website) return;
+    const { user } = await signInWithEmailAndPassword(c.auth, address, password);
     await sendEmailVerification(user, backHere());
   } catch (error) {
     throw mapError(error);

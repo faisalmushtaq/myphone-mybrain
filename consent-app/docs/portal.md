@@ -24,6 +24,22 @@ finishes signing in, but no new links are sent. To make it final, turn off
 Google and "Email link (passwordless sign-in)" in the Firebase console
 (Authentication, Sign-in method), leaving Email/Password on.
 
+**Stopping spam sign-ups** (since 20 November 2026). Accounts are made by the
+server (`portalSignUp`, in `firebase/functions/src/portalSignUp.ts`), not the
+browser, and the deploy switches off Firebase's own browser sign-up
+(Authentication, Settings, User actions, "Enable create (sign-up)"; if the
+deploy can't, it warns, and that box is unticked by hand). A sign-up must
+leave a hidden "Website" field empty (bots fill it: they are told yes and get
+nothing), carry an invisible proof of work (the browser finds a number so that
+a hash of the address, the time and the number starts with 18 zero bits: under
+a second on a laptop, a few seconds on an old phone, costly in bulk; made in
+the last 10 minutes and usable once), and be within the limits: 5 an hour from
+one connection, 3 a day for one address, 40 a day in all. Account requests,
+which email the project managers, are limited the same way (5 an hour from one
+connection, 40 a day). Over a limit, people see "Too many … just now. Please
+try again later, or ask the study team to help." The limits are in
+`ratelimits`, which the export never reads.
+
  The portal uses its own Firebase app
 instance, so a portal sign-in never mixes with the anonymous sessions the
 participant pages use in the same browser.

@@ -114,10 +114,26 @@ jobs:
           esac
           npx --yes firebase-tools@15 deploy --only "$only" --project "$PROJECT_ID" --non-interactive --force
 
+      - name: Allow portal accounts to be made only by the server
+        # Staff portal accounts are made by portalSignUp (a proof of work and rate limits), so the browser's own
+        # sign-up is switched off in Firebase Authentication. Sign-in, password resets and verification still work.
+        if: ${{ inputs.target != 'rules only' }}
+        run: |
+          token=$(gcloud auth print-access-token)
+          url="https://identitytoolkit.googleapis.com/admin/v2/projects/$PROJECT_ID/config"
+          code=$(curl -s -o /tmp/auth-config.json -w '%{http_code}' -X PATCH "$url?updateMask=client.permissions.disabledUserSignup" \
+            -H "Authorization: Bearer $token" -H "X-Goog-User-Project: $PROJECT_ID" -H 'Content-Type: application/json' \
+            -d '{"client":{"permissions":{"disabledUserSignup":true}}}')
+          if [ "$code" = 200 ] && grep -q '"disabledUserSignup": true' /tmp/auth-config.json; then
+            echo "browser sign-up is off; accounts are made by portalSignUp"
+          else
+            echo "::warning::Could not switch off browser sign-up (http $code). In the Firebase console: Authentication, Settings, User actions, untick Enable create (sign-up)."
+          fi
+
       - name: Keep the callables reachable from the website
         if: ${{ inputs.target != 'rules only' }}
         run: |
-          for fn in submitconsent submitdonation enquiry submitlabconsent lookuplabparticipant submitlabdonation requestlabreminder submitlabcheckin updatelabplatforms labbookingoptions booklabslot cancellabbooking submitlabstory emaillabstory labstorychat labstoryvoice resumerecord schoolupload staffapi usage findaddresses labrecruitment labwaitlist labdailymessages; do
+          for fn in submitconsent submitdonation enquiry submitlabconsent lookuplabparticipant submitlabdonation requestlabreminder submitlabcheckin updatelabplatforms labbookingoptions booklabslot cancellabbooking submitlabstory emaillabstory labstorychat labstoryvoice resumerecord schoolupload staffapi usage findaddresses labrecruitment labwaitlist labdailymessages portalsignup; do
             gcloud run services add-iam-policy-binding "$fn" --region="$REGION" --member=allUsers --role=roles/run.invoker --project="$PROJECT_ID" --quiet >/dev/null
           done
 
@@ -135,7 +151,7 @@ jobs:
       - name: Check the functions answer
         if: ${{ inputs.target != 'rules only' }}
         run: |
-          for fn in submitConsent submitDonation enquiry submitLabConsent lookupLabParticipant submitLabDonation requestLabReminder submitLabCheckIn updateLabPlatforms labBookingOptions bookLabSlot cancelLabBooking submitLabStory emailLabStory labStoryChat labStoryVoice resumeRecord schoolUpload staffApi usage findAddresses labWaitlist labDailyMessages; do
+          for fn in submitConsent submitDonation enquiry submitLabConsent lookupLabParticipant submitLabDonation requestLabReminder submitLabCheckIn updateLabPlatforms labBookingOptions bookLabSlot cancelLabBooking submitLabStory emailLabStory labStoryChat labStoryVoice resumeRecord schoolUpload staffApi usage findAddresses labWaitlist labDailyMessages portalSignUp; do
             code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "https://$REGION-$PROJECT_ID.cloudfunctions.net/$fn" -H 'Content-Type: application/json' -H 'Origin: https://myphonemybrain.com' -d '{}')
             echo "$fn → http $code"
             case "$code" in 400|401) ;; *) echo "unexpected status for $fn"; exit 1 ;; esac

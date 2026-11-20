@@ -113,6 +113,7 @@ import {
   RA_ROLES,
   type EligibilityExtras,
 } from './portalCore.js';
+import { ipOf, requestLimited } from './portalSignUp.js';
 import { buildWorkbook, schoolShort, spreadsheetIdOf, type SheetData } from './portalSheets.js';
 import { PROJECT, serviceAccountEmail, syncErrorText, writeWorkbook } from './portalSheetsSync.js';
 import { linkageAction, summaryOf } from './linkageStore.js';
@@ -619,6 +620,8 @@ export const portalApi = onCall(callOptions, async (request) => {
       if (name.length < 2) throw bad('Please give your full name.');
       if (phone && !ukMobile(phone)) throw bad('Please give a UK mobile number, or leave it empty.');
       const requested = data.requested === 'team' ? 'team' : 'ra';
+      // Requests email the managers, so they are limited per connection and per day (portalSignUp.ts).
+      if (await requestLimited(db, me.uid, ipOf(request.rawRequest as never))) throw new HttpsError('resource-exhausted', 'Too many account requests just now. Please try again later, or ask the study team to help.');
       await ref.set({ email: me.email, name, phone, requested, role: null, status: 'pending', smsOptIn: false, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
       await audit(db, { ...me, name }, 'request-access', me.uid, { requested });
       await tellTeam(db, { title: 'New account request', body: `${name} (${me.email}) asked for ${requested === 'team' ? 'a staff member' : 'a research assistant'} account.`, link: '#people' }, ['pm'], {

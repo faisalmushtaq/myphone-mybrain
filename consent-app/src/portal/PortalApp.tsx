@@ -223,6 +223,7 @@ function PasswordSignIn({ initialEmail }: { initialEmail: string }) {
   const [mode, setMode] = useState<'sign-in' | 'create' | 'reset'>('sign-in');
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
+  const [website, setWebsite] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -241,7 +242,7 @@ function PasswordSignIn({ initialEmail }: { initialEmail: string }) {
     setBusy(true);
     try {
       if (mode === 'sign-in') await signInWithPassword(email, password);
-      else if (mode === 'create') await createPasswordAccount(email, password);
+      else if (mode === 'create') await createPasswordAccount(email, password, website);
       else {
         await sendPasswordReset(email);
         setNotice(`If ${email.trim()} has an account, we have sent it a link to choose a new password. Open it, then sign in here.`);
@@ -264,6 +265,13 @@ function PasswordSignIn({ initialEmail }: { initialEmail: string }) {
       <TextField id="pw-email" label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       {mode !== 'reset' && (
         <TextField id="pw-password" label="Password" type="password" autoComplete={mode === 'create' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} hint={mode === 'create' ? `At least ${MIN_PASSWORD} characters. We will email you to confirm your address.` : undefined} />
+      )}
+      {mode === 'create' && (
+        // Left empty by people (it is hidden); bots that fill every field get no account.
+        <div className="mpmb-honeypot" aria-hidden="true">
+          <label htmlFor="pw-website">Website</label>
+          <input id="pw-website" name="website" type="text" tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
+        </div>
       )}
       {error && (
         <p className="mpmb-error" role="alert">

@@ -4651,3 +4651,12 @@ button.mpmb-link__stat { cursor: pointer; }
 .mpmb-issue__comments { display: grid; gap: 0.5rem; padding: 0; list-style: none; }
 .mpmb-issue__comments li { padding: 0.6rem 0.8rem; border: 1px solid var(--mpb-line); border-radius: 8px; background: var(--mpb-white); }
 .mpmb-app .mpmb-issue__save .mpmb-btn { width: 100%; justify-content: center; }
+
+/* A field only bots fill in (the portal's create-account form). */
+.mpmb-honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
