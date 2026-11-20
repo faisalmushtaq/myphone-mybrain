@@ -93,7 +93,7 @@ function Frame() {
         <div className="mpmb-band__inner">
           <div className="mpmb-band__row">
             <p className="mpmb-band__kicker">
-              <span>MyPhone/MyBrain</span> New Year social media break
+              New Year social media break
             </p>
             {participant && (
               <p className="ny-band__who">

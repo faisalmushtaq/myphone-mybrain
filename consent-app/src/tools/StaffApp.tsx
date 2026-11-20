@@ -154,7 +154,7 @@ export function StaffApp() {
     return (
       <form className="mpmb-step mpmb-tools" onSubmit={submit}>
         <header className="mpmb-step__header">
-          <p className="mpmb-kicker">MyPhone/MyBrain research team</p>
+          <p className="mpmb-kicker">Research team</p>
           <h1 className="mpmb-h1">Dashboard</h1>
           <p className="mpmb-lead">Lab times and bookings for the social media break study, participants’ links, and the schools’ upload passwords.</p>
           <p>
@@ -183,7 +183,7 @@ export function StaffApp() {
     <div className="mpmb-step mpmb-step--wide mpmb-tools">
       <header className="mpmb-tools__head">
         <div>
-          <p className="mpmb-kicker">MyPhone/MyBrain research team</p>
+          <p className="mpmb-kicker">Research team</p>
           <h1 className="mpmb-h1">Dashboard</h1>
           {overview && (
             <p className={`mpmb-tools__export${exportStale ? ' is-stale' : ''}`} role={exportStale ? 'status' : undefined}>

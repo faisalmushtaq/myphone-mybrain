@@ -160,7 +160,7 @@ export function LabCheckIn() {
   // The control group has no check-in (22 October 2026).
   if (ready && group === "control") {
     return (
-      <LabShell kicker="MyPhone/MyBrain" title="There is no check-in for you." hideContinue hideBack>
+      <LabShell kicker="Check-in" title="There is no check-in for you." hideContinue hideBack>
         <p>
           In your part of the study there is nothing to do between your visits. About a week before your second visit, we
           remind you to send your screen-time screenshots and app data again.

@@ -71,7 +71,7 @@ function Frame() {
         <div className="mpmb-band__inner">
           <div className="mpmb-band__row">
             <p className="mpmb-band__kicker">
-              <span>MyPhone/MyBrain</span> {groupKnown ? words.study : 'Lab study'}
+              {groupKnown ? words.study : 'Lab study'}
               {state.flow === 'checkin' ? ` · ${words.midName}` : state.flow === 'after' ? ` · ${groupKnown ? words.After : 'Before your second visit'}` : state.flow !== 'baseline' ? ` · ${labPages[state.flow].label}` : ''}
             </p>
             <a className="mpmb-band__back" href={group === 'control' ? labControlPaths.baseline : '/break/'}>

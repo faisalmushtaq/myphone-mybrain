@@ -173,7 +173,7 @@ function Shell() {
       <div className={`mpmb-band${showProgress ? '' : ' mpmb-band--slim'}`}>
         <div className="mpmb-band__inner">
           <p className="mpmb-band__kicker">
-            <span>MyPhone/MyBrain</span> Phone use and screen time
+            Phone use and screen time
           </p>
           {showProgress && <ProgressNav />}
         </div>

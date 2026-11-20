@@ -193,7 +193,6 @@ function VerifyEmail({ email, done }: { email: string; done: () => Promise<void>
   };
   return (
     <Shell>
-      <p className="mpmb-kicker">MyPhone/MyBrain</p>
       <h1 className="mpmb-h1">Check your email to verify your address</h1>
       <p className="mpmb-lead">
         We sent a link to <strong>{email}</strong>. Open it to confirm the address is yours, then come back here.
@@ -380,7 +379,6 @@ function SignIn() {
 
   return (
     <Shell>
-      <p className="mpmb-kicker">MyPhone/MyBrain</p>
       <h1 className="mpmb-h1">Staff portal</h1>
       {sent ? (
         <Callout tone="success" title="Check your email" role="status">
@@ -631,7 +629,7 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
       <div className="container">
         <header className="mpmb-tools__head mpmb-portal__head">
           <div>
-            <p className="mpmb-kicker">MyPhone/MyBrain staff portal</p>
+            <p className="mpmb-kicker">Staff portal</p>
             <p className="mpmb-portal__who">
               {user.name} · {ROLE_LABEL[role]}
             </p>
