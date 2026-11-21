@@ -1,10 +1,12 @@
 import type { VisitKind } from '../config';
 import items from './breakStudyItems.json';
 import type { SurveySection } from './engine';
+import { GRIT_VERSION, gritSection } from './grit';
 import { MOTIVATION_VERSION, motivationEnd, motivationFollowUp, motivationStart } from './motivation';
 
 /**
- * Which questionnaires each visit asks: the motivation questions first, then the
+ * Which questionnaires each visit asks: the motivation questions first, the Short
+ * Grit Scale, then the
  * social media break lab study's published MySelf survey (the start visit takes
  * the pre-break survey, the end and follow-ups the post-break survey).
  */
@@ -14,9 +16,9 @@ const end = items.end.sections as unknown as SurveySection[];
 export type SurveySet = 'start' | 'end' | 'followup';
 
 export function surveyFor(kind: VisitKind): { set: SurveySet; sections: SurveySection[]; version: string } | null {
-  if (kind === 'start') return { set: 'start', sections: [motivationStart, ...start], version: `motivation ${MOTIVATION_VERSION}; ${items.start.survey} ${items.start.version}` };
-  if (kind === 'end') return { set: 'end', sections: [motivationEnd, ...end], version: `motivation ${MOTIVATION_VERSION}; ${items.end.survey} ${items.end.version}` };
-  if (kind === 'followup1' || kind === 'followup3') return { set: 'followup', sections: [motivationFollowUp, ...end], version: `motivation ${MOTIVATION_VERSION}; ${items.end.survey} ${items.end.version}` };
+  if (kind === 'start') return { set: 'start', sections: [motivationStart, gritSection, ...start], version: `motivation ${MOTIVATION_VERSION}; grit_s ${GRIT_VERSION}; ${items.start.survey} ${items.start.version}` };
+  if (kind === 'end') return { set: 'end', sections: [motivationEnd, gritSection, ...end], version: `motivation ${MOTIVATION_VERSION}; grit_s ${GRIT_VERSION}; ${items.end.survey} ${items.end.version}` };
+  if (kind === 'followup1' || kind === 'followup3') return { set: 'followup', sections: [motivationFollowUp, gritSection, ...end], version: `motivation ${MOTIVATION_VERSION}; grit_s ${GRIT_VERSION}; ${items.end.survey} ${items.end.version}` };
   return null;
 }
 

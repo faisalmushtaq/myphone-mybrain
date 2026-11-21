@@ -325,3 +325,13 @@ study's, marked as drafts for Michelle to adapt (open-ended, worldwide, from
 Remi says only what those files say. In the preview the step explains where
 the chat goes; it runs once the server stage is built and Michelle has
 approved the files.
+
+**The Short Grit Scale (21 November 2026, the PI).** The 8-item Grit-S
+(Duckworth and Quinn, 2009; free for non-commercial research) comes after the
+motivation questions at the start, the end and both follow-ups, so change can
+be compared. Answers are coded as published (Very much like me = 5 to Not
+like me at all = 1); items 1, 3, 5 and 6 are reversed in scoring; the score is
+the mean of the eight (1 to 5), with consistency-of-interest and
+perseverance-of-effort subscales. The results page shows it next to wellbeing.
+`survey/grit.ts` (tested). The wording is the published 2009 version; check it
+against the paper before ethics submission.

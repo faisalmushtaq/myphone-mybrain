@@ -8,6 +8,7 @@ import type { Visit } from '../model';
 import { NyShell } from '../NyShell';
 import { chosenNames, listText, meetsAim } from '../targets';
 import { useNy } from '../store';
+import { gritScores } from '../survey/grit';
 import { swemwbsTotal } from '../survey/surveys';
 
 function comparable(v: Visit): ComparableScores {
@@ -32,6 +33,8 @@ export function Results({ visitId }: { visitId: string }) {
   const startStart = done.find((v) => v.kind === 'start')?.survey;
   const wellbeingNow = visit.survey ? swemwbsTotal(visit.survey.answers) : null;
   const wellbeingStart = startStart ? swemwbsTotal(startStart.answers) : null;
+  const gritNow = visit.survey ? gritScores(visit.survey.answers) : null;
+  const gritStart = startStart ? gritScores(startStart.answers) : null;
   const validated = Boolean(visit.screenshot && visit.digitSpan && visit.sart);
   const span = visit.digitSpan?.score;
   const odd = visit.sart?.scores;
@@ -110,6 +113,12 @@ export function Results({ visitId }: { visitId: string }) {
             Your wellbeing score is {wellbeingNow} out of 35
             {wellbeingStart !== null && visit.kind !== 'start' ? `, compared with ${wellbeingStart} at the start` : ''}. Higher means feeling better over the last two weeks.
           </p>
+          {gritNow && (
+            <p>
+              Your grit score is {gritNow.grit.toFixed(2)} out of 5
+              {gritStart && visit.kind !== 'start' ? `, compared with ${gritStart.grit.toFixed(2)} at the start` : ''}: how much you stick with goals and keep going after setbacks (the Short Grit Scale).
+            </p>
+          )}
         </section>
       )}
 

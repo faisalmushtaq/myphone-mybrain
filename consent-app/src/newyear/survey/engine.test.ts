@@ -58,3 +58,23 @@ describe('the online study’s questionnaires', () => {
     expect(problemWith(soft, undefined)).toBeNull();
   });
 });
+
+describe('the Short Grit Scale', () => {
+  it('is asked at the start, the end and the follow-ups, after the motivation questions', async () => {
+    for (const kind of ['start', 'end', 'followup1', 'followup3'] as const) {
+      const vars = flatten(surveyFor(kind)!.sections).map((p) => p.item.variable);
+      expect(vars.filter((v) => v.startsWith('grit_q'))).toEqual(['grit_q1', 'grit_q2', 'grit_q3', 'grit_q4', 'grit_q5', 'grit_q6', 'grit_q7', 'grit_q8']);
+      expect(surveyFor(kind)!.sections[1].key).toBe('grit');
+    }
+  });
+
+  it('is scored as published: the mean of eight, with items 1, 3, 5 and 6 reversed', async () => {
+    const { gritScores } = await import('./grit');
+    const answer = (codes: number[]): Answers => Object.fromEntries(codes.map((code, i) => [`grit_q${i + 1}`, { kind: 'code' as const, code }]));
+    // "Very much like me" to everything: the reversed items count 1, the rest 5.
+    expect(gritScores(answer([5, 5, 5, 5, 5, 5, 5, 5]))).toEqual({ grit: 3, consistency: 1, perseverance: 5 });
+    // The grittiest answers: "Not like me at all" to the reversed items, "Very much like me" to the rest.
+    expect(gritScores(answer([1, 5, 1, 5, 1, 1, 5, 5]))).toEqual({ grit: 5, consistency: 5, perseverance: 5 });
+    expect(gritScores(answer([5, 5, 5]))).toBeNull();
+  });
+});
