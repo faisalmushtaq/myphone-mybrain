@@ -8,6 +8,7 @@ import type { Visit } from '../model';
 import { NyShell } from '../NyShell';
 import { chosenNames, listText, meetsAim } from '../targets';
 import { useNy } from '../store';
+import { swemwbsTotal } from '../survey/surveys';
 
 function comparable(v: Visit): ComparableScores {
   const a = v.sart?.scores;
@@ -16,7 +17,6 @@ function comparable(v: Visit): ComparableScores {
 
 const pct = (v: number | null) => (v === null ? 'n/a' : `${Math.round(v * 100)}%`);
 const msText = (v: number | null) => (v === null ? 'n/a' : `${Math.round(v)} ms`);
-const total = (a: number[]) => a.reduce((x, y) => x + y, 0);
 const label = (v: Visit) => `${VISIT_TEXT[v.kind].name}, ${formatDay(v.completedOn ?? v.startedOn, 'no-year')}`;
 
 /** One visit's results, in plain words, compared with the start and with the visit before. */
@@ -29,7 +29,9 @@ export function Results({ visitId }: { visitId: string }) {
   const withBrain = done.filter((v) => v.digitSpan && v.sart);
   const earlierBrain = withBrain.filter((v) => String(v.completedAt) < String(visit.completedAt));
   const against = [...new Set([earlierBrain[0], earlierBrain[earlierBrain.length - 1]].filter((v): v is Visit => Boolean(v)))];
-  const startScales = done.find((v) => v.kind === 'start')?.scales;
+  const startStart = done.find((v) => v.kind === 'start')?.survey;
+  const wellbeingNow = visit.survey ? swemwbsTotal(visit.survey.answers) : null;
+  const wellbeingStart = startStart ? swemwbsTotal(startStart.answers) : null;
   const validated = Boolean(visit.screenshot && visit.digitSpan && visit.sart);
   const span = visit.digitSpan?.score;
   const odd = visit.sart?.scores;
@@ -99,14 +101,14 @@ export function Results({ visitId }: { visitId: string }) {
       )}
       {!span && visit.skippedBrainCheck && <p>You didn’t do the brain check this time. Do it at your next return visit to see how your scores compare.</p>}
 
-      {visit.scales && (
+      {wellbeingNow !== null && (
         <section aria-labelledby="ny-wellbeing" className="ny-section">
           <h2 className="mpmb-h3" id="ny-wellbeing">
             Wellbeing
           </h2>
           <p>
-            Your wellbeing score is {total(visit.scales.swemwbs)} out of 35
-            {startScales && visit.kind !== 'start' ? `, compared with ${total(startScales.swemwbs)} at the start` : ''}. Higher means feeling better over the last two weeks.
+            Your wellbeing score is {wellbeingNow} out of 35
+            {wellbeingStart !== null && visit.kind !== 'start' ? `, compared with ${wellbeingStart} at the start` : ''}. Higher means feeling better over the last two weeks.
           </p>
         </section>
       )}

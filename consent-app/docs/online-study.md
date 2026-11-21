@@ -281,3 +281,47 @@ AI tools included) and total time under any limit. `targets.ts`.
 Still open: AI tools have no data download step yet (their exports, such as
 ChatGPT's, hold whole conversations, which needs its own cleaner and ethics
 review); the lab study's questionnaires are still to be listed.
+
+## Questionnaires and Remi (21 November 2026, the PI)
+
+**The break study's questionnaires.** The start visit asks the social media
+break lab study's published MySelf survey (pre-break, `social_media_break_lab_study`
+8.0.0); the end visit and the follow-ups ask its post-break survey
+(`post_break_lab_study` 3.0.0). They are exported, not retyped, from MySelf's
+survey archive (the `survey-archive` branch of faisalmushtaq/MySelf) by
+`scripts/export-myself-items.mjs` into `src/newyear/survey/breakStudyItems.json`:
+the same wording, answer options, order and display conditions. Left out
+because the online study asks its own or they belong to the lab: the consent
+screen, names, address and UK demographics, the EEG practicality, and the
+post-break survey's questions about the lab's 30-day break. What is in: hand
+preference (EHI-SF), the adult MacArthur ladders, sleep (SQS, KSS), SWEMWBS,
+STAI-5, PHQ-4, smartphone and AI use, social media use, time on each app,
+screen control and attitudes, patterns and attention, phone pickups,
+doomscrolling, and BIS/BAS. One question at a time, as in MySelf, saving as
+it goes (`views/Survey.tsx`, `survey/engine.ts`, tested). Adaptations: the
+app sorter is a tap list (the order tapped stands for MySelf's ranking), and
+"age you got your first smartphone" offers ages up to the person's age now,
+from their month of birth.
+
+For the team: the MacArthur ladder's wording says "in the UK", which does not
+fit people elsewhere; it is kept word for word until the team decides. Six of
+the questionnaires are used with permission (EHI-SF, KSS, SWEMWBS, STAI-5,
+doomscrolling items, BIS/BAS): check each permission covers an open,
+worldwide online study.
+
+**Motivation (study-written, draft 0.1).** First in the start visit: why they
+want to take a break (choose all) and the main reason, importance and
+confidence 0 to 10 (motivational interviewing's readiness rulers), readiness,
+what might make it hard, and what they hope will change. At the end and the
+follow-ups: how it went, whether they got what they hoped for, what was hard,
+what helped, what next, and importance now. `survey/motivation.ts`.
+
+**Remi.** A step at the start visit ("before"), once at a return visit two
+weeks or more in ("midway", optional), and at the end visit ("after"), as the
+lab study's MyStory. Its protocols are `src/newyear/mystory/online-pre.toml`,
+`online-mid.toml` and `online-post.toml`: word-for-word copies of the break
+study's, marked as drafts for Michelle to adapt (open-ended, worldwide, from
+16, and breaks from AI tools or total phone time as well as social media).
+Remi says only what those files say. In the preview the step explains where
+the chat goes; it runs once the server stage is built and Michelle has
+approved the files.

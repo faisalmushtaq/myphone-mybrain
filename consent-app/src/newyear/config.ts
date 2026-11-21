@@ -53,28 +53,6 @@ export const isSlip = (s: CheckStatus) => s === 'little' || s === 'lot';
 export const MOOD_LABELS = ['Very low', 'Low', 'Okay', 'Good', 'Very good'] as const;
 export const URGE_LABELS = ['Not at all', 'A little', 'Some', 'Quite a lot', 'A lot'] as const;
 
-/**
- * The Short Warwick-Edinburgh Mental Wellbeing Scale (SWEMWBS), 7 items, over
- * the last 2 weeks, each 1 (none of the time) to 5 (all of the time). Raw
- * total 7 to 35; the metric (Rasch) score is worked out at analysis. Needs
- * registering with Warwick before use (non-commercial licence).
- */
-export const SWEMWBS = {
-  id: 'swemwbs',
-  version: '1.0',
-  intro: 'Below are some statements about feelings and thoughts. Please choose the answer that best describes your experience of each over the last 2 weeks.',
-  items: [
-    'I’ve been feeling optimistic about the future',
-    'I’ve been feeling useful',
-    'I’ve been feeling relaxed',
-    'I’ve been dealing with problems well',
-    'I’ve been thinking clearly',
-    'I’ve been feeling close to other people',
-    'I’ve been able to make up my own mind about things',
-  ],
-  options: ['None of the time', 'Rarely', 'Some of the time', 'Often', 'All of the time'],
-} as const;
-
 /** The kinds of visit: start, return (any time), end, and the two follow-ups after the end. */
 export type VisitKind = 'start' | 'return' | 'end' | 'followup1' | 'followup3';
 export const VISIT_TEXT: Record<VisitKind, { name: string; title: string; when: string }> = {

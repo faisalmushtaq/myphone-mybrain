@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
-import { ErrorSummary } from '../../components/ui/ErrorSummary';
 import { ChoiceField, FieldWrapper } from '../../components/ui/Field';
 import { announce } from '../../lib/announce';
-import type { FieldError } from '../../lib/validation';
-import { FULL_VISITS, SWEMWBS, VISIT_TEXT, type VisitKind } from '../config';
+import { FULL_VISITS, VISIT_TEXT, type VisitKind } from '../config';
+import type { Answers } from '../survey/engine';
+import { surveyFor } from '../survey/surveys';
+import { ageOn } from './Join';
+import { Survey } from './Survey';
 import { addDays, formatDay } from '../dates';
 import { deviceInfo, newId } from '../device';
 import type { Visit as VisitRecord } from '../model';
@@ -18,12 +20,15 @@ import { AppData, ScreenTimeShots } from './Donation';
 import { SartGame } from './SartGame';
 
 
-type Step = 'scales' | 'brain-offer' | 'memory' | 'attention' | 'screenshot' | 'app-data' | 'reflect' | 'complete';
+type Step = 'survey' | 'remi' | 'remi-offer' | 'brain-offer' | 'memory' | 'attention' | 'screenshot' | 'app-data' | 'reflect' | 'complete';
 
 /** The next thing to do in a visit, from what it already has. */
-export function nextStep(v: VisitRecord): Step {
+export function nextStep(v: VisitRecord, remiMidDue = false): Step {
   const full = FULL_VISITS.includes(v.kind);
-  if (full && !v.scales) return 'scales';
+  if (full && !v.survey?.done) return 'survey';
+  // Remi, the AI chat: at the start and the end, and offered once at a return visit two weeks or more in.
+  if ((v.kind === 'start' || v.kind === 'end') && !v.remi) return 'remi';
+  if (v.kind === 'return' && remiMidDue && !v.remi && v.screenshot) return 'remi-offer';
   if (!full && !v.screenshot) return 'screenshot';
   if (!v.skippedBrainCheck && !v.digitSpan) return full ? 'memory' : 'brain-offer';
   if (!v.skippedBrainCheck && !v.sart) return 'attention';
@@ -52,7 +57,7 @@ function Intro({ kind, s }: { kind: VisitKind; s: BreakSummary }) {
   const blocked = canBegin(kind, s);
   const full = FULL_VISITS.includes(kind);
   const begin = () => {
-    const visit: VisitRecord = { id: newId(), kind, startedOn: today, startedAt: new Date().toISOString(), device: deviceInfo(), scales: null, digitSpan: null, sart: null, skippedBrainCheck: false, screenshot: null, appData: null, reflection: null, completedOn: null, completedAt: null };
+    const visit: VisitRecord = { id: newId(), kind, startedOn: today, startedAt: new Date().toISOString(), device: deviceInfo(), survey: null, digitSpan: null, sart: null, skippedBrainCheck: false, screenshot: null, appData: null, remi: null, reflection: null, completedOn: null, completedAt: null };
     dispatch({ type: 'visit-begin', visit });
   };
   return (
@@ -64,11 +69,12 @@ function Intro({ kind, s }: { kind: VisitKind; s: BreakSummary }) {
       ) : (
         <>
           <ol className="mpmb-list">
-            {full && <li>Some questions about how you’ve been feeling (about 2 minutes).</li>}
+            {full && <li>Questions about why you’re taking a break, how you’ve been, sleep, and your phone and social media (about 15 minutes), one at a time.</li>}
             {!full && <li>Screenshots of your phone’s screen-time summary, which prove your days off.</li>}
             <li>{full ? 'The brain check: a memory game, then an attention game (about 10 minutes).' : 'If you like, the brain check: a memory game and an attention game (about 10 minutes). Your scores count as validated with the screenshots.'}</li>
             {full && <li>Screenshots of your phone’s screen-time summary.</li>}
             {(kind === 'start' || kind === 'end') && <li>Your TikTok, YouTube and Instagram data downloads, as in the lab study: read and cleaned on your device, and you choose what to share. They can take a few days to arrive, so you can finish later.</li>}
+            {(kind === 'start' || kind === 'end') && <li>A chat with Remi, the study’s AI chat, as in the lab study (about 10 minutes).</li>}
             {kind === 'end' && <li>Two questions about how it went.</li>}
           </ol>
           {kind === 'end' && (
@@ -93,49 +99,26 @@ function Intro({ kind, s }: { kind: VisitKind; s: BreakSummary }) {
   );
 }
 
-function Scales({ visit }: { visit: VisitRecord }) {
-  const { dispatch } = useNy();
-  const [answers, setAnswers] = useState<(number | null)[]>(() => SWEMWBS.items.map(() => null));
-  const [errors, setErrors] = useState<FieldError[]>([]);
-  const [attempt, setAttempt] = useState(0);
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    setAttempt((a) => a + 1);
-    const found = answers.flatMap((a, i) => (a ? [] : [{ field: `ny-sw-${i}-1`, message: `Please answer “${SWEMWBS.items[i]}”.` }]));
-    setErrors(found);
-    if (found.length) return;
-    dispatch({ type: 'visit-update', id: visit.id, patch: { scales: { swemwbs: answers as number[] } } });
-    announce('Saved. Next, the brain check.');
-  };
+function Questions({ visit, s }: { visit: VisitRecord; s: BreakSummary }) {
+  const { dispatch, today } = useNy();
+  const plan = surveyFor(visit.kind);
+  if (!plan) return null;
+  const saved = visit.survey;
+  const save = (answers: Answers, position: number, done = false) => dispatch({ type: 'visit-update', id: visit.id, patch: { survey: { set: plan.set, version: plan.version, answers, position, done } } });
   return (
-    <NyShell kicker={`${VISIT_TEXT[visit.kind].title} · Questions`} title="How you’ve been feeling." pageTitle="Questions">
-      <form className="ny-form" onSubmit={submit} noValidate>
-        <ErrorSummary errors={errors} focusKey={attempt} />
-        <p>{SWEMWBS.intro}</p>
-        {SWEMWBS.items.map((item, i) => (
-          <ChoiceField
-            key={item}
-            id={`ny-sw-${i}`}
-            name={`ny-sw-${i}`}
-            legend={<span className="ny-legend">{item}</span>}
-            value={answers[i] ? String(answers[i]) : null}
-            onChange={(v) => {
-              setAnswers((now) => now.map((a, j) => (j === i ? Number(v) : a)));
-              setErrors((now) => now.filter((x) => x.field !== `ny-sw-${i}-1`));
-            }}
-            options={SWEMWBS.options.map((o, k) => ({ value: String(k + 1), label: o }))}
-            error={errors.find((x) => x.field === `ny-sw-${i}-1`)?.message}
-          />
-        ))}
-        <p className="mpmb-hint">
-          The Short Warwick-Edinburgh Mental Wellbeing Scale. The lab study’s questionnaires will be added here once the team has listed them. <NyDraft />
-        </p>
-        <div className="mpmb-actions">
-          <Button type="submit" variant="primary" arrow>
-            Save and continue
-          </Button>
-        </div>
-      </form>
+    <NyShell kicker={`${VISIT_TEXT[visit.kind].title} · Questions`} title="Some questions." pageTitle="Questions" className="ny-step--questions">
+      <Survey
+        sections={plan.sections}
+        answers={saved?.answers ?? {}}
+        position={saved?.position ?? 0}
+        ageNow={ageOn(s.participant.demographics.birthMonth, today)}
+        onChange={(answers, position) => save(answers, position)}
+        onDone={(answers) => {
+          save(answers, 0, true);
+          announce('Questions done. Next, the brain check.');
+        }}
+        onLater={() => dispatch({ type: 'go', route: { view: 'tracker' } })}
+      />
     </NyShell>
   );
 }
@@ -165,6 +148,39 @@ function AppDataStep({ visit }: { visit: VisitRecord }) {
           dispatch({ type: 'go', route: { view: 'tracker' } });
         }}
       />
+    </NyShell>
+  );
+}
+
+const REMI_PROTOCOL = { start: 'online-pre', return: 'online-mid', end: 'online-post' } as const;
+
+/**
+ * Remi, the study's AI chat, as in the lab study's MyStory: a short chat whose
+ * questions come only from the team's file (src/newyear/mystory/online-*.toml),
+ * ending with a short story the person can pick or correct. It runs on the
+ * study's server, so the preview only shows where it goes.
+ */
+function RemiStep({ visit, optional }: { visit: VisitRecord; optional: boolean }) {
+  const { dispatch } = useNy();
+  const protocol = REMI_PROTOCOL[visit.kind as keyof typeof REMI_PROTOCOL];
+  const record = (status: 'preview' | 'declined') => dispatch({ type: 'visit-update', id: visit.id, patch: { remi: { protocol, status, at: new Date().toISOString() } } });
+  return (
+    <NyShell kicker={`${VISIT_TEXT[visit.kind].title} · Remi`} title="A chat with Remi." pageTitle="Remi" intro={<p>Remi is the study’s AI chat, made by the research team for this project, as in the lab study. It asks a few questions about {visit.kind === 'start' ? 'how you use your phone, and why you’re taking a break' : visit.kind === 'end' ? 'how your break went' : 'how your break is going'}, one at a time, then shows you a short story based on what you said. You pick the one that fits, or say what’s not quite right. About 10 minutes.</p>}>
+      <Callout tone="info" title="Not in the preview yet">
+        <p>
+          Remi runs on the study’s server, and its questions for the online study are with the team to adapt from the lab study’s. It will be here once they are approved. <NyDraft label="Preview" />
+        </p>
+      </Callout>
+      <div className="mpmb-actions">
+        <Button variant="primary" arrow onClick={() => record('preview')}>
+          Continue
+        </Button>
+        {optional && (
+          <Button variant="secondary" onClick={() => record('declined')}>
+            Not this time
+          </Button>
+        )}
+      </div>
     </NyShell>
   );
 }
@@ -216,11 +232,14 @@ export function Visit({ visitId, kind }: { visitId?: string; kind?: VisitKind })
   if (!s) return null;
   if (!visit) return kind ? <Intro kind={kind} s={s} /> : null;
   if (done) return null;
-  const step = nextStep(visit);
+  // The midway Remi chat is offered once, at a return visit two weeks or more into the break.
+  const remiMidDue = s.dayNumber >= 15 && !state.visits.some((v) => v.id !== visit.id && v.remi?.protocol === 'online-mid');
+  const step = nextStep(visit, remiMidDue);
   const title = VISIT_TEXT[visit.kind].title;
   const toTracker = () => dispatch({ type: 'go', route: { view: 'tracker' } });
 
-  if (step === 'scales') return <Scales visit={visit} />;
+  if (step === 'survey') return <Questions visit={visit} s={s} />;
+  if (step === 'remi' || step === 'remi-offer') return <RemiStep visit={visit} optional={step === 'remi-offer'} />;
   if (step === 'screenshot') return <Screenshot visit={visit} s={s} />;
   if (step === 'app-data') return <AppDataStep visit={visit} />;
   if (step === 'reflect') return <Reflect visit={visit} />;

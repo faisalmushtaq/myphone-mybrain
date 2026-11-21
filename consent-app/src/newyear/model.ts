@@ -1,6 +1,7 @@
 import type { AiId, AppId, CheckStatus, ReminderFrequency, VisitKind } from './config';
 import type { IsoDate } from './dates';
 import type { SpanScore, SpanTrial } from './tasks/digitSpan';
+import type { Answers } from './survey/engine';
 import type { SartScores, SartTrialResult } from './tasks/sart';
 
 /**
@@ -172,8 +173,14 @@ export interface DeviceInfo {
   timeZone: string;
 }
 
-export interface ScalesRecord {
-  swemwbs: number[];
+/** A visit's questionnaires: answers by variable, where they got to, and whether they finished. */
+export interface SurveyRecord {
+  set: 'start' | 'end' | 'followup';
+  /** The versions asked (motivation draft; the MySelf survey and its published version). */
+  version: string;
+  answers: Answers;
+  position: number;
+  done: boolean;
 }
 
 export interface Visit {
@@ -182,7 +189,7 @@ export interface Visit {
   startedOn: IsoDate;
   startedAt: string;
   device: DeviceInfo;
-  scales: ScalesRecord | null;
+  survey: SurveyRecord | null;
   digitSpan: DigitSpanResult | null;
   /** The attention game (SART). */
   sart: SartResult | null;
@@ -191,6 +198,8 @@ export interface Visit {
   screenshot: ScreenshotRecord | null;
   /** Start and end visits: the TikTok, YouTube and Instagram data downloads, read and cleaned on the device (as in the lab study). */
   appData: AppDataRecord | null;
+  /** Remi, the study's AI chat (src/newyear/mystory/online-*.toml): which protocol, and what happened. */
+  remi: { protocol: 'online-pre' | 'online-mid' | 'online-post'; status: 'preview' | 'done' | 'declined'; at: string } | null;
   /** End visit: why they are ending, and would they do it again. */
   reflection: { why: string; again: string } | null;
   completedOn: IsoDate | null;

@@ -1222,3 +1222,128 @@
 .mpmb-app .mpmb-ny .ny-platforms__status {
   color: var(--mpb-muted);
 }
+
+/* The questionnaires, one question at a time (views/Survey.tsx). */
+.mpmb-app .mpmb-ny .ny-step--questions .mpmb-step__header .mpmb-h1 {
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+.mpmb-app .mpmb-ny .ny-q__where {
+  margin: 0 0 0.4rem;
+  color: var(--mpb-muted);
+  font-size: 0.95rem;
+}
+.mpmb-app .mpmb-ny .ny-q__transition,
+.mpmb-app .mpmb-ny .ny-q__instructions {
+  padding: 0.6rem 0.8rem;
+  background: var(--mpb-mist);
+  border-radius: 8px;
+}
+.mpmb-app .mpmb-ny .ny-q__stem {
+  margin: 0.75rem 0 0.5rem;
+}
+.mpmb-app .mpmb-ny .ny-q__stem:focus {
+  outline: none;
+}
+.mpmb-app .mpmb-ny .ny-q__lede {
+  margin: 0 0 0.6rem;
+}
+.mpmb-app .mpmb-ny .ny-q__options {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.mpmb-app .mpmb-ny .ny-q__option {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  min-height: 48px;
+  padding: 0.6rem 0.9rem;
+  background: #fff;
+  border: 2px solid var(--mpb-line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.mpmb-app .mpmb-ny .ny-q__option.is-selected {
+  border-color: var(--mpb-teal);
+  background: var(--mpb-mist);
+}
+.mpmb-app .mpmb-ny .ny-q__option input {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex-shrink: 0;
+  accent-color: var(--mpb-teal);
+}
+.mpmb-app .mpmb-ny .ny-q__rank {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--mpb-teal);
+  color: #fff;
+  font-size: 0.85rem;
+}
+.mpmb-app .mpmb-ny .ny-q__scale .ny-q__steps {
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr));
+  gap: 0.25rem;
+  margin: 0.4rem 0;
+}
+.mpmb-app .mpmb-ny .ny-q__ladder .ny-q__steps {
+  display: grid;
+  gap: 0.3rem;
+  width: min(100%, 14rem);
+  margin: 0.4rem 0;
+}
+.mpmb-app .mpmb-ny .ny-q__step {
+  min-height: 44px;
+  padding: 0;
+  border: 2px solid var(--mpb-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--mpb-ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mpmb-app .mpmb-ny .ny-q__ladder .ny-q__step {
+  min-height: 40px;
+}
+.mpmb-app .mpmb-ny .ny-q__step.is-selected {
+  border-color: var(--mpb-teal);
+  background: var(--mpb-teal);
+  color: #fff;
+}
+.mpmb-app .mpmb-ny .ny-q__scale .ny-q__end {
+  text-align: right;
+}
+.mpmb-app .mpmb-ny .ny-q__grid {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.mpmb-app .mpmb-ny .ny-q__gridrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+.mpmb-app .mpmb-ny .ny-q__gridrow label {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  white-space: nowrap;
+}
+.mpmb-app .mpmb-ny .ny-q__gridrow .mpmb-input {
+  width: 3.6rem;
+  min-width: 0;
+}
+.mpmb-app .mpmb-ny .ny-q__number {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 1rem 0;
+}
+.mpmb-app .mpmb-ny .ny-q__later {
+  margin-top: 0.5rem;
+}
