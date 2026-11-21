@@ -32,7 +32,7 @@ export function summarise(state: Pick<NyState, 'participant' | 'checkIns' | 'vis
   const days = breakDays(p, state.checkIns, state.visits, today);
   const streak = currentStreak(days);
   const last = [...state.checkIns].sort((a, b) => a.at.localeCompare(b.at)).pop();
-  const validated = state.visits.filter((v) => v.completedAt && v.screenshot && (v.digitSpan || v.oddball)).sort((a, b) => String(a.completedAt).localeCompare(String(b.completedAt)));
+  const validated = state.visits.filter((v) => v.completedAt && v.screenshot && v.digitSpan && v.sart).sort((a, b) => String(a.completedAt).localeCompare(String(b.completedAt)));
   return {
     participant: p,
     today,

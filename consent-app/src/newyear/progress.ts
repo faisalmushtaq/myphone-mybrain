@@ -1,6 +1,7 @@
-import { FOLLOW_UPS, isSlip, SCREENSHOT_EVERY_DAYS, type BreakMode, type VisitKind } from './config';
+import { FOLLOW_UPS, isSlip, SCREENSHOT_EVERY_DAYS, type VisitKind } from './config';
 import { addDays, daysBetween, type IsoDate } from './dates';
 import type { CheckIn, Participant, Visit } from './model';
+import { meetsAim } from './targets';
 
 /**
  * The online study's arithmetic: what happened on each day of an open-ended
@@ -18,14 +19,11 @@ import type { CheckIn, Participant, Visit } from './model';
  * out: a check-in after a long gap covers the gap.
  *
  * A screen-time screenshot proves the days it covers: a day is verified when
- * the screenshot shows the chosen apps at (almost) nothing, or total phone
- * time under the goal; it is "over" when it shows more. A screenshot outranks
+ * the screenshot shows the chosen apps and AI tools at (almost) nothing and
+ * total phone time under any limit set (targets.ts); it is "over" when it shows more. A screenshot outranks
  * the self-report for the days it covers.
  */
 export type DayState = 'verified' | 'kept' | 'slip' | 'over' | 'paused' | 'unreported' | 'today' | 'future';
-
-/** Up to this many minutes a day on the chosen apps still counts as off them (an accidental open, a notification). */
-export const APPS_OFF_MINUTES = 5;
 
 export interface DayInfo {
   date: IsoDate;
@@ -54,11 +52,6 @@ export function lastBreakDay(p: Pick<Participant, 'startDate' | 'endedOn'>, toda
   return p.endedOn && p.endedOn < today ? p.endedOn : today;
 }
 
-/** Whether a screenshot reading meets the person's aim. */
-export function meetsAim(mode: BreakMode, goalMinutes: number | null, minutesPerDay: number): boolean {
-  return mode === 'apps' ? minutesPerDay <= APPS_OFF_MINUTES : minutesPerDay <= (goalMinutes ?? 0);
-}
-
 /** Each day from the start to today (or the end), with what is known about it. */
 export function breakDays(p: Participant, checkIns: readonly CheckIn[], visits: readonly Visit[], today: IsoDate): DayInfo[] {
   if (today < p.startDate) return [];
@@ -84,7 +77,7 @@ export function breakDays(p: Participant, checkIns: readonly CheckIn[], visits: 
   for (let d = p.startDate; d <= last; d = addDays(d, 1)) {
     const shot = [...shots].reverse().find((s) => s.from <= d && d <= s.to);
     let state: DayState = self.get(d) ?? (d === today ? 'today' : 'unreported');
-    if (shot) state = meetsAim(p.mode, p.goalMinutes, shot.minutesPerDay) ? 'verified' : 'over';
+    if (shot) state = meetsAim(p, shot) ? 'verified' : 'over';
     days.push({ date: d, number: dayNumberOf(p, d), state, covered: Boolean(shot) });
   }
   return days;

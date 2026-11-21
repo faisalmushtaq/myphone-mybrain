@@ -6,7 +6,7 @@ import { CheckboxField, ChoiceField, FieldWrapper, SelectField, TextField } from
 import { Icon } from '../../components/ui/Icon';
 import { announce } from '../../lib/announce';
 import type { FieldError } from '../../lib/validation';
-import { APPS, COMMON_LANGUAGES, COUNTRY_CODES, EDUCATION_OPTIONS, ETHNICITY_GROUPS, ETHNICITY_SELF_DESCRIBE, GENDER_OPTIONS, LIMITS, MIN_AGE, MODES, PREFER_NOT, REMINDER_OPTIONS, SEX_OPTIONS, WORK_OPTIONS, type AppId, type BreakMode, type ReminderFrequency } from '../config';
+import { AI_TOOLS, APPS, COMMON_LANGUAGES, COUNTRY_CODES, EDUCATION_OPTIONS, ETHNICITY_GROUPS, ETHNICITY_SELF_DESCRIBE, GENDER_OPTIONS, LIMITS, MIN_AGE, PREFER_NOT, REMINDER_OPTIONS, SEX_OPTIONS, WORK_OPTIONS, type AiId, type AppId, type ReminderFrequency } from '../config';
 import { addDays, formatDay, isIsoDate } from '../dates';
 import type { Demographics } from '../model';
 import { funName, shuffleFunName } from '../names';
@@ -83,9 +83,11 @@ export function Join() {
   const [birthMonth, setBirthMonth] = useState('');
   const [consent, setConsent] = useState<Record<string, boolean>>({});
   const [d, setD] = useState<Demographics>(EMPTY_DEMOGRAPHICS);
-  const [mode, setMode] = useState<BreakMode | null>(null);
   const [apps, setApps] = useState<AppId[]>([]);
   const [otherApp, setOtherApp] = useState('');
+  const [ai, setAi] = useState<AiId[]>([]);
+  const [otherAi, setOtherAi] = useState('');
+  const [useGoal, setUseGoal] = useState(false);
   const [goal, setGoal] = useState('');
   const [start, setStart] = useState(today);
   const [name, setName] = useState(() => funName(rng.current));
@@ -131,11 +133,11 @@ export function Join() {
       if (!d.firstLanguage.trim()) found.push({ field: 'ny-firstLanguage', message: 'Please give your first language (or write “Prefer not to say”).' });
     }
     if (step === 3) {
-      if (!mode) found.push({ field: 'ny-mode-apps', message: 'Please choose how you want to take a break.' });
-      if (mode === 'apps' && !apps.length) found.push({ field: `ny-app-${APPS[0].id}`, message: 'Choose at least one app to take a break from.' });
-      if (mode === 'apps' && apps.includes('other') && !otherApp.trim()) found.push({ field: 'ny-other-app', message: 'Type the name of the other app, or untick Other.' });
+      if (!apps.length && !ai.length && !useGoal) found.push({ field: `ny-app-${APPS[0].id}`, message: 'Choose at least one app or AI tool to take a break from, or set a daily limit for your phone.' });
+      if (apps.includes('other') && !otherApp.trim()) found.push({ field: 'ny-other-app', message: 'Type the name of the other app, or untick Other.' });
+      if (ai.includes('other-ai') && !otherAi.trim()) found.push({ field: 'ny-other-ai', message: 'Type the name of the other AI tool, or untick Other AI.' });
       const g = Number(goal);
-      if (mode === 'total' && !(/^\d{1,3}$/.test(goal.trim()) && g >= LIMITS.goalMinMinutes && g <= LIMITS.goalMaxMinutes)) found.push({ field: 'ny-goal', message: `Please give a daily limit in minutes, from ${LIMITS.goalMinMinutes} to ${LIMITS.goalMaxMinutes}.` });
+      if (useGoal && !(/^\d{1,3}$/.test(goal.trim()) && g >= LIMITS.goalMinMinutes && g <= LIMITS.goalMaxMinutes)) found.push({ field: 'ny-goal', message: `Please give a daily limit in minutes, from ${LIMITS.goalMinMinutes} to ${LIMITS.goalMaxMinutes}.` });
       if (!isIsoDate(start) || start < today || start > latest) found.push({ field: 'ny-start', message: 'Choose a start day from today, within the next year.' });
     }
     if (step === 4 && sms && !/^\+?[\d\s()-]{7,20}$/.test(phone.trim())) found.push({ field: 'ny-phone', message: 'Please give a mobile number for the text reminders, with the country code (for example +44 7700 900123), or untick text reminders.' });
@@ -149,10 +151,11 @@ export function Join() {
       participant: {
         name,
         onLeaderboard: onBoard,
-        mode: mode ?? 'apps',
-        apps: mode === 'apps' ? chosen : [],
-        otherApp: mode === 'apps' && apps.includes('other') ? otherApp.trim().slice(0, LIMITS.otherApp) : '',
-        goalMinutes: mode === 'total' ? Number(goal) : null,
+        apps: chosen,
+        otherApp: apps.includes('other') ? otherApp.trim().slice(0, LIMITS.otherApp) : '',
+        ai: AI_TOOLS.map((a) => a.id).filter((id) => ai.includes(id)),
+        otherAi: ai.includes('other-ai') ? otherAi.trim().slice(0, LIMITS.otherAi) : '',
+        goalMinutes: useGoal ? Number(goal) : null,
         startDate: start,
         joinedOn: today,
         joinedAt: new Date().toISOString(),
@@ -291,43 +294,56 @@ export function Join() {
   } else if (step === 3) {
     body = (
       <>
-        <ChoiceField
-          id="ny-mode"
-          name="ny-mode"
-          legend={<span className="ny-legend">How do you want to take a break?</span>}
-          value={mode}
-          onChange={(v) => {
-            setMode(v as BreakMode);
-            fixed('ny-mode-apps');
-          }}
-          options={MODES.map((m) => ({ value: m.value, label: `${m.label}. ${m.hint}` }))}
-          error={errs['ny-mode-apps']}
-        />
-        {mode === 'apps' && (
-          <>
-            <FieldWrapper as="fieldset" id="ny-apps" label="Which apps?" hint="Choose as many as you like." error={errs[`ny-app-${APPS[0].id}`]}>
-              <div className="ny-apps">
-                {APPS.map((app) => (
-                  <CheckboxField
-                    key={app.id}
-                    id={`ny-app-${app.id}`}
-                    checked={apps.includes(app.id)}
-                    onChange={(on) => {
-                      setApps((now) => (on ? [...now.filter((a) => a !== app.id), app.id] : now.filter((a) => a !== app.id)));
-                      fixed(`ny-app-${APPS[0].id}`, 'ny-other-app');
-                    }}
-                    label={app.label}
-                  />
-                ))}
-              </div>
-            </FieldWrapper>
-            {apps.includes('other') && <TextField id="ny-other-app" label="Which other app?" hint="Only you see this." value={otherApp} maxLength={LIMITS.otherApp} autoComplete="off" width="half" onChange={(e) => { setOtherApp(e.target.value); fixed('ny-other-app'); }} error={errs['ny-other-app']} />}
-          </>
-        )}
-        {mode === 'total' && (
+        <p>Choose any mix: social media apps, AI tools, and a daily limit for your phone. Calls, messages and maps carry on as normal.</p>
+        <FieldWrapper as="fieldset" id="ny-apps" label="Social media apps to take a break from" hint="Tick as many as you like, or none." error={errs[`ny-app-${APPS[0].id}`]}>
+          <div className="ny-apps">
+            {APPS.map((app) => (
+              <CheckboxField
+                key={app.id}
+                id={`ny-app-${app.id}`}
+                checked={apps.includes(app.id)}
+                onChange={(on) => {
+                  setApps((now) => (on ? [...now.filter((a) => a !== app.id), app.id] : now.filter((a) => a !== app.id)));
+                  fixed(`ny-app-${APPS[0].id}`, 'ny-other-app');
+                }}
+                label={app.label}
+              />
+            ))}
+          </div>
+        </FieldWrapper>
+        {apps.includes('other') && <TextField id="ny-other-app" label="Which other app?" hint="Only you see this." value={otherApp} maxLength={LIMITS.otherApp} autoComplete="off" width="half" onChange={(e) => { setOtherApp(e.target.value); fixed('ny-other-app'); }} error={errs['ny-other-app']} />}
+        <FieldWrapper as="fieldset" id="ny-ai" label="AI tools to take a break from" hint="The apps and their websites. Tick as many as you like, or none.">
+          <div className="ny-apps">
+            {AI_TOOLS.map((tool) => (
+              <CheckboxField
+                key={tool.id}
+                id={`ny-ai-${tool.id}`}
+                checked={ai.includes(tool.id)}
+                onChange={(on) => {
+                  setAi((now) => (on ? [...now.filter((a) => a !== tool.id), tool.id] : now.filter((a) => a !== tool.id)));
+                  fixed(`ny-app-${APPS[0].id}`, 'ny-other-ai');
+                }}
+                label={tool.label}
+              />
+            ))}
+          </div>
+        </FieldWrapper>
+        {ai.includes('other-ai') && <TextField id="ny-other-ai" label="Which other AI tool?" hint="Only you see this." value={otherAi} maxLength={LIMITS.otherAi} autoComplete="off" width="half" onChange={(e) => { setOtherAi(e.target.value); fixed('ny-other-ai'); }} error={errs['ny-other-ai']} />}
+        <FieldWrapper as="fieldset" id="ny-limit" label="A daily limit for all phone use">
+          <CheckboxField
+            id="ny-use-goal"
+            checked={useGoal}
+            onChange={(on) => {
+              setUseGoal(on);
+              fixed(`ny-app-${APPS[0].id}`, 'ny-goal');
+            }}
+            label="Also keep my total phone time under a daily limit"
+          />
+        </FieldWrapper>
+        {useGoal && (
           <TextField
             id="ny-goal"
-            label="Your daily limit for all phone use, in minutes"
+            label="Your daily limit, in minutes"
             hint="Look at your screen time for last week first. A limit you can keep is better than a perfect one: for example 120 for two hours."
             inputMode="numeric"
             pattern="[0-9]*"

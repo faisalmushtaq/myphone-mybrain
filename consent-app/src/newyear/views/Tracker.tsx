@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
-import { APPS, VISIT_TEXT } from '../config';
+import { VISIT_TEXT } from '../config';
+import { planText } from '../targets';
 import { daysBetween, formatDay, relativeDay } from '../dates';
 import { isStandalone } from '../install';
 import { NyShell } from '../NyShell';
@@ -49,7 +50,7 @@ function NextCard({ s }: { s: BreakSummary }) {
     return (
       <div className="ny-card ny-card--action">
         <h2 className="mpmb-h3">Your start visit</h2>
-        <p>Some questions, the brain check and a screenshot of last week’s screen time: about 12 minutes. Best done before your break starts.</p>
+        <p>Some questions, the brain check, screen-time screenshots and your app data downloads: about 20 minutes, plus waiting for the downloads to arrive. Best done before your break starts.</p>
         <Button variant="primary" arrow onClick={() => dispatch({ type: 'go', route: { view: 'visit', kind: 'start' } })}>
           Start it
         </Button>
@@ -100,8 +101,7 @@ export function Tracker() {
   const p = s.participant;
   const { title, intro } = headline(s);
   const cheer = encouragement(s);
-  const appNames = APPS.filter((a) => p.apps.includes(a.id)).map((a) => (a.id === 'other' && p.otherApp ? p.otherApp : a.label));
-  const plan = p.mode === 'apps' ? `A break from ${appNames.join(', ')}` : `Your phone time under ${p.goalMinutes} minutes a day`;
+  const plan = planText(p);
 
   return (
     <NyShell kicker="My tracker" title={title} pageTitle="My tracker" intro={<p>{intro}</p>}>

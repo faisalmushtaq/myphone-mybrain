@@ -1,6 +1,6 @@
 /**
  * Random numbers for the New Year break. Everything that is shuffled (fun
- * names, digit sequences, the oddball order and timings) takes a generator,
+ * names, digit sequences, the attention game's order and sizes) takes a generator,
  * so tests and the example leaderboard can use a fixed seed and get the same
  * result every time, while real use gets a fresh seed.
  */

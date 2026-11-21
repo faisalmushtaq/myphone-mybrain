@@ -1142,3 +1142,83 @@
 .mpmb-app .mpmb-ny .ny-game:focus {
   outline: none;
 }
+
+/* The games, full screen with nothing but the stimulus (21 November 2026). */
+.mpmb-app .mpmb-ny .ny-focus {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  background: #fff;
+}
+.mpmb-app .mpmb-ny .ny-sart {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  background: #000;
+  color: #fff;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: pointer;
+}
+.mpmb-app .mpmb-ny .ny-sart:focus {
+  outline: none;
+}
+.mpmb-app .mpmb-ny .ny-sart__digit,
+.mpmb-app .mpmb-ny .ny-sart__mask {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+.mpmb-app .mpmb-ny .ny-sart__digit {
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 400;
+  line-height: 1;
+  color: #fff;
+}
+.mpmb-app .mpmb-ny .ny-sart__mask {
+  width: 116px;
+  height: 116px;
+}
+.mpmb-app .mpmb-ny .ny-sart[data-show='digit'] .ny-sart__digit,
+.mpmb-app .mpmb-ny .ny-sart[data-show='mask'] .ny-sart__mask {
+  visibility: visible;
+}
+.mpmb-app .mpmb-ny .ny-sart__stop {
+  position: absolute;
+  top: max(0.5rem, env(safe-area-inset-top));
+  right: 0.5rem;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: #777;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.mpmb-app .mpmb-ny .ny-sart__stop:focus-visible {
+  outline: 2px solid #fff;
+}
+.mpmb-app .mpmb-ny .ny-points-plain {
+  padding-left: 1.2rem;
+}
+
+.mpmb-app .mpmb-ny .ny-platforms {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  margin: 1rem 0;
+  padding: 0;
+  list-style: none;
+}
+.mpmb-app .mpmb-ny .ny-platforms .ny-card {
+  margin: 0;
+}
+.mpmb-app .mpmb-ny .ny-platforms__status {
+  color: var(--mpb-muted);
+}

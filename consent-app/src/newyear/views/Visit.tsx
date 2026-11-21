@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Callout } from '../../components/ui/Callout';
 import { ErrorSummary } from '../../components/ui/ErrorSummary';
-import { ChoiceField, FieldWrapper, TextField } from '../../components/ui/Field';
+import { ChoiceField, FieldWrapper } from '../../components/ui/Field';
 import { announce } from '../../lib/announce';
 import type { FieldError } from '../../lib/validation';
-import { APPS, FULL_VISITS, SWEMWBS, VISIT_TEXT, type VisitKind } from '../config';
-import { addDays, daysBetween, formatDay, isIsoDate, type IsoDate } from '../dates';
+import { FULL_VISITS, SWEMWBS, VISIT_TEXT, type VisitKind } from '../config';
+import { addDays, formatDay } from '../dates';
 import { deviceInfo, newId } from '../device';
 import type { Visit as VisitRecord } from '../model';
 import { NyDraft, NyShell } from '../NyShell';
@@ -14,12 +14,11 @@ import { lastCoveredDay } from '../progress';
 import { useNy } from '../store';
 import { summarise, type BreakSummary } from '../summary';
 import { DigitSpanGame } from './DigitSpanGame';
-import { OddballGame } from './OddballGame';
+import { AppData, ScreenTimeShots } from './Donation';
+import { SartGame } from './SartGame';
 
-/** The longest stretch one screenshot can cover: phones keep a few weeks at most. */
-const MAX_COVER_DAYS = 28;
 
-type Step = 'scales' | 'brain-offer' | 'memory' | 'attention' | 'screenshot' | 'reflect' | 'complete';
+type Step = 'scales' | 'brain-offer' | 'memory' | 'attention' | 'screenshot' | 'app-data' | 'reflect' | 'complete';
 
 /** The next thing to do in a visit, from what it already has. */
 export function nextStep(v: VisitRecord): Step {
@@ -27,8 +26,10 @@ export function nextStep(v: VisitRecord): Step {
   if (full && !v.scales) return 'scales';
   if (!full && !v.screenshot) return 'screenshot';
   if (!v.skippedBrainCheck && !v.digitSpan) return full ? 'memory' : 'brain-offer';
-  if (!v.skippedBrainCheck && !v.oddball) return 'attention';
+  if (!v.skippedBrainCheck && !v.sart) return 'attention';
   if (full && !v.screenshot) return 'screenshot';
+  // The app data downloads, as in the lab study: at the start and at the end.
+  if ((v.kind === 'start' || v.kind === 'end') && !v.appData?.done) return 'app-data';
   if (v.kind === 'end' && !v.reflection) return 'reflect';
   return 'complete';
 }
@@ -51,11 +52,11 @@ function Intro({ kind, s }: { kind: VisitKind; s: BreakSummary }) {
   const blocked = canBegin(kind, s);
   const full = FULL_VISITS.includes(kind);
   const begin = () => {
-    const visit: VisitRecord = { id: newId(), kind, startedOn: today, startedAt: new Date().toISOString(), device: deviceInfo(), scales: null, digitSpan: null, oddball: null, skippedBrainCheck: false, screenshot: null, reflection: null, completedOn: null, completedAt: null };
+    const visit: VisitRecord = { id: newId(), kind, startedOn: today, startedAt: new Date().toISOString(), device: deviceInfo(), scales: null, digitSpan: null, sart: null, skippedBrainCheck: false, screenshot: null, appData: null, reflection: null, completedOn: null, completedAt: null };
     dispatch({ type: 'visit-begin', visit });
   };
   return (
-    <NyShell kicker={text.title} title={full ? `Your ${text.title.toLowerCase()}.` : 'A return visit.'} pageTitle={text.title} intro={<p>{full ? 'About 12 minutes, and it saves as you go.' : 'About 2 minutes for the screenshot, and 5 more if you do the brain check.'}</p>}>
+    <NyShell kicker={text.title} title={full ? `Your ${text.title.toLowerCase()}.` : 'A return visit.'} pageTitle={text.title} intro={<p>{full ? 'About 20 minutes, plus your app data downloads, which can take a few days to arrive. It saves as you go.' : 'About 2 minutes for the screenshot, and 5 more if you do the brain check.'}</p>}>
       {blocked ? (
         <Callout tone="info">
           <p>{blocked}</p>
@@ -64,9 +65,10 @@ function Intro({ kind, s }: { kind: VisitKind; s: BreakSummary }) {
         <>
           <ol className="mpmb-list">
             {full && <li>Some questions about how you’ve been feeling (about 2 minutes).</li>}
-            {!full && <li>A screenshot of your phone’s screen-time summary, which proves your days off.</li>}
-            <li>{full ? 'The brain check: a memory game, then an attention game (about 5 minutes).' : 'If you like, the brain check: a memory game and an attention game (about 5 minutes). Your scores count as validated with the screenshot.'}</li>
-            {full && <li>A screenshot of your phone’s screen-time summary.</li>}
+            {!full && <li>Screenshots of your phone’s screen-time summary, which prove your days off.</li>}
+            <li>{full ? 'The brain check: a memory game, then an attention game (about 10 minutes).' : 'If you like, the brain check: a memory game and an attention game (about 10 minutes). Your scores count as validated with the screenshots.'}</li>
+            {full && <li>Screenshots of your phone’s screen-time summary.</li>}
+            {(kind === 'start' || kind === 'end') && <li>Your TikTok, YouTube and Instagram data downloads, as in the lab study: read and cleaned on your device, and you choose what to share. They can take a few days to arrive, so you can finish later.</li>}
             {kind === 'end' && <li>Two questions about how it went.</li>}
           </ol>
           {kind === 'end' && (
@@ -142,88 +144,27 @@ function Screenshot({ visit, s }: { visit: VisitRecord; s: BreakSummary }) {
   const { state, dispatch, today } = useNy();
   const p = s.participant;
   const covered = lastCoveredDay(state.visits);
-  const yesterday = addDays(today, -1);
-  // The start visit's screenshot is the week before (the baseline); later ones pick up where the last left off.
+  // The start visit's screenshots are the week before (the baseline); later ones pick up where the last left off.
   const defaultFrom = visit.kind === 'start' ? addDays(today, -7) : covered && covered >= p.startDate ? addDays(covered, 1) : p.startDate;
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [from, setFrom] = useState<IsoDate>(defaultFrom > yesterday ? yesterday : defaultFrom);
-  const [to, setTo] = useState<IsoDate>(yesterday);
-  const [minutes, setMinutes] = useState('');
-  const [errors, setErrors] = useState<FieldError[]>([]);
-  const [attempt, setAttempt] = useState(0);
-  const errs = Object.fromEntries(errors.map((e) => [e.field, e.message]));
-  const apps = APPS.filter((a) => p.apps.includes(a.id)).map((a) => (a.id === 'other' && p.otherApp ? p.otherApp : a.label)).join(', ');
-  const pick = (f: File | null) => {
-    if (preview) URL.revokeObjectURL(preview);
-    setFile(f);
-    setPreview(f ? URL.createObjectURL(f) : null);
-    setErrors((now) => now.filter((e) => e.field !== 'ny-shot'));
-  };
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    setAttempt((a) => a + 1);
-    const found: FieldError[] = [];
-    if (!file) found.push({ field: 'ny-shot', message: 'Please choose your screenshot.' });
-    else if (!/^image\//.test(file.type)) found.push({ field: 'ny-shot', message: 'Please choose a picture (a screenshot), not another kind of file.' });
-    if (!isIsoDate(from) || !isIsoDate(to) || from > to) found.push({ field: 'ny-from', message: 'Please give the first and last day the screenshot shows, first day first.' });
-    else if (to > today) found.push({ field: 'ny-to', message: 'The last day can’t be later than today.' });
-    else if (daysBetween(from, to) + 1 > MAX_COVER_DAYS) found.push({ field: 'ny-from', message: `One screenshot can cover up to ${MAX_COVER_DAYS} days. Send another for the rest.` });
-    if (!/^\d{1,4}$/.test(minutes.trim()) || Number(minutes) > 1440) found.push({ field: 'ny-shot-minutes', message: 'Please give the minutes a day as a whole number (0 if none).' });
-    setErrors(found);
-    if (found.length || !file) return;
-    dispatch({ type: 'visit-update', id: visit.id, patch: { screenshot: { fileName: file.name.slice(0, 120), fileType: file.type, fileBytes: file.size, from, to, minutesPerDay: Number(minutes), readBy: 'self', at: new Date().toISOString() } } });
-    if (preview) URL.revokeObjectURL(preview);
-    announce('Screenshot saved.');
-  };
   return (
-    <NyShell kicker={`${VISIT_TEXT[visit.kind].title} · Screenshot`} title="Your screen-time screenshot." pageTitle="Screenshot">
-      <form className="ny-form" onSubmit={submit} noValidate>
-        <ErrorSummary errors={errors} focusKey={attempt} />
-        <p>{visit.kind === 'start' ? 'This shows how you used your phone before your break, so we can compare.' : 'This proves your days off. Every day of your break needs to be covered by a screenshot, so send one at least once a week.'}</p>
-        <details className="ny-help">
-          <summary>How to take it</summary>
-          <p>
-            <strong>iPhone:</strong> Settings, Screen Time, See All App &amp; Website Activity, then Week. Take a screenshot showing the daily average and the apps.
-          </p>
-          <p>
-            <strong>Android:</strong> Settings, Digital Wellbeing &amp; parental controls (or Digital Wellbeing). Tap the chart, then take a screenshot showing the days and the apps.
-          </p>
-        </details>
-        <FieldWrapper id="ny-shot" label="Your screenshot" error={errs['ny-shot']}>
-          <input id="ny-shot" type="file" accept="image/*" className="mpmb-input" onChange={(e) => pick(e.target.files?.[0] ?? null)} aria-invalid={errs['ny-shot'] ? true : undefined} />
-          {preview && <img src={preview} alt="Your screenshot" className="ny-shot__preview" />}
-        </FieldWrapper>
-        <Callout tone="info">
-          <p>
-            In the real study, the screenshot is read for you. In the preview, please tell us what it shows. The picture stays on this device. <NyDraft label="Preview" />
-          </p>
-        </Callout>
-        <div className="ny-row">
-          <TextField id="ny-from" type="date" label="First day it shows" value={from} max={today} className="mpmb-input--date" onChange={(e) => setFrom(e.target.value)} error={errs['ny-from']} />
-          <TextField id="ny-to" type="date" label="Last day it shows" value={to} max={today} className="mpmb-input--date" onChange={(e) => setTo(e.target.value)} error={errs['ny-to']} />
-        </div>
-        <TextField
-          id="ny-shot-minutes"
-          label={p.mode === 'apps' ? `Minutes a day on ${apps}, on average` : 'Total phone time a day, on average, in minutes'}
-          hint={p.mode === 'apps' ? 'Add up the chosen apps’ daily averages. 0 if none of them appear.' : 'The daily average at the top of the screenshot, in minutes (2h 30m is 150).'}
-          inputMode="numeric"
-          pattern="[0-9]*"
-          width="short"
-          maxLength={4}
-          value={minutes}
-          onChange={(e) => setMinutes(e.target.value)}
-          error={errs['ny-shot-minutes']}
-        />
-        <div className="mpmb-actions">
-          <Button type="submit" variant="primary" arrow>
-            Save the screenshot
-          </Button>
-          <Button variant="ghost" onClick={() => dispatch({ type: 'go', route: { view: 'tracker' } })}>
-            Finish later
-          </Button>
-        </div>
-      </form>
+    <NyShell kicker={`${VISIT_TEXT[visit.kind].title} · Screen time`} title="Your screen-time screenshots." pageTitle="Screen time">
+      <ScreenTimeShots participant={p} kind={visit.kind === 'start' ? 'start' : 'later'} defaultFrom={defaultFrom} today={today} onSave={(shot) => dispatch({ type: 'visit-update', id: visit.id, patch: { screenshot: shot } })} onLater={() => dispatch({ type: 'go', route: { view: 'tracker' } })} />
+    </NyShell>
+  );
+}
+
+function AppDataStep({ visit }: { visit: VisitRecord }) {
+  const { dispatch } = useNy();
+  return (
+    <NyShell kicker={`${VISIT_TEXT[visit.kind].title} · Your app data`} title={visit.kind === 'end' ? 'Request a new data download.' : 'Request your data downloads.'} pageTitle="Your app data">
+      <AppData
+        initial={visit.appData}
+        onSave={(appData) => dispatch({ type: 'visit-update', id: visit.id, patch: { appData } })}
+        onLater={(appData) => {
+          dispatch({ type: 'visit-update', id: visit.id, patch: { appData } });
+          dispatch({ type: 'go', route: { view: 'tracker' } });
+        }}
+      />
     </NyShell>
   );
 }
@@ -281,10 +222,11 @@ export function Visit({ visitId, kind }: { visitId?: string; kind?: VisitKind })
 
   if (step === 'scales') return <Scales visit={visit} />;
   if (step === 'screenshot') return <Screenshot visit={visit} s={s} />;
+  if (step === 'app-data') return <AppDataStep visit={visit} />;
   if (step === 'reflect') return <Reflect visit={visit} />;
   if (step === 'brain-offer' && !doBrain) {
     return (
-      <NyShell kicker={`${title} · Brain check`} title="Do the brain check too?" pageTitle="Brain check" intro={<p>About 5 minutes: a memory game, then an attention game. With your screenshot, your scores count as validated, and you’ll see how they compare with your start.</p>}>
+      <NyShell kicker={`${title} · Brain check`} title="Do the brain check too?" pageTitle="Brain check" intro={<p>About 10 minutes: a memory game, then an attention game. With your screenshots, your scores count as validated, and you’ll see how they compare with your start.</p>}>
         <div className="mpmb-actions">
           <Button variant="primary" arrow onClick={() => setDoBrain(true)}>
             Do the brain check
@@ -313,7 +255,7 @@ export function Visit({ visitId, kind }: { visitId?: string; kind?: VisitKind })
     return (
       <NyShell key="attention" kicker={`${title} · Attention game`} title="The attention game." pageTitle={`${title}: attention`} width="normal" className="ny-step--game">
         <p className="mpmb-hint">Your memory game is saved.</p>
-        <OddballGame onQuit={toTracker} onDone={(result) => dispatch({ type: 'visit-update', id: visit.id, patch: { oddball: result } })} />
+        <SartGame onQuit={toTracker} onDone={(result) => dispatch({ type: 'visit-update', id: visit.id, patch: { sart: result } })} />
       </NyShell>
     );
   }

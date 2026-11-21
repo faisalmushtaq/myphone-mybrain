@@ -1,4 +1,4 @@
-import { APP_IDS, LIMITS, OLD_STORAGE_KEY, STORAGE_KEY, type AppId } from './config';
+import { AI_IDS, APP_IDS, LIMITS, OLD_STORAGE_KEY, STORAGE_KEY, type AiId, type AppId } from './config';
 import { isIsoDate } from './dates';
 import type { CheckIn, NyState, Participant, SessionRecord, Visit } from './model';
 import { isFunName } from './names';
@@ -33,8 +33,9 @@ const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max
 function readParticipant(v: unknown): Participant | null {
   if (!isObj(v)) return null;
   const apps = Array.isArray(v.apps) ? v.apps.filter((a): a is AppId => typeof a === 'string' && (APP_IDS as readonly string[]).includes(a)) : [];
-  const mode = v.mode === 'total' ? 'total' : v.mode === 'apps' ? 'apps' : null;
-  if (!isFunName(v.name) || !mode || (mode === 'apps' && !apps.length) || !isIsoDate(v.startDate) || !isIsoDate(v.joinedOn)) return null;
+  const ai = Array.isArray(v.ai) ? v.ai.filter((a): a is AiId => typeof a === 'string' && (AI_IDS as readonly string[]).includes(a)) : [];
+  const goalMinutes = isInt(v.goalMinutes, LIMITS.goalMinMinutes, LIMITS.goalMaxMinutes) ? v.goalMinutes : null;
+  if (!isFunName(v.name) || (!apps.length && !ai.length && !goalMinutes) || !isIsoDate(v.startDate) || !isIsoDate(v.joinedOn)) return null;
   if (!isObj(v.demographics) || !isObj(v.reminders) || !isObj(v.consent)) return null;
   const d = v.demographics;
   const r = v.reminders;
@@ -42,10 +43,11 @@ function readParticipant(v: unknown): Participant | null {
   return {
     name: v.name,
     onLeaderboard: v.onLeaderboard !== false,
-    mode,
     apps: [...new Set(apps)],
     otherApp: str(v.otherApp, LIMITS.otherApp),
-    goalMinutes: mode === 'total' && isInt(v.goalMinutes, LIMITS.goalMinMinutes, LIMITS.goalMaxMinutes) ? v.goalMinutes : null,
+    ai: [...new Set(ai)],
+    otherAi: str(v.otherAi, LIMITS.otherAi),
+    goalMinutes,
     startDate: v.startDate,
     joinedOn: v.joinedOn,
     joinedAt: str(v.joinedAt, 40),

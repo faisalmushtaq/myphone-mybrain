@@ -17,15 +17,28 @@ export const APPS = [
 export type AppId = (typeof APPS)[number]['id'];
 export const APP_IDS: readonly AppId[] = APPS.map((a) => a.id);
 
-/** The two ways to take part (the PI, 20 November 2026). */
-export type BreakMode = 'apps' | 'total';
-export const MODES: { value: BreakMode; label: string; hint: string }[] = [
-  { value: 'apps', label: 'Pause the apps I choose', hint: 'For example TikTok and Instagram. Calls, messages and maps carry on as normal.' },
-  { value: 'total', label: 'Cut my total phone time', hint: 'You set a daily limit for all your phone use, and try to stay under it.' },
-];
+/**
+ * AI tools people can take a break from (the PI, 21 November 2026). Any mix
+ * of social media apps, AI tools and a daily limit for all phone use can be
+ * chosen together.
+ */
+export const AI_TOOLS = [
+  { id: 'chatgpt', label: 'ChatGPT' },
+  { id: 'claude', label: 'Claude' },
+  { id: 'gemini', label: 'Gemini' },
+  { id: 'copilot', label: 'Microsoft Copilot' },
+  { id: 'meta-ai', label: 'Meta AI' },
+  { id: 'grok', label: 'Grok' },
+  { id: 'perplexity', label: 'Perplexity' },
+  { id: 'deepseek', label: 'DeepSeek' },
+  { id: 'character-ai', label: 'Character.AI' },
+  { id: 'other-ai', label: 'Other AI' },
+] as const;
+export type AiId = (typeof AI_TOOLS)[number]['id'];
+export const AI_IDS: readonly AiId[] = AI_TOOLS.map((a) => a.id);
 
 /** Limits, enforced on the inputs and when saved progress is read back. */
-export const LIMITS = { otherApp: 30, note: 280, minutes: 1440, goalMinMinutes: 15, goalMaxMinutes: 600, startDaysAhead: 365, text: 80 } as const;
+export const LIMITS = { otherApp: 30, otherAi: 30, note: 280, minutes: 1440, goalMinMinutes: 15, goalMaxMinutes: 600, startDaysAhead: 365, text: 80 } as const;
 
 /** How someone is getting on, at a check-in: since their last check-in (or the start). */
 export type CheckStatus = 'on-track' | 'little' | 'lot' | 'stopped';

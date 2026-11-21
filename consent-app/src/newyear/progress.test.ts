@@ -5,9 +5,10 @@ import { bestStreak, breakDays, currentStreak, followUps, phaseOf, screenshotDue
 const P: Participant = {
   name: 'Calm Otter 42',
   onLeaderboard: true,
-  mode: 'apps',
   apps: ['tiktok'],
   otherApp: '',
+  ai: [],
+  otherAi: '',
   goalMinutes: null,
   startDate: '2027-01-01',
   joinedOn: '2026-12-30',
@@ -27,9 +28,10 @@ const shot = (from: string, to: string, minutesPerDay: number, kind: Visit['kind
   device: { deviceType: 'phone', os: '', browser: '', screen: '', standalone: true, timeZone: '' },
   scales: null,
   digitSpan: null,
-  oddball: null,
+  sart: null,
   skippedBrainCheck: true,
-  screenshot: { fileName: 'a.png', fileType: 'image/png', fileBytes: 1, from, to, minutesPerDay, readBy: 'self', at: '' },
+  screenshot: { images: [], phone: 'iphone', from, to, chosenMinutesPerDay: minutesPerDay, totalMinutesPerDay: null, readBy: 'self', at: '' },
+  appData: null,
   reflection: null,
   completedOn: to,
   completedAt: `${to}T21:00:00Z`,
@@ -77,10 +79,17 @@ describe('an open-ended break', () => {
     expect(currentStreak(days).days).toBe(1);
   });
 
-  it('judges a screenshot against the daily limit when cutting total phone time', () => {
-    const total = { ...P, mode: 'total' as const, apps: [], goalMinutes: 120 };
-    expect(states(breakDays(total, [], [shot('2027-01-01', '2027-01-02', 110)], '2027-01-03'))).toBe('verified verified today');
-    expect(states(breakDays(total, [], [shot('2027-01-01', '2027-01-02', 130)], '2027-01-03'))).toBe('over over today');
+  it('judges a screenshot against every part of the aim: the chosen apps and AI tools, and any daily limit', () => {
+    const withTotal = (v: Visit, total: number): Visit => ({ ...v, screenshot: { ...v.screenshot!, chosenMinutesPerDay: null, totalMinutesPerDay: total } });
+    const total = { ...P, apps: [], goalMinutes: 120 };
+    expect(states(breakDays(total, [], [withTotal(shot('2027-01-01', '2027-01-02', 0), 110)], '2027-01-03'))).toBe('verified verified today');
+    expect(states(breakDays(total, [], [withTotal(shot('2027-01-01', '2027-01-02', 0), 130)], '2027-01-03'))).toBe('over over today');
+    // Apps and a limit together: both must be met.
+    const both = { ...P, ai: ['chatgpt' as const], goalMinutes: 120 };
+    const reading = (chosen: number, all: number): Visit => ({ ...shot('2027-01-01', '2027-01-02', chosen), screenshot: { ...shot('2027-01-01', '2027-01-02', chosen).screenshot!, totalMinutesPerDay: all } });
+    expect(states(breakDays(both, [], [reading(3, 100)], '2027-01-03'))).toBe('verified verified today');
+    expect(states(breakDays(both, [], [reading(3, 150)], '2027-01-03'))).toBe('over over today');
+    expect(states(breakDays(both, [], [reading(20, 100)], '2027-01-03'))).toBe('over over today');
   });
 
   it('asks for a screenshot once a week of the break is not covered', () => {

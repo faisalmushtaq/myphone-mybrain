@@ -238,3 +238,46 @@ wrong message; "1 time fewer".
 
 **Next:** stage 2 (the backend on a test setup), once the team has listed the
 lab study's questionnaires and agreed what "validated" requires.
+
+## Changes of 21 November 2026 (the PI)
+
+**The attention game is now the SART.** The visual oddball was too easy
+(near-perfect scores leave no room to see change) and was not a validated
+behavioural task; its screen also carried counters, a progress bar and a
+button. It is replaced by the Sustained Attention to Response Task as
+published (Robertson, Manly, Andrade, Baddeley and Yiend, 1997,
+Neuropsychologia 35, 747–758): 225 digits (1 to 9, each 25 times, random
+order), each shown for 250 ms at one of five sizes (48, 72, 94, 100 or 120
+points) then a ring-and-cross mask for 900 ms; tap (or the space bar) for
+every digit except 3; an 18-digit practice first, without feedback. Scores:
+commission errors (taps for 3, of 25; the main score), omission errors (of
+200), median, mean and standard deviation of correct reaction times,
+coefficient of variation, anticipations (under 100 ms, not counted), and the
+mean reaction time of the four digits before each commission and each
+withheld 3. During a block the screen is black with only the digit or mask
+(and a small × to stop); it is drawn on the page itself, above the site.
+`tasks/sart.ts` (tested), `views/SartGame.tsx`. The memory game's digits are
+also shown full screen now, without round or length counters.
+
+**Donations use the lab study's own instructions and mechanisms.** The
+screen-time step is the lab's: "Which phone do you have?", the illustrated
+iPhone and Android steps, several screenshots (camera and location details
+removed on the device). The start and end visits also ask for the TikTok,
+YouTube and Instagram data downloads with the lab's illustrated guides,
+read and cleaned on the device by the lab's cleaner with the same choices of
+what to share; each app is added or set aside ("I don't use it"), and the
+visit can be finished later while a download arrives. The screenshots are
+the validation of days off and of brain-check scores. `views/Donation.tsx`
+(reusing `lab/guideSteps.tsx`, `lab/cleaner.ts`, `lab/download.ts`,
+`components/ImageCapture.tsx`). In the preview nothing is sent.
+
+**AI abstinence, and any mix.** People choose any number of social media
+apps, any number of AI tools (ChatGPT, Claude, Gemini, Microsoft Copilot,
+Meta AI, Grok, Perplexity, DeepSeek, Character.AI, other), and/or a daily
+limit for all phone use. A screenshot proves a day only when every part is
+met: the chosen apps and AI tools at 5 minutes a day or less (browser use of
+AI tools included) and total time under any limit. `targets.ts`.
+
+Still open: AI tools have no data download step yet (their exports, such as
+ChatGPT's, hold whole conversations, which needs its own cleaner and ethics
+review); the lab study's questionnaires are still to be listed.

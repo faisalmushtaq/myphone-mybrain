@@ -1,7 +1,7 @@
 import type { IsoDate } from './dates';
 import type { CheckIn, Flash, NyState, Participant, Route, SessionRecord, Visit } from './model';
 
-export type VisitPatch = Partial<Pick<Visit, 'scales' | 'digitSpan' | 'oddball' | 'skippedBrainCheck' | 'screenshot' | 'reflection'>>;
+export type VisitPatch = Partial<Pick<Visit, 'scales' | 'digitSpan' | 'sart' | 'skippedBrainCheck' | 'screenshot' | 'appData' | 'reflection'>>;
 export type SettingsPatch = Partial<Pick<Participant, 'reminders' | 'onLeaderboard' | 'savedAsApp'>>;
 
 export type NyAction =

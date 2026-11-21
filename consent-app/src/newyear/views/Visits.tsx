@@ -21,7 +21,7 @@ export function Visits() {
         {!s.startDone && (
           <div className="ny-card ny-card--action">
             <h2 className="mpmb-h3">Start visit</h2>
-            <p>About 12 minutes. Best done before your break starts.</p>
+            <p>About 20 minutes, plus waiting for your app data downloads. Best done before your break starts.</p>
             <Button variant="primary" arrow onClick={() => go('start')}>
               Start it
             </Button>
@@ -74,7 +74,7 @@ export function Visits() {
                   <p className="ny-stage__when">
                     {formatDay(v.completedOn ?? v.startedOn)}
                     {v.screenshot ? ' · screenshot' : ''}
-                    {v.digitSpan && v.oddball ? ` · brain check${v.screenshot ? ' (validated)' : ''}` : ''}
+                    {v.digitSpan && v.sart ? ` · brain check${v.screenshot ? ' (validated)' : ''}` : ''}
                   </p>
                   <Button variant="secondary" onClick={() => dispatch({ type: 'go', route: { view: 'results', visitId: v.id } })}>
                     See results

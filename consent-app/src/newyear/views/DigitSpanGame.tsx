@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '../../components/ui/Button';
+import { FullScreen } from './FullScreen';
 import { announce } from '../../lib/announce';
 import type { DigitSpanResult } from '../model';
 import { mulberry32, randomSeed } from '../rng';
@@ -204,7 +205,6 @@ export function DigitSpanGame({ onDone, onQuit }: Props) {
     }
   }, [phase.kind]);
 
-  const trialNumber = progress.trials.length + 1;
 
   if (phase.kind === 'intro') {
     return (
@@ -248,11 +248,7 @@ export function DigitSpanGame({ onDone, onQuit }: Props) {
   if (phase.kind === 'next') {
     return (
       <div className="ny-game" ref={rootRef} tabIndex={-1}>
-        <p className="ny-game__meta">
-          Round {trialNumber} · {progress.length} digits
-        </p>
         <h2 className="mpmb-h2">Ready for the next one?</h2>
-        <p>Next: {progress.length} digits.</p>
         <div className="mpmb-actions" ref={nextRef}>
           <Button variant="primary" arrow onClick={() => begin(false)}>
             Next
@@ -279,14 +275,13 @@ export function DigitSpanGame({ onDone, onQuit }: Props) {
   const practice = phase.practice;
   return (
     <div className="ny-game" ref={rootRef} tabIndex={-1}>
-      <p className="ny-game__meta">{practice ? 'Practice · 2 digits' : `Round ${trialNumber} · ${phase.sequence.length} digits`}</p>
       {phase.kind === 'show' ? (
-        <>
-          <p className="ny-game__prompt">Watch the digits.</p>
-          <div className="ny-screen">
+        // Full screen while the digits show: nothing else on it.
+        <FullScreen>
+          <div className="ny-focus" aria-label={practice ? 'Practice: watch the digits' : 'Watch the digits'} role="img">
             <DigitStream sequence={phase.sequence} onDone={shown} onInterrupt={() => setPhase({ kind: 'paused', practice })} />
           </div>
-        </>
+        </FullScreen>
       ) : (
         <>
           <p className="ny-game__prompt">Type the digits in the order you saw them.</p>

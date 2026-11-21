@@ -1,7 +1,7 @@
-import type { AppId, BreakMode, CheckStatus, ReminderFrequency, VisitKind } from './config';
+import type { AiId, AppId, CheckStatus, ReminderFrequency, VisitKind } from './config';
 import type { IsoDate } from './dates';
 import type { SpanScore, SpanTrial } from './tasks/digitSpan';
-import type { OddballScores, OddballTrialResult } from './tasks/oddball';
+import type { SartScores, SartTrialResult } from './tasks/sart';
 
 /**
  * Everything the online study preview knows. It lives only in this browser's
@@ -50,11 +50,13 @@ export interface Participant {
   name: string;
   /** Shown on the leaderboard, or kept off it. */
   onLeaderboard: boolean;
-  mode: BreakMode;
-  /** Pause these apps (mode 'apps'). */
+  /** Social media apps to pause (any number, or none). */
   apps: AppId[];
   otherApp: string;
-  /** Cut total phone time to under this many minutes a day (mode 'total'). */
+  /** AI tools to pause (any number, or none). */
+  ai: AiId[];
+  otherAi: string;
+  /** And/or: keep all phone use under this many minutes a day (null: no limit). At least one of the three is chosen. */
   goalMinutes: number | null;
   startDate: IsoDate;
   joinedOn: IsoDate;
@@ -97,37 +99,67 @@ export interface DigitSpanResult {
   finishedAt: string;
 }
 
-export interface OddballTiming {
+export interface FrameTiming {
   /** The longest gap between animation frames during the block, in ms. */
   maxFrameGapMs: number;
   /** Frames that came more than 50 ms after the one before: a busy or throttled device. */
   longFrames: number;
 }
 
-export interface OddballResult {
-  scores: OddballScores;
-  trials: OddballTrialResult[];
+/** The attention game: the SART (tasks/sart.ts). */
+export interface SartResult {
+  task: 'sart';
+  version: string;
+  scores: SartScores;
+  trials: SartTrialResult[];
   seed: number;
-  settings: { trials: number; stimulusMs: number; itiMinMs: number; itiMaxMs: number };
-  timing: OddballTiming;
+  settings: { perDigit: number; digitMs: number; maskMs: number; screen: string };
+  timing: FrameTiming;
   input: 'touch' | 'keyboard' | 'mixed' | 'none';
   startedAt: string;
   finishedAt: string;
 }
 
 /** What a screen-time screenshot showed. In the real study the server reads it; in the preview the person says. */
+export interface ScreenshotImage {
+  name: string;
+  type: string;
+  bytes: number;
+  width: number;
+  height: number;
+}
+
 export interface ScreenshotRecord {
-  fileName: string;
-  fileType: string;
-  fileBytes: number;
+  /** The phone's own screen-time pages (several: the week, the app list, the day). Camera and location details are removed first. */
+  images: ScreenshotImage[];
+  phone: 'iphone' | 'android' | null;
   /** The days it covers. */
   from: IsoDate;
   to: IsoDate;
-  /** Mode 'apps': minutes a day on the chosen apps, on average. Mode 'total': total phone minutes a day, on average. */
-  minutesPerDay: number;
+  /** Minutes a day on the chosen apps and AI tools, on average (null if none were chosen). */
+  chosenMinutesPerDay: number | null;
+  /** Total phone minutes a day, on average (null if no daily limit was set). */
+  totalMinutesPerDay: number | null;
   /** Who read it: 'self' in the preview; 'ocr' or 'team' in the real study. */
   readBy: 'self' | 'ocr' | 'team';
   at: string;
+}
+
+export type DataPlatform = 'tiktok' | 'youtube' | 'instagram';
+
+/** One platform's download: prepared (with the categories kept and their counts), not used, or still to come. */
+export interface PlatformDonation {
+  status: 'prepared' | 'not-used';
+  categories: string[];
+  kept: Record<string, number>;
+  bytes: number;
+  at: string;
+}
+
+export interface AppDataRecord {
+  platforms: Partial<Record<DataPlatform, PlatformDonation>>;
+  /** Every platform added or set aside (false while a download is still to come). */
+  done: boolean;
 }
 
 export interface DeviceInfo {
@@ -152,10 +184,13 @@ export interface Visit {
   device: DeviceInfo;
   scales: ScalesRecord | null;
   digitSpan: DigitSpanResult | null;
-  oddball: OddballResult | null;
+  /** The attention game (SART). */
+  sart: SartResult | null;
   /** They chose not to do the brain check this time (return visits only). */
   skippedBrainCheck: boolean;
   screenshot: ScreenshotRecord | null;
+  /** Start and end visits: the TikTok, YouTube and Instagram data downloads, read and cleaned on the device (as in the lab study). */
+  appData: AppDataRecord | null;
   /** End visit: why they are ending, and would they do it again. */
   reflection: { why: string; again: string } | null;
   completedOn: IsoDate | null;

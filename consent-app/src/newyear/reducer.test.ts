@@ -6,9 +6,10 @@ import { initialNyState, nyReducer, shownRoute } from './reducer';
 const P: Participant = {
   name: 'Calm Otter 42',
   onLeaderboard: true,
-  mode: 'apps',
   apps: ['tiktok'],
   otherApp: '',
+  ai: [],
+  otherAi: '',
   goalMinutes: null,
   startDate: '2027-01-01',
   joinedOn: '2026-12-30',
@@ -20,7 +21,7 @@ const P: Participant = {
   endedOn: null,
 };
 const C: CheckIn = { id: 'c1', date: '2027-01-02', at: '2027-01-02T20:00:00Z', status: 'on-track', slipDate: null, minutes: null, mood: 4, urge: 2, note: '' };
-const V: Visit = { id: 'v1', kind: 'end', startedOn: '2027-02-01', startedAt: '', device: { deviceType: 'phone', os: 'iOS 18', browser: 'Safari', screen: '', standalone: true, timeZone: 'Europe/London' }, scales: null, digitSpan: null, oddball: null, skippedBrainCheck: false, screenshot: null, reflection: null, completedOn: null, completedAt: null };
+const V: Visit = { id: 'v1', kind: 'end', startedOn: '2027-02-01', startedAt: '', device: { deviceType: 'phone', os: 'iOS 18', browser: 'Safari', screen: '', standalone: true, timeZone: 'Europe/London' }, scales: null, digitSpan: null, sart: null, skippedBrainCheck: false, screenshot: null, appData: null, reflection: null, completedOn: null, completedAt: null };
 
 describe('the online study state', () => {
   it('shows only the landing and join pages before joining', () => {

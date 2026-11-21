@@ -6,12 +6,12 @@ import { VISIT_TEXT } from '../config';
 import { daysBetween, formatDay } from '../dates';
 import type { Visit } from '../model';
 import { NyShell } from '../NyShell';
-import { meetsAim } from '../progress';
+import { chosenNames, listText, meetsAim } from '../targets';
 import { useNy } from '../store';
 
 function comparable(v: Visit): ComparableScores {
-  const odd = v.oddball?.scores;
-  return { span: v.digitSpan?.score.span ?? null, medianRtMs: odd?.medianRtMs ?? null, hits: odd ? odd.hits : null, targets: odd ? odd.targets : null, falseAlarms: odd ? odd.falseAlarms : null };
+  const a = v.sart?.scores;
+  return { span: v.digitSpan?.score.span ?? null, commissions: a ? a.commissions : null, noGo: a ? a.noGo : null, omissions: a ? a.omissions : null, go: a ? a.go : null, medianRtMs: a?.medianRtMs ?? null, cvRt: a?.cvRt ?? null };
 }
 
 const pct = (v: number | null) => (v === null ? 'n/a' : `${Math.round(v * 100)}%`);
@@ -26,13 +26,13 @@ export function Results({ visitId }: { visitId: string }) {
   const p = state.participant;
   if (!visit || !p) return null;
   const done = state.visits.filter((v) => v.completedAt).sort((a, b) => String(a.completedAt).localeCompare(String(b.completedAt)));
-  const withBrain = done.filter((v) => v.digitSpan && v.oddball);
+  const withBrain = done.filter((v) => v.digitSpan && v.sart);
   const earlierBrain = withBrain.filter((v) => String(v.completedAt) < String(visit.completedAt));
   const against = [...new Set([earlierBrain[0], earlierBrain[earlierBrain.length - 1]].filter((v): v is Visit => Boolean(v)))];
   const startScales = done.find((v) => v.kind === 'start')?.scales;
-  const validated = Boolean(visit.screenshot && visit.digitSpan && visit.oddball);
+  const validated = Boolean(visit.screenshot && visit.digitSpan && visit.sart);
   const span = visit.digitSpan?.score;
-  const odd = visit.oddball?.scores;
+  const odd = visit.sart?.scores;
   const shot = visit.screenshot;
 
   return (
@@ -87,11 +87,11 @@ export function Results({ visitId }: { visitId: string }) {
             <div className="ny-card">
               <h3 className="mpmb-h4">Attention</h3>
               <p className="ny-big-number">
-                {odd.medianRtMs === null ? 'n/a' : Math.round(odd.medianRtMs)}
-                <span> ms</span>
+                {odd.commissions}
+                <span> of {odd.noGo} threes</span>
               </p>
               <p>
-                Your typical reaction time to an orange square. You spotted {odd.hits} of {odd.targets}, and {odd.falseAlarms === 0 ? 'never tapped by mistake' : `tapped by mistake ${odd.falseAlarms === 1 ? 'once' : `${odd.falseAlarms} times`}`}.
+                The threes you tapped for by mistake: the main score of this game, where fewer means steadier attention. You missed {odd.omissions} of the {odd.go} other digits, and your typical reaction time was {msText(odd.medianRtMs)}.
               </p>
             </div>
           </div>
@@ -118,8 +118,8 @@ export function Results({ visitId }: { visitId: string }) {
           </h2>
           <p>
             It covers {formatDay(shot.from, 'no-year')} to {formatDay(shot.to, 'no-year')} ({daysBetween(shot.from, shot.to) + 1} days):{' '}
-            {p.mode === 'apps' ? `${shot.minutesPerDay} minutes a day on your chosen apps` : `${shot.minutesPerDay} minutes a day on your phone`}.
-            {visit.kind !== 'start' && (meetsAim(p.mode, p.goalMinutes, shot.minutesPerDay) ? ' Those days count as proven days off.' : p.mode === 'apps' ? ' That’s more than a few minutes, so those days don’t count as proven days off.' : ' That’s over your limit, so those days don’t count as proven days off.')}
+            {[shot.chosenMinutesPerDay !== null ? `${shot.chosenMinutesPerDay} minutes a day on ${listText(chosenNames(p))}` : '', shot.totalMinutesPerDay !== null ? `${shot.totalMinutesPerDay} minutes a day on your phone in all` : ''].filter(Boolean).join(', and ')}.
+            {visit.kind !== 'start' && (meetsAim(p, shot) ? ' Those days count as proven days off.' : ' That’s more than your aim, so those days don’t count as proven days off.')}
           </p>
         </section>
       )}
@@ -136,9 +136,9 @@ export function Results({ visitId }: { visitId: string }) {
                 <tr>
                   <th scope="col">Visit</th>
                   <th scope="col">Digits</th>
+                  <th scope="col">Threes tapped</th>
+                  <th scope="col">Digits missed</th>
                   <th scope="col">Reaction time</th>
-                  <th scope="col">Spotted</th>
-                  <th scope="col">Mistaken taps</th>
                   <th scope="col">Validated</th>
                 </tr>
               </thead>
@@ -149,11 +149,11 @@ export function Results({ visitId }: { visitId: string }) {
                     <tr key={v.id} className={v.id === visit.id ? 'is-current' : undefined}>
                       <th scope="row">{label(v)}</th>
                       <td>{c.span || '<3'}</td>
-                      <td>{msText(c.medianRtMs)}</td>
                       <td>
-                        {c.hits} of {c.targets}
+                        {c.commissions} of {c.noGo}
                       </td>
-                      <td>{c.falseAlarms}</td>
+                      <td>{c.omissions}</td>
+                      <td>{msText(c.medianRtMs)}</td>
                       <td>{v.screenshot ? 'Yes' : 'No'}</td>
                     </tr>
                   );
@@ -178,15 +178,15 @@ export function Results({ visitId }: { visitId: string }) {
               </dd>
             </div>
             <div>
-              <dt>Targets spotted (hits)</dt>
+              <dt>Threes tapped (commission errors)</dt>
               <dd>
-                {odd.hits} of {odd.targets} ({pct(odd.hitRate)})
+                {odd.commissions} of {odd.noGo} ({pct(odd.commissionRate)})
               </dd>
             </div>
             <div>
-              <dt>Mistaken taps (false alarms)</dt>
+              <dt>Other digits missed (omission errors)</dt>
               <dd>
-                {odd.falseAlarms} of {odd.standards} ({pct(odd.falseAlarmRate)})
+                {odd.omissions} of {odd.go} ({pct(odd.omissionRate)})
               </dd>
             </div>
             <div>
@@ -194,19 +194,27 @@ export function Results({ visitId }: { visitId: string }) {
               <dd>{msText(odd.medianRtMs)}</dd>
             </div>
             <div>
-              <dt>Reaction time, mean</dt>
-              <dd>{msText(odd.meanRtMs)}</dd>
+              <dt>Reaction time, mean (standard deviation)</dt>
+              <dd>
+                {msText(odd.meanRtMs)} ({msText(odd.sdRtMs)})
+              </dd>
             </div>
             <div>
-              <dt>Too-quick taps (under 150 ms, not counted)</dt>
+              <dt>Steadiness (coefficient of variation; lower is steadier)</dt>
+              <dd>{odd.cvRt === null ? 'n/a' : odd.cvRt.toFixed(2)}</dd>
+            </div>
+            <div>
+              <dt>Reaction time before taps for a 3, and before threes held back</dt>
+              <dd>
+                {msText(odd.rtBeforeCommissionMs)} and {msText(odd.rtBeforeWithheldMs)}
+              </dd>
+            </div>
+            <div>
+              <dt>Too-quick taps (under 100 ms, not counted)</dt>
               <dd>{odd.anticipations}</dd>
             </div>
-            <div>
-              <dt>d′ (d-prime)</dt>
-              <dd>{odd.dPrime === null ? 'n/a' : odd.dPrime.toFixed(2)}</dd>
-            </div>
           </dl>
-          <p className="mpmb-hint">d′ puts spotting targets and avoiding mistaken taps into one number: higher means telling the shapes apart more clearly. With no taps at all it still comes out at about 0.5, because of the standard correction for perfect scores. Reaction times in a browser are approximate, to within a few hundredths of a second.</p>
+          <p className="mpmb-hint">The attention game is the Sustained Attention to Response Task (Robertson and others, 1997). People usually speed up just before tapping for a 3: compare the two reaction times above. Reaction times in a browser are approximate, to within a few hundredths of a second.</p>
         </Disclosure>
       )}
 
