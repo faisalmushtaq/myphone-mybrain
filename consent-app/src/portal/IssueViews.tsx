@@ -3,6 +3,7 @@ import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { ask, messageOf, PortalError } from './api';
 import { issueQueue, newIssueId, type QueuedEntry } from './issueQueue';
+import { CHANNELS, DEVICE_CODE, deviceCode, FAULTS, faultText, kindLabel, kindsFor, severityLabel, SEVERITIES, statusLabel, type DeviceKind, type EquipmentList } from './equipment';
 import { ErrorLine, Loading, useLoad } from './TeamViews';
 import { stamp, type Role } from './types';
 
@@ -59,6 +60,13 @@ export interface IssueRow {
   impact: string;
   note: string;
   recordings: string[];
+  device: { kind: DeviceKind; code: string } | null;
+  faults: string[];
+  channels: string[];
+  severity: string | null;
+  fixedAt: string | null;
+  fixedBy: string;
+  importedFrom: string;
   status: string;
   resolution: string;
   comments: { id: string; at: string; byName: string; text: string }[];
@@ -127,17 +135,39 @@ export function LogProblemButton({ role, waiting, onOpen }: { role: Role; waitin
   );
 }
 
-export function LogProblem({ role, pressedAt, onClose, editing, onSaved }: { role: Role; pressedAt: Date; onClose: () => void; editing?: IssueRow; onSaved?: () => void }) {
+export function LogProblem({ role, pressedAt, onClose, editing, onSaved, preset }: { role: Role; pressedAt: Date; onClose: () => void; editing?: IssueRow; onSaved?: () => void; preset?: { kind: DeviceKind; code: string } }) {
   const team = role === 'pm' || role === 'researcher';
   const ctx = useLoad<Context>('issue-context');
   const [when, setWhen] = useState(() => localInput(editing ? new Date(editing.deviceAt) : pressedAt));
   const [whenTouched, setWhenTouched] = useState(false);
   const [visitId, setVisitId] = useState<string>(editing ? (editing.visitId ?? 'none') : '');
   const [about, setAbout] = useState<About[]>(editing ? editing.about : []);
-  const [type, setType] = useState(editing?.type ?? '');
+  const [type, setType] = useState(editing?.type ?? (preset ? (preset.kind === 'headset' ? 'eeg' : 'equipment') : ''));
   const [impact, setImpact] = useState(editing?.impact ?? '');
   const [note, setNote] = useState(editing?.note ?? '');
   const [recordings, setRecordings] = useState<string[]>(editing?.recordings ?? []);
+  // The device at fault (22 November 2026): from the register, or a code typed in.
+  const equipment = useLoad<EquipmentList>('issue-equipment');
+  const [device, setDevice] = useState<{ kind: DeviceKind; code: string } | null>(editing?.device ?? preset ?? null);
+  const [deviceKind, setDeviceKind] = useState<DeviceKind | ''>(editing?.device?.kind ?? preset?.kind ?? '');
+  const [typingCode, setTypingCode] = useState(false);
+  const [codeText, setCodeText] = useState('');
+  const [faults, setFaults] = useState<string[]>(editing?.faults ?? []);
+  const [channels, setChannels] = useState<string[]>(editing?.channels ?? []);
+  const [severity, setSeverity] = useState(editing?.severity ?? '');
+  /** "Same problem": the note goes on that entry as a comment instead of a new entry. */
+  const [addTo, setAddTo] = useState<string | null>(null);
+  const kinds = kindsFor(type);
+  const kind: DeviceKind | '' = kinds.length === 1 ? kinds[0] : deviceKind && kinds.includes(deviceKind) ? deviceKind : '';
+  const registered = (equipment.value?.devices ?? []).filter((d) => d.kind === kind && d.status !== 'retired');
+  const known = device ? (equipment.value?.devices ?? []).find((d) => d.code === device.code) : undefined;
+  const alreadyOpen = (known?.openEntries ?? []).filter((o) => o.id !== editing?.id);
+  const chooseDevice = (d: { kind: DeviceKind; code: string } | null) => {
+    setDevice(d);
+    setAddTo(null);
+    if (d) setFaults((f) => f.filter((k) => FAULTS.some((x) => x.key === k && x.kinds.includes(d.kind))));
+  };
+  const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   // While the sheet is open the page behind it stays still (20 November 2026: on an iPhone it scrolled and bounced).
   useEffect(() => {
     const before = document.body.style.overflow;
@@ -180,6 +210,12 @@ export function LogProblem({ role, pressedAt, onClose, editing, onSaved }: { rol
     setImpact('');
     setNote('');
     setRecordings([]);
+    setFaults([]);
+    setChannels([]);
+    setSeverity('');
+    setAddTo(null);
+    if (!preset) chooseDevice(null);
+    void equipment.load();
     setQ('');
     setTyped('');
     setWhen(localInput(new Date()));
@@ -188,11 +224,31 @@ export function LogProblem({ role, pressedAt, onClose, editing, onSaved }: { rol
   const save = async () => {
     setError(null);
     setDone(null);
+    const deviceAt = whenTouched || editing ? new Date(when).toISOString() : pressedAt.toISOString();
+    const usedDevice = device && kinds.includes(device.kind) ? device : null;
+    const usedFaults = usedDevice ? faults : [];
+    if (addTo && usedDevice) {
+      // The same problem again: one entry, with each time it happened in its comments.
+      if (!note.trim() && !usedFaults.length) return setError('Say what happened this time.');
+      const visit = ctx.value?.visits.find((v) => v.visitId === visitId);
+      const text = `Seen again ${stamp(deviceAt)}${visit ? ` at ${visit.label}` : ''}${usedFaults.length ? `: ${faultText(usedFaults, channels)}` : ''}${note.trim() ? `. ${note.trim()}` : ''}`;
+      setBusy(true);
+      try {
+        await ask('issue-comment', { id: addTo, text });
+        setDone(`Added to the entry already logged for ${usedDevice.code}.`);
+        onSaved?.();
+        reset();
+      } catch (e) {
+        setError(offline(e) ? 'No connection, so this can’t be added to that entry now. Untick “Same problem” to save it as a new entry on this phone.' : messageOf(e));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     if (!type) return setError('Choose what kind of problem it was.');
     if (!impact) return setError('Choose how much it affects the data.');
-    if (!note.trim() && !about.length) return setError('Say what happened, or who it was about.');
-    const deviceAt = whenTouched || editing ? new Date(when).toISOString() : pressedAt.toISOString();
-    const entry: QueuedEntry = { id: editing?.id ?? newIssueId(), deviceAt, visitId: visitId === 'none' ? null : visitId, about: about.map(({ label: _l, ...a }) => a), type, impact, note: note.trim(), recordings };
+    if (!note.trim() && !about.length && !usedFaults.length) return setError('Say what happened, or who it was about.');
+    const entry: QueuedEntry = { id: editing?.id ?? newIssueId(), deviceAt, visitId: visitId === 'none' ? null : visitId, about: about.map(({ label: _l, ...a }) => a), type, impact, note: note.trim(), recordings, device: usedDevice, faults: usedFaults, channels: usedDevice?.kind === 'headset' && usedFaults.includes('channels') ? channels : [], severity: usedDevice && usedFaults.length && severity ? severity : null };
     setBusy(true);
     try {
       if (editing) {
@@ -295,6 +351,110 @@ export function LogProblem({ role, pressedAt, onClose, editing, onSaved }: { rol
             ))}
           </div>
         </fieldset>
+        {kinds.length ? (
+          <fieldset className="mpmb-issue__fieldset mpmb-issue__device">
+            <legend className="mpmb-label">Which device? (optional)</legend>
+            {kinds.length > 1 ? (
+              <div className="mpmb-issue__chips">
+                {kinds.map((k) => (
+                  <button key={k} type="button" className={`mpmb-issue__chip${kind === k ? ' is-on' : ''}`} aria-pressed={kind === k} onClick={() => (setDeviceKind(k), device?.kind !== k && chooseDevice(null))}>
+                    {kindLabel(k)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {kind ? (
+              typingCode || (!registered.length && !device) ? (
+                <div className="mpmb-issue__typed">
+                  <input className="mpmb-input" placeholder={kind === 'headset' ? 'Code on the headset, e.g. E50211F7' : 'Code or name on its label'} value={codeText} onChange={(e) => setCodeText(e.target.value)} aria-label={`The ${kindLabel(kind).toLowerCase()}’s code`} autoCapitalize="characters" />
+                  <Button variant="secondary" disabled={!DEVICE_CODE.test(deviceCode(codeText))} onClick={() => (chooseDevice({ kind, code: deviceCode(codeText) }), setTypingCode(false), setCodeText(''))}>
+                    Use
+                  </Button>
+                </div>
+              ) : (
+                <select
+                  className="mpmb-select"
+                  aria-label={`Which ${kindLabel(kind).toLowerCase()}`}
+                  value={device && device.kind === kind ? device.code : ''}
+                  onChange={(e) => (e.target.value === '__type' ? setTypingCode(true) : chooseDevice(e.target.value ? { kind, code: e.target.value } : null))}
+                >
+                  <option value="">{equipment.value ? 'Choose…' : 'Loading the list…'}</option>
+                  {device && device.kind === kind && !registered.some((d) => d.code === device.code) ? <option value={device.code}>{device.code} (new)</option> : null}
+                  {registered.map((d) => (
+                    <option key={d.code} value={d.code}>
+                      {d.code}
+                      {d.batch ? ` (${d.batch})` : ''} · {statusLabel(d.status)}
+                      {d.open.length ? ` · ${d.open.length} open` : ''}
+                    </option>
+                  ))}
+                  <option value="__type">Not in the list: type its code…</option>
+                </select>
+              )
+            ) : null}
+            {device && alreadyOpen.length ? (
+              <div className="mpmb-issue__known" role="status">
+                <p>
+                  <strong>
+                    Already logged for {device.code}
+                    {known ? ` (${statusLabel(known.status)})` : ''}:
+                  </strong>
+                </p>
+                <ul>
+                  {alreadyOpen.map((o) => (
+                    <li key={o.id}>
+                      <button type="button" className={`mpmb-issue__knownitem${addTo === o.id ? ' is-on' : ''}`} aria-pressed={addTo === o.id} onClick={() => setAddTo(addTo === o.id ? null : o.id)}>
+                        <span className="mpmb-hint">
+                          {stamp(o.deviceAt)} · {o.importedFrom ? 'headset list' : o.authorName}
+                          {o.severity ? ` · ${severityLabel(o.severity)}` : ''}
+                        </span>
+                        <span>{faultText(o.faults, o.channels) || o.note}</span>
+                        <span className="mpmb-issue__knownact">{addTo === o.id ? '✓ Adding to this one' : 'Same problem: add to this one'}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {addTo ? <p className="mpmb-hint">Your note goes on that entry as a comment, with the time. Nothing new is logged.</p> : <p className="mpmb-hint">If it’s one of these, tap it instead of logging it again.</p>}
+              </div>
+            ) : null}
+            {device ? (
+              <>
+                <p className="mpmb-label">What’s wrong with it?</p>
+                <div className="mpmb-issue__chips">
+                  {FAULTS.filter((f) => f.kinds.includes(device.kind)).map((f) => (
+                    <button key={f.key} type="button" className={`mpmb-issue__chip${faults.includes(f.key) ? ' is-on' : ''}`} aria-pressed={faults.includes(f.key)} onClick={() => setFaults(toggle(faults, f.key))}>
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                {device.kind === 'headset' && faults.includes('channels') ? (
+                  <>
+                    <p className="mpmb-label">Which channels?</p>
+                    <div className="mpmb-issue__channels">
+                      {CHANNELS.map((c) => (
+                        <button key={c} type="button" className={`mpmb-issue__chip${channels.includes(c) ? ' is-on' : ''}`} aria-pressed={channels.includes(c)} onClick={() => setChannels(toggle(channels, c))}>
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+                {faults.length && !addTo ? (
+                  <>
+                    <p className="mpmb-label">How bad is it for the {device.kind === 'headset' ? 'headset' : 'device'}?</p>
+                    <div className="mpmb-issue__chips">
+                      {SEVERITIES.map(([k, l, d]) => (
+                        <button key={k} type="button" className={`mpmb-issue__chip mpmb-issue__sev is-${k}${severity === k ? ' is-on' : ''}`} aria-pressed={severity === k} onClick={() => setSeverity(severity === k ? '' : k)}>
+                          {l}: {d}
+                        </button>
+                      ))}
+                    </div>
+                    {severity === 'high' ? <p className="mpmb-hint">A high fault marks it out of service, so no one takes it on a visit until it’s fixed.</p> : null}
+                  </>
+                ) : null}
+              </>
+            ) : null}
+          </fieldset>
+        ) : null}
         <fieldset className="mpmb-issue__fieldset">
           <legend className="mpmb-label">Impact</legend>
           <div className="mpmb-issue__chips">
@@ -342,7 +502,7 @@ export function LogProblem({ role, pressedAt, onClose, editing, onSaved }: { rol
         ) : null}
         <div className="mpmb-actions mpmb-issue__save">
           <Button onClick={() => void save()} loading={busy} block>
-            {editing ? 'Save the change' : 'Save'}
+            {editing ? 'Save the change' : addTo ? 'Add to that entry' : 'Save'}
           </Button>
         </div>
       </div>
@@ -356,24 +516,25 @@ export function Notebook({ role, entryId, go }: { role: Role; entryId?: string; 
   const team = role === 'pm' || role === 'researcher';
   const { value, error, load } = useLoad<{ issues: IssueRow[]; authors: { uid: string; name: string }[] }>('issue-list');
   const { waiting, flush } = useIssueQueue();
-  const [f, setF] = useState({ school: '', visit: '', from: '', to: '', pupil: '', type: '', impact: '', status: '', author: '' });
+  const [f, setF] = useState({ school: '', visit: '', from: '', to: '', pupil: '', type: '', impact: '', status: '', author: '', device: '' });
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const issues = value?.issues ?? [];
   const shown = useMemo(
     () =>
       issues.filter((i) => {
         const day = i.deviceAt.slice(0, 10);
-        return (!f.school || i.schoolName === f.school) && (!f.visit || i.visitId === f.visit) && (!f.from || day >= f.from) && (!f.to || day <= f.to) && (!f.pupil || i.about.some((a) => a.label.toLowerCase().includes(f.pupil.toLowerCase()))) && (!f.type || i.type === f.type) && (!f.impact || i.impact === f.impact) && (!f.status || i.status === f.status) && (!f.author || i.uid === f.author);
+        return (!f.school || i.schoolName === f.school) && (!f.visit || i.visitId === f.visit) && (!f.from || day >= f.from) && (!f.to || day <= f.to) && (!f.pupil || i.about.some((a) => a.label.toLowerCase().includes(f.pupil.toLowerCase()))) && (!f.type || i.type === f.type) && (!f.impact || i.impact === f.impact) && (!f.status || i.status === f.status) && (!f.author || i.uid === f.author) && (!f.device || i.device?.code === f.device);
       }),
     [issues, f],
   );
   const open = entryId ? issues.find((i) => i.id === entryId) : undefined;
   const schools = [...new Set(issues.map((i) => i.schoolName).filter(Boolean))].sort();
   const visits = [...new Map(issues.filter((i) => i.visitId).map((i) => [i.visitId!, `${i.schoolName} · ${i.visitLabel}`])).entries()];
+  const devices = [...new Set(issues.flatMap((i) => (i.device ? [i.device.code] : [])))].sort().map((c): [string, string] => [c, c]);
   if (open) return <Entry issue={open} role={role} reload={load} back={() => go('#notebook')} />;
   return (
     <Loading error={error}>
-      <p className="mpmb-hint">{team ? 'Every problem the team has logged, newest first.' : 'The problems you have logged, newest first.'} Each is kept with the time on the device that logged it; the team marks each one handled in the analysis, or not relevant.</p>
+      <p className="mpmb-hint">Every problem anyone in the team has logged, newest first, so you can see what is already known before logging it again. Faults with headsets, laptops and iPads are also listed device by device under <a href="#equipment">Equipment</a>. Each is kept with the time on the device that logged it; the team marks each one handled in the analysis, or not relevant.</p>
       {waiting ? (
         <Callout tone="warning" title={`${waiting} waiting to send`}>
           <p>Saved on this device and sent as soon as there is a connection.</p>
@@ -403,7 +564,8 @@ export function Notebook({ role, entryId, go }: { role: Role; entryId?: string; 
           <Select label="Type" value={f.type} onChange={set('type')} options={TYPES.map(([k, l]) => [k, l])} />
           <Select label="Impact" value={f.impact} onChange={set('impact')} options={IMPACTS.map(([k, l]) => [k, l])} />
           <Select label="Status" value={f.status} onChange={set('status')} options={STATUSES.map(([k, l]) => [k, l])} />
-          {team ? <Select label="Logged by" value={f.author} onChange={set('author')} options={(value?.authors ?? []).map((a) => [a.uid, a.name])} /> : null}
+          <Select label="Device" value={f.device} onChange={set('device')} options={devices} />
+          <Select label="Logged by" value={f.author} onChange={set('author')} options={(value?.authors ?? []).map((a) => [a.uid, a.name])} />
         </div>
       </details>
       {!value ? (
@@ -421,8 +583,16 @@ export function Notebook({ role, entryId, go }: { role: Role; entryId?: string; 
                 </span>
                 <span className="mpmb-issue__what">
                   <strong>{label(TYPES, i.type)}</strong> · {label(IMPACTS, i.impact)}
+                  {i.device ? ` · ${i.device.code}` : ''}
                   {i.about.length ? ` · ${i.about.map((a) => a.label).join(', ')}` : ''}
                 </span>
+                {i.faults.length ? (
+                  <span className="mpmb-issue__note">
+                    {faultText(i.faults, i.channels)}
+                    {i.severity ? ` · ${severityLabel(i.severity)}` : ''}
+                    {i.fixedAt ? ' · fixed' : ''}
+                  </span>
+                ) : null}
                 {i.note ? <span className="mpmb-issue__note">{i.note}</span> : null}
                 <span className="mpmb-issue__meta">
                   <span className={`mpmb-issue__status is-${i.status}`}>{label(STATUSES, i.status)}</span> {i.authorName}
@@ -495,6 +665,17 @@ function Entry({ issue: i, role, reload, back }: { issue: IssueRow; role: Role; 
         <p className="mpmb-hint">
           {stamp(i.deviceAt)} (on the device{i.receivedAt.slice(0, 16) !== i.deviceAt.slice(0, 16) ? `; received ${stamp(i.receivedAt)}` : ''}) · {i.schoolName ? `${i.schoolName} · ${i.visitLabel}` : 'Not at a visit'} · {i.authorName}
         </p>
+        {i.device ? (
+          <p>
+            <strong>
+              {kindLabel(i.device.kind)} <a href={`#equipment/${encodeURIComponent(i.device.code)}`}>{i.device.code}</a>
+            </strong>
+            {i.faults.length ? `: ${faultText(i.faults, i.channels)}` : ''}
+            {i.severity ? ` · ${severityLabel(i.severity)}` : ''}
+            {i.fixedAt ? ` · fixed ${stamp(i.fixedAt)} (${i.fixedBy})` : ''}
+          </p>
+        ) : null}
+        {i.importedFrom ? <p className="mpmb-hint">Brought in from the {i.importedFrom.charAt(0).toLowerCase() + i.importedFrom.slice(1)}.</p> : null}
         {i.note ? <p className="mpmb-issue__notebody">{i.note}</p> : null}
         {i.about.length ? (
           <ul className="mpmb-issue__about">

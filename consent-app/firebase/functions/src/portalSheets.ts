@@ -134,13 +134,13 @@ export interface SheetData {
 
 /** The Issues tab: every entry in the issue log, newest first. Study IDs and recording ids; the names an assistant typed are left out. */
 export function issuesTable(rows: Record<string, string | number | null>[]): Table {
-  const cols: [string, string][] = [['logged_at', 'Logged (UK)'], ['logged_day', 'Day'], ['school_id', 'School'], ['visit_id', 'Visit'], ['type', 'Type'], ['impact', 'Impact'], ['participant_ids', 'Study IDs'], ['whole_room', 'Whole room'], ['unresolved_pupils', 'Pupils to resolve'], ['recording_ids', 'Recordings'], ['note', 'Note'], ['status', 'Status'], ['resolution', 'Resolution'], ['author_name', 'Logged by'], ['received_at', 'Received (UK)'], ['issue_id', 'Entry']];
+  const cols: [string, string][] = [['logged_at', 'Logged (UK)'], ['logged_day', 'Day'], ['school_id', 'School'], ['visit_id', 'Visit'], ['type', 'Type'], ['impact', 'Impact'], ['participant_ids', 'Study IDs'], ['whole_room', 'Whole room'], ['unresolved_pupils', 'Pupils to resolve'], ['recording_ids', 'Recordings'], ['note', 'Note'], ['device_code', 'Device'], ['faults', 'Faults'], ['channels', 'Channels'], ['severity', 'Severity'], ['fixed_at', 'Fixed'], ['status', 'Status'], ['resolution', 'Resolution'], ['author_name', 'Logged by'], ['received_at', 'Received (UK)'], ['issue_id', 'Entry']];
   return {
     name: 'Issues',
     file: 'issues',
     describe: 'The issue log (portal, Notebook): data problems the team logged, with the time on the logging device, the study IDs and recordings affected, and where each stands. Pupils’ names are not included.',
     header: cols.map(([, h]) => h),
-    rows: [...rows].sort((a, b) => String(b.logged_at).localeCompare(String(a.logged_at))).map((r) => cols.map(([k]) => (k === 'logged_at' || k === 'received_at' ? ukStamp(r[k] ? String(r[k]) : null) : (r[k] ?? '')) as string | number)),
+    rows: [...rows].sort((a, b) => String(b.logged_at).localeCompare(String(a.logged_at))).map((r) => cols.map(([k]) => (k === 'logged_at' || k === 'received_at' || k === 'fixed_at' ? ukStamp(r[k] ? String(r[k]) : null) : (r[k] ?? '')) as string | number)),
   };
 }
 

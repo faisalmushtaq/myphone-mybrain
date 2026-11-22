@@ -13,6 +13,7 @@ import { VisitView } from './VisitView';
 import { ROLE_LABEL, stamp, type Me, type MySummary, type Notification, type Role } from './types';
 import { AvailabilityGrid } from './AvailabilityGrid';
 import { Linkage } from './LinkageViews';
+import { Equipment } from './EquipmentViews';
 import { LogProblem, LogProblemButton, Notebook, useIssueQueue } from './IssueViews';
 
 /**
@@ -499,6 +500,7 @@ function navFor(role: Role): NavItem[] {
       { hash: '#training', label: 'Training' },
       { hash: '#safeguarding', label: 'Safeguarding' },
       { hash: '#notebook', label: 'Notebook' },
+      { hash: '#equipment', label: 'Equipment' },
     ];
   return [
     { hash: '#home', label: 'Overview' },
@@ -510,6 +512,7 @@ function navFor(role: Role): NavItem[] {
     { hash: '#reports', label: 'Reports' },
     { hash: '#linkage', label: 'Linkage' },
     { hash: '#notebook', label: 'Notebook' },
+    { hash: '#equipment', label: 'Equipment' },
     { hash: '#safeguarding', label: 'Safeguarding' },
     // The team lead on visit days (5 November 2026): their own days free and documents.
     { hash: '#my-days', label: 'My days' },
@@ -555,6 +558,7 @@ function Portal({ me, reloadMe }: { me: Me; reloadMe: () => Promise<void> }) {
     if (route === 'notifications') return <Notifications go={go} reloadMe={reloadMe} />;
     if (route === 'profile') return <Profile me={me} reload={reloadMe} />;
     if (route === 'notebook') return <Notebook role={role} entryId={arg} go={go} />;
+    if (route === 'equipment') return <Equipment role={role} code={arg} go={go} />;
     if (route === 'safeguarding') return <Safeguarding me={me} reload={reload} />;
     if (role === 'ra') {
       if (!summary) return summaryError ? <Callout tone="warning">{summaryError}</Callout> : <p>Loading…</p>;

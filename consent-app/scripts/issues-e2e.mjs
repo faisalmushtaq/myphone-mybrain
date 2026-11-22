@@ -1,9 +1,11 @@
 // End-to-end test of the issue log ("Log a problem" and the Notebook) against
 // the Firebase emulators: a research assistant on a phone logs a problem at
 // today's visit, then another with no connection (queued, sent when back);
-// the same entry sent twice is stored once; the team resolves the pupil the
+// the same entry sent twice is stored once; everyone sees every entry, but
+// not the pupils another assistant named; the team resolves the pupil the
 // assistant typed, comments and marks it handled; the rules on who sees and
-// changes what; the 6 pm email; the export's issues tables.
+// changes what; the 6 pm email; the export's issues tables; equipment: the
+// headset list brought in, a known fault added to, a new one, marked fixed.
 // Screenshots go to ISSUE_SHOTS (default ./issue-shots).
 //
 //   node scripts/issues-e2e.mjs
@@ -187,9 +189,12 @@ async function inner() {
     // 4. Who sees and changes what.
     const raList = (await call(raToken, 'issue-list')).result?.issues ?? [];
     const ra2List = (await call(ra2Token, 'issue-list')).result?.issues ?? [];
-    ok('an assistant sees their own entries; another assistant sees none of them', raList.length === 3 && ra2List.length === 0);
+    // Everyone sees every entry (22 November 2026), so nothing is logged twice; a typed name stays with the team and its author.
+    ok('every assistant sees every entry', raList.length === 3 && ra2List.length === 3);
+    ok('…but not the name another assistant typed, anywhere in what is sent', !JSON.stringify(ra2List).includes('Amara') && JSON.stringify(raList).includes('Amara Ahmed'), JSON.stringify(ra2List.find((i) => i.type === 'eeg')?.about));
     ok('an assistant cannot change the status', (await call(raToken, 'issue-status', { id: entry.id, status: 'handled' })).error?.status === 'PERMISSION_DENIED');
-    ok('another assistant cannot comment', (await call(ra2Token, 'issue-comment', { id: entry.id, text: 'x' })).error?.status === 'PERMISSION_DENIED');
+    ok('another assistant can comment ("seen it too")', !(await call(ra2Token, 'issue-comment', { id: entry.id, text: 'Same laptop froze for me last week.' })).error);
+    ok('…but not change it', (await call(ra2Token, 'issue-edit', { id: entry.id, entry: { ...entry, note: 'x' } })).error?.status === 'PERMISSION_DENIED');
     ok('an assistant edits their own entry within 24 hours', !(await call(raToken, 'issue-edit', { id: entry.id, entry: { ...entry, note: 'Laptop crashed mid-task; restarted.' } })).error);
     await db.collection('portalIssues').doc(entry.id).update({ receivedAt: new Date(Date.now() - 25 * 3600_000).toISOString() });
     ok('…and not after', (await call(raToken, 'issue-edit', { id: entry.id, entry: { ...entry, note: 'later' } })).error?.status === 'PERMISSION_DENIED');
@@ -244,6 +249,85 @@ async function inner() {
     await phone.goto(`${BASE}#notebook`);
     await phone.getByText('Fire alarm').first().waitFor();
     await shot(phone, '07-notebook-phone');
+
+    // 9. Equipment (22 November 2026): the headset list brought in, a fault logged against a headset, the same fault again added to it, fixed.
+    ok('only the project manager brings in the headset list', (await call(teamToken, 'issue-equipment-import')).error?.status === 'PERMISSION_DENIED');
+    const pmDesk = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+    await signIn(pmDesk, PM);
+    await pmDesk.getByRole('link', { name: 'Equipment' }).first().waitFor();
+    await pmDesk.goto(`${BASE}#equipment`);
+    await pmDesk.getByRole('button', { name: 'Bring in the headset list' }).click();
+    await pmDesk.getByText('E50211F7').first().waitFor({ timeout: 30000 });
+    const devs = (await db.collection('portalEquipment').get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+    const imported = (await issues()).filter((i) => i.importedFrom);
+    ok('the list: 16 headsets, 15 open faults (one had none)', devs.length === 16 && imported.length === 15, `${devs.length} / ${imported.length}`);
+    ok('…high ones out of service, the one with no issue in use', devs.find((d) => d.id === 'E5021212')?.status === 'out' && devs.find((d) => d.id === 'E50211EE')?.status === 'ok' && devs.find((d) => d.id === 'E50211DA')?.status === 'care');
+    ok('…twice is once', JSON.stringify((await call(pmToken, 'issue-equipment-import')).result) === JSON.stringify({ devices: 0, entries: 0 }));
+    await shot(pmDesk, '08-equipment');
+    const dig2 = await call(pmToken, 'issue-digest-now', {});
+    ok('the list is not in today’s email', dig2.result?.entries === (dig.result?.entries ?? -1), JSON.stringify(dig2.result));
+
+    // Another assistant, on a phone, at a visit: picks the headset, sees what is already logged, and adds to it.
+    const phone2Ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    const phone2 = await phone2Ctx.newPage();
+    await signIn(phone2, RA2);
+    await phone2.getByTestId('log-problem').click();
+    await phone2.getByRole('dialog').waitFor();
+    await phone2.getByRole('button', { name: 'Headset/EEG signal' }).click();
+    await phone2.getByLabel('Which eeg headset').waitFor();
+    await phone2.waitForTimeout(800);
+    await phone2.getByLabel('Which eeg headset').selectOption('E50211F7');
+    await phone2.getByText('Already logged for E50211F7').waitFor();
+    await phone2.locator('.mpmb-issue__known').scrollIntoViewIfNeeded();
+    await shot(phone2, '09-known-fault-phone', false);
+    await phone2.getByText('Same problem: add to this one').click();
+    await phone2.locator('#issue-note').fill('Took three tries to pair at the start.');
+    await phone2.getByRole('button', { name: 'Add to that entry' }).click();
+    await phone2.getByText('Added to the entry already logged for E50211F7.').waitFor();
+    const f7 = (await db.collection('portalIssues').doc('import-hl261114-E50211F7').get()).data();
+    ok('the same fault again is a comment on the entry, not a new one', f7.comments.length === 1 && f7.comments[0].text.startsWith('Seen again') && (await issues()).length === 3 + 15);
+
+    // A new fault on another headset, with channels and a high severity: it goes out of service.
+    await phone2.getByRole('button', { name: 'Headset/EEG signal' }).click();
+    await phone2.getByLabel('Which eeg headset').selectOption('E50211EE');
+    await phone2.getByRole('button', { name: 'Particular channels' }).click();
+    await phone2.getByRole('button', { name: 'T7', exact: true }).click();
+    await phone2.getByRole('button', { name: 'P7', exact: true }).click();
+    await phone2.getByRole('button', { name: 'Disconnects mid-task' }).click();
+    await phone2.getByRole('button', { name: /^High/ }).click();
+    await phone2.getByRole('button', { name: 'Data unusable' }).click();
+    await phone2.locator('.mpmb-issue__device').scrollIntoViewIfNeeded();
+    await shot(phone2, '10-headset-fault-phone', false);
+    await phone2.getByRole('button', { name: 'Save', exact: true }).click();
+    await phone2.getByText(/^Logged at \d\d:\d\d\.$/).waitFor();
+    const ee = (await issues()).find((i) => i.device?.code === 'E50211EE');
+    ok('the fault is stored against the headset', ee && ee.faults.join() === 'channels,disconnects' && ee.channels.join() === 'T7,P7' && ee.severity === 'high');
+    ok('…and a high fault takes it out of service', (await db.collection('portalEquipment').doc('E50211EE').get()).data().status === 'out');
+    // A laptop not in the register: typed in, and added.
+    await phone2.getByRole('button', { name: 'Equipment (laptop/iPad)' }).click();
+    await phone2.getByRole('button', { name: 'Laptop', exact: true }).click();
+    await phone2.getByLabel('The laptop’s code').fill('lt 07');
+    await phone2.getByRole('button', { name: 'Use', exact: true }).click();
+    await phone2.getByRole('button', { name: 'App or task crashed' }).click();
+    await phone2.getByRole('button', { name: 'Minor' }).click();
+    await phone2.getByRole('button', { name: 'Save', exact: true }).click();
+    await phone2.getByText(/^Logged at \d\d:\d\d\.$/).waitFor();
+    ok('a device not in the register is added when a fault is logged', (await db.collection('portalEquipment').doc('LT-07').get()).data()?.kind === 'laptop');
+    await phone2.getByRole('button', { name: 'Close' }).click();
+    await phone2.goto(`${BASE}#equipment`);
+    await phone2.getByText('E50211EE').first().waitFor();
+    await shot(phone2, '11-equipment-phone');
+    ok('an assistant cannot mark faults fixed', (await call(ra2Token, 'issue-equipment-fixed', { code: 'E50211EE', note: 'x' })).error?.status === 'PERMISSION_DENIED');
+
+    // The team mark it fixed: its open faults are marked, and it is back in use.
+    await desk.goto(`${BASE}#equipment/E50211EE`);
+    await desk.getByRole('button', { name: 'Mark the faults fixed' }).click();
+    await desk.locator('#equip-how').fill('New felts on T7 and P7; tested, all green.');
+    await shot(desk, '12-device');
+    await desk.getByRole('button', { name: 'Mark fixed' }).click();
+    await desk.getByText('logged before, all fixed').waitFor();
+    const fixed = (await issues()).find((i) => i.device?.code === 'E50211EE');
+    ok('fixed: the entry is marked, with the note as a comment, and the headset is back in use', Boolean(fixed.fixedAt) && fixed.comments.at(-1).text.includes('New felts') && (await db.collection('portalEquipment').doc('E50211EE').get()).data().status === 'ok');
   } catch (error) {
     failures.push(String(error?.stack ?? error));
     console.error(error);

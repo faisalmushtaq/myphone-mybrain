@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildDigest, canComment, canEdit, canSee, canTriage, changesBetween, digestSettingsOf, entriesForDay, issueInput, issueRows, shortName, ukDay, type DigestEntry, type Issue } from './issues.js';
+import { buildDigest, canComment, canEdit, canSee, canTriage, changesBetween, deviceInput, deviceSummary, digestSettingsOf, entriesForDay, HEADSET_LIST, headsetListEntryId, issueInput, issueRows, shortName, statusAfterFault, statusFromList, ukDay, type DigestEntry, type Issue } from './issues.js';
 import { mayDo } from './portalCore.js';
 
-const base: Issue = { id: 'i-0000000001', uid: 'ra1', authorName: 'Ash Assist', authorRole: 'ra', deviceAt: '2026-11-12T10:42:00.000Z', receivedAt: '2026-11-12T10:42:05.000Z', visitId: 'v1', schoolId: 'GSAL', about: [], type: 'eeg', impact: 'minor', note: 'Cap kept slipping', recordings: [], status: 'open', resolution: '', comments: [], history: [] };
+const base: Issue = { id: 'i-0000000001', uid: 'ra1', authorName: 'Ash Assist', authorRole: 'ra', deviceAt: '2026-11-12T10:42:00.000Z', receivedAt: '2026-11-12T10:42:05.000Z', visitId: 'v1', schoolId: 'GSAL', about: [], type: 'eeg', impact: 'minor', note: 'Cap kept slipping', recordings: [], device: null, faults: [], channels: [], severity: null, fixedAt: null, fixedBy: '', importedFrom: '', status: 'open', resolution: '', comments: [], history: [] };
 const ra = { uid: 'ra1', role: 'ra' as const };
 const otherRa = { uid: 'ra2', role: 'ra' as const };
 const team = { uid: 't1', role: 'researcher' as const };
 
-test('permissions: the team sees and triages all; an assistant sees, comments on and (for 24 hours) edits only their own', () => {
-  assert.ok(canSee(base, team) && canSee(base, ra) && !canSee(base, otherRa));
-  assert.ok(canComment(base, ra) && !canComment(base, otherRa));
+test('permissions: everyone sees and comments on every entry; the team triages; an assistant edits only their own, for 24 hours', () => {
+  assert.ok(canSee(base, team) && canSee(base, ra) && canSee(base, otherRa), 'all of the team see all, so nothing is logged twice');
+  assert.ok(!canSee(base, { uid: 'x', role: null }), 'not without a role');
+  assert.ok(canComment(base, ra) && canComment(base, otherRa));
   const received = Date.parse(base.receivedAt);
   assert.ok(canEdit(base, ra, received + 23 * 3600_000));
   assert.ok(!canEdit(base, ra, received + 25 * 3600_000));
@@ -105,4 +106,56 @@ test('digest days are UK days, through the clock changes', () => {
   const e = [{ deviceAt: '2026-06-30T23:30:00Z', receivedAt: '2026-06-30T23:30:00Z' }];
   assert.equal(entriesForDay(e, '2026-07-01').length, 1);
   assert.equal(entriesForDay(e, '2026-06-30').length, 0);
+});
+
+test('equipment: a device fault is checked against the kind of device; channels only for a headset', () => {
+  const now = new Date('2026-11-22T18:00:00Z');
+  const r = issueInput({ id: 'abc-12345678', deviceAt: '2026-11-22T09:15:00Z', type: 'eeg', impact: 'may-affect', note: '', device: { kind: 'headset', code: ' e50211f7 ' }, faults: ['bluetooth', 'channels', 'crash', 'nonsense'], channels: ['P8', 'O2', 'Cz'], severity: 'medium' }, ra, now);
+  assert.ok(r.ok, 'faults alone are enough to log');
+  if (r.ok) {
+    assert.deepEqual(r.value.device, { kind: 'headset', code: 'E50211F7' });
+    assert.deepEqual(r.value.faults, ['bluetooth', 'channels'], 'a laptop fault is not a headset fault');
+    assert.deepEqual(r.value.channels, ['O2', 'P8'], 'in montage order; Cz is not on the headset');
+    assert.equal(r.value.severity, 'medium');
+  }
+  const laptop = issueInput({ id: 'abc-12345679', deviceAt: '2026-11-22T09:15:00Z', type: 'equipment', impact: 'minor', note: 'x', device: { kind: 'laptop', code: 'LT-03' }, faults: ['crash'], channels: ['O1'] }, ra, now);
+  assert.ok(laptop.ok && laptop.value.channels.length === 0 && laptop.value.faults[0] === 'crash' && laptop.value.severity === null);
+  assert.ok(!issueInput({ id: 'abc-12345670', deviceAt: '2026-11-22T09:15:00Z', type: 'eeg', impact: 'minor', note: '', device: { kind: 'headset', code: 'E5' } }, ra, now).ok, 'a device and no fault or note is not an entry');
+  assert.ok(!deviceInput({ code: '!', kind: 'headset' }).ok && deviceInput({ code: 'ipad 4', kind: 'ipad' }).ok);
+  // Logging a fault: a high one takes the device out of service; nothing brings one back but marking it fixed.
+  assert.equal(statusAfterFault('ok', 'low'), 'care');
+  assert.equal(statusAfterFault('care', 'high'), 'out');
+  assert.equal(statusAfterFault('repair', 'low'), 'repair');
+  assert.equal(statusAfterFault('out', 'low'), 'out');
+});
+
+test('equipment: a device shows its open faults, the worst first, and what is still wrong', () => {
+  const e = (id: string, at: string, sev: Issue['severity'], faults: string[], channels: string[], fixedAt: string | null = null) => ({ ...base, id, deviceAt: at, device: { kind: 'headset' as const, code: 'E1' }, faults, channels, severity: sev, fixedAt });
+  const s = deviceSummary('E1', [e('a', '2026-11-01T10:00:00Z', 'high', ['no-signal'], [], '2026-11-05T10:00:00Z'), e('b', '2026-11-10T10:00:00Z', 'low', ['channels'], ['P8']), e('c', '2026-11-12T10:00:00Z', 'medium', ['bluetooth', 'channels'], ['O1']), { ...base, id: 'd' }]);
+  assert.deepEqual(s.open, ['c', 'b']);
+  assert.equal(s.worst, 'medium', 'the fixed high fault no longer counts');
+  assert.deepEqual(s.faults, ['bluetooth', 'channels']);
+  assert.deepEqual(s.channels, ['O1', 'P8']);
+  assert.equal(s.lastReported, '2026-11-12T10:00:00Z');
+  assert.equal(s.all, 3);
+});
+
+test('the headset list of 14 November 2026: every headset, the sheet’s words, faults that the form offers', () => {
+  assert.equal(HEADSET_LIST.length, 16);
+  assert.equal(new Set(HEADSET_LIST.map((h) => h.code)).size, 16);
+  assert.equal(HEADSET_LIST.filter((h) => h.faults.length).length, 15, 'E50211EE had no issue');
+  for (const h of HEADSET_LIST) {
+    const r = issueInput({ id: headsetListEntryId(h.code), deviceAt: '2026-11-14T12:00:00Z', type: 'eeg', impact: 'may-affect', note: h.issue, device: { kind: 'headset', code: h.code }, faults: h.faults, channels: h.channels, severity: h.severity }, team, new Date('2026-11-22T12:00:00Z'));
+    assert.ok(r.ok, h.code);
+    if (r.ok) assert.deepEqual([...r.value.faults].sort(), [...h.faults].sort(), `${h.code}: every fault is one the form has`);
+    if (r.ok) assert.deepEqual([...r.value.channels].sort(), [...h.channels].sort(), `${h.code}: channels`);
+    if (h.channels.length) assert.ok(h.faults.includes('channels'), `${h.code}: channels go with the channels fault`);
+  }
+  assert.equal(statusFromList('high'), 'out');
+  assert.equal(statusFromList(null), 'ok');
+  const rows = issueRows([{ ...base, device: { kind: 'headset', code: 'E50211F7' }, faults: ['bluetooth', 'channels'], channels: ['O2', 'P8'], severity: 'medium', importedFrom: 'Headset list, 14 November 2026' }]).research[0];
+  assert.equal(rows.device_code, 'E50211F7');
+  assert.equal(rows.faults, 'bluetooth,channels');
+  assert.equal(rows.channels, 'O2,P8');
+  assert.equal(rows.imported_from, 'Headset list, 14 November 2026');
 });

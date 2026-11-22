@@ -27,6 +27,93 @@ export const ISSUE_STATUSES = ['open', 'handled', 'not-relevant'] as const;
 export type IssueStatus = (typeof ISSUE_STATUSES)[number];
 export const STATUS_LABEL: Record<IssueStatus, string> = { open: 'Open', handled: 'Handled in analysis', 'not-relevant': 'Not relevant' };
 
+/* ── Equipment (22 November 2026) ─────────────────────────────────────── */
+
+/**
+ * Faults with a headset, laptop or iPad, logged like any other problem but
+ * against the device, so everyone can see what is already known about it
+ * before they log it again. Replaces the headset spreadsheet (headset_list,
+ * 14 November 2026: code, old or new, the issue in words, low/medium/high).
+ */
+export const DEVICE_KINDS = ['headset', 'laptop', 'ipad', 'other'] as const;
+export type DeviceKind = (typeof DEVICE_KINDS)[number];
+export const DEVICE_KIND_LABEL: Record<DeviceKind, string> = { headset: 'EEG headset', laptop: 'Laptop', ipad: 'iPad/tablet', other: 'Other equipment' };
+/** What can go wrong, by kind of device: the headset list's own words, as chips. */
+export const FAULTS: { key: string; label: string; kinds: readonly DeviceKind[] }[] = [
+  { key: 'no-signal', label: 'No EEG signal (all grey)', kinds: ['headset'] },
+  { key: 'left-grey', label: 'Left side grey', kinds: ['headset'] },
+  { key: 'right-grey', label: 'Right side grey', kinds: ['headset'] },
+  { key: 'channels', label: 'Particular channels', kinds: ['headset'] },
+  { key: 'poor-signal', label: 'Poor or patchy signal', kinds: ['headset'] },
+  { key: 'not-registering', label: 'Green but not registering', kinds: ['headset'] },
+  { key: 'motion-only', label: 'Motion works, EEG doesn’t', kinds: ['headset'] },
+  { key: 'contact', label: 'Contact quality', kinds: ['headset'] },
+  { key: 'bluetooth', label: 'Bluetooth: won’t connect', kinds: ['headset', 'laptop', 'ipad', 'other'] },
+  { key: 'disconnects', label: 'Disconnects mid-task', kinds: ['headset', 'laptop', 'ipad', 'other'] },
+  { key: 'battery', label: 'Battery or charging', kinds: ['headset', 'laptop', 'ipad', 'other'] },
+  { key: 'wont-start', label: 'Won’t turn on', kinds: ['laptop', 'ipad', 'other'] },
+  { key: 'crash', label: 'App or task crashed', kinds: ['laptop', 'ipad'] },
+  { key: 'screen', label: 'Screen, touch or keyboard', kinds: ['laptop', 'ipad'] },
+  { key: 'network', label: 'Wi-Fi or network', kinds: ['laptop', 'ipad'] },
+  { key: 'damage', label: 'Physical damage', kinds: ['headset', 'laptop', 'ipad', 'other'] },
+  { key: 'other', label: 'Something else', kinds: ['headset', 'laptop', 'ipad', 'other'] },
+];
+export const FAULT_LABEL: Record<string, string> = Object.fromEntries(FAULTS.map((f) => [f.key, f.label]));
+/** The 14 sensors of the EPOC headsets, left to right. */
+export const CHANNELS = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4'] as const;
+/** How bad the fault is for the device (the headset list's "level of issue"); separate from what it did to the data. */
+export const SEVERITIES = ['low', 'medium', 'high'] as const;
+export type Severity = (typeof SEVERITIES)[number];
+export const SEVERITY_LABEL: Record<Severity, string> = { low: 'Low', medium: 'Medium', high: 'High' };
+export const DEVICE_STATUSES = ['ok', 'care', 'out', 'repair', 'retired'] as const;
+export type DeviceStatus = (typeof DEVICE_STATUSES)[number];
+export const DEVICE_STATUS_LABEL: Record<DeviceStatus, string> = { ok: 'In use', care: 'Use with care', out: 'Out of service', repair: 'Away for repair', retired: 'Retired' };
+
+export interface DeviceRef {
+  kind: DeviceKind;
+  code: string;
+}
+/** A device in the register (portalEquipment/{code}). */
+export interface Device {
+  code: string;
+  kind: DeviceKind;
+  /** "old" or "new" batch for the headsets; free text otherwise. */
+  batch: string;
+  status: DeviceStatus;
+  notes: string;
+  history: Change[];
+}
+/** A device code as typed: capitals, spaces to hyphens ("e502033e" -> "E502033E"). */
+export const deviceCode = (v: unknown) => (typeof v === 'string' ? v.trim().toUpperCase().replace(/\s+/g, '-').slice(0, 40) : '');
+export const DEVICE_CODE = /^[A-Z0-9][A-Z0-9-]{1,39}$/;
+
+export function deviceInput(raw: Record<string, unknown>): { ok: true; value: Pick<Device, 'code' | 'kind' | 'batch' | 'status' | 'notes'> } | { ok: false; problem: string } {
+  const code = deviceCode(raw.code);
+  if (!DEVICE_CODE.test(code)) return { ok: false, problem: 'Give the device’s code (letters and numbers, as on its label).' };
+  const kind = DEVICE_KINDS.includes(raw.kind as DeviceKind) ? (raw.kind as DeviceKind) : null;
+  if (!kind) return { ok: false, problem: 'Choose what kind of device it is.' };
+  const status = DEVICE_STATUSES.includes(raw.status as DeviceStatus) ? (raw.status as DeviceStatus) : 'ok';
+  return { ok: true, value: { code, kind, batch: clip(raw.batch, 40), status, notes: clip(raw.notes, 2000) } };
+}
+
+/** What logging a fault does to the device's status: a high fault takes it out of service; any fault on a device in use makes it "use with care". Never brings one back. */
+export function statusAfterFault(now: DeviceStatus, severity: Severity | null): DeviceStatus {
+  if (now === 'repair' || now === 'retired' || now === 'out') return now;
+  if (severity === 'high') return 'out';
+  return 'care';
+}
+
+/** What the register shows a device: its open faults (not yet marked fixed), the worst of them, and when it was last reported. */
+export function deviceSummary(code: string, issues: Pick<Issue, 'id' | 'device' | 'faults' | 'channels' | 'severity' | 'fixedAt' | 'deviceAt'>[]) {
+  const mine = issues.filter((i) => i.device?.code === code).sort((a, b) => b.deviceAt.localeCompare(a.deviceAt));
+  const open = mine.filter((i) => !i.fixedAt);
+  const rank = (s: Severity | null) => (s ? SEVERITIES.indexOf(s) : -1);
+  const worst = open.reduce<Severity | null>((w, i) => (rank(i.severity) > rank(w) ? i.severity : w), null);
+  const faults = [...new Set(open.flatMap((i) => i.faults))];
+  const channels = [...new Set(open.flatMap((i) => i.channels))].sort((a, b) => CHANNELS.indexOf(a as (typeof CHANNELS)[number]) - CHANNELS.indexOf(b as (typeof CHANNELS)[number]));
+  return { open: open.map((i) => i.id), all: mine.length, worst, faults, channels, lastReported: mine[0]?.deviceAt ?? null };
+}
+
 /** Who or what an entry is about: a young person with a study ID, a name an assistant typed (resolved later), or the whole room. */
 export type About = { kind: 'person'; studyId: string } | { kind: 'typed'; name: string; studyId: string | null } | { kind: 'room' };
 
@@ -60,6 +147,16 @@ export interface Issue {
   impact: Impact;
   note: string;
   recordings: string[];
+  /** The headset, laptop or iPad at fault, if any (22 November 2026). */
+  device: DeviceRef | null;
+  faults: string[];
+  channels: string[];
+  severity: Severity | null;
+  /** When the device fault was marked fixed (the register), and by whom. */
+  fixedAt: string | null;
+  fixedBy: string;
+  /** An entry brought in from an earlier record (the headset list), not logged in the portal. */
+  importedFrom: string;
   status: IssueStatus;
   resolution: string;
   comments: Comment[];
@@ -75,11 +172,15 @@ const team = (v: Viewer) => v.role === 'pm' || v.role === 'researcher';
 /** How long an assistant may change their own entry. */
 export const OWN_EDIT_MS = 24 * 60 * 60 * 1000;
 
-/** The project manager and the research team see every entry; an assistant sees their own. */
-export const canSee = (i: Pick<Issue, 'uid'>, v: Viewer) => team(v) || i.uid === v.uid;
+/**
+ * Everyone in the team sees every entry (22 November 2026), so a fault already
+ * logged is not logged again. Pupils an assistant typed stay hidden from other
+ * assistants (issuesStore view()).
+ */
+export const canSee = (_i: Pick<Issue, 'uid'>, v: Viewer) => v.role !== null;
 /** The team can always edit; an assistant their own, for 24 hours after it arrived. */
 export const canEdit = (i: Pick<Issue, 'uid' | 'receivedAt'>, v: Viewer, now = Date.now()) => team(v) || (i.uid === v.uid && now - Date.parse(i.receivedAt) < OWN_EDIT_MS);
-/** Comments: the team on any entry, an assistant on their own. */
+/** Comments: anyone on any entry ("seen again", "fixed it by reseating the felt"). */
 export const canComment = canSee;
 /** Open / handled / not relevant, and naming the pupil an assistant typed: the team only. */
 export const canTriage = (v: Viewer) => team(v);
@@ -94,7 +195,8 @@ const clip = (v: unknown, n: number) => (typeof v === 'string' ? v.trim().slice(
  * (an entry from the offline queue may be hours old) unless it is in the
  * future by more than a few minutes, which only a wrong clock does.
  */
-export function issueInput(raw: Record<string, unknown>, v: Viewer, now = new Date()): { ok: true; value: Pick<Issue, 'id' | 'deviceAt' | 'visitId' | 'about' | 'type' | 'impact' | 'note' | 'recordings'> } | { ok: false; problem: string } {
+export type IssueFields = Pick<Issue, 'id' | 'deviceAt' | 'visitId' | 'about' | 'type' | 'impact' | 'note' | 'recordings' | 'device' | 'faults' | 'channels' | 'severity'>;
+export function issueInput(raw: Record<string, unknown>, v: Viewer, now = new Date()): { ok: true; value: IssueFields } | { ok: false; problem: string } {
   const id = clip(raw.id, 64);
   if (!ISSUE_ID.test(id)) return { ok: false, problem: 'The entry has no id.' };
   const t = Date.parse(String(raw.deviceAt ?? ''));
@@ -112,11 +214,19 @@ export function issueInput(raw: Record<string, unknown>, v: Viewer, now = new Da
     else if (a?.kind === 'person' && STUDY_ID.test(String(a.studyId))) about.push({ kind: 'person', studyId: String(a.studyId) });
     else if (a?.kind === 'typed' && clip(a.name, 80)) about.push({ kind: 'typed', name: clip(a.name, 80), studyId: null });
   }
-  if (!note && !about.length) return { ok: false, problem: 'Say what happened, or who it was about.' };
+  const d = (raw.device ?? null) as Record<string, unknown> | null;
+  const code = d ? deviceCode(d.code) : '';
+  const kind = d && DEVICE_KINDS.includes(d.kind as DeviceKind) ? (d.kind as DeviceKind) : null;
+  if (d && code && !DEVICE_CODE.test(code)) return { ok: false, problem: 'The device code should be letters and numbers, as on its label.' };
+  const device: DeviceRef | null = code && kind ? { kind, code } : null;
+  const faults = device ? [...new Set((Array.isArray(raw.faults) ? raw.faults : []).map(String))].filter((f) => FAULTS.some((x) => x.key === f && x.kinds.includes(device.kind))) : [];
+  const channels = device?.kind === 'headset' ? CHANNELS.filter((c) => (Array.isArray(raw.channels) ? raw.channels : []).map(String).includes(c)) : [];
+  const severity = device && SEVERITIES.includes(raw.severity as Severity) ? (raw.severity as Severity) : null;
+  if (!note && !about.length && !faults.length) return { ok: false, problem: 'Say what happened, or who it was about.' };
   const recordings = [...new Set((Array.isArray(raw.recordings) ? raw.recordings : []).map((r) => String(r).trim()).filter((r) => REC.test(r)))].slice(0, 40);
   const visitId = typeof raw.visitId === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(raw.visitId) ? raw.visitId : null;
   void v;
-  return { ok: true, value: { id, deviceAt: new Date(t).toISOString(), visitId, about: dedupeAbout(about), type, impact, note, recordings } };
+  return { ok: true, value: { id, deviceAt: new Date(t).toISOString(), visitId, about: dedupeAbout(about), type, impact, note, recordings, device, faults, channels, severity } };
 }
 
 function dedupeAbout(about: About[]): About[] {
@@ -148,7 +258,7 @@ export const ukClock = (iso: string) => CLOCK.format(new Date(iso));
 /* ── The export ───────────────────────────────────────────────────────── */
 
 export type Row = Record<string, string | number | null>;
-export const ISSUE_COLUMNS = ['issue_id', 'logged_at', 'logged_day', 'received_at', 'school_id', 'visit_id', 'participant_ids', 'whole_room', 'unresolved_pupils', 'recording_ids', 'type', 'impact', 'status', 'resolution', 'note'];
+export const ISSUE_COLUMNS = ['issue_id', 'logged_at', 'logged_day', 'received_at', 'school_id', 'visit_id', 'participant_ids', 'whole_room', 'unresolved_pupils', 'recording_ids', 'type', 'impact', 'status', 'resolution', 'note', 'device_kind', 'device_code', 'faults', 'channels', 'severity', 'fixed_at', 'imported_from'];
 export const ISSUE_IDENTIFYING_COLUMNS = [...ISSUE_COLUMNS, 'typed_names', 'author_name', 'author_role', 'comments_n'];
 
 /**
@@ -178,6 +288,13 @@ export function issueRows(issues: Issue[]): { research: Row[]; identifying: Row[
       status: i.status,
       resolution: i.resolution || null,
       note: i.note || null,
+      device_kind: i.device?.kind ?? null,
+      device_code: i.device?.code ?? null,
+      faults: i.faults.join(',') || null,
+      channels: i.channels.join(',') || null,
+      severity: i.severity,
+      fixed_at: i.fixedAt,
+      imported_from: i.importedFrom || null,
     } as Row;
   });
   const identifying = sorted.map((i, n) => ({ ...research[n], typed_names: i.about.flatMap((a) => (a.kind === 'typed' ? [a.name] : [])).join('; ') || null, author_name: i.authorName, author_role: i.authorRole, comments_n: i.comments.length }));
@@ -201,6 +318,13 @@ export function issuesDictionary(): Record<string, unknown> {
     status: { Description: 'Where it stands', Levels: STATUS_LABEL },
     resolution: { Description: 'What the team decided.' },
     note: { Description: 'What happened, as the person wrote it.' },
+    device_kind: { Description: 'The kind of device at fault, if any', Levels: DEVICE_KIND_LABEL },
+    device_code: { Description: 'The device at fault (its code, as on its label; the EEG headsets’ serial).' },
+    faults: { Description: 'What was wrong with the device, comma-separated', Levels: FAULT_LABEL },
+    channels: { Description: 'The headset sensors affected (EPOC 14-channel montage).' },
+    severity: { Description: 'How bad the fault was for the device (not the data)', Levels: SEVERITY_LABEL },
+    fixed_at: { Description: 'When the device fault was marked fixed in the portal’s equipment register.' },
+    imported_from: { Description: 'Brought in from an earlier record rather than logged in the portal (e.g. the headset list of 14 November 2026).' },
   };
 }
 
@@ -261,7 +385,7 @@ export function buildDigest(input: { day: string; entries: DigestEntry[]; openEa
 
   const line = ({ entry: e, late }: { entry: DigestEntry; late: boolean }) => {
     const who = [...e.pupils, ...(e.about.some((a) => a.kind === 'room') ? ['whole room/session'] : [])].join(', ');
-    return { time: `${late ? `${ukDay(e.deviceAt).slice(8, 10)}/${ukDay(e.deviceAt).slice(5, 7)} ` : ''}${ukClock(e.deviceAt)}`, late, head: `${ISSUE_TYPE_LABEL[e.type]} · ${IMPACT_LABEL[e.impact]}${who ? ` · ${who}` : ''}`, place: e.schoolName ? `${e.schoolName}${e.visitLabel ? ` · ${e.visitLabel}` : ''}` : 'Not at a visit', note: e.note, by: e.authorName, recordings: e.recordings, link: e.link };
+    return { time: `${late ? `${ukDay(e.deviceAt).slice(8, 10)}/${ukDay(e.deviceAt).slice(5, 7)} ` : ''}${ukClock(e.deviceAt)}`, late, head: `${ISSUE_TYPE_LABEL[e.type]} · ${IMPACT_LABEL[e.impact]}${e.device ? ` · ${e.device.code}${e.faults.length ? ` (${e.faults.map((f) => (f === 'channels' && e.channels.length ? e.channels.join(', ') : FAULT_LABEL[f] ?? f).toLowerCase()).join('; ')})` : ''}` : ''}${who ? ` · ${who}` : ''}`, place: e.schoolName ? `${e.schoolName}${e.visitLabel ? ` · ${e.visitLabel}` : ''}` : 'Not at a visit', note: e.note, by: e.authorName, recordings: e.recordings, link: e.link };
   };
   const total = items.length;
   const subject = total ? `Problems logged ${longDay}: ${total}${counts.unusable ? ` (${counts.unusable} data unusable)` : ''}` : `Problems logged ${longDay}: none`;
@@ -311,6 +435,41 @@ export function digestSettingsOf(v: unknown): DigestSettings {
 }
 
 /** The portal actions (portalCore.ts). Logging, the list, editing and comments: every active user (the rules above decide which entries). */
-export const ISSUE_SELF_ACTIONS = ['issue-context', 'issue-pupils', 'issue-log', 'issue-list', 'issue-edit', 'issue-comment'];
-export const ISSUE_TEAM_ACTIONS = ['issue-status', 'issue-resolve-pupil'];
-export const ISSUE_PM_ACTIONS = ['issue-digest-settings', 'issue-save-digest', 'issue-digest-now'];
+export const ISSUE_SELF_ACTIONS = ['issue-context', 'issue-pupils', 'issue-log', 'issue-list', 'issue-edit', 'issue-comment', 'issue-equipment'];
+/** The register: adding a device, its status and notes, marking faults fixed. */
+export const ISSUE_TEAM_ACTIONS = ['issue-status', 'issue-resolve-pupil', 'issue-equipment-save', 'issue-equipment-fixed'];
+export const ISSUE_PM_ACTIONS = ['issue-digest-settings', 'issue-save-digest', 'issue-digest-now', 'issue-equipment-import'];
+
+/* ── The headset list of 14 November 2026 ─────────────────────────────── */
+
+/**
+ * The spreadsheet the team kept before the portal had this (headset_list,
+ * 14 November 2026), as the register's starting point: each headset, and each
+ * fault as an open entry with the sheet's words kept in the note. The project
+ * manager brings it in once (Equipment › Bring in the headset list); doing it
+ * again changes nothing.
+ */
+export const HEADSET_LIST_SOURCE = 'Headset list, 14 November 2026';
+export const HEADSET_LIST_AT = '2026-11-14T12:00:00.000Z';
+export const HEADSET_LIST: { code: string; batch: 'old' | 'new'; issue: string; level: string; faults: string[]; channels: string[]; severity: Severity | null }[] = [
+  { code: 'E502033E', batch: 'old', issue: 'eeg signal issues (all grey/one side grey), bluetooth connection issues (initial)', level: 'high', faults: ['no-signal', 'bluetooth'], channels: [], severity: 'high' },
+  { code: 'E7020341', batch: 'old', issue: 'eeg signal issues (left side all grey, and whole headset)', level: 'medium', faults: ['left-grey', 'no-signal'], channels: [], severity: 'medium' },
+  { code: 'E70204BB', batch: 'old', issue: 'contact and eeg signal issues (all grey but motion worked, right side all grey), bluetooth connection issues', level: 'high', faults: ['contact', 'no-signal', 'motion-only', 'right-grey', 'bluetooth'], channels: [], severity: 'high' },
+  { code: 'E70205F7', batch: 'old', issue: 'bluetooth connection issues', level: 'low', faults: ['bluetooth'], channels: [], severity: 'low' },
+  { code: 'E50203BF', batch: 'old', issue: 'O1 signal issues', level: 'low', faults: ['channels'], channels: ['O1'], severity: 'low' },
+  { code: 'E702033A', batch: 'old', issue: 'bluetooth connection issues, contact and eeg signal issues (all grey, motion worked)', level: 'medium', faults: ['bluetooth', 'contact', 'no-signal', 'motion-only'], channels: [], severity: 'medium' },
+  { code: 'E50211E8', batch: 'new', issue: 'occasionally disconnects mid-task, F3&F4 and overall eeg signal issues', level: 'low', faults: ['disconnects', 'channels', 'poor-signal'], channels: ['F3', 'F4'], severity: 'low' },
+  { code: 'E50211EE', batch: 'new', issue: 'no issue', level: 'NA', faults: [], channels: [], severity: null },
+  { code: 'E50211F4', batch: 'new', issue: 'P8&O1 minor signal issues', level: 'low', faults: ['channels'], channels: ['O1', 'P8'], severity: 'low' },
+  { code: 'E50211F5', batch: 'new', issue: 'bluetooth connection issues, potential battery issue?, eeg signal issues (half of headset not registering)', level: 'medium/high', faults: ['bluetooth', 'battery', 'not-registering'], channels: [], severity: 'high' },
+  { code: 'E5021212', batch: 'new', issue: 'contact and eeg signal issues (all grey or left side green but not registering noise), bluetooth connection issues (initial and mid-task)', level: 'high', faults: ['contact', 'no-signal', 'not-registering', 'bluetooth', 'disconnects'], channels: [], severity: 'high' },
+  { code: 'E50211F6', batch: 'new', issue: 'no eeg signal (all grey) in last few sessions', level: 'medium', faults: ['no-signal'], channels: [], severity: 'medium' },
+  { code: 'E50211FC', batch: 'new', issue: 'eeg signal issues (right side and whole all grey at separate points), bluetooth connection issues (initial)', level: 'medium', faults: ['right-grey', 'no-signal', 'bluetooth'], channels: [], severity: 'medium' },
+  { code: 'E50211EF', batch: 'new', issue: 'bluetooth connection issues (initial), minor eeg signal quality issues, no eeg signal in last few sessions', level: 'medium', faults: ['bluetooth', 'poor-signal', 'no-signal'], channels: [], severity: 'medium' },
+  { code: 'E50211F7', batch: 'new', issue: 'bluetooth connection issues (initial), P8&O2 minor signal issues', level: 'medium', faults: ['bluetooth', 'channels'], channels: ['O2', 'P8'], severity: 'medium' },
+  { code: 'E50211DA', batch: 'new', issue: 'bluetooth connection issues (initial), occasional O1&O2 eeg signal issues', level: 'low', faults: ['bluetooth', 'channels'], channels: ['O1', 'O2'], severity: 'low' },
+];
+/** The entry id for a headset's line in the list: fixed, so bringing it in twice stores it once. */
+export const headsetListEntryId = (code: string) => `import-hl261114-${code}`;
+/** The device status a severity from the list starts at. */
+export const statusFromList = (s: Severity | null): DeviceStatus => (s === 'high' ? 'out' : s ? 'care' : 'ok');

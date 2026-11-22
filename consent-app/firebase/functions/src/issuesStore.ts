@@ -14,8 +14,27 @@ import {
   canSee,
   canTriage,
   changesBetween,
+  CHANNELS,
+  DEVICE_CODE,
+  DEVICE_KINDS,
+  DEVICE_STATUSES,
+  deviceCode,
+  deviceInput,
+  deviceSummary,
   digestSettingsOf,
+  FAULT_LABEL,
+  HEADSET_LIST,
+  HEADSET_LIST_AT,
+  HEADSET_LIST_SOURCE,
+  headsetListEntryId,
   ISSUE_ID,
+  SEVERITIES,
+  statusAfterFault,
+  statusFromList,
+  type Device,
+  type DeviceKind,
+  type DeviceStatus,
+  type Severity,
   ISSUE_STATUSES,
   issueInput,
   issueRows,
@@ -70,6 +89,13 @@ export function issueOf(id: string, x: Record<string, unknown>): Issue {
     impact: x.impact as Issue['impact'],
     note: String(x.note ?? ''),
     recordings: (Array.isArray(x.recordings) ? x.recordings : []).map(String),
+    device: x.device && typeof x.device === 'object' && DEVICE_CODE.test(String((x.device as { code?: unknown }).code)) ? { kind: (DEVICE_KINDS.includes((x.device as { kind: DeviceKind }).kind) ? (x.device as { kind: DeviceKind }).kind : 'other') as DeviceKind, code: String((x.device as { code: string }).code) } : null,
+    faults: (Array.isArray(x.faults) ? x.faults : []).map(String),
+    channels: (Array.isArray(x.channels) ? x.channels : []).map(String).filter((c) => (CHANNELS as readonly string[]).includes(c)),
+    severity: SEVERITIES.includes(x.severity as Severity) ? (x.severity as Severity) : null,
+    fixedAt: typeof x.fixedAt === 'string' ? x.fixedAt : null,
+    fixedBy: String(x.fixedBy ?? ''),
+    importedFrom: String(x.importedFrom ?? ''),
     status: (ISSUE_STATUSES.includes(x.status as IssueStatus) ? x.status : 'open') as IssueStatus,
     resolution: String(x.resolution ?? ''),
     comments: (Array.isArray(x.comments) ? x.comments : []) as Comment[],
@@ -111,13 +137,27 @@ async function teamNames(db: Firestore): Promise<Map<string, string>> {
 /** An entry as the list shows it: pupils named for the team only. */
 function view(i: Issue, v: Viewer, names: Map<string, string>, visits: Map<string, VisitInfo>) {
   const team = v.role === 'pm' || v.role === 'researcher';
+  const namesOk = team || i.uid === v.uid;
   return {
     ...i,
     mine: i.uid === v.uid,
     canEdit: canEdit(i, v),
     schoolName: i.schoolId ? (SCHOOL.get(i.schoolId) ?? i.schoolId) : '',
     visitLabel: visitLabel(i.visitId ? visits.get(i.visitId) : undefined),
-    about: i.about.map((a) => (a.kind === 'person' ? { ...a, label: team ? `${names.get(a.studyId) ?? ''} (${a.studyId})`.trim() : a.studyId } : a.kind === 'typed' ? { ...a, label: team || i.uid === v.uid ? `${a.name}${a.studyId ? ` → ${a.studyId}` : ' (to resolve)'}` : 'a pupil (named by the assistant)' } : { ...a, label: 'Whole room/session' })),
+    // Since everyone sees every entry (22 November 2026), a name an assistant typed reaches only the team and its author: never sent to anyone else, in the entry or its history.
+    about: i.about.map((a) => (a.kind === 'person' ? { ...a, label: team ? `${names.get(a.studyId) ?? ''} (${a.studyId})`.trim() : a.studyId } : a.kind === 'typed' ? (namesOk ? { ...a, label: `${a.name}${a.studyId ? ` → ${a.studyId}` : ' (to resolve)'}` } : { kind: 'typed' as const, name: '', studyId: a.studyId, label: a.studyId ?? 'a pupil (named by the assistant)' }) : { ...a, label: 'Whole room/session' })),
+    history: namesOk ? i.history : i.history.map((h) => ({ ...h, changes: Object.fromEntries(Object.entries(h.changes).map(([k, c]) => (k.startsWith('about') ? [k, { from: '(pupils)', to: '(pupils)' }] : [k, c]))) })),
+  };
+}
+
+export function deviceOf(code: string, x: Record<string, unknown>): Device {
+  return {
+    code,
+    kind: (DEVICE_KINDS.includes(x.kind as DeviceKind) ? x.kind : 'other') as DeviceKind,
+    batch: String(x.batch ?? ''),
+    status: (DEVICE_STATUSES.includes(x.status as DeviceStatus) ? x.status : 'ok') as DeviceStatus,
+    notes: String(x.notes ?? ''),
+    history: (Array.isArray(x.history) ? x.history : []) as Change[],
   };
 }
 
@@ -174,14 +214,24 @@ export async function issueAction(db: Firestore, who: Who, action: string, data:
       // Assistants name pupils by typing; only the team picks from the registry.
       if (!team && e.about.some((a) => a.kind === 'person')) e.about = e.about.filter((a) => a.kind !== 'person');
       const ref = db.collection('portalIssues').doc(e.id);
+      const dref = e.device ? db.collection('portalEquipment').doc(e.device.code) : null;
       const visit = e.visitId ? (await visitsOf(db)).find((x) => x.visitId === e.visitId) : undefined;
       const created = await db.runTransaction(async (tx) => {
         const had = await tx.get(ref);
+        const dsnap = dref ? await tx.get(dref) : null;
         if (had.exists) {
           if (had.data()?.uid !== who.uid) throw refused('That entry belongs to someone else.');
           return false;
         }
-        tx.create(ref, { ...e, visitId: visit ? e.visitId : null, schoolId: visit?.schoolId ?? null, uid: who.uid, authorName: who.name || who.email, authorRole: who.role, receivedAt: new Date().toISOString(), status: 'open', resolution: '', comments: [], history: [], createdAt: FieldValue.serverTimestamp() });
+        tx.create(ref, { ...e, visitId: visit ? e.visitId : null, schoolId: visit?.schoolId ?? null, uid: who.uid, authorName: who.name || who.email, authorRole: who.role, receivedAt: new Date().toISOString(), status: 'open', resolution: '', comments: [], history: [], fixedAt: null, fixedBy: '', importedFrom: '', createdAt: FieldValue.serverTimestamp() });
+        // The device goes in the register if it is new, and a fault changes its status (a high one takes it out of service).
+        if (dref && e.device) {
+          const before = dsnap?.exists ? deviceOf(e.device.code, dsnap.data()!) : null;
+          const status = e.faults.length ? statusAfterFault(before?.status ?? 'ok', e.severity) : (before?.status ?? 'ok');
+          const change = { at: new Date().toISOString(), by: who.uid, byName: who.name || who.email, changes: before ? { status: { from: before.status, to: status } } : { added: { from: null, to: e.device.code } } };
+          if (!before) tx.create(dref, { code: e.device.code, kind: e.device.kind, batch: '', status, notes: '', history: [change], createdAt: FieldValue.serverTimestamp() });
+          else if (before.status !== status) tx.update(dref, { status, history: [...before.history, { ...change, note: `Fault logged${e.faults.length ? `: ${e.faults.map((f) => FAULT_LABEL[f] ?? f).join('; ')}` : ''}`, entry: e.id }], updatedAt: FieldValue.serverTimestamp() });
+        }
         return true;
       });
       if (created) await audit(db, who, 'issue-log', e.id, { type: e.type, impact: e.impact, visitId: e.visitId });
@@ -190,11 +240,12 @@ export async function issueAction(db: Firestore, who: Who, action: string, data:
     }
 
     case 'issue-list': {
-      const snap = team ? await db.collection('portalIssues').get() : await db.collection('portalIssues').where('uid', '==', who.uid).get();
+      // Everyone sees every entry (22 November 2026), so nothing is logged twice; pupils' names stay with the team.
+      const snap = await db.collection('portalIssues').get();
       const [names, visits] = await Promise.all([team ? teamNames(db) : Promise.resolve(new Map<string, string>()), visitsOf(db)]);
       const vmap = new Map(visits.map((x) => [x.visitId, x]));
       const issues = snap.docs.map((d) => issueOf(d.id, d.data())).filter((i) => canSee(i, v)).sort((a, b) => b.deviceAt.localeCompare(a.deviceAt));
-      return { issues: issues.map((i) => view(i, v, names, vmap)), authors: team ? [...new Map(issues.map((i) => [i.uid, i.authorName])).entries()].map(([uid, name]) => ({ uid, name })) : [] };
+      return { issues: issues.map((i) => view(i, v, names, vmap)), authors: [...new Map(issues.map((i) => [i.uid, i.authorName])).entries()].map(([uid, name]) => ({ uid, name })) };
     }
 
     case 'issue-edit': {
@@ -210,7 +261,7 @@ export async function issueAction(db: Firestore, who: Who, action: string, data:
         if (!parsed.ok) throw bad(parsed.problem);
         const next = parsed.value;
         if (!team) next.about = [...before.about.filter((a) => a.kind === 'person'), ...next.about.filter((a) => a.kind !== 'person')];
-        const fields = { deviceAt: next.deviceAt, visitId: next.visitId, about: next.about, type: next.type, impact: next.impact, note: next.note, recordings: next.recordings };
+        const fields = { deviceAt: next.deviceAt, visitId: next.visitId, about: next.about, type: next.type, impact: next.impact, note: next.note, recordings: next.recordings, device: next.device, faults: next.faults, channels: next.channels, severity: next.severity };
         const changes = changesBetween(before as unknown as Record<string, unknown>, fields);
         if (!Object.keys(changes).length) return;
         const visit = next.visitId ? (await visitsOf(db)).find((x) => x.visitId === next.visitId) : undefined;
@@ -272,6 +323,91 @@ export async function issueAction(db: Firestore, who: Who, action: string, data:
       return { ok: true };
     }
 
+    case 'issue-equipment': {
+      const [devs, snap] = await Promise.all([db.collection('portalEquipment').get(), db.collection('portalIssues').get()]);
+      const issues = snap.docs.map((d) => issueOf(d.id, d.data())).filter((i) => i.device);
+      const byId = new Map(issues.map((i) => [i.id, i]));
+      const devices = devs.docs.map((d) => deviceOf(d.id, d.data()));
+      // A device named in an entry but missing from the register (logged before it was added) is shown all the same.
+      for (const i of issues) if (!devices.some((x) => x.code === i.device!.code)) devices.push({ code: i.device!.code, kind: i.device!.kind, batch: '', status: 'ok', notes: '', history: [] });
+      return {
+        devices: devices
+          .map((d) => {
+            const sum = deviceSummary(d.code, issues);
+            return { ...d, ...sum, openEntries: sum.open.map((id) => byId.get(id)!).map((i) => ({ id: i.id, deviceAt: i.deviceAt, authorName: i.authorName, faults: i.faults, channels: i.channels, severity: i.severity, note: i.note, comments: i.comments.length, importedFrom: i.importedFrom })) };
+          })
+          .sort((a, b) => DEVICE_KINDS.indexOf(a.kind) - DEVICE_KINDS.indexOf(b.kind) || a.code.localeCompare(b.code)),
+        listImported: issues.some((i) => i.importedFrom === HEADSET_LIST_SOURCE),
+      };
+    }
+
+    case 'issue-equipment-save': {
+      const parsed = deviceInput(data.device as Record<string, unknown>);
+      if (!parsed.ok) throw bad(parsed.problem);
+      const d = parsed.value;
+      const ref = db.collection('portalEquipment').doc(d.code);
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        const at = new Date().toISOString();
+        if (!snap.exists) {
+          tx.create(ref, { ...d, history: [{ at, by: who.uid, byName: who.name, changes: { added: { from: null, to: d.code } } }], createdAt: FieldValue.serverTimestamp() });
+          return;
+        }
+        const before = deviceOf(d.code, snap.data()!);
+        const changes = changesBetween(before as unknown as Record<string, unknown>, { kind: d.kind, batch: d.batch, status: d.status, notes: d.notes });
+        if (Object.keys(changes).length) tx.update(ref, { kind: d.kind, batch: d.batch, status: d.status, notes: d.notes, history: [...before.history, { at, by: who.uid, byName: who.name, changes }], updatedAt: FieldValue.serverTimestamp() });
+      });
+      await audit(db, who, 'issue-equipment-save', d.code, { status: d.status });
+      return { ok: true };
+    }
+
+    case 'issue-equipment-fixed': {
+      // The faults on a device are fixed (felt replaced, firmware updated, back from repair): its open entries are marked, and it goes back in use.
+      const code = deviceCode(data.code);
+      if (!DEVICE_CODE.test(code)) throw bad('Which device?');
+      const how = clip(data.note, 1000);
+      if (!how) throw bad('Say what was done to fix it.');
+      const status: DeviceStatus = DEVICE_STATUSES.includes(data.status as DeviceStatus) ? (data.status as DeviceStatus) : 'ok';
+      const open = (await db.collection('portalIssues').where('device.code', '==', code).get()).docs.filter((d) => !d.data().fixedAt);
+      const at = new Date().toISOString();
+      const c = (id: string): Comment => ({ id: `${Date.now().toString(36)}${id.slice(-4)}`, at, by: who.uid, byName: who.name || who.email, text: `Device fixed: ${how}` });
+      const dref = db.collection('portalEquipment').doc(code);
+      await db.runTransaction(async (tx) => {
+        const dsnap = await tx.get(dref);
+        for (const d of open) tx.update(d.ref, { fixedAt: at, fixedBy: who.name || who.email, comments: FieldValue.arrayUnion(c(d.id)), updatedAt: FieldValue.serverTimestamp() });
+        const before = dsnap.exists ? deviceOf(code, dsnap.data()!) : null;
+        const change = { at, by: who.uid, byName: who.name || who.email, changes: { status: { from: before?.status ?? null, to: status } }, note: `Fixed: ${how}` };
+        if (before) tx.update(dref, { status, history: [...before.history, change], updatedAt: FieldValue.serverTimestamp() });
+        else tx.create(dref, { code, kind: open[0]?.data().device?.kind ?? 'other', batch: '', status, notes: '', history: [change], createdAt: FieldValue.serverTimestamp() });
+      });
+      await audit(db, who, 'issue-equipment-fixed', code, { entries: open.length, status });
+      return { fixed: open.length };
+    }
+
+    case 'issue-equipment-import': {
+      // The headset list of 14 November 2026: each headset in the register, each fault an open entry (the sheet's words in the note). Twice is once.
+      const at = new Date().toISOString();
+      let devices = 0;
+      let entries = 0;
+      for (const h of HEADSET_LIST) {
+        const dref = db.collection('portalEquipment').doc(h.code);
+        const iref = db.collection('portalIssues').doc(headsetListEntryId(h.code));
+        await db.runTransaction(async (tx) => {
+          const [dsnap, isnap] = await Promise.all([tx.get(dref), tx.get(iref)]);
+          if (!dsnap.exists) {
+            tx.create(dref, { code: h.code, kind: 'headset', batch: h.batch, status: statusFromList(h.severity), notes: '', history: [{ at, by: who.uid, byName: who.name || who.email, changes: { added: { from: null, to: h.code } }, note: HEADSET_LIST_SOURCE }], createdAt: FieldValue.serverTimestamp() });
+            devices += 1;
+          }
+          if (!isnap.exists && h.faults.length) {
+            tx.create(iref, { id: iref.id, uid: who.uid, authorName: who.name || who.email, authorRole: who.role, deviceAt: HEADSET_LIST_AT, receivedAt: at, visitId: null, schoolId: null, about: [], type: 'eeg', impact: 'may-affect', note: `From the headset list (14 November 2026): ${h.issue}. Level: ${h.level}.`, recordings: [], device: { kind: 'headset', code: h.code }, faults: h.faults, channels: h.channels, severity: h.severity, fixedAt: null, fixedBy: '', importedFrom: HEADSET_LIST_SOURCE, status: 'open', resolution: '', comments: [], history: [], createdAt: FieldValue.serverTimestamp() });
+            entries += 1;
+          }
+        });
+      }
+      await audit(db, who, 'issue-equipment-import', HEADSET_LIST_SOURCE, { devices, entries });
+      return { devices, entries };
+    }
+
     case 'issue-digest-settings':
       return { settings: digestSettingsOf((await db.collection('portalSettings').doc('issues').get()).data()) };
 
@@ -317,7 +453,10 @@ export async function digestEntries(db: Firestore): Promise<{ entries: DigestEnt
 /** The day's email to the people in the setting. Never throws for a send that fails: it is logged. */
 export async function sendDigest(db: Firestore, day: string, send: (to: string, subject: string, text: string, html: string) => Promise<unknown>, forceEmpty = false): Promise<{ sent: boolean; entries: number; to: string[] }> {
   const settings = digestSettingsOf((await db.collection('portalSettings').doc('issues').get()).data());
-  const { entries, all } = await digestEntries(db);
+  const got = await digestEntries(db);
+  // Entries brought in from an earlier record (the headset list) are not the day's news.
+  const entries = got.entries.filter((e) => !e.importedFrom || ukDay(e.deviceAt) === day);
+  const all = got.all;
   const openEarlier = all.filter((i) => i.status === 'open' && ukDay(i.deviceAt) < day && ukDay(i.receivedAt) < day).length;
   const digest = buildDigest({ day, entries, openEarlier, notebookLink: NOTEBOOK_URL, sendEmpty: settings.sendEmpty || forceEmpty });
   if (!digest || !settings.to.length) {

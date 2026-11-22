@@ -489,6 +489,20 @@ built for a phone:
   to a study ID later); and "Whole room/session".
 * **Type**: Headset/EEG signal, Noise/interruption, Equipment (laptop/iPad),
   Task/software, Participant, Timing/schedule, Other.
+* **Which device?** (optional; for Headset/EEG signal, Equipment and
+  Task/software, 22 November 2026): picked from the equipment register, or its
+  code typed in (a new code is added to the register). Once a device is picked
+  the form shows the faults **already logged for it** and not yet fixed; tapping
+  one ("Same problem: add to this one") adds the note to that entry as a comment
+  with the time, instead of logging it again. Otherwise: **what's wrong with
+  it** (chips in the words of the old headset spreadsheet: no EEG signal (all
+  grey), left or right side grey, particular channels, poor or patchy signal,
+  green but not registering, motion works but EEG doesn't, contact quality,
+  Bluetooth won't connect, disconnects mid-task, battery or charging, physical
+  damage; for laptops and iPads: won't turn on, app or task crashed, screen,
+  Wi-Fi), **which channels** (the 14 EPOC sensors, AF3 to AF4) and **how bad it
+  is for the device** (Low, Medium, High), which is separate from the impact on
+  the data.
 * **Impact**: Minor, May affect data, Data unusable.
 * **Note**: free text (phone dictation works). The form asks for no pupils'
   names in the note: names go in "About".
@@ -505,13 +519,41 @@ refuses (a clock far in the future) is reported, not retried.
 
 ### The notebook (Notebook tab)
 
-The project manager and the research team see every entry; a research assistant
-sees their own. Filters: school, visit, dates, pupil, type, impact, status, who
+Everyone signed in sees every entry (22 November 2026; before, a research
+assistant saw only their own), so a problem already logged is not logged again,
+and anyone can comment on any entry ("same here at Lawnswood"). A pupil's name
+an assistant typed is sent only to the research team and that assistant: others
+see "a pupil (named by the assistant)", in the entry and in its history.
+Changing an entry stays with its author (24 hours) and the team. Filters: school, visit, dates, pupil, type, impact, status, who
 logged it. Each entry has comments, a status (Open, Handled in analysis, Not
 relevant) with a resolution note (the team), and every change kept with what it
 was before: the original note is never lost. An assistant can change their own
 entry for 24 hours, then comment. A typed name has a **Resolve pupil** action
 (the team) to pick the study ID.
+
+### Equipment (Equipment tab, 22 November 2026)
+
+Replaces the headset spreadsheet (code, old or new batch, the issue in words,
+low/medium/high). Every headset, laptop and iPad, everyone can see it: its
+status (**In use**, **Use with care**, **Out of service**, **Away for
+repair**, **Retired**), its open faults with the worst severity, and when it was
+last reported. Logging a fault changes the status: any fault on a device in use
+makes it "use with care", a high one "out of service". Nothing brings it back
+but the team: **Mark the faults fixed** on the device's page (what was done,
+and its status now) marks each open fault fixed with the note as a comment;
+their status for the analysis is separate and does not change. The team also
+add devices and change a device's status, batch and notes; each change is kept
+in the device's history. "Log a problem with E50211F7" on a device's page opens
+the form with it chosen.
+
+**The headset list of 14 November 2026**: the project manager brings it in once
+(Equipment › Bring in the headset list): 16 headsets, and each of the 15 with an
+issue as an open entry dated 14 November, with the sheet's words in the note and
+its level as the severity ("medium/high" as high). High headsets start out of
+service, low and medium use with care, E50211EE (no issue) in use. Doing it
+again changes nothing. These entries are not in the daily email.
+
+Stored in `portalEquipment/{code}` (functions only, like the rest).
 
 ### The daily email
 
@@ -532,11 +574,13 @@ sends it on demand.
 
 * `linkage/issues.tsv` (+ `.json`): one row an entry: times (device and server),
   day, school, visit, study IDs, whole room, pupils still to resolve, recording
-  ids, type, impact, status, resolution and the note as written. No names.
+  ids, type, impact, status, resolution and the note as written; the device,
+  faults, channels, severity, when it was fixed and whether it came from the
+  headset list. No names.
 * `linkage/identifying/issues.tsv`: the same with the typed names and who logged
   each.
 * The Google Sheet's **Issues** tab: the entries with study IDs (no pupils'
-  names).
+  names), with the device, faults, channels, severity and when fixed.
 
 Code: `firebase/functions/src/issues.ts` (rules, export rows, the email; tested in
 `issues.test.ts`), `issuesStore.ts`, `src/portal/IssueViews.tsx`,
