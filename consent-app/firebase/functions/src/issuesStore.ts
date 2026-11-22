@@ -40,7 +40,11 @@ import {
   issueRows,
   shortName,
   ukDay,
+  bulkDevices,
+  isDone,
+  nameKey,
   type About,
+  type Action,
   type Comment,
   type Change,
   type DigestEntry,
@@ -99,6 +103,7 @@ export function issueOf(id: string, x: Record<string, unknown>): Issue {
     status: (ISSUE_STATUSES.includes(x.status as IssueStatus) ? x.status : 'open') as IssueStatus,
     resolution: String(x.resolution ?? ''),
     comments: (Array.isArray(x.comments) ? x.comments : []) as Comment[],
+    actions: (Array.isArray(x.actions) ? x.actions : []) as Action[],
     history: (Array.isArray(x.history) ? x.history : []) as Change[],
   };
 }
@@ -154,6 +159,10 @@ export function deviceOf(code: string, x: Record<string, unknown>): Device {
   return {
     code,
     kind: (DEVICE_KINDS.includes(x.kind as DeviceKind) ? x.kind : 'other') as DeviceKind,
+    name: String(x.name ?? ''),
+    model: String(x.model ?? ''),
+    serial: String(x.serial ?? ''),
+    location: String(x.location ?? ''),
     batch: String(x.batch ?? ''),
     status: (DEVICE_STATUSES.includes(x.status as DeviceStatus) ? x.status : 'ok') as DeviceStatus,
     notes: String(x.notes ?? ''),
@@ -223,13 +232,13 @@ export async function issueAction(db: Firestore, who: Who, action: string, data:
           if (had.data()?.uid !== who.uid) throw refused('That entry belongs to someone else.');
           return false;
         }
-        tx.create(ref, { ...e, visitId: visit ? e.visitId : null, schoolId: visit?.schoolId ?? null, uid: who.uid, authorName: who.name || who.email, authorRole: who.role, receivedAt: new Date().toISOString(), status: 'open', resolution: '', comments: [], history: [], fixedAt: null, fixedBy: '', importedFrom: '', createdAt: FieldValue.serverTimestamp() });
+        tx.create(ref, { ...e, visitId: visit ? e.visitId : null, schoolId: visit?.schoolId ?? null, uid: who.uid, authorName: who.name || who.email, authorRole: who.role, receivedAt: new Date().toISOString(), status: 'open', resolution: '', comments: [], actions: [], history: [], fixedAt: null, fixedBy: '', importedFrom: '', createdAt: FieldValue.serverTimestamp() });
         // The device goes in the register if it is new, and a fault changes its status (a high one takes it out of service).
         if (dref && e.device) {
           const before = dsnap?.exists ? deviceOf(e.device.code, dsnap.data()!) : null;
           const status = e.faults.length ? statusAfterFault(before?.status ?? 'ok', e.severity) : (before?.status ?? 'ok');
           const change = { at: new Date().toISOString(), by: who.uid, byName: who.name || who.email, changes: before ? { status: { from: before.status, to: status } } : { added: { from: null, to: e.device.code } } };
-          if (!before) tx.create(dref, { code: e.device.code, kind: e.device.kind, batch: '', status, notes: '', history: [change], createdAt: FieldValue.serverTimestamp() });
+          if (!before) tx.create(dref, { code: e.device.code, name: '', model: '', serial: '', location: '', kind: e.device.kind, batch: '', status, notes: '', history: [change], createdAt: FieldValue.serverTimestamp() });
           else if (before.status !== status) tx.update(dref, { status, history: [...before.history, { ...change, note: `Fault logged${e.faults.length ? `: ${e.faults.map((f) => FAULT_LABEL[f] ?? f).join('; ')}` : ''}`, entry: e.id }], updatedAt: FieldValue.serverTimestamp() });
         }
         return true;
@@ -303,6 +312,27 @@ export async function issueAction(db: Firestore, who: Who, action: string, data:
       return { ok: true };
     }
 
+    case 'issue-action': {
+      // "An action has been done": what, and optionally the status it leaves the entry in ("Cleared").
+      const id = clip(data.id, 64);
+      const text = clip(data.text, 2000);
+      if (!text) throw bad('Say what was done.');
+      const status = data.status ? (ISSUE_STATUSES.includes(data.status as IssueStatus) ? (data.status as IssueStatus) : null) : null;
+      if (data.status && !status) throw bad('Choose a status.');
+      const ref = db.collection('portalIssues').doc(id);
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists) throw bad('That entry is not there.');
+        const before = issueOf(id, snap.data()!);
+        const at = new Date().toISOString();
+        const act: Action = { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, at, by: who.uid, byName: who.name || who.email, text, status };
+        const next = status ?? (before.status === 'open' ? 'actioned' : before.status);
+        tx.update(ref, { actions: [...before.actions, act], status: next, ...(status && isDone(status) ? { resolution: text } : {}), ...(isDone(next) && !isDone(before.status) ? { resolvedBy: who.name, resolvedAt: at } : {}), ...(next !== before.status ? { history: [...before.history, { at, by: who.uid, byName: who.name, changes: { status: { from: before.status, to: next } } }] } : {}), updatedAt: FieldValue.serverTimestamp() });
+      });
+      await audit(db, who, 'issue-action', id, { status });
+      return { ok: true };
+    }
+
     case 'issue-resolve-pupil': {
       const id = clip(data.id, 64);
       const index = Number(data.index);
@@ -329,7 +359,7 @@ export async function issueAction(db: Firestore, who: Who, action: string, data:
       const byId = new Map(issues.map((i) => [i.id, i]));
       const devices = devs.docs.map((d) => deviceOf(d.id, d.data()));
       // A device named in an entry but missing from the register (logged before it was added) is shown all the same.
-      for (const i of issues) if (!devices.some((x) => x.code === i.device!.code)) devices.push({ code: i.device!.code, kind: i.device!.kind, batch: '', status: 'ok', notes: '', history: [] });
+      for (const i of issues) if (!devices.some((x) => x.code === i.device!.code)) devices.push({ code: i.device!.code, name: '', model: '', serial: '', location: '', kind: i.device!.kind, batch: '', status: 'ok', notes: '', history: [] });
       return {
         devices: devices
           .map((d) => {
@@ -346,19 +376,47 @@ export async function issueAction(db: Firestore, who: Who, action: string, data:
       if (!parsed.ok) throw bad(parsed.problem);
       const d = parsed.value;
       const ref = db.collection('portalEquipment').doc(d.code);
+      const isNew = data.isNew === true;
       await db.runTransaction(async (tx) => {
-        const snap = await tx.get(ref);
+        const [snap, all] = await Promise.all([tx.get(ref), tx.get(db.collection('portalEquipment'))]);
+        if (isNew && snap.exists) throw bad(`There is already a device ${d.code}. Open it to change it.`);
+        const clash = d.name ? all.docs.find((x) => x.id !== d.code && nameKey(String(x.data().name ?? '')) === nameKey(d.name)) : undefined;
+        if (clash) throw bad(`The name “${d.name}” is already used for ${clash.id}. Names must be unique.`);
         const at = new Date().toISOString();
         if (!snap.exists) {
           tx.create(ref, { ...d, history: [{ at, by: who.uid, byName: who.name, changes: { added: { from: null, to: d.code } } }], createdAt: FieldValue.serverTimestamp() });
           return;
         }
         const before = deviceOf(d.code, snap.data()!);
-        const changes = changesBetween(before as unknown as Record<string, unknown>, { kind: d.kind, batch: d.batch, status: d.status, notes: d.notes });
-        if (Object.keys(changes).length) tx.update(ref, { kind: d.kind, batch: d.batch, status: d.status, notes: d.notes, history: [...before.history, { at, by: who.uid, byName: who.name, changes }], updatedAt: FieldValue.serverTimestamp() });
+        const fields = { name: d.name, model: d.model, serial: d.serial, location: d.location, kind: d.kind, batch: d.batch, status: d.status, notes: d.notes };
+        const changes = changesBetween(before as unknown as Record<string, unknown>, fields);
+        if (Object.keys(changes).length) tx.update(ref, { ...fields, history: [...before.history, { at, by: who.uid, byName: who.name, changes }], updatedAt: FieldValue.serverTimestamp() });
       });
       await audit(db, who, 'issue-equipment-save', d.code, { status: d.status });
       return { ok: true };
+    }
+
+    case 'issue-equipment-bulk': {
+      // A list pasted in: one device a line. New codes are added; codes already there are left as they are (open each to change it).
+      const kind = DEVICE_KINDS.includes(data.kind as DeviceKind) ? (data.kind as DeviceKind) : 'laptop';
+      const { devices, problems } = bulkDevices(clip(data.text, 40_000), kind);
+      if (problems.length) return { added: [], skipped: [], problems };
+      const existing = await db.collection('portalEquipment').get();
+      const names = new Map(existing.docs.filter((x) => x.data().name).map((x) => [nameKey(String(x.data().name)), x.id]));
+      const clashes = devices.filter((d) => d.name && names.has(nameKey(d.name)) && names.get(nameKey(d.name)) !== d.code).map((d) => `The name “${d.name}” is already used for ${names.get(nameKey(d.name))}.`);
+      if (clashes.length) return { added: [], skipped: [], problems: clashes };
+      const have = new Set(existing.docs.map((x) => x.id));
+      const at = new Date().toISOString();
+      const added: string[] = [];
+      const batch = db.batch();
+      for (const d of devices) {
+        if (have.has(d.code)) continue;
+        batch.create(db.collection('portalEquipment').doc(d.code), { ...d, history: [{ at, by: who.uid, byName: who.name, changes: { added: { from: null, to: d.code } }, note: 'Added from a list' }], createdAt: FieldValue.serverTimestamp() });
+        added.push(d.code);
+      }
+      await batch.commit();
+      await audit(db, who, 'issue-equipment-bulk', `${added.length} devices`, { added });
+      return { added, skipped: devices.filter((d) => have.has(d.code)).map((d) => d.code), problems: [] };
     }
 
     case 'issue-equipment-fixed': {
@@ -370,11 +428,11 @@ export async function issueAction(db: Firestore, who: Who, action: string, data:
       const status: DeviceStatus = DEVICE_STATUSES.includes(data.status as DeviceStatus) ? (data.status as DeviceStatus) : 'ok';
       const open = (await db.collection('portalIssues').where('device.code', '==', code).get()).docs.filter((d) => !d.data().fixedAt);
       const at = new Date().toISOString();
-      const c = (id: string): Comment => ({ id: `${Date.now().toString(36)}${id.slice(-4)}`, at, by: who.uid, byName: who.name || who.email, text: `Device fixed: ${how}` });
+      const c = (id: string): Action => ({ id: `${Date.now().toString(36)}${id.slice(-4)}`, at, by: who.uid, byName: who.name || who.email, text: `Device fixed: ${how}`, status: null });
       const dref = db.collection('portalEquipment').doc(code);
       await db.runTransaction(async (tx) => {
         const dsnap = await tx.get(dref);
-        for (const d of open) tx.update(d.ref, { fixedAt: at, fixedBy: who.name || who.email, comments: FieldValue.arrayUnion(c(d.id)), updatedAt: FieldValue.serverTimestamp() });
+        for (const d of open) tx.update(d.ref, { fixedAt: at, fixedBy: who.name || who.email, actions: FieldValue.arrayUnion(c(d.id)), updatedAt: FieldValue.serverTimestamp() });
         const before = dsnap.exists ? deviceOf(code, dsnap.data()!) : null;
         const change = { at, by: who.uid, byName: who.name || who.email, changes: { status: { from: before?.status ?? null, to: status } }, note: `Fixed: ${how}` };
         if (before) tx.update(dref, { status, history: [...before.history, change], updatedAt: FieldValue.serverTimestamp() });
@@ -395,11 +453,11 @@ export async function issueAction(db: Firestore, who: Who, action: string, data:
         await db.runTransaction(async (tx) => {
           const [dsnap, isnap] = await Promise.all([tx.get(dref), tx.get(iref)]);
           if (!dsnap.exists) {
-            tx.create(dref, { code: h.code, kind: 'headset', batch: h.batch, status: statusFromList(h.severity), notes: '', history: [{ at, by: who.uid, byName: who.name || who.email, changes: { added: { from: null, to: h.code } }, note: HEADSET_LIST_SOURCE }], createdAt: FieldValue.serverTimestamp() });
+            tx.create(dref, { code: h.code, name: '', model: '', serial: '', location: '', kind: 'headset', batch: h.batch, status: statusFromList(h.severity), notes: '', history: [{ at, by: who.uid, byName: who.name || who.email, changes: { added: { from: null, to: h.code } }, note: HEADSET_LIST_SOURCE }], createdAt: FieldValue.serverTimestamp() });
             devices += 1;
           }
           if (!isnap.exists && h.faults.length) {
-            tx.create(iref, { id: iref.id, uid: who.uid, authorName: who.name || who.email, authorRole: who.role, deviceAt: HEADSET_LIST_AT, receivedAt: at, visitId: null, schoolId: null, about: [], type: 'eeg', impact: 'may-affect', note: `From the headset list (14 November 2026): ${h.issue}. Level: ${h.level}.`, recordings: [], device: { kind: 'headset', code: h.code }, faults: h.faults, channels: h.channels, severity: h.severity, fixedAt: null, fixedBy: '', importedFrom: HEADSET_LIST_SOURCE, status: 'open', resolution: '', comments: [], history: [], createdAt: FieldValue.serverTimestamp() });
+            tx.create(iref, { id: iref.id, uid: who.uid, authorName: who.name || who.email, authorRole: who.role, deviceAt: HEADSET_LIST_AT, receivedAt: at, visitId: null, schoolId: null, about: [], type: 'eeg', impact: 'may-affect', note: `From the headset list (14 November 2026): ${h.issue}. Level: ${h.level}.`, recordings: [], device: { kind: 'headset', code: h.code }, faults: h.faults, channels: h.channels, severity: h.severity, fixedAt: null, fixedBy: '', importedFrom: HEADSET_LIST_SOURCE, status: 'open', resolution: '', comments: [], actions: [], history: [], createdAt: FieldValue.serverTimestamp() });
             entries += 1;
           }
         });
@@ -457,7 +515,7 @@ export async function sendDigest(db: Firestore, day: string, send: (to: string, 
   // Entries brought in from an earlier record (the headset list) are not the day's news.
   const entries = got.entries.filter((e) => !e.importedFrom || ukDay(e.deviceAt) === day);
   const all = got.all;
-  const openEarlier = all.filter((i) => i.status === 'open' && ukDay(i.deviceAt) < day && ukDay(i.receivedAt) < day).length;
+  const openEarlier = all.filter((i) => !isDone(i.status) && ukDay(i.deviceAt) < day && ukDay(i.receivedAt) < day).length;
   const digest = buildDigest({ day, entries, openEarlier, notebookLink: NOTEBOOK_URL, sendEmpty: settings.sendEmpty || forceEmpty });
   if (!digest || !settings.to.length) {
     await db.collection('portalAudit').add({ at: FieldValue.serverTimestamp(), by: 'system', byEmail: '', byName: 'Daily problems email', action: 'issue-digest-skipped', target: day, details: { reason: digest ? 'no recipients' : 'nothing logged' } });

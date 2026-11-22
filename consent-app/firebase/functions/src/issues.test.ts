@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { buildDigest, canComment, canEdit, canSee, canTriage, changesBetween, deviceInput, deviceSummary, digestSettingsOf, entriesForDay, HEADSET_LIST, headsetListEntryId, issueInput, issueRows, shortName, statusAfterFault, statusFromList, ukDay, type DigestEntry, type Issue } from './issues.js';
 import { mayDo } from './portalCore.js';
 
-const base: Issue = { id: 'i-0000000001', uid: 'ra1', authorName: 'Ash Assist', authorRole: 'ra', deviceAt: '2026-11-12T10:42:00.000Z', receivedAt: '2026-11-12T10:42:05.000Z', visitId: 'v1', schoolId: 'GSAL', about: [], type: 'eeg', impact: 'minor', note: 'Cap kept slipping', recordings: [], device: null, faults: [], channels: [], severity: null, fixedAt: null, fixedBy: '', importedFrom: '', status: 'open', resolution: '', comments: [], history: [] };
+const base: Issue = { id: 'i-0000000001', uid: 'ra1', authorName: 'Ash Assist', authorRole: 'ra', deviceAt: '2026-11-12T10:42:00.000Z', receivedAt: '2026-11-12T10:42:05.000Z', visitId: 'v1', schoolId: 'GSAL', about: [], type: 'eeg', impact: 'minor', note: 'Cap kept slipping', recordings: [], device: null, faults: [], channels: [], severity: null, fixedAt: null, fixedBy: '', importedFrom: '', status: 'open', resolution: '', comments: [], actions: [], history: [] };
 const ra = { uid: 'ra1', role: 'ra' as const };
 const otherRa = { uid: 'ra2', role: 'ra' as const };
 const team = { uid: 't1', role: 'researcher' as const };
@@ -158,4 +158,22 @@ test('the headset list of 14 November 2026: every headset, the sheet’s words, 
   assert.equal(rows.faults, 'bluetooth,channels');
   assert.equal(rows.channels, 'O2,P8');
   assert.equal(rows.imported_from, 'Headset list, 14 November 2026');
+});
+
+test('actions and clearing; the register: unique names, a list pasted in', async () => {
+  const { bulkDevices, deviceInput, isDone, nameKey } = await import('./issues.js');
+  assert.ok(!isDone('open') && !isDone('actioned') && isDone('cleared') && isDone('handled') && isDone('not-relevant'));
+  assert.ok(mayDo('issue-action', 'researcher', 'active') && !mayDo('issue-action', 'ra', 'active'), 'the team log actions and clear entries');
+  assert.ok(mayDo('issue-equipment-bulk', 'pm', 'active') && !mayDo('issue-equipment-bulk', 'ra', 'active'));
+  assert.equal(nameKey('  Laptop   3 '), nameKey('laptop 3'));
+  const d = deviceInput({ code: 'lt 01', name: ' Laptop  1 ', kind: 'laptop', model: 'Dell Latitude 5440', serial: 'ABC123', location: 'Lab cupboard' });
+  assert.ok(d.ok && d.value.code === 'LT-01' && d.value.name === 'Laptop 1' && d.value.location === 'Lab cupboard');
+  const pasted = bulkDevices('code,name,kind,model,serial,where\nLT-01,Laptop 1,laptop,Dell,SN1,Lab\nLT-02\tLaptop 2\t\tDell\tSN2\nIP-01,Blue iPad,iPad,iPad 9th gen,,Office\n', 'laptop');
+  assert.deepEqual(pasted.problems, []);
+  assert.deepEqual(pasted.devices.map((x) => `${x.code}/${x.kind}/${x.name}`), ['LT-01/laptop/Laptop 1', 'LT-02/laptop/Laptop 2', 'IP-01/ipad/Blue iPad']);
+  assert.equal(bulkDevices('LT-01,Laptop 1\nLT-02,laptop 1', 'laptop').problems.length, 1, 'a name twice');
+  assert.equal(bulkDevices('LT-01,Laptop 1,toaster', 'laptop').problems.length, 1, 'an unknown kind');
+  const row = issueRows([{ ...base, status: 'cleared', actions: [{ id: 'a', at: '2026-11-13T10:00:00Z', by: 't1', byName: 'Rae', text: 'Swapped the felts', status: 'cleared' }] }]).research[0];
+  assert.equal(row.actions, '2026-11-13: Swapped the felts');
+  assert.equal(row.status, 'cleared');
 });

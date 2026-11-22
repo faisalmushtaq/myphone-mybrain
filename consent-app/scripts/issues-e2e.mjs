@@ -5,7 +5,9 @@
 // not the pupils another assistant named; the team resolves the pupil the
 // assistant typed, comments and marks it handled; the rules on who sees and
 // changes what; the 6 pm email; the export's issues tables; equipment: the
-// headset list brought in, a known fault added to, a new one, marked fixed.
+// headset list brought in, a known fault added to, a new one, marked fixed;
+// actions and clearing; the register by hand and as a list; the safeguarding
+// log: reported, read only by its holders, actions, closed.
 // Screenshots go to ISSUE_SHOTS (default ./issue-shots).
 //
 //   node scripts/issues-e2e.mjs
@@ -218,12 +220,12 @@ async function inner() {
     await desk.getByPlaceholder('Add a comment').fill('Check channel T7 in this recording.');
     await desk.getByRole('button', { name: 'Comment' }).click();
     await desk.getByText('Check channel T7').waitFor();
+    await desk.locator('#issue-action').fill('T7 interpolated for this pupil.');
     await desk.getByRole('button', { name: 'Handled in analysis' }).click();
-    await desk.locator('#issue-resolution').fill('T7 interpolated for this pupil.');
-    await desk.getByRole('button', { name: 'Save status' }).click();
+    await desk.getByRole('button', { name: 'Log the action' }).click();
     await desk.waitForTimeout(1500);
     const handled = (await db.collection('portalIssues').doc(capId).get()).data();
-    ok('comment and status saved', handled.comments.length === 1 && handled.status === 'handled' && handled.resolution.startsWith('T7'));
+    ok('comment, the action and the status saved', handled.comments.length === 1 && handled.status === 'handled' && handled.resolution.startsWith('T7') && handled.actions?.[0]?.text.startsWith('T7'));
     await shot(desk, '06-entry');
 
     // 6. The 6 pm email, sent now by the project manager; captured from its log.
@@ -327,7 +329,80 @@ async function inner() {
     await desk.getByRole('button', { name: 'Mark fixed' }).click();
     await desk.getByText('logged before, all fixed').waitFor();
     const fixed = (await issues()).find((i) => i.device?.code === 'E50211EE');
-    ok('fixed: the entry is marked, with the note as a comment, and the headset is back in use', Boolean(fixed.fixedAt) && fixed.comments.at(-1).text.includes('New felts') && (await db.collection('portalEquipment').doc('E50211EE').get()).data().status === 'ok');
+    ok('fixed: the entry is marked, with the note as an action, and the headset is back in use', Boolean(fixed.fixedAt) && fixed.actions.at(-1).text.includes('New felts') && (await db.collection('portalEquipment').doc('E50211EE').get()).data().status === 'ok');
+
+    // 10. Admins log an action and clear an entry; the Notebook shows what is still to do.
+    ok('an assistant cannot log an action', (await call(raToken, 'issue-action', { id: entry.id, text: 'x', status: 'cleared' })).error?.status === 'PERMISSION_DENIED');
+    ok('an action with no status: "Action taken"', !(await call(teamToken, 'issue-action', { id: late.id, text: 'Asked the school to warn us of alarm tests.' })).error && (await db.collection('portalIssues').doc(late.id).get()).data().status === 'actioned');
+    ok('…and cleared', !(await call(teamToken, 'issue-action', { id: late.id, text: 'School confirmed: no more tests on visit days.', status: 'cleared' })).error && (await db.collection('portalIssues').doc(late.id).get()).data().status === 'cleared');
+    await desk.goto(`${BASE}#notebook`);
+    await desk.getByText('Laptop crashed').first().waitFor();
+    ok('the Notebook shows what is still to do by default', !(await desk.getByText('Fire alarm').count()));
+
+    // 11. The register: one laptop by hand with a unique name, a list pasted in, a name used twice refused.
+    await desk.goto(`${BASE}#equipment`);
+    await desk.getByRole('button', { name: 'Add a device' }).click();
+    await desk.locator('#equip-code').fill('LT-01');
+    await desk.locator('#equip-name').fill('Laptop 1');
+    await desk.locator('#equip-kind').selectOption('laptop');
+    await desk.locator('#equip-model').fill('Dell Latitude 5440');
+    await desk.locator('#equip-serial').fill('7XK2Q93');
+    await desk.locator('#equip-location').fill('Lab cupboard');
+    await desk.getByRole('button', { name: 'Save', exact: true }).click();
+    await desk.getByText('Laptop 1').first().waitFor();
+    ok('a laptop added with its name, model, serial and where it is kept', (await db.collection('portalEquipment').doc('LT-01').get()).data()?.serial === '7XK2Q93');
+    ok('a name is unique', /already used/.test((await call(teamToken, 'issue-equipment-save', { device: { code: 'LT-09', name: 'laptop 1', kind: 'laptop' }, isNew: true })).error?.message ?? ''));
+    ok('a code is unique', /already a device/.test((await call(teamToken, 'issue-equipment-save', { device: { code: 'LT-01', kind: 'laptop' }, isNew: true })).error?.message ?? ''));
+    await desk.getByRole('button', { name: 'Add a list of devices' }).click();
+    await desk.locator('#bulk-text').fill('code,name,kind,model,serial,where\nLT-02,Laptop 2,laptop,Dell Latitude 5440,8YL3R04,Lab cupboard\nLT-03,Laptop 3\nIP-01,Blue iPad,iPad,iPad (9th gen),,Office\nLT-01,Laptop 1');
+    await shot(desk, '13-bulk-add');
+    await desk.getByRole('button', { name: 'Add them' }).click();
+    await desk.getByText(/^Added 3; already there/).waitFor();
+    await desk.getByRole('button', { name: 'Done' }).click();
+    await desk.getByText('Blue iPad').first().waitFor();
+    await shot(desk, '14-register');
+    ok('a pasted list: new ones added, existing left alone', (await db.collection('portalEquipment').doc('IP-01').get()).data()?.kind === 'ipad' && (await db.collection('portalEquipment').doc('LT-01').get()).data()?.model === 'Dell Latitude 5440');
+    ok('an assistant cannot add to the register', (await call(raToken, 'issue-equipment-bulk', { text: 'LT-99' })).error?.status === 'PERMISSION_DENIED');
+
+    // 12. The safeguarding log: an assistant reports; only the log holders read it; actions and the outcome; nothing in the Notebook or the export.
+    await phone.goto(`${BASE}#safeguarding-log`);
+    await phone.getByRole('button', { name: 'Log a safeguarding concern' }).click();
+    await phone.locator('#sg-about').fill('Zara Hussain');
+    await phone.locator('#sg-year').fill('Year 9');
+    await phone.locator('#sg-account').fill('During the break she said “I don’t want to go home, he shouts and throws things.”');
+    await phone.getByRole('button', { name: 'Yes, I told the DSL (or deputy)' }).click();
+    await phone.locator('#sg-dsl-name').fill('Mrs Patel, deputy DSL');
+    await shot(phone, '15-sg-form-phone');
+    await phone.getByRole('button', { name: 'Log the concern' }).click();
+    await phone.getByText('Logged', { exact: true }).waitFor();
+    const sg = (await db.collection('portalSafeguarding').get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+    ok('the concern is in the safeguarding log, with the visit', sg.length === 1 && sg[0].visitId === 'v-today' && sg[0].dslName.startsWith('Mrs Patel') && sg[0].status === 'open');
+    ok('…not in the Notebook', !(await issues()).some((i) => JSON.stringify(i).includes('Zara')));
+    const alert = (await db.collection('portalMail').where('kind', '==', 'safeguarding-alert').get()).docs.map((d) => d.data());
+    ok('the log holders are emailed, with no details and no copy to the shared inbox', alert.length === 1 && alert[0].to.includes('pm@leeds.ac.uk') && alert[0].to.includes('f.mushtaq@leeds.ac.uk') && !alert[0].cc && !JSON.stringify(alert).includes('Zara'), JSON.stringify(alert[0]));
+    ok('another assistant cannot read the log or the report', (await call(ra2Token, 'sg-list')).error?.status === 'PERMISSION_DENIED' && ((await call(ra2Token, 'sg-mine')).result?.reports ?? []).length === 0);
+    ok('the research team cannot read it unless named', (await call(teamToken, 'sg-list')).error?.status === 'PERMISSION_DENIED');
+    ok('only the project manager names the holders', (await call(teamToken, 'sg-save-settings', { holders: ['researcher@leeds.ac.uk'] })).error?.status === 'PERMISSION_DENIED');
+    ok('the reporter cannot close it', (await call(raToken, 'sg-step', { id: sg[0].id, kind: 'closed', text: 'x' })).error?.status === 'PERMISSION_DENIED');
+    await pmDesk.goto(`${BASE}#safeguarding-log/${sg[0].id}`);
+    await pmDesk.getByText('During the break she said').waitFor();
+    await pmDesk.locator('#sg-step').fill('PI reviewed. Coordinator phoned Mrs Patel to confirm she has it.');
+    await pmDesk.getByRole('button', { name: 'Add', exact: true }).click();
+    await pmDesk.getByText('Coordinator phoned Mrs Patel').waitFor();
+    await pmDesk.getByRole('button', { name: 'Close it, with the outcome' }).click();
+    await pmDesk.locator('#sg-step').fill('DSL confirmed it is being handled under the school’s procedures. Nothing further for us.');
+    await pmDesk.getByRole('button', { name: 'Close it', exact: true }).click();
+    await pmDesk.getByText('Closed', { exact: true }).first().waitFor();
+    await shot(pmDesk, '16-sg-record');
+    const closed = (await db.collection('portalSafeguarding').doc(sg[0].id).get()).data();
+    ok('an action, then closed with the outcome; nothing removed', closed.status === 'closed' && closed.steps.length === 2 && closed.outcome.startsWith('DSL confirmed'));
+    const mineNow = (await call(raToken, 'sg-mine')).result?.reports?.[0];
+    ok('the reporter sees it is closed, not the actions or the outcome', mineNow?.status === 'closed' && mineNow.steps.length === 0 && !mineNow.outcome);
+    ok('a named holder can read it', !(await call(pmToken, 'sg-save-settings', { holders: ['f.mushtaq@leeds.ac.uk', 'researcher@leeds.ac.uk'] })).error && ((await call(teamToken, 'sg-list')).result?.records ?? []).length === 1);
+    const audits = (await db.collection('portalAudit').where('action', '==', 'sg-report').get()).docs.map((d) => d.data());
+    ok('the audit log says a report was made, not what', audits.length === 1 && !JSON.stringify(audits).includes('Zara'));
+    await call(pmToken, 'issue-digest-now', { force: true });
+    ok('…and it is not in the daily email', !(await db.collection('portalDigests').get()).docs.some((d) => JSON.stringify(d.data()).includes('Zara')));
   } catch (error) {
     failures.push(String(error?.stack ?? error));
     console.error(error);

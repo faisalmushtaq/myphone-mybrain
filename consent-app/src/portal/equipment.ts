@@ -68,6 +68,10 @@ export interface OpenFault {
 }
 export interface DeviceRow {
   code: string;
+  name: string;
+  model: string;
+  serial: string;
+  location: string;
   kind: DeviceKind;
   batch: string;
   status: string;
@@ -85,3 +89,6 @@ export interface EquipmentList {
   devices: DeviceRow[];
   listImported: boolean;
 }
+
+/** "Laptop 3 (LT-03)", or the code alone when it has no name. */
+export const deviceLabel = (d: { code: string; name?: string }) => (d.name ? `${d.name} (${d.code})` : d.code);

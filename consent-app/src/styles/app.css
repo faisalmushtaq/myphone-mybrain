@@ -4686,6 +4686,22 @@ button.mpmb-link__stat { cursor: pointer; }
 .mpmb-equip__form { margin: 1rem 0; padding: 1rem; border: 1px solid var(--mpb-line); border-radius: 10px; background: var(--mpb-white); }
 .mpmb-issue__item.is-sev-high { border-left-color: var(--mpb-pink); }
 .mpmb-issue__item.is-sev-medium { border-left-color: #e0a500; }
+.mpmb-issue__status.is-actioned { background: #e6f4f3; }
+.mpmb-issue__status.is-cleared { background: #e3f3ea; color: #1d5e3a; }
+.mpmb-equip__sub { color: var(--mpb-muted); font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+.mpmb-equip__search { width: 100%; margin: 0.5rem 0; }
+.mpmb-equip__bulk { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88rem; }
+.mpmb-equip__form .mpmb-input:not(.mpmb-input--full), .mpmb-sglog__form .mpmb-input:not(.mpmb-input--full) { width: 100%; max-width: 32rem; }
+
+/* The safeguarding log (src/portal/SgViews.tsx). */
+.mpmb-sglog__form { max-width: 44rem; }
+.mpmb-sglog__item.is-open, .mpmb-sglog__entry.is-open { border-left-color: #e0a500; }
+.mpmb-sglog__item.is-danger, .mpmb-sglog__entry.is-danger { border-left-color: var(--mpb-pink); }
+.mpmb-sglog__item.is-closed, .mpmb-sglog__entry.is-closed { border-left-color: #2e8b57; }
+.mpmb-sglog__flag { color: var(--mpb-pink); }
+.mpmb-sglog__danger { margin: 0.85rem 0 0; font-weight: 700; }
+.mpmb-sglog__dsl { margin-top: 0.5rem; padding: 0.75rem 1rem; border-left: 3px solid var(--mpb-teal); background: var(--mpb-white); }
+.mpmb-sglog__entry h3 { margin-top: 0.9rem; }
 
 /* A field only bots fill in (the portal's create-account form). */
 .mpmb-honeypot {

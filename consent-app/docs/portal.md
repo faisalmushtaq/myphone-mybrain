@@ -471,8 +471,9 @@ the moment they happen, so the analysis can flag or leave out the data they
 touch.
 
 **Not for safeguarding.** The form says so at the top: a worry about a child's
-safety or welfare goes through the safeguarding procedure to the lead, now.
-There is no option to log one here.
+safety or welfare goes to the school's DSL the same day, then into the separate
+**safeguarding log** (below), which only the log holders can read. The form
+links to it; there is no safeguarding type in the Notebook.
 
 ### Logging
 
@@ -526,10 +527,20 @@ an assistant typed is sent only to the research team and that assistant: others
 see "a pupil (named by the assistant)", in the entry and in its history.
 Changing an entry stays with its author (24 hours) and the team. Filters: school, visit, dates, pupil, type, impact, status, who
 logged it. Each entry has comments, a status (Open, Handled in analysis, Not
-relevant) with a resolution note (the team), and every change kept with what it
+relevant) and every change kept with what it
 was before: the original note is never lost. An assistant can change their own
 entry for 24 hours, then comment. A typed name has a **Resolve pupil** action
 (the team) to pick the study ID.
+
+**What's been done** (22 November 2026): the research team and the project
+manager **log an action** on any entry ("Swapped the felts and tested: all
+green", "Asked the school to warn us of alarm tests") and choose where it now
+stands: **Action taken** (still to finish), **Cleared**, **Handled in
+analysis** or **Not relevant**. Logging an action on an open entry with no
+status makes it "Action taken"; any of the last three records it as the
+resolution; **Reopen** puts it back. Everyone sees the actions. The Notebook
+shows what is **still to do** (open or action taken) unless the Status filter
+says otherwise, and the daily email counts those as still open.
 
 ### Equipment (Equipment tab, 22 November 2026)
 
@@ -541,9 +552,15 @@ last reported. Logging a fault changes the status: any fault on a device in use
 makes it "use with care", a high one "out of service". Nothing brings it back
 but the team: **Mark the faults fixed** on the device's page (what was done,
 and its status now) marks each open fault fixed with the note as a comment;
-their status for the analysis is separate and does not change. The team also
-add devices and change a device's status, batch and notes; each change is kept
-in the device's history. "Log a problem with E50211F7" on a device's page opens
+their status for the analysis is separate and does not change. The research team
+and the project manager keep the register: **Add a device** (its code as on its
+label, which is its unique id; a unique name such as "Laptop 3", case and spaces
+ignored; kind; make and model; serial number; where it's kept or who has it;
+batch; status; notes) or **Add a list of devices** (one a line: code, name,
+kind, model, serial, where kept, separated by commas or pasted from a
+spreadsheet; only the code is needed; nothing is added if any line has a
+problem, and codes already there are left alone). Each change is kept in the
+device's history. The register can be searched by any of these. "Log a problem with E50211F7" on a device's page opens
 the form with it chosen.
 
 **The headset list of 14 November 2026**: the project manager brings it in once
@@ -554,6 +571,40 @@ service, low and medium use with care, E50211EE (no issue) in use. Doing it
 again changes nothing. These entries are not in the daily email.
 
 Stored in `portalEquipment/{code}` (functions only, like the rest).
+
+## The safeguarding log (22 November 2026)
+
+The procedure (the Safeguarding tab) says the study keeps "one safeguarding log
+… kept apart from the research data and open only to the PI and the project
+coordinator". This is that log, under **Safeguarding log**.
+
+* **Anyone** in the portal can **log a safeguarding concern** (also linked from
+  "Log a problem"). The form starts with: tell the school's DSL the same day; if
+  a child is in immediate danger and the DSL can't be reached, another teacher
+  and/or 999; logging does not replace that. It asks when it happened, how it
+  came up (at a session, found later in the data, other), the visit, who it is
+  about (name, or study ID if found in the data) and their year group, what was
+  said or seen in their words, whether a child was in immediate danger, whether
+  the DSL has been told (who, when, how; or not yet, or couldn't be reached),
+  and what they did straight away. It needs a connection: nothing is kept on
+  the phone. The reporter sees their own reports and whether each is open or
+  closed, and can add to them; not anyone else's, nor the log holders' actions.
+* **The log holders** are the project manager(s) and the people the project
+  manager names in **Who holds the log** (by default the PI,
+  f.mushtaq@leeds.ac.uk). They see every record, open ones first; record
+  **actions taken** and notes; **close** a record with its outcome; reopen it.
+  Nothing is changed or deleted: each step is added with who and when.
+* When a concern is logged, the log holders get an email saying so (who logged
+  it, when, whether the DSL has been told, whether it was marked immediate
+  danger) and a link, **with no details**. It is not copied to the "always
+  copy" addresses.
+* It is never in the Notebook, the export, the Google Sheet or the daily email.
+  The audit log records that a report, step or reading happened, never what it
+  said. Stored in `portalSafeguarding` (functions only). Kept, like the rest of
+  the log, for as long as the study's identifying data, then deleted.
+
+Code: `firebase/functions/src/sgLog.ts` (rules, tested in `sgLog.test.ts`),
+`sgLogStore.ts`, `src/portal/SgViews.tsx`.
 
 ### The daily email
 

@@ -23,9 +23,11 @@ export const ISSUE_TYPE_LABEL: Record<IssueType, string> = {
 export const IMPACTS = ['minor', 'may-affect', 'unusable'] as const;
 export type Impact = (typeof IMPACTS)[number];
 export const IMPACT_LABEL: Record<Impact, string> = { minor: 'Minor', 'may-affect': 'May affect data', unusable: 'Data unusable' };
-export const ISSUE_STATUSES = ['open', 'handled', 'not-relevant'] as const;
+/** Open and "Action taken" are still to finish; Cleared, Handled in analysis and Not relevant are done (22 November 2026: Action taken and Cleared added). */
+export const ISSUE_STATUSES = ['open', 'actioned', 'cleared', 'handled', 'not-relevant'] as const;
 export type IssueStatus = (typeof ISSUE_STATUSES)[number];
-export const STATUS_LABEL: Record<IssueStatus, string> = { open: 'Open', handled: 'Handled in analysis', 'not-relevant': 'Not relevant' };
+export const STATUS_LABEL: Record<IssueStatus, string> = { open: 'Open', actioned: 'Action taken', cleared: 'Cleared', handled: 'Handled in analysis', 'not-relevant': 'Not relevant' };
+export const isDone = (s: IssueStatus) => s === 'cleared' || s === 'handled' || s === 'not-relevant';
 
 /* ── Equipment (22 November 2026) ─────────────────────────────────────── */
 
@@ -75,7 +77,14 @@ export interface DeviceRef {
 }
 /** A device in the register (portalEquipment/{code}). */
 export interface Device {
+  /** The unique id: as on its label (the headsets' serial-like code, or "LT-01"). */
   code: string;
+  /** A unique name the team calls it by ("Laptop 3", "Blue iPad"); optional. */
+  name: string;
+  model: string;
+  serial: string;
+  /** Where it is kept, or who has it. */
+  location: string;
   kind: DeviceKind;
   /** "old" or "new" batch for the headsets; free text otherwise. */
   batch: string;
@@ -87,13 +96,36 @@ export interface Device {
 export const deviceCode = (v: unknown) => (typeof v === 'string' ? v.trim().toUpperCase().replace(/\s+/g, '-').slice(0, 40) : '');
 export const DEVICE_CODE = /^[A-Z0-9][A-Z0-9-]{1,39}$/;
 
-export function deviceInput(raw: Record<string, unknown>): { ok: true; value: Pick<Device, 'code' | 'kind' | 'batch' | 'status' | 'notes'> } | { ok: false; problem: string } {
+export type DeviceFields = Pick<Device, 'code' | 'name' | 'model' | 'serial' | 'location' | 'kind' | 'batch' | 'status' | 'notes'>;
+/** Names are unique whatever the case or spacing: "laptop  3" is "Laptop 3". */
+export const nameKey = (n: string) => n.trim().toLowerCase().replace(/\s+/g, ' ');
+export function deviceInput(raw: Record<string, unknown>): { ok: true; value: DeviceFields } | { ok: false; problem: string } {
   const code = deviceCode(raw.code);
   if (!DEVICE_CODE.test(code)) return { ok: false, problem: 'Give the device’s code (letters and numbers, as on its label).' };
   const kind = DEVICE_KINDS.includes(raw.kind as DeviceKind) ? (raw.kind as DeviceKind) : null;
   if (!kind) return { ok: false, problem: 'Choose what kind of device it is.' };
   const status = DEVICE_STATUSES.includes(raw.status as DeviceStatus) ? (raw.status as DeviceStatus) : 'ok';
-  return { ok: true, value: { code, kind, batch: clip(raw.batch, 40), status, notes: clip(raw.notes, 2000) } };
+  return { ok: true, value: { code, name: clip(raw.name, 60).replace(/\s+/g, ' '), model: clip(raw.model, 80), serial: clip(raw.serial, 80), location: clip(raw.location, 120), kind, batch: clip(raw.batch, 40), status, notes: clip(raw.notes, 2000) } };
+}
+
+/** "One device a line": code, name, kind, model, serial, where kept (commas or tabs, as pasted from a spreadsheet). The kind may be left out for the one chosen. */
+export function bulkDevices(text: string, defaultKind: DeviceKind): { devices: DeviceFields[]; problems: string[] } {
+  const devices: DeviceFields[] = [];
+  const problems: string[] = [];
+  const kinds = new Map<string, DeviceKind>([...DEVICE_KINDS.map((k) => [k, k] as const), ...Object.entries(DEVICE_KIND_LABEL).map(([k, l]) => [l.toLowerCase(), k as DeviceKind] as const), ['eeg', 'headset'], ['tablet', 'ipad'], ['ipad', 'ipad']]);
+  text.split(/\r?\n/).forEach((line, n) => {
+    if (!line.trim()) return;
+    const cells = line.split(/\t|,/).map((c) => c.trim());
+    if (n === 0 && /^code$/i.test(cells[0])) return;
+    const kind = cells[2] ? kinds.get(cells[2].toLowerCase()) : defaultKind;
+    if (!kind) return void problems.push(`Line ${n + 1}: “${cells[2]}” is not a kind of device (headset, laptop, iPad, other).`);
+    const r = deviceInput({ code: cells[0], name: cells[1] ?? '', kind, model: cells[3] ?? '', serial: cells[4] ?? '', location: cells[5] ?? '' });
+    if (!r.ok) return void problems.push(`Line ${n + 1}: ${r.problem}`);
+    if (devices.some((d) => d.code === r.value.code)) return void problems.push(`Line ${n + 1}: ${r.value.code} is in the list twice.`);
+    if (r.value.name && devices.some((d) => d.name && nameKey(d.name) === nameKey(r.value.name))) return void problems.push(`Line ${n + 1}: the name “${r.value.name}” is in the list twice.`);
+    devices.push(r.value);
+  });
+  return { devices: devices.slice(0, 200), problems };
 }
 
 /** What logging a fault does to the device's status: a high fault takes it out of service; any fault on a device in use makes it "use with care". Never brings one back. */
@@ -123,6 +155,16 @@ export interface Comment {
   by: string;
   byName: string;
   text: string;
+}
+/** Something the team did about an entry ("Swapped the felts", "Emailed the school"), kept in order. */
+export interface Action {
+  id: string;
+  at: string;
+  by: string;
+  byName: string;
+  text: string;
+  /** The status it moved the entry to, if any. */
+  status: IssueStatus | null;
 }
 export interface Change {
   at: string;
@@ -160,6 +202,7 @@ export interface Issue {
   status: IssueStatus;
   resolution: string;
   comments: Comment[];
+  actions: Action[];
   history: Change[];
 }
 
@@ -258,7 +301,7 @@ export const ukClock = (iso: string) => CLOCK.format(new Date(iso));
 /* ── The export ───────────────────────────────────────────────────────── */
 
 export type Row = Record<string, string | number | null>;
-export const ISSUE_COLUMNS = ['issue_id', 'logged_at', 'logged_day', 'received_at', 'school_id', 'visit_id', 'participant_ids', 'whole_room', 'unresolved_pupils', 'recording_ids', 'type', 'impact', 'status', 'resolution', 'note', 'device_kind', 'device_code', 'faults', 'channels', 'severity', 'fixed_at', 'imported_from'];
+export const ISSUE_COLUMNS = ['issue_id', 'logged_at', 'logged_day', 'received_at', 'school_id', 'visit_id', 'participant_ids', 'whole_room', 'unresolved_pupils', 'recording_ids', 'type', 'impact', 'status', 'resolution', 'actions', 'note', 'device_kind', 'device_code', 'faults', 'channels', 'severity', 'fixed_at', 'imported_from'];
 export const ISSUE_IDENTIFYING_COLUMNS = [...ISSUE_COLUMNS, 'typed_names', 'author_name', 'author_role', 'comments_n'];
 
 /**
@@ -287,6 +330,7 @@ export function issueRows(issues: Issue[]): { research: Row[]; identifying: Row[
       impact: i.impact,
       status: i.status,
       resolution: i.resolution || null,
+      actions: i.actions.map((a) => `${ukDay(a.at)}: ${a.text}`).join(' | ') || null,
       note: i.note || null,
       device_kind: i.device?.kind ?? null,
       device_code: i.device?.code ?? null,
@@ -317,6 +361,7 @@ export function issuesDictionary(): Record<string, unknown> {
     impact: { Description: 'How much it affects the data', Levels: IMPACT_LABEL },
     status: { Description: 'Where it stands', Levels: STATUS_LABEL },
     resolution: { Description: 'What the team decided.' },
+    actions: { Description: 'What the team did about it, in order: "day: action", separated by " | ".' },
     note: { Description: 'What happened, as the person wrote it.' },
     device_kind: { Description: 'The kind of device at fault, if any', Levels: DEVICE_KIND_LABEL },
     device_code: { Description: 'The device at fault (its code, as on its label; the EEG headsets’ serial).' },
@@ -437,7 +482,7 @@ export function digestSettingsOf(v: unknown): DigestSettings {
 /** The portal actions (portalCore.ts). Logging, the list, editing and comments: every active user (the rules above decide which entries). */
 export const ISSUE_SELF_ACTIONS = ['issue-context', 'issue-pupils', 'issue-log', 'issue-list', 'issue-edit', 'issue-comment', 'issue-equipment'];
 /** The register: adding a device, its status and notes, marking faults fixed. */
-export const ISSUE_TEAM_ACTIONS = ['issue-status', 'issue-resolve-pupil', 'issue-equipment-save', 'issue-equipment-fixed'];
+export const ISSUE_TEAM_ACTIONS = ['issue-status', 'issue-action', 'issue-resolve-pupil', 'issue-equipment-save', 'issue-equipment-bulk', 'issue-equipment-fixed'];
 export const ISSUE_PM_ACTIONS = ['issue-digest-settings', 'issue-save-digest', 'issue-digest-now', 'issue-equipment-import'];
 
 /* ── The headset list of 14 November 2026 ─────────────────────────────── */

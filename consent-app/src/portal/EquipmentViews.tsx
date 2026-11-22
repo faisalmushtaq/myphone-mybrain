@@ -18,11 +18,13 @@ export function Equipment({ role, code, go }: { role: Role; code?: string; go: (
   const team = role === 'pm' || role === 'researcher';
   const { value, error, load } = useLoad<EquipmentList>('issue-equipment');
   const [kind, setKind] = useState<DeviceKind | ''>('');
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<'' | 'one' | 'list'>('');
+  const [q, setQ] = useState('');
   const devices = value?.devices ?? [];
   const open = code ? devices.find((d) => d.code === decodeURIComponent(code)) : undefined;
   if (code && value && open) return <DeviceView device={open} role={role} reload={load} back={() => go('#equipment')} />;
-  const shown = devices.filter((d) => (!kind || d.kind === kind) && d.status !== 'retired');
+  const needle = q.trim().toLowerCase();
+  const shown = devices.filter((d) => (!kind || d.kind === kind) && (d.status !== 'retired' || needle) && (!needle || [d.code, d.name, d.model, d.serial, d.location].some((x) => x.toLowerCase().includes(needle))));
   const kinds = DEVICE_KINDS.filter(([k]) => devices.some((d) => d.kind === k));
   return (
     <Loading error={error}>
@@ -52,14 +54,16 @@ export function Equipment({ role, code, go }: { role: Role; code?: string; go: (
               ))}
             </div>
           ) : null}
+          {devices.length > 8 ? <input className="mpmb-input mpmb-equip__search" type="search" placeholder="Find: name, code, model, serial or where it’s kept" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a device" /> : null}
           <ul className="mpmb-equip__list">
             {shown.map((d) => (
               <li key={d.code}>
                 <a className={`mpmb-equip__item is-${d.status}`} href={`#equipment/${encodeURIComponent(d.code)}`}>
                   <span className="mpmb-equip__code">
-                    <strong>{d.code}</strong> {kindLabel(d.kind)}
+                    <strong>{d.name || d.code}</strong> {d.name ? <span className="mpmb-equip__sub">{d.code}</span> : null} {kindLabel(d.kind)}
                     {d.batch ? ` · ${d.batch}` : ''}
                   </span>
+                  {d.model || d.location ? <span className="mpmb-hint">{[d.model, d.location].filter(Boolean).join(' · ')}</span> : null}
                   <span className={`mpmb-equip__status is-${d.status}`}>{statusLabel(d.status)}</span>
                   <span className="mpmb-equip__faults">
                     {d.open.length ? (
@@ -79,18 +83,29 @@ export function Equipment({ role, code, go }: { role: Role; code?: string; go: (
             ))}
           </ul>
           {team ? (
-            adding ? (
+            adding === 'one' ? (
               <DeviceForm
                 onDone={() => {
-                  setAdding(false);
+                  setAdding('');
                   void load();
                 }}
-                onCancel={() => setAdding(false)}
+                onCancel={() => setAdding('')}
+              />
+            ) : adding === 'list' ? (
+              <BulkAdd
+                onDone={() => {
+                  setAdding('');
+                  void load();
+                }}
+                onCancel={() => setAdding('')}
               />
             ) : (
               <div className="mpmb-actions">
-                <Button variant="secondary" onClick={() => setAdding(true)}>
+                <Button variant="secondary" onClick={() => setAdding('one')}>
                   Add a device
+                </Button>
+                <Button variant="ghost" onClick={() => setAdding('list')}>
+                  Add a list of devices
                 </Button>
               </div>
             )
@@ -129,8 +144,81 @@ function ImportList({ reload }: { reload: () => Promise<void> }) {
   );
 }
 
+function BulkAdd({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const [text, setText] = useState('');
+  const [kind, setKind] = useState<DeviceKind>('laptop');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [problems, setProblems] = useState<string[]>([]);
+  const [done, setDone] = useState<string | null>(null);
+  const save = async () => {
+    setBusy(true);
+    setErr(null);
+    setProblems([]);
+    try {
+      const r = await ask<{ added: string[]; skipped: string[]; problems: string[] }>('issue-equipment-bulk', { text, kind });
+      if (r.problems.length) return setProblems(r.problems);
+      setDone(`Added ${r.added.length}${r.skipped.length ? `; already there, left as they were: ${r.skipped.join(', ')}` : ''}.`);
+      setText('');
+    } catch (e) {
+      setErr(messageOf(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="mpmb-equip__form" aria-label="Add a list of devices">
+      <h3 className="mpmb-h3">Add a list of devices</h3>
+      <p className="mpmb-hint">
+        One device a line, in this order, separated by commas or pasted from a spreadsheet: <strong>code</strong> (as on its label, unique), <strong>name</strong> (unique; optional), kind, model, serial number, where it’s kept. Only the code is needed. A code already in the register is left as it is.
+      </p>
+      <label className="mpmb-label" htmlFor="bulk-kind">
+        Kind, where a line doesn’t say
+      </label>
+      <select id="bulk-kind" className="mpmb-select" value={kind} onChange={(e) => setKind(e.target.value as DeviceKind)}>
+        {DEVICE_KINDS.map(([k, l]) => (
+          <option key={k} value={k}>
+            {l}
+          </option>
+        ))}
+      </select>
+      <label className="mpmb-label" htmlFor="bulk-text">
+        Devices
+      </label>
+      <textarea id="bulk-text" className="mpmb-input mpmb-input--full mpmb-equip__bulk" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder={'LT-01, Laptop 1, laptop, Dell Latitude 5440, 7XK2Q93, Lab cupboard\nLT-02, Laptop 2\nIP-01, Blue iPad, iPad, iPad (9th gen), , Office'} />
+      {problems.length ? (
+        <Callout tone="warning" title="Nothing was added: please fix these lines">
+          <ul className="mpmb-list">
+            {problems.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+        </Callout>
+      ) : null}
+      {done ? (
+        <p className="mpmb-issue__done" role="status">
+          {done}
+        </p>
+      ) : null}
+      <ErrorLine error={err} />
+      <div className="mpmb-actions">
+        <Button onClick={() => void save()} loading={busy} disabled={!text.trim()}>
+          Add them
+        </Button>
+        <Button variant="ghost" onClick={done ? onDone : onCancel}>
+          {done ? 'Done' : 'Cancel'}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 function DeviceForm({ device, onDone, onCancel }: { device?: DeviceRow; onDone: () => void; onCancel: () => void }) {
   const [code, setCode] = useState(device?.code ?? '');
+  const [name, setName] = useState(device?.name ?? '');
+  const [model, setModel] = useState(device?.model ?? '');
+  const [serial, setSerial] = useState(device?.serial ?? '');
+  const [location, setLocation] = useState(device?.location ?? '');
   const [kind, setKind] = useState<DeviceKind>(device?.kind ?? 'headset');
   const [batch, setBatch] = useState(device?.batch ?? '');
   const [status, setStatus] = useState(device?.status ?? 'ok');
@@ -141,7 +229,7 @@ function DeviceForm({ device, onDone, onCancel }: { device?: DeviceRow; onDone: 
     setBusy(true);
     setErr(null);
     try {
-      await ask('issue-equipment-save', { device: { code, kind, batch, status, notes } });
+      await ask('issue-equipment-save', { device: { code, name, model, serial, location, kind, batch, status, notes }, isNew: !device });
       onDone();
     } catch (e) {
       setErr(messageOf(e));
@@ -161,6 +249,10 @@ function DeviceForm({ device, onDone, onCancel }: { device?: DeviceRow; onDone: 
           {code && !DEVICE_CODE.test(deviceCode(code)) ? <p className="mpmb-hint">Letters and numbers only.</p> : null}
         </>
       )}
+      <label className="mpmb-label" htmlFor="equip-name">
+        Name (unique; optional)
+      </label>
+      <input id="equip-name" className="mpmb-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Laptop 3" />
       <label className="mpmb-label" htmlFor="equip-kind">
         Kind
       </label>
@@ -171,6 +263,18 @@ function DeviceForm({ device, onDone, onCancel }: { device?: DeviceRow; onDone: 
           </option>
         ))}
       </select>
+      <label className="mpmb-label" htmlFor="equip-model">
+        Make and model
+      </label>
+      <input id="equip-model" className="mpmb-input" value={model} onChange={(e) => setModel(e.target.value)} />
+      <label className="mpmb-label" htmlFor="equip-serial">
+        Serial number
+      </label>
+      <input id="equip-serial" className="mpmb-input" value={serial} onChange={(e) => setSerial(e.target.value)} />
+      <label className="mpmb-label" htmlFor="equip-location">
+        Where it’s kept, or who has it
+      </label>
+      <input id="equip-location" className="mpmb-input" value={location} onChange={(e) => setLocation(e.target.value)} />
       <label className="mpmb-label" htmlFor="equip-batch">
         Batch (for headsets: old or new)
       </label>
@@ -233,9 +337,13 @@ function DeviceView({ device: d, role, reload, back }: { device: DeviceRow; role
         </Button>
       </p>
       <div className={`mpmb-issue__entry mpmb-equip__entry is-${d.status}`}>
-        <h2 className="mpmb-h2">
-          {kindLabel(d.kind)} {d.code}
-        </h2>
+        <h2 className="mpmb-h2">{d.name ? `${d.name}` : `${kindLabel(d.kind)} ${d.code}`}</h2>
+        {d.name ? (
+          <p className="mpmb-hint">
+            {kindLabel(d.kind)} · {d.code}
+          </p>
+        ) : null}
+        {d.model || d.serial || d.location ? <p>{[d.model, d.serial ? `serial ${d.serial}` : '', d.location ? `kept: ${d.location}` : ''].filter(Boolean).join(' · ')}</p> : null}
         <p>
           <span className={`mpmb-equip__status is-${d.status}`}>{statusLabel(d.status)}</span>
           {d.batch ? ` · ${d.batch} batch` : ''}
@@ -243,10 +351,10 @@ function DeviceView({ device: d, role, reload, back }: { device: DeviceRow; role
         </p>
         {d.notes ? <p className="mpmb-issue__notebody">{d.notes}</p> : null}
         <div className="mpmb-actions">
-          <Button onClick={() => setLogging(true)}>Log a problem with {d.code}</Button>
+          <Button onClick={() => setLogging(true)}>Log a problem with {d.name || d.code}</Button>
           {team ? (
             <Button variant="secondary" onClick={() => setEditing(!editing)}>
-              Change status or notes
+              Change its details or status
             </Button>
           ) : null}
         </div>

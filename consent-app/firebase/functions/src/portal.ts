@@ -119,6 +119,7 @@ import { buildWorkbook, schoolShort, spreadsheetIdOf, type SheetData } from './p
 import { PROJECT, serviceAccountEmail, syncErrorText, writeWorkbook } from './portalSheetsSync.js';
 import { linkageAction, summaryOf } from './linkageStore.js';
 import { issueAction, issueTables } from './issuesStore.js';
+import { sgAction } from './sgLogStore.js';
 
 /**
  * The staff portal (myphonemybrain.com/portal/, 1 November 2026): one
@@ -267,9 +268,10 @@ const PORTAL_SENDER = 'MyPhone/MyBrain team';
 /** For the issue log's daily email (issuesStore.ts): the portal's own sending rules. */
 export const sendPortalMail = (db: Firestore, message: Omit<Mail, 'fromName'>, kind: string) => send(db, message, kind);
 
-async function send(db: Firestore, message: Omit<Mail, 'fromName'>, kind: string): Promise<MailOutcome> {
+async function send(db: Firestore, message: Omit<Mail, 'fromName'>, kind: string, noCopy = false): Promise<MailOutcome> {
   const { alwaysCopy } = await settingsFrom(db);
-  const copy = copyFor(alwaysCopy, message);
+  // The safeguarding alert goes only to the log holders: never to the "always copy" list (a shared inbox).
+  const copy = noCopy ? [] : copyFor(alwaysCopy, message);
   const cc = [...(message.cc ? [message.cc] : []), ...copy].join(', ') || undefined;
   const outcome = await sendMail({ ...message, fromName: PORTAL_SENDER, cc });
   await db.collection('portalMail').add({ channel: 'email', to: message.to, ...(cc ? { cc } : {}), ...(message.bcc ? { bcc: message.bcc } : {}), subject: message.subject, kind, outcome, at: FieldValue.serverTimestamp() });
@@ -609,6 +611,8 @@ export const portalApi = onCall(callOptions, async (request) => {
   // The linkage registry (linkageStore.ts); mayDo has already checked the role.
   if (action.startsWith('link-')) return linkageAction(db, { uid: me.uid, email: me.email, name: me.name, role: me.role }, action, data);
   // The issue log (issuesStore.ts); mayDo has checked the role, the store checks each entry.
+  // The safeguarding log (sgLogStore.ts): the store checks who holds the log.
+  if (action.startsWith('sg-')) return sgAction(db, { uid: me.uid, email: me.email, name: me.name, role: me.role }, action, data, (to, subject, body, html) => send(db, { to, subject, text: body, html }, 'safeguarding-alert', true));
   if (action.startsWith('issue-')) return issueAction(db, { uid: me.uid, email: me.email, name: me.name, role: me.role }, action, data, (to, subject, body, html) => send(db, { to, subject, text: body, html }, 'issue-digest'));
 
   switch (action) {

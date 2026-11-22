@@ -3,7 +3,7 @@ import { Button } from '../components/ui/Button';
 import { Callout } from '../components/ui/Callout';
 import { ask, messageOf, PortalError } from './api';
 import { issueQueue, newIssueId, type QueuedEntry } from './issueQueue';
-import { CHANNELS, DEVICE_CODE, deviceCode, FAULTS, faultText, kindLabel, kindsFor, severityLabel, SEVERITIES, statusLabel, type DeviceKind, type EquipmentList } from './equipment';
+import { CHANNELS, DEVICE_CODE, deviceCode, deviceLabel, FAULTS, faultText, kindLabel, kindsFor, severityLabel, SEVERITIES, statusLabel, type DeviceKind, type EquipmentList } from './equipment';
 import { ErrorLine, Loading, useLoad } from './TeamViews';
 import { stamp, type Role } from './types';
 
@@ -29,9 +29,12 @@ const IMPACTS = [
 ] as const;
 const STATUSES = [
   ['open', 'Open'],
+  ['actioned', 'Action taken'],
+  ['cleared', 'Cleared'],
   ['handled', 'Handled in analysis'],
   ['not-relevant', 'Not relevant'],
 ] as const;
+const DONE = ['cleared', 'handled', 'not-relevant'];
 const label = (list: readonly (readonly [string, string])[], v: string) => list.find(([k]) => k === v)?.[1] ?? v;
 
 type About = { kind: 'person'; studyId: string; label?: string } | { kind: 'typed'; name: string; studyId: string | null; label?: string } | { kind: 'room'; label?: string };
@@ -70,6 +73,7 @@ export interface IssueRow {
   status: string;
   resolution: string;
   comments: { id: string; at: string; byName: string; text: string }[];
+  actions: { id: string; at: string; byName: string; text: string; status: string | null }[];
   history: { at: string; byName: string; changes: Record<string, { from: unknown; to: unknown }> }[];
   mine: boolean;
   canEdit: boolean;
@@ -286,7 +290,7 @@ export function LogProblem({ role, pressedAt, onClose, editing, onSaved, preset 
           </Button>
         </div>
         <p className="mpmb-issue__safe" role="note">
-          <strong>Worried about a child’s safety or welfare?</strong> Follow the safeguarding procedure and tell the lead now. This log is for data issues.
+          <strong>Worried about a child’s safety or welfare?</strong> Tell the school’s DSL the same day, as the safeguarding procedure says, then <a href="#safeguarding-log/new" onClick={onClose}>log a safeguarding concern</a>. It goes to a separate log that only the PI and the project coordinator can read, not here.
         </p>
         <label className="mpmb-label" htmlFor="issue-when">
           Time
@@ -382,7 +386,7 @@ export function LogProblem({ role, pressedAt, onClose, editing, onSaved, preset 
                   {device && device.kind === kind && !registered.some((d) => d.code === device.code) ? <option value={device.code}>{device.code} (new)</option> : null}
                   {registered.map((d) => (
                     <option key={d.code} value={d.code}>
-                      {d.code}
+                      {deviceLabel(d)}
                       {d.batch ? ` (${d.batch})` : ''} · {statusLabel(d.status)}
                       {d.open.length ? ` · ${d.open.length} open` : ''}
                     </option>
@@ -516,14 +520,14 @@ export function Notebook({ role, entryId, go }: { role: Role; entryId?: string; 
   const team = role === 'pm' || role === 'researcher';
   const { value, error, load } = useLoad<{ issues: IssueRow[]; authors: { uid: string; name: string }[] }>('issue-list');
   const { waiting, flush } = useIssueQueue();
-  const [f, setF] = useState({ school: '', visit: '', from: '', to: '', pupil: '', type: '', impact: '', status: '', author: '', device: '' });
+  const [f, setF] = useState({ school: '', visit: '', from: '', to: '', pupil: '', type: '', impact: '', status: 'todo', author: '', device: '' });
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const issues = value?.issues ?? [];
   const shown = useMemo(
     () =>
       issues.filter((i) => {
         const day = i.deviceAt.slice(0, 10);
-        return (!f.school || i.schoolName === f.school) && (!f.visit || i.visitId === f.visit) && (!f.from || day >= f.from) && (!f.to || day <= f.to) && (!f.pupil || i.about.some((a) => a.label.toLowerCase().includes(f.pupil.toLowerCase()))) && (!f.type || i.type === f.type) && (!f.impact || i.impact === f.impact) && (!f.status || i.status === f.status) && (!f.author || i.uid === f.author) && (!f.device || i.device?.code === f.device);
+        return (!f.school || i.schoolName === f.school) && (!f.visit || i.visitId === f.visit) && (!f.from || day >= f.from) && (!f.to || day <= f.to) && (!f.pupil || i.about.some((a) => a.label.toLowerCase().includes(f.pupil.toLowerCase()))) && (!f.type || i.type === f.type) && (!f.impact || i.impact === f.impact) && (!f.status || (f.status === 'todo' ? !DONE.includes(i.status) : i.status === f.status)) && (!f.author || i.uid === f.author) && (!f.device || i.device?.code === f.device);
       }),
     [issues, f],
   );
@@ -563,7 +567,7 @@ export function Notebook({ role, entryId, go }: { role: Role; entryId?: string; 
           </label>
           <Select label="Type" value={f.type} onChange={set('type')} options={TYPES.map(([k, l]) => [k, l])} />
           <Select label="Impact" value={f.impact} onChange={set('impact')} options={IMPACTS.map(([k, l]) => [k, l])} />
-          <Select label="Status" value={f.status} onChange={set('status')} options={STATUSES.map(([k, l]) => [k, l])} />
+          <Select label="Status" value={f.status} onChange={set('status')} options={[['todo', 'Still to do'], ...STATUSES.map(([k, l]): [string, string] => [k, l])]} />
           <Select label="Device" value={f.device} onChange={set('device')} options={devices} />
           <Select label="Logged by" value={f.author} onChange={set('author')} options={(value?.authors ?? []).map((a) => [a.uid, a.name])} />
         </div>
@@ -626,8 +630,8 @@ function Select({ label: l, value, onChange, options }: { label: string; value: 
 function Entry({ issue: i, role, reload, back }: { issue: IssueRow; role: Role; reload: () => Promise<void>; back: () => void }) {
   const team = role === 'pm' || role === 'researcher';
   const [comment, setComment] = useState('');
-  const [status, setStatus] = useState(i.status);
-  const [resolution, setResolution] = useState(i.resolution);
+  const [status, setStatus] = useState(i.status === 'open' ? 'actioned' : i.status);
+  const [resolution, setResolution] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -710,32 +714,53 @@ function Entry({ issue: i, role, reload, back }: { issue: IssueRow; role: Role; 
           </Button>
         ) : null}
       </div>
-      {team ? (
-        <section className="mpmb-issue__triage">
-          <h3 className="mpmb-h3">Status</h3>
-          <div className="mpmb-issue__chips">
-            {STATUSES.map(([k, l]) => (
-              <button key={k} type="button" className={`mpmb-issue__chip${status === k ? ' is-on' : ''}`} aria-pressed={status === k} onClick={() => setStatus(k)}>
-                {l}
-              </button>
+      <section className="mpmb-issue__triage" aria-labelledby="issue-actions">
+        <h3 className="mpmb-h3" id="issue-actions">
+          What’s been done · <span className={`mpmb-issue__status is-${i.status}`}>{label(STATUSES, i.status)}</span>
+        </h3>
+        {i.actions.length ? (
+          <ul className="mpmb-issue__comments">
+            {i.actions.map((a) => (
+              <li key={a.id}>
+                <span className="mpmb-hint">
+                  {a.byName} · {stamp(a.at)}
+                  {a.status ? ` · ${label(STATUSES, a.status)}` : ''}
+                </span>
+                <p>{a.text}</p>
+              </li>
             ))}
-          </div>
-          <label className="mpmb-label" htmlFor="issue-resolution">
-            Resolution note
-          </label>
-          <textarea id="issue-resolution" className="mpmb-input mpmb-input--full" rows={2} value={resolution} onChange={(e) => setResolution(e.target.value)} />
-          <div className="mpmb-actions">
-            <Button onClick={() => void act(() => ask('issue-status', { id: i.id, status, resolution }))} loading={busy}>
-              Save status
-            </Button>
-          </div>
-        </section>
-      ) : (
-        <p>
-          Status: <strong>{label(STATUSES, i.status)}</strong>
-          {i.resolution ? ` · ${i.resolution}` : ''}
-        </p>
-      )}
+          </ul>
+        ) : (
+          <p className="mpmb-hint">Nothing recorded yet.</p>
+        )}
+        {i.resolution && !i.actions.some((a) => a.text === i.resolution) ? <p>Resolution: {i.resolution}</p> : null}
+        {team ? (
+          <>
+            <label className="mpmb-label" htmlFor="issue-action">
+              Log an action
+            </label>
+            <textarea id="issue-action" className="mpmb-input mpmb-input--full" rows={2} value={resolution} onChange={(e) => setResolution(e.target.value)} placeholder="What was done, e.g. “Swapped the felts and tested: all green”" />
+            <p className="mpmb-label">And it is now</p>
+            <div className="mpmb-issue__chips">
+              {STATUSES.filter(([k]) => k !== 'open').map(([k, l]) => (
+                <button key={k} type="button" className={`mpmb-issue__chip${status === k ? ' is-on' : ''}`} aria-pressed={status === k} onClick={() => setStatus(k)}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <div className="mpmb-actions">
+              <Button onClick={() => void act(() => ask('issue-action', { id: i.id, text: resolution, status })).then(() => setResolution(''))} loading={busy} disabled={!resolution.trim()}>
+                Log the action
+              </Button>
+              {i.status !== 'open' ? (
+                <Button variant="ghost" onClick={() => void act(() => ask('issue-action', { id: i.id, text: 'Reopened', status: 'open' }))}>
+                  Reopen
+                </Button>
+              ) : null}
+            </div>
+          </>
+        ) : null}
+      </section>
       <h3 className="mpmb-h3">Comments</h3>
       <ul className="mpmb-issue__comments">
         {i.comments.map((c) => (
