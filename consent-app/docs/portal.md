@@ -26,9 +26,11 @@ Google and "Email link (passwordless sign-in)" in the Firebase console
 
 **Stopping spam sign-ups** (since 20 November 2026). Accounts are made by the
 server (`portalSignUp`, in `firebase/functions/src/portalSignUp.ts`), not the
-browser, and the deploy switches off Firebase's own browser sign-up
-(Authentication, Settings, User actions, "Enable create (sign-up)"; if the
-deploy can't, it warns, and that box is unticked by hand). A sign-up must
+portal's own page. **Firebase's "Enable create (sign-up)" (Authentication,
+Settings, User actions) must stay ticked**: every website form starts with an
+anonymous sign-in, which Firebase counts as a sign-up. It was unticked by the
+deploy from 20 to 23 November 2026 and no new visitor could start a form in
+that time. A sign-up must
 leave a hidden "Website" field empty (bots fill it: they are told yes and get
 nothing), carry an invisible proof of work (the browser finds a number so that
 a hash of the address, the time and the number starts with 18 zero bits: under

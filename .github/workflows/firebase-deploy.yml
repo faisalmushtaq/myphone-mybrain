@@ -114,21 +114,11 @@ jobs:
           esac
           npx --yes firebase-tools@15 deploy --only "$only" --project "$PROJECT_ID" --non-interactive --force
 
-      - name: Allow portal accounts to be made only by the server
-        # Staff portal accounts are made by portalSignUp (a proof of work and rate limits), so the browser's own
-        # sign-up is switched off in Firebase Authentication. Sign-in, password resets and verification still work.
-        if: ${{ inputs.target != 'rules only' }}
-        run: |
-          token=$(gcloud auth print-access-token)
-          url="https://identitytoolkit.googleapis.com/admin/v2/projects/$PROJECT_ID/config"
-          code=$(curl -s -o /tmp/auth-config.json -w '%{http_code}' -X PATCH "$url?updateMask=client.permissions.disabledUserSignup" \
-            -H "Authorization: Bearer $token" -H "X-Goog-User-Project: $PROJECT_ID" -H 'Content-Type: application/json' \
-            -d '{"client":{"permissions":{"disabledUserSignup":true}}}')
-          if [ "$code" = 200 ] && grep -q '"disabledUserSignup": true' /tmp/auth-config.json; then
-            echo "browser sign-up is off; accounts are made by portalSignUp"
-          else
-            echo "::warning::Could not switch off browser sign-up (http $code). In the Firebase console: Authentication, Settings, User actions, untick Enable create (sign-up)."
-          fi
+      # Firebase Authentication's "Enable create (sign-up)" must stay ticked. Every website form (consent,
+      # family screenshots, lab donations, check-ins) starts with an anonymous sign-in, which Firebase counts
+      # as a sign-up. A step here switched it off on 20 November 2026 to stop portal spam, and no new visitor
+      # could start a session (ADMIN_ONLY_OPERATION) until it was ticked again on 23 November. The deploy no
+      # longer touches the setting. Portal accounts are still made by portalSignUp.
 
       - name: Keep the callables reachable from the website
         if: ${{ inputs.target != 'rules only' }}
