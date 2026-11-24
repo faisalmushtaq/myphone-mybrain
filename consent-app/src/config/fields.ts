@@ -30,7 +30,7 @@ export const guardianFields = {
   /** Not asked on the details page any more (decided 8 October 2026): the parent's name is the one they sign with, on the permission step. */
   fullName: { enabled: false, required: false, label: 'Your full name', autocomplete: 'name' },
   relationship: { enabled: true, required: true, label: 'Your relationship to the young person' },
-  /** Required with the postcode (decided 7 October 2026): the home address, for linking the young person's records. */
+  /** Required with the postcode (decided 7 October 2026): the home address, for matching the young person's records (linking with records is not asked for now: 24 November 2026). */
   address: {
     enabled: true,
     required: true,

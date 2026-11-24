@@ -15,7 +15,7 @@ function mailtoLink(kind: Kind): string {
   const school = schoolFromLink();
   const body = [
     kind === 'data-only'
-      ? 'My child can take part in the MyPhone/MyBrain workshop at school, but please do not keep or use any of their information for the study, and do not link it with their records.'
+      ? 'My child can take part in the MyPhone/MyBrain workshop at school, but please do not keep or use any of their information for the study.'
       : 'Please opt my child out of the MyPhone/MyBrain workshop at school and out of the study: none of their information is to be used.',
     '',
     'My child’s full name: ',
@@ -78,7 +78,7 @@ export function OptOut() {
           <div className="mpmb-step__body">
             <p className="mpmb-lead">You can opt your child out of the whole study, or let them take part in the workshop with their class while none of their information is used.</p>
             <p>In the workshop, young people learn how the brain works and wear a lightweight headset that records brain activity (EEG) while they do simple tasks on a computer. It doesn’t hurt, two researchers are there throughout, and your child can still say no or stop at any time on the day.</p>
-            <p>Either way, nothing about your child is linked with health or school records for the study.</p>
+            <p>Either way, we will not contact you about linking your child’s information with their health or school records.</p>
             <Callout tone="info">
               <p>
                 <strong>Does your child wear a head covering?</strong> The headset sits directly on the head, so head coverings (such as a hijab, turban, patka or cap) need to be taken off for the brain recording. We have a private room for anyone who would like to take theirs off there. If your child would rather keep their head covering on, they can still do the computer task without the headset, if they would like to, and join the rest of the workshop with their class. You don’t need to opt out for this.
@@ -112,8 +112,8 @@ export function OptOut() {
               <div className="mpmb-choice__options">
                 {(
                   [
-                    ['data-only', 'My child takes part in the workshop, but their information is not used', 'They join in with their class as normal. Nothing recorded about them in the workshop is kept or used for the study, and nothing is linked with their school or health records.'],
-                    ['workshop-and-data', 'My child does not take part in the workshop, and none of their information is used', 'They do something else at school while their class does the workshop. Nothing about them is used in the study or linked with their records.'],
+                    ['data-only', 'My child takes part in the workshop, but their information is not used', 'They join in with their class as normal. Nothing recorded about them in the workshop is kept or used for the study.'],
+                    ['workshop-and-data', 'My child does not take part in the workshop, and none of their information is used', 'They do something else at school while their class does the workshop. Nothing about them is used in the study.'],
                   ] as [Kind, string, string][]
                 ).map(([value, label, hint]) => (
                   <label key={value} className={`mpmb-choice__option${kind === value ? ' is-selected' : ''}`} htmlFor={`optout-kind-${value}`}>

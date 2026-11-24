@@ -100,6 +100,15 @@ function fakeIdealPostcodes(port) {
   return server;
 }
 
+/** The optional choice on the permission and the agreement (since 24 November 2026): may we contact them in future about linking with records? Answered "No" unless the test says otherwise. */
+async function answerContact(pg, answer = 'No') {
+  const groups = pg.getByRole('group', { name: /contact me in future/ });
+  for (let i = 0; i < (await groups.count()); i += 1) {
+    const option = groups.nth(i).getByLabel(answer, { exact: true });
+    if (!(await option.isChecked())) await option.check();
+  }
+}
+
 async function inner() {
   const require = createRequire(import.meta.url);
   const { chromium } = require(process.env.PLAYWRIGHT_MODULE ?? '/opt/node22/lib/node_modules/playwright');
@@ -220,10 +229,12 @@ async function inner() {
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('heading', { name: /Your permission: Kai’s phone use/ }).waitFor();
     ok('the permission asks nothing about the workshop, record linkage, the screenshots or future contact: no choices to make', (await page.locator('#stmt-link-records-agreed, #stmt-phone-use-agreed, #stmt-recontact-agreed').count()) === 0 && (await page.getByText(/agree to my child taking part/).count()) === 0 && (await page.getByRole('heading', { name: 'Your choices' }).count()) === 0);
+    ok('linking with records is not asked for now, and the form says so; the only choice is whether we may contact them about it in future', (await page.getByText(/this form does not ask for my permission to link my child’s information/).count()) === 1 && (await page.getByRole('group', { name: /contact me in future to ask whether my child’s study information can be linked/ }).count()) === 1 && (await page.getByText(/can be shared securely with Connected West Yorkshire/).count()) === 0);
     await page.getByLabel(/I confirm all of the above/).check();
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.35, 0.3], [0.55, 0.7], [0.8, 0.4]]);
     // The parent's name is the one they sign with (it is no longer asked on the details page).
     await page.getByLabel('Your full name', { exact: true }).fill('Priya Patel');
+    await answerContact(page);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await hasOwnPhone(page);
     await page.getByRole('heading', { name: /Some questions about .*’s phone use/ }).waitFor();
@@ -261,7 +272,7 @@ async function inner() {
     };
     const tap = (label) => page.getByRole('button', { name: label, exact: true }).click();
     const pass = () => page.getByRole('button', { name: 'Skip this question' }).click();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 1 of 15' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: /Question 1 of \d+/ }).waitFor();
     ok('the set starts with when Kai got their own smartphone, under “Getting started”, and offers no age older than Kai (13)', (await page.locator('.mpmb-quiz__count').textContent()).startsWith('Getting started') && (await page.getByRole('heading', { name: /How old was Kai when they got their own smartphone\?/ }).count()) === 1 && (await page.getByRole('button', { name: '13', exact: true }).count()) === 1 && (await page.getByRole('button', { name: '14', exact: true }).count()) === 0 && (await page.getByRole('button', { name: '15 or older', exact: true }).count()) === 0 && (await page.locator('.mpmb-quiz__em').textContent()) === 'their own smartphone');
     await tap('12');
     await step(2, async () => ok('then when Kai started on social media, with the apps named and “social media” marked out from the phone question', (await page.getByRole('heading', { name: /How old was Kai when they started using social media, like TikTok, Snapchat, Instagram or YouTube\?/ }).count()) === 1 && (await page.locator('.mpmb-quiz__em').textContent()) === 'social media' && (await page.getByRole('button', { name: '14', exact: true }).count()) === 0));
@@ -304,6 +315,7 @@ async function inner() {
     await page.getByRole('button', { name: /I’m Kai/ }).click();
     await page.getByRole('heading', { name: /Do you want to share your screen time/ }).waitFor();
     await draw(page.locator('#assent-signature'), [[0.2, 0.6], [0.5, 0.35], [0.8, 0.6]]);
+    await answerContact(page);
     await page.getByRole('button', { name: 'Sign and continue' }).click();
 
     await page.getByRole('heading', { name: /Share your screen time/ }).waitFor();
@@ -475,6 +487,7 @@ async function inner() {
     await page.getByLabel(/Type your full name as your signature/).fill('Sara Khan');
     // The parent's name is the one they sign with (it is no longer asked on the details page).
     await page.getByLabel('Your full name', { exact: true }).fill('Sara Khan');
+    await answerContact(page);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await hasOwnPhone(page);
     await page.getByRole('button', { name: 'Skip these questions' }).click();
@@ -544,6 +557,7 @@ async function inner() {
     await page.getByLabel(/Type your full name as your signature/).fill('Jo Clarke');
     // The parent's name is the one they sign with (it is no longer asked on the details page).
     await page.getByLabel('Your full name', { exact: true }).fill('Jo Clarke');
+    await answerContact(page);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await hasOwnPhone(page);
     await page.getByRole('button', { name: 'Skip these questions' }).click();
@@ -600,6 +614,7 @@ async function inner() {
     await noahPage.getByRole('heading', { name: /Do you want to share your screen time/ }).waitFor({ timeout: 30000 });
     ok('only Noah’s part is asked: his answer, with no “decide later” and nothing of the parent’s', (await noahPage.getByRole('button', { name: 'I’d like to decide later' }).count()) === 0 && (await noahPage.getByText(/Your parent or carer has said it’s okay with them/).count()) === 1);
     await draw(noahPage.locator('#assent-signature'), [[0.2, 0.6], [0.5, 0.35], [0.8, 0.6]]);
+    await answerContact(noahPage);
     await noahPage.getByRole('button', { name: 'Sign and continue' }).click();
     await noahPage.locator('.mpmb-save', { hasText: 'Your answer is saved.' }).waitFor({ timeout: 60000 });
     const noahMid = (await db.collection('submissions').doc(noahCode).get()).data();
@@ -650,9 +665,10 @@ async function inner() {
     await page.getByLabel(/I confirm all of the above/).check();
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.6]]);
     await page.getByLabel('Your full name', { exact: true }).fill('Dan Shaw');
+    await answerContact(page);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await hasOwnPhone(page);
-    await page.locator('.mpmb-quiz__count', { hasText: 'Question 1 of 15' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: /Question 1 of \d+/ }).waitFor();
     let ruby = null;
     for (let i = 0; i < 40 && !ruby; i += 1) {
       const people = await db.collection('participants').where('firstName', '==', 'Ruby').get();
@@ -691,10 +707,11 @@ async function inner() {
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.6]]);
     // The parent's name is the one they sign with (it is no longer asked on the details page).
     await page.getByLabel('Your full name', { exact: true }).fill('Grace Brown');
+    await answerContact(page);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await hasOwnPhone(page);
     await page.getByRole('heading', { name: /Some questions about .*’s phone use/ }).waitFor();
-    await page.locator('.mpmb-quiz__count', { hasText: 'Getting started · Question 1 of 15' }).waitFor();
+    await page.locator('.mpmb-quiz__count', { hasText: /Getting started · Question 1 of \d+/ }).waitFor();
     ok('the age at their own phone goes down to “Under 5”, year by year, up to Lily’s age now (14), with “I can’t remember / I don’t know”', (await page.locator('.mpmb-quiz__option').count()) === 12 && (await page.getByRole('button', { name: '15 or older', exact: true }).count()) === 0 && (await page.getByRole('button', { name: 'They don’t have their own' }).count()) === 0 && (await page.getByRole('button', { name: 'Under 5', exact: true }).count()) === 1 && (await page.getByRole('button', { name: '7', exact: true }).count()) === 1 && (await page.getByRole('button', { name: 'I can’t remember / I don’t know', exact: true }).count()) === 1);
     await page.getByRole('button', { name: '12', exact: true }).click();
     await page.locator('.mpmb-quiz__count', { hasText: 'Question 2 of 15' }).waitFor();
@@ -747,6 +764,7 @@ async function inner() {
     await page.getByLabel(/I confirm all of the above/).check();
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.6]]);
     await page.getByLabel('Your full name', { exact: true }).fill('Tom Green');
+    await answerContact(page);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await page.getByRole('heading', { name: /First: does Ivy have a phone of their own\?/ }).waitFor();
     ok('the first question is whether the young person has a phone of their own', (await page.getByRole('button', { name: 'No, not yet' }).count()) === 1 && (await page.getByRole('button', { name: 'Yes', exact: true }).count()) === 1);
@@ -792,6 +810,7 @@ async function inner() {
     await page.getByRole('heading', { name: /Do you want to share your screen time/ }).waitFor();
     ok('no parent steps, and no “decide later” on their own', (await page.getByText(/At 16 or over, you decide for yourself/).count()) === 1 && (await page.getByRole('button', { name: 'I’d like to decide later' }).count()) === 0);
     await draw(page.locator('#assent-signature'), [[0.2, 0.6], [0.5, 0.35], [0.8, 0.6]]);
+    await answerContact(page);
     await page.getByRole('button', { name: 'Sign and continue' }).click();
     await page.getByRole('heading', { name: /Share your screen time/ }).waitFor();
     await page.locator('.mpmb-save', { hasText: 'Everything so far is saved.' }).waitFor({ timeout: 60000 });
@@ -899,6 +918,7 @@ async function inner() {
     ok('the consent starts with the name already given', (await page.getByLabel('Your full name', { exact: true }).inputValue()) === 'Jane Smith');
     await draw(page.locator('#lab-signature'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.7]]);
     await snap('consent');
+    await answerContact(page);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     // Screenshots first: the phone's own steps, at least one image, then they go straight away, filed under "before my break".
     await page.getByRole('heading', { name: 'Send your screen-time screenshots.', level: 1 }).waitFor({ timeout: 60000 });
@@ -1429,6 +1449,7 @@ async function inner() {
     for (const id of ['read-information', 'involves', 'voluntary', 'data-kept', 'donation-required', 'publication', 'data-protection', 'take-part']) await cp.locator(`#lab-stmt-${id}`).check();
     await cp.locator('#lab-stmt-link-records-declined').check();
     await draw(cp.locator('#lab-signature'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.7]]);
+    await answerContact(cp);
     await cp.getByRole('button', { name: 'Confirm and sign' }).click();
     await cp.getByRole('heading', { name: 'Send your screen-time screenshots.', level: 1 }).waitFor({ timeout: 60000 });
     const controlRow = (await db.collection('labParticipants').where('group', '==', 'control').get()).docs[0];
@@ -1646,6 +1667,7 @@ async function inner() {
     await draw(page.locator('#signature-pad'), [[0.15, 0.6], [0.4, 0.3], [0.7, 0.6]]);
     // The parent's name is the one they sign with (it is no longer asked on the details page).
     await page.getByLabel('Your full name', { exact: true }).fill('Sam Hughes');
+    await answerContact(page);
     await page.getByRole('button', { name: 'Confirm and sign' }).click();
     await hasOwnPhone(page);
     await page.getByRole('heading', { name: /Some questions about .*’s phone use/ }).waitFor();

@@ -26,7 +26,7 @@ partners:
   - name: "Connected West Yorkshire"
     category: "Data platform"
     logo: "logos/connected-west-yorkshire.svg"
-    description: "Connected West Yorkshire provides access to linked research data through more than one dataset. With the approvals in place, it helps us study longer-term outcomes for young people who take part in the workshop."
+    description: "Connected West Yorkshire provides access to linked research data through more than one dataset. In future, if families agree when we contact them to ask, it would help us study longer-term outcomes for young people who take part in the workshop. We are not asking for that permission now."
     url: "https://bradfordresearch.nhs.uk/connected-wy/connected-bradford-datasets/"
 
   - name: "Smart Data Donation Service"

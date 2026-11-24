@@ -128,7 +128,7 @@ test('rejects a missing required statement, and the statements no longer asked',
 test('the current information, or a recent earlier version for a family who signed before an update', () => {
   const p = valid();
   assert.deepEqual(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.6-draft' } }), []);
-  assert.ok(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.4-draft' } }).some((m) => m.includes('information shown must be version 0.15-draft')));
+  assert.ok(validateConsentPayload({ ...p, consent: { ...p.consent!, informationVersion: '0.4-draft' } }).some((m) => m.includes('information shown must be version 0.16-draft')));
 });
 
 test('rejects an old statement version', () => {
@@ -344,7 +344,7 @@ test('the parent’s form with linking spelled out (0.10) is accepted, and so is
   delete p.consent!.responses.linking;
   assert.ok(validateConsentPayload(p).some((m) => m.includes('"linking"')), 'the new form needs the linking statement');
   p.consent!.formVersion = '0.8-draft';
-  assert.ok(validateConsentPayload(p).some((m) => m.includes('must be mpmb-parent-consent 0.12-draft')), 'older forms are refused');
+  assert.ok(validateConsentPayload(p).some((m) => m.includes('must be mpmb-parent-consent 0.13-draft')), 'older forms are refused');
   // 0.11, the current form: "My answers" also says nothing that could identify the child will appear in any report.
   p.consent!.formVersion = '0.11-draft';
   p.consent!.responses.linking = r('linking', 'agreed', 'group', '0.1-draft');
@@ -398,6 +398,36 @@ test('0.12 and 0.9 (11 November 2026): the opt-in choice about changes to linkin
   const unsigned = structuredClone(p);
   delete unsigned.assent!.responses['identifiers-separate'];
   assert.ok(validateConsentPayload(unsigned).some((m) => m.includes('"identifiers-separate" was not signed')));
+});
+
+test('0.13 and 0.10 (24 November 2026): linking is not asked for now; the choice is whether we may contact them about it; 0.12 and 0.9 still accepted', () => {
+  const p = valid();
+  p.consent!.formVersion = '0.13-draft';
+  p.consent!.informationVersion = '0.16-draft';
+  p.consent!.responses = {
+    'read-information': r('read-information', 'agreed', 'group', '0.5-draft'),
+    answers: r('answers', 'agreed', 'group', '0.5-draft'),
+    'no-linking-now': r('no-linking-now', 'agreed', 'group', '0.1-draft'),
+    'understand-withdraw': r('understand-withdraw', 'agreed', 'group', '0.7-draft'),
+    'records-checked': r('records-checked', 'agreed', 'group', '0.4-draft'),
+    'recontact-linkage': r('recontact-linkage', 'agreed', 'individual', '0.2-draft'),
+  };
+  p.assent!.formVersion = '0.10-draft';
+  p.assent!.responses = {
+    understand: r('understand', 'agreed', 'signature', '0.9-draft'),
+    'identifiers-separate': r('identifiers-separate', 'agreed', 'signature', '0.2-draft'),
+    'no-linking-now': r('no-linking-now', 'agreed', 'signature', '0.1-draft'),
+    'can-stop': r('can-stop', 'agreed', 'signature', '0.5-draft'),
+    'take-part': r('take-part', 'agreed', 'signature', '0.4-draft'),
+    'recontact-linkage': r('recontact-linkage', 'declined', 'individual', '0.2-draft'),
+  };
+  assert.deepEqual(validateConsentPayload(p), []);
+  const linkingNow = structuredClone(p);
+  linkingNow.consent!.responses.linking = r('linking', 'agreed', 'group', '0.2-draft');
+  assert.ok(validateConsentPayload(linkingNow).length > 0, 'the new form has no linking statement to agree to');
+  const unread = structuredClone(p);
+  delete unread.consent!.responses['no-linking-now'];
+  assert.ok(validateConsentPayload(unread).some((m) => m.includes('"no-linking-now"')), 'the statement that linking is not asked for now must be confirmed');
 });
 
 test('the ban effect question in its first wording ("quite") is still accepted, recorded at the version shown', () => {

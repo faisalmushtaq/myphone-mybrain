@@ -65,7 +65,7 @@ export const study = {
   parentQuestions: true,
 
   /**
-   * The workshop at school (and linking with records) is opt-out: a parent or
+   * The workshop at school is opt-out (linking with records is not asked for now): a parent or
    * carer emails the team, after two warnings on this site. No form, no
    * paper slip (decided 7 October 2026).
    */

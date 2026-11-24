@@ -1,7 +1,7 @@
 heading: "Data, privacy and choice"
 subheading: "You choose whether to take part and what to share."
 intro: |
-  MyPhone/MyBrain may use different kinds of information. This can include survey answers, EEG recordings, task results and optional digital data. For young people who take part in the workshop it may also include linked education and health records, with the approvals in place; a parent or carer can opt their child out of the workshop, and so out of linking, by email or through the school. Sharing phone data is opt-in. We explain the information that applies to each activity before anyone decides.
+  MyPhone/MyBrain may use different kinds of information. This can include survey answers, EEG recordings, task results and optional digital data. Linking with education and health records is not part of the study now: we are not asking for permission for it now, and we intend to contact families to ask about it in future. A parent or carer can opt their child out of the workshop by email or through the school. Sharing phone data is opt-in. We explain the information that applies to each activity before anyone decides.
 
 promise:
   - number: "1"
@@ -12,7 +12,7 @@ promise:
     body: "Young people can choose the parts of the study they are happy to do. Families see each screenshot before it is sent, and can hide any part of it."
   - number: "3"
     heading: "We use secure systems"
-    body: "Screenshots are sent securely and kept with a code instead of a name. Research data and linked records are stored and analysed in secure systems with controlled access."
+    body: "Screenshots are sent securely and kept with a code instead of a name. Research data (and any records linked in future, with permission) are stored and analysed in secure systems with controlled access."
   - number: "4"
     heading: "We protect people’s privacy"
     body: "Researchers use coded or anonymous data wherever possible. We share findings about groups of people, rather than individuals."

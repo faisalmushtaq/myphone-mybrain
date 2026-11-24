@@ -220,7 +220,7 @@ export function Welcome() {
         <h2 className="mpmb-h3" id="optout-heading">
           Parents and carers: opting out of the workshop
         </h2>
-        <p>If you don’t want your child to take part in the workshop at school, you can opt them out. That also means nothing about them is linked with health or school records.</p>
+        <p>If you don’t want your child to take part in the workshop at school, you can opt them out.</p>
         <Button variant="secondary" onClick={() => dispatch({ type: 'go-to', stepId: 'opt-out', returnTo: null })}>
           Opt out of the workshop
         </Button>

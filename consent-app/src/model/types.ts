@@ -44,7 +44,7 @@ export interface GuardianIdentity {
   fullName: string;
   relationship: RelationshipId | '';
   relationshipOther: string;
-  /** Home address and postcode: required (decided 7 October 2026), for linking the young person's records. */
+  /** Home address and postcode: required (decided 7 October 2026), for matching the young person's records (linking with records is not asked for now: 24 November 2026). */
   address: string;
   postcode: string;
   /** The property's UPRN, only while the address is the one picked from the address finder (src/components/AddressFinder.tsx); gone once it is changed by hand. */

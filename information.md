@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Information sheet | MyPhone/MyBrain"
-description: "The information sheet for parents, carers and young people at schools taking part in MyPhone/MyBrain: what happens at the workshop, how taking part and opting out work, sharing screen time, linking with records, and what happens to your child’s information."
+description: "The information sheet for parents, carers and young people at schools taking part in MyPhone/MyBrain: what happens at the workshop, how taking part and opting out work, sharing screen time, linking with records (not now: we will ask in future), and what happens to your child’s information."
 permalink: /information/
 title_main: "Information"
 title_accent: "for parents and carers."
@@ -10,7 +10,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
 
 {% include page_hero.html %}
 
-<!-- The participant information sheet approved with the ethics application (SoPREC 4202), on the web, brought up to date with the consent process decided on 7 October 2026: the workshop and linking are opt-out by email, screen time is opt-in online. Since 8 October 2026 every section is folded away, so the only thing open is the box saying what to do. consent-app/docs/content-placeholders.md lists what differs from the approved documents, for the master ethics update. -->
+<!-- The participant information sheet approved with the ethics application (SoPREC 4202), on the web, brought up to date with the consent process decided on 7 October 2026: the workshop is opt-out by email, screen time is opt-in online. Since 24 November 2026 linking with records through Connected West Yorkshire is not asked for now: families are told we intend to contact them about it in future. Since 8 October 2026 every section is folded away, so the only thing open is the box saying what to do. consent-app/docs/content-placeholders.md lists what differs from the approved documents, for the master ethics update. -->
 <section class="section participant-info-section info-sheet">
   <div class="container narrow-content">
     <div class="info-sheet__start">
@@ -45,7 +45,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <h3>The workshop at school</h3>
         <p>Every young person in the classes taking part is invited. <strong>You don’t need to do anything for your child to take part.</strong> If you don’t want them to, a parent or carer emails us, or tells the school, which passes it on, before the workshop. There is no form to fill in.</p>
         <p>On the day, the researchers explain the workshop again and ask each young person whether they want to take part. <strong>Your child can say no</strong>, choose which parts to do, or stop at any time, without giving a reason. Nobody will mind, and it will not affect anything at school.</p>
-        <p>You can opt out in one of two ways, each with one message: <strong>out of the workshop and the study</strong>; or <strong>in the workshop, with none of their information used</strong>, so your child joins in with their class but nothing recorded about them is kept or used. Either way, nothing about your child is linked with their education and health records.</p>
+        <p>You can opt out in one of two ways, each with one message: <strong>out of the workshop and the study</strong>; or <strong>in the workshop, with none of their information used</strong>, so your child joins in with their class but nothing recorded about them is kept or used. Nothing about any child is linked with their education or health records now (see <a href="#linking">linking</a>).</p>
         <a class="text-link" href="#opting-out">How to opt out &nbsp;→</a>
       </li>
       <li class="consent-route consent-route--mist">
@@ -139,7 +139,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <div class="info-panel info-panel-alt">
         <h3>Who decides</h3>
         <p><strong>Under 16:</strong> a parent or carer gives permission first, on the form, and says where the screen time can come from. If you can see your child’s screen time on your own phone, with Apple Family Sharing or Google Family Link, you can send it from there. Otherwise your child sends it from their own phone, if they want to: it is their choice too.</p>
-        <p><strong>16 or over:</strong> young people decide for themselves, without a parent. At 16 they also receive this information directly and make their own choices about linking with records.</p>
+        <p><strong>16 or over:</strong> young people decide for themselves, without a parent. If we ask about linking with records in future, young people aged 16 or over will be asked themselves.</p>
       </div>
     </div>
     <div class="prose">
@@ -150,36 +150,35 @@ page_intro: "You’re reading this because your child’s school is taking part 
     </details>
 
     <details class="info-fold" id="linking">
-      <summary><h2>Linking with education and health records</h2></summary>
+      <summary><h2>Linking with education and health records: not now, we will ask you in future</h2></summary>
       <div class="info-fold__body">
-    <p class="section-subheading">For young people who take part in the workshop, the study links their information with records that already exist about them, to look at longer-term patterns in learning, health and wellbeing.</p>
+    <p class="section-subheading">We are not asking for your permission for this now, and nothing about your child is linked with their records now. In future we intend to contact you about it, explain what it would involve, and ask whether you agree.</p>
     <div class="prose">
-      <h3>Which records</h3>
+      <p>Linking would add information from records that already exist about your child, so the study could look at longer-term patterns in learning, health and wellbeing. Taking part in the workshop, or using the online form, does not mean you have agreed to it.</p>
+      <h3>Which records it would involve</h3>
       <ul>
         <li>GP records;</li>
         <li>hospital records;</li>
         <li>community and mental health services records, including Child and Adolescent Mental Health Services (CAMHS);</li>
         <li>Department for Education records: attendance, attainment, and special educational needs.</li>
       </ul>
-      <h3>Which study information is linked</h3>
+      <h3>Which study information would be linked</h3>
       <p>The information the study collects about your child: their EEG recording, their results on the attention task on the computer, and their workshop survey answers; and, if you use the online form, your answers about their phone use and any screenshots of their screen time.</p>
-      <h3>How the matching works</h3>
-      <p>The linking is done through Connected West Yorkshire, using your child’s Unique Pupil Number, which the school gives us, together with their name, date of birth and home address from the workshop survey. If you use the online form, the address finder also adds your home’s Unique Property Reference Number (UPRN), which helps match records more reliably. The University of Leeds team holds these details separately from the research information. An independent organisation, not the research team, carries out the matching, and researchers see only a study code. Linking happens only with the approvals in place.</p>
-      <p>It happens inside a secure research environment: names and other details that identify someone directly are removed before researchers see anything, the analysis stays inside that environment, and only results about groups of people come out. Linking is part of the workshop, so opting out, either way, also opts your child out of linking.</p>
-      <p>Linking can happen now and again at times in the future, including as your child grows up and becomes an adult, for as long as the research goes on. The information is only ever used for research into health, wellbeing and learning, never to make decisions about your child, and nothing that could identify your child will ever appear in any report or publication. You can stop the linking at any time, without giving a reason, by emailing <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a> or Dr Sarmad Ali at <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>. <a href="#changing-your-mind">What happens to records already linked</a>.</p>
-      <h3>When your child turns 16</h3>
-      <p>At 16, young people receive this information directly, and make their own choices about linking, including whether it carries on. Until then, a parent or carer can opt them out of it.</p>
+      <h3>How it would work</h3>
+      <p>The linking would be done through Connected West Yorkshire, inside a secure research environment, using your child’s Unique Pupil Number together with their name, date of birth and home address. An independent organisation, not the research team, would carry out the matching; researchers would see only a study code, and only results about groups of people would come out. It would be used only for research into health, wellbeing and learning, never to make decisions about your child.</p>
+      <h3>What happens next</h3>
+      <p>When we are ready, we intend to contact you, using the email address or mobile number you give on the online form or through your child’s school, to explain the linking and ask for your permission. Nothing will be linked unless you agree then, and you will be told then how to change your mind. Young people aged 16 or over will be asked themselves. If you would rather we did not contact you about it, choose “No” on the online form, or email <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a>.</p>
     </div>
       </div>
     </details>
 
     <details class="info-fold" id="recontact">
-      <summary><h2>Contacting you about changes to record linkage</h2></summary>
+      <summary><h2>Contacting you about linking in future</h2></summary>
       <div class="info-fold__body">
-    <p class="section-subheading">Optional: we contact you about this only if you say yes.</p>
+    <p class="section-subheading">Optional: tell us on the online form whether you are happy for us to contact you.</p>
     <div class="prose">
-      <p>In future we may need to change how we link your child’s information, for example to include a different type of record or to link in a different way. If this happens, we would like to contact you to explain the change and ask whether you are happy for it to go ahead.</p>
-      <p>Please choose “Yes” on the online form if you are happy for us to contact you about this: “I am happy for the MyPhone/MyBrain team to contact me if the details of record linkage need to change.” Young people who share their screen time are asked the same. If you are not using the online form, you can tell us by emailing <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a>. You can change your answer at any time.</p>
+      <p>We intend to contact families in future to ask whether their child’s study information can be linked with their health and education records through Connected West Yorkshire (see <a href="#linking">Linking with education and health records</a>). We are not asking for permission for that linking now.</p>
+      <p>On the online form, please choose “Yes” if you are happy for us to contact you about this: “I am happy for the MyPhone/MyBrain team to contact me in future to ask whether my child’s study information can be linked with their health and education records through Connected West Yorkshire.” Saying yes does not mean you agree to the linking: it only means we may contact you to ask. Young people who share their screen time are asked the same. If you are not using the online form, you can tell us by emailing <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a>. You can change your answer at any time.</p>
     </div>
       </div>
     </details>
@@ -190,12 +189,12 @@ page_intro: "You’re reading this because your child’s school is taking part 
     <p class="section-subheading">It is kept securely by the University of Leeds, labelled with a study code instead of a name, and used only for research, including research using machine learning (computers finding patterns in data).</p>
     <div class="info-panel">
       <ul class="info-checklist">
-        <li><strong>What is collected:</strong> at the workshop, the EEG recording, the computer task and the survey answers. The workshop survey also asks for your child’s name, date of birth and home address, so that their answers can be kept together and linked. From the school, a class list with your child’s Unique Pupil Number, names and date of birth, so that their information can be matched and linked. If you opt your child out, we keep only their name, school and Unique Pupil Number, so that we can make sure they are left out. If you use the online form, the details and answers you give there (including your home address and its UPRN), and any screenshots.</li>
+        <li><strong>What is collected:</strong> at the workshop, the EEG recording, the computer task and the survey answers. The workshop survey also asks for your child’s name, date of birth and home address, so that their answers can be kept together and we can contact you in future about linking. From the school, a class list with your child’s Unique Pupil Number, names and date of birth, so that their information can be matched correctly. If you opt your child out, we keep only their name, school and Unique Pupil Number, so that we can make sure they are left out. If you use the online form, the details and answers you give there (including your home address and its UPRN), and any screenshots.</li>
         <li><strong>How it is labelled:</strong> research data carry a study code, never a name. The University of Leeds team holds names, dates of birth and addresses separately from the research data, together with Unique Pupil Numbers, UPRNs, contact details and opt-out records, and only the few people who need them can see them.</li>
-        <li><strong>How linking keeps your child anonymous:</strong> an independent organisation, not the research team, uses these details to match your child’s study information with their records. Researchers see only a study code, never your child’s name, date of birth or address. <a href="#linking">More about linking</a>.</li>
+        <li><strong>Linking with records:</strong> not now. We are not asking for permission to link your child’s information with their health or education records now; we intend to contact you about it in future and ask then. <a href="#linking">More about linking</a>.</li>
         <li><strong>Who sees it:</strong> only the research team and approved collaborators, through secure systems. Teachers, the school and other pupils never see your child’s answers, recordings or screenshots. The one exception is a safeguarding concern: see “Difficult questions and safeguarding” above.</li>
         <li><strong>How long it is kept:</strong> up to 10 years after the project ends, as the University’s research data rules require. Identifying information is then securely deleted; fully anonymous data may be kept for future research.</li>
-        <li><strong>How results are shared:</strong> in scientific journals, at conferences, in reports and in future research, and as general findings for the schools taking part. Results are about groups of young people, never individuals: nothing that could identify your child will ever appear in any report, publication or presentation, or in the findings we share with schools. Fully anonymous EEG recordings, with no names or other identifying details, may be shared with other researchers through open research data platforms such as G-Node, EEGNet and OpenNeuro. Study data may also be made available to approved researchers through the Born in Bradford Executive (BiB Exec) and the Born in Bradford data dictionary, and linked data can be used only within Connected West Yorkshire’s secure environment.</li>
+        <li><strong>How results are shared:</strong> in scientific journals, at conferences, in reports and in future research, and as general findings for the schools taking part. Results are about groups of young people, never individuals: nothing that could identify your child will ever appear in any report, publication or presentation, or in the findings we share with schools. Fully anonymous EEG recordings, with no names or other identifying details, may be shared with other researchers through open research data platforms such as G-Node, EEGNet and OpenNeuro. Study data may also be made available to approved researchers through the Born in Bradford Executive (BiB Exec) and the Born in Bradford data dictionary, and, if linking goes ahead in future with your permission, linked data could be used only within Connected West Yorkshire’s secure environment.</li>
         <li><strong>Never sold:</strong> we do not sell data or give it to social media or other commercial companies.</li>
         <li><strong>The law:</strong> the University of Leeds is the data controller. It uses the information because research is a task in the public interest (UK GDPR Article 6(1)(e)) and, for sensitive information such as health records and information about wellbeing, because the processing is for research in the public interest (Article 9(2)(j)). The University’s research participant privacy notice explains your rights; ask us if you would like a copy. More on our <a href="{{ '/privacy/' | relative_url }}">data and privacy</a> page.</li>
         <li><strong>Your rights:</strong> you have the right to be told how your child’s information is used (this sheet and the privacy notice); to see the information we hold about your child, and get a copy; to have anything wrong corrected; to ask for it to be deleted; to ask us to limit how it is used; and to object to it being used. Some of these rights can be limited when information is used for research in the public interest, for example once it has been made anonymous; if so, we will explain why. To use any of them, email <a href="mailto:brainpop@leeds.ac.uk">brainpop@leeds.ac.uk</a> or the University’s data protection team at <a href="mailto:dpo@leeds.ac.uk">dpo@leeds.ac.uk</a>.</li>
@@ -224,8 +223,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
       <ul class="info-checklist">
         <li><strong>On the day:</strong> your child can stop at any time. They just tell a researcher or their teacher.</li>
         <li><strong>Afterwards:</strong> email <a href="mailto:S.A.Ali1@leeds.ac.uk">S.A.Ali1@leeds.ac.uk</a>, quoting the reference from the online form if you have one. You can withdraw everything, or just the screenshots or your answers.</li>
-        <li><strong>How much can be removed:</strong> ask within one month of the workshop and we can remove all of your child’s information. After that, information that has been made anonymous, or already used in analyses, may no longer be removable; we remove everything we still can. Opting out after the workshop withdraws your child’s information, including from linking, in the same way.</li>
-        <li><strong>Records already linked:</strong> if you withdraw after your child’s records have been linked, your child is excluded from all future linkage: their details are not sent for matching again and no new records are linked. Linked information already used in analyses cannot be taken out of results already produced, which are about groups and never identify anyone; we ask for the rest of your child’s linked information to be removed wherever that is still possible.</li>
+        <li><strong>How much can be removed:</strong> ask within one month of the workshop and we can remove all of your child’s information. After that, information that has been made anonymous, or already used in analyses, may no longer be removable; we remove everything we still can. Opting out after the workshop withdraws your child’s information in the same way.</li>
         <li>None of this affects your child’s education or their relationship with school.</li>
       </ul>
     </div>
@@ -243,7 +241,7 @@ page_intro: "You’re reading this because your child’s school is taking part 
         <li><strong>Out of the workshop and the study:</strong> your child does something else at school while their class does the workshop, and none of their information is used.</li>
         <li><strong>In the workshop, information not used:</strong> your child joins in with their class as normal, but nothing recorded about them in the workshop is kept or used for the study.</li>
       </ul>
-      <p>Either way, nothing about your child is linked with their education or health records. The <a href="{{ '/take-part/consent/?optout=1' | relative_url }}">opt-out page</a> first explains what your child would miss, asks which you would like, then writes the email with you. Please let us know before the workshop. If your message arrives after it, we withdraw your child’s information too, as far as is still possible. Opting out will not affect your child’s education or their relationship with school.</p>
+      <p>Either way, we will not contact you about linking your child’s information with their records. The <a href="{{ '/take-part/consent/?optout=1' | relative_url }}">opt-out page</a> first explains what your child would miss, asks which you would like, then writes the email with you. Please let us know before the workshop. If your message arrives after it, we withdraw your child’s information too, as far as is still possible. Opting out will not affect your child’s education or their relationship with school.</p>
     </div>
     <div class="prose">
       <h3>Why the workshop is opt-out</h3>
