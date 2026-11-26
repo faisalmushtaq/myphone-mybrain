@@ -72,7 +72,8 @@ const labConsentFormV2_1: { id: string; version: string; title: string; statemen
   ],
 };
 
-export const labConsentForm: { id: string; version: string; title: string; statements: LabStatement[] } = {
+/** Version 2.2 (27 October 2026), kept so that a page loaded before 26 November 2026 can still be sent. */
+const labConsentFormV2_2: { id: string; version: string; title: string; statements: LabStatement[] } = {
   id: 'mpmb-lab-consent',
   // 2.2 (27 October 2026): the amended wording for the ethics amendment: weekly check-ins, MyStory and the AI interviewer,
   // daily texts, open EEG sharing. 2.1-draft is still accepted from pages loaded before the change (labEarlierConsentForms).
@@ -137,6 +138,80 @@ export const labConsentForm: { id: string; version: string; title: string; state
   ],
 };
 
+export const labConsentForm: { id: string; version: string; title: string; statements: LabStatement[] } = {
+  id: 'mpmb-lab-consent',
+  // 2.2 (27 October 2026): the amended wording for the ethics amendment: weekly check-ins, MyStory and the AI interviewer,
+  // daily texts, open EEG sharing. 2.1-draft is still accepted from pages loaded before the change (labEarlierConsentForms).
+  // 2.3 (26 November 2026, the PI): linkage with Connected West Yorkshire is not asked for now. The optional "link-records" statement is
+  // replaced by one that says so ("no-linking-now", required) and an optional choice: may the team contact them in future to ask.
+  version: '2.3',
+  title: 'Participant consent form',
+  statements: [
+    { id: 'read-information', version: '1.0', kind: 'required', label: 'Read the information', text: 'I confirm that I have read and understood the Participant Information Sheet.' },
+    {
+      id: 'involves',
+      version: '2.2',
+      kind: 'required',
+      label: 'What taking part involves',
+      text: 'I understand that participation in this study involves: two laboratory sessions; a 30-day social media break using Brick to restrict agreed apps; completion of questionnaires and computer-based tasks, and short weekly check-ins during the break (on days 8, 15, 22 and 29), each with a screen-time screenshot; sharing my smartphone and social media usage data, which I download, review and clean myself, together with screen-time screenshots; taking part in MyStory, a short conversation with an AI chatbot, before, during and after the break; and receiving a short text message each day during the break.',
+    },
+    { id: 'voluntary', version: '1.0', kind: 'required', label: 'Voluntary', text: 'I understand that participation is voluntary and that I may withdraw at any time without giving a reason.' },
+    {
+      id: 'data-kept',
+      version: '1.0',
+      kind: 'required',
+      label: 'What I send is kept unless I withdraw',
+      text: 'I understand that everything I send, including screen-time screenshots, cleaned data files and questionnaire answers, is kept and may be used in the research, including analysis using machine learning (computers finding patterns in data), if I stop before the end of the study. To have it removed, I can ask the research team to withdraw it within one month of my final session.',
+    },
+    {
+      id: 'donation-required',
+      version: '2.0',
+      kind: 'required',
+      label: 'Sharing usage data is part of the study',
+      text: 'I understand that sharing the required usage information is a necessary part of taking part in this study.',
+    },
+    {
+      id: 'mystory-ai',
+      version: '1.0',
+      kind: 'required',
+      label: 'MyStory and the AI chatbot',
+      text: 'I understand that MyStory, which forms part of the study at each stage, is a conversation with Remi, an AI chatbot, and that the words I type or say are sent to the AI service OpenAI, which processes them within the European Economic Area and acts for the University under its data processing terms, to produce Remi’s replies. My name and participant ID stay within the study, OpenAI is asked not to store the conversation and may hold it for up to 30 days, and if I mention that I am struggling, Remi will give me support contacts and the research team will review the conversation.',
+    },
+    {
+      id: 'mystory-kept',
+      version: '1.0',
+      kind: 'required',
+      label: 'My MyStory conversations are kept',
+      text: 'I understand that my MyStory conversations, including recordings if I choose to speak my answers, are stored securely and may be analysed, including with machine learning (computers finding patterns in data).',
+    },
+    { id: 'publication', version: '1.0', kind: 'required', label: 'Publication', text: 'I understand that anonymised results from this research may be published in academic journals, conference presentations, reports, or academic theses.' },
+    {
+      id: 'open-data',
+      version: '1.0',
+      kind: 'required',
+      label: 'Open EEG data and approved access',
+      text: 'I understand that fully anonymised EEG data will be shared openly through research platforms such as G-Node, EEGNet and OpenNeuro, and that study data will be available to approved researchers through the Born in Bradford Executive.',
+    },
+    { id: 'data-protection', version: '1.0', kind: 'required', label: 'Data protection', text: 'I understand that my data will be stored securely and handled in accordance with UK data protection legislation.' },
+    {
+      id: 'no-linking-now',
+      version: '1.0',
+      kind: 'required',
+      label: 'Linking with records: not now',
+      text: 'I understand that I am not being asked to agree to my study information being linked with my health or education records through Connected West Yorkshire, and that nothing is linked now. The research team intends to contact me about this in future, and nothing will be linked unless I agree then.',
+    },
+    {
+      id: 'recontact-linkage',
+      version: '1.0',
+      kind: 'optional',
+      label: 'Contact about linking in future',
+      text: 'I am happy for the research team to contact me in future to ask whether my study information can be linked, through Connected West Yorkshire, with records already held about me, such as NHS health records and education records.',
+      note: 'Optional. We are not asking for permission for this linking now. Saying yes only means we may contact you to explain it and ask; it does not mean you agree to it, and nothing is linked unless you agree then.',
+    },
+    { id: 'take-part', version: '1.0', kind: 'required', label: 'Agree to take part', text: 'I voluntarily agree to take part in the MyPhone/MyBrain intervention study.' },
+  ],
+};
+
 export interface LabInfoSection {
   id: string;
   title: string;
@@ -147,12 +222,13 @@ export interface LabInfoSection {
 
 /**
  * 2.3 (27 October 2026): the amended sheet for the ethics amendment (weekly check-ins, MyStory and the AI interviewer, daily
- * texts, visits, storage, linkage and open data). 2.2 (the sheet of 21 February 2026, ages 18 to 24) is still accepted from
+ * texts, visits, storage, linkage and open data). 2.5 (26 November 2026): linkage is not asked for now. 2.2 (the sheet of 21 February 2026, ages 18 to 24) is still accepted from
  * pages loaded before the change. Consents record the version they were shown.
  */
-export const labInformationVersion = { version: '2.4', label: 'Participant information sheet, version 2.4 (November 2026)' };
+// 2.5 (26 November 2026): linkage with Connected West Yorkshire is not asked for now; the team intends to contact participants about it in future.
+export const labInformationVersion = { version: '2.5', label: 'Participant information sheet, version 2.5 (November 2026)' };
 /** Earlier versions the server still accepts with a consent, for anyone who loaded the page before an update. */
-export const labEarlierInformationVersions = { break: ['2.3', '2.2'], control: ['2.3-control', '2.2-control'] };
+export const labEarlierInformationVersions = { break: ['2.4', '2.3', '2.2'], control: ['2.4-control', '2.3-control', '2.2-control'] };
 
 export const labInformation: LabInfoSection[] = [
   {
@@ -290,9 +366,9 @@ export const labInformation: LabInfoSection[] = [
     detail: [
       'The University of Leeds acts as the Data Controller for this research. Identifiable information will be stored separately from research data. Data will be labelled using a study ID code rather than your name. Results will be analysed, including with machine learning (computers finding patterns in data), and reported anonymously at the group level. Anonymised findings may be published in academic journals, conference presentations, reports, or academic theses.',
       'We keep your first name, last name, date of birth and postcode, from which your participant ID is made so that you can return on any device, together with your mobile number, email address and consent, separately from the research data. Your screenshots, cleaned data files, answers, MyStory conversations and laboratory recordings are labelled with your participant ID. Information given online is stored on the study’s secure system (Google Firebase, London) and copied every hour to restricted University of Leeds storage in the lead researcher’s University OneDrive. Text messages are sent through Twilio and emails from the study’s Gmail account (brainpopresearch@gmail.com). Questionnaires at the laboratory visits are completed using MySelf, the research team’s own survey app: answers are encrypted on the device as they are given and stored on secure servers in London, with names kept separately from answers. Data are kept for up to 10 years after the project ends.',
-      'If you agree, your study information may also be linked through Connected West Yorkshire with records already held about you, including NHS health records, education records (including those held by the Department for Education) and other routinely collected records. This part is optional. Linking takes place once the necessary approvals are in place, including the study’s ethics approval, NHS Research Ethics Committee approval for NHS records, permission from each record holder and Connected West Yorkshire’s data access process. It is carried out within a secure research environment, and linked information is labelled with your participant ID.',
-      'Fully anonymised EEG data will be shared openly through research platforms such as G-Node, EEGNet and OpenNeuro so that other researchers can use them. Study data will also be available to approved researchers through the Born in Bradford Executive and listed in the Born in Bradford data dictionary. Linked education and health data stay within Connected West Yorkshire’s secure research environment.',
-      'You may request removal of your identifiable research data within one month after your final session. Your identifiers are kept separately from the research data, as they are needed for linkage. After this period, or once data have been anonymised or used in analyses, withdrawal may no longer be complete, and we will remove everything we still can.',
+      'Linking with records: not now. We are not asking you to agree to your study information being linked with records already held about you (such as NHS health records and education records) through Connected West Yorkshire, and nothing is linked now. In future the research team intends to contact you to explain it and ask whether you agree; nothing will be linked unless you do. On the consent form you can say whether you are happy for us to contact you about it.',
+      'Fully anonymised EEG data will be shared openly through research platforms such as G-Node, EEGNet and OpenNeuro so that other researchers can use them. Study data will also be available to approved researchers through the Born in Bradford Executive and listed in the Born in Bradford data dictionary. If linking goes ahead in future with your agreement, linked education and health data would stay within Connected West Yorkshire’s secure research environment.',
+      'You may request removal of your identifiable research data within one month after your final session. Your identifiers are kept separately from the research data, as they are needed to run the study and to contact you. After this period, or once data have been anonymised or used in analyses, withdrawal may no longer be complete, and we will remove everything we still can.',
       'The University Research Participant Privacy Notice is available from the University of Leeds. This study has received ethical approval from the University of Leeds School of Psychology Research Ethics Committee (ethics reference SoPREC - 2026 4202-7027).',
     ],
   },
@@ -517,9 +593,25 @@ const labConsentFormControlV1_1: typeof labConsentForm = {
 };
 
 /** 1.2 (27 October 2026): the break group's 2.2 statements, with the control group's own description of taking part. */
-export const labConsentFormControl: typeof labConsentForm = {
+const labConsentFormControlV1_2: typeof labConsentForm = {
   id: 'mpmb-lab-consent-control',
   version: '1.2',
+  title: labConsentFormV2_2.title,
+  statements: labConsentFormV2_2.statements.map((s) =>
+    s.id === 'involves'
+      ? {
+          ...s,
+          version: '1.2-control',
+          text: 'I understand that participation in this study involves: two laboratory sessions about 30 days apart, between which I use my phone and social media as I normally would; completion of questionnaires and computer-based tasks; sharing my smartphone and social media usage data, which I download, review and clean myself, together with screen-time screenshots; and the MyStory interview, before the first visit and at the end of the 30 days.',
+        }
+      : s,
+  ),
+};
+
+export const labConsentFormControl: typeof labConsentForm = {
+  id: 'mpmb-lab-consent-control',
+  // 1.3 (26 November 2026): the break group's 2.3 statements (linkage not asked for now).
+  version: '1.3',
   title: labConsentForm.title,
   statements: labConsentForm.statements.map((s) =>
     s.id === 'involves'
@@ -533,9 +625,9 @@ export const labConsentFormControl: typeof labConsentForm = {
 };
 
 /** Earlier consent forms the server still accepts, for anyone who loaded the page before an update. */
-export const labEarlierConsentForms = { break: [labConsentFormV2_1], control: [labConsentFormControlV1_1] };
+export const labEarlierConsentForms = { break: [labConsentFormV2_2, labConsentFormV2_1], control: [labConsentFormControlV1_2, labConsentFormControlV1_1] };
 
-export const labInformationVersionControl = { version: '2.4-control', label: 'Participant information sheet, version 2.4 (November 2026), for the control group' };
+export const labInformationVersionControl = { version: '2.5-control', label: 'Participant information sheet, version 2.5 (November 2026), for the control group' };
 
 const controlSections: Record<string, Partial<LabInfoSection>> = {
   purpose: {

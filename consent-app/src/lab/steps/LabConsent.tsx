@@ -53,7 +53,7 @@ export function LabConsent() {
   };
 
   return (
-    <LabShell kicker="Your consent" title="Your consent to take part." intro={<p>Tick each statement to confirm it, answer the Yes or No question, then sign. The ticked statements are all needed to take part; record linking is your choice. Participant ID <strong className="mpmb-mono">{state.code}</strong>.</p>} errors={errors} onContinue={() => void next()} continueLabel="Confirm and sign" continueLoading={busy} width="wide">
+    <LabShell kicker="Your consent" title="Your consent to take part." intro={<p>Tick each statement to confirm it, answer the Yes or No question, then sign. The ticked statements are all needed to take part; the Yes or No question, about contacting you in future about record linking, is your choice. Participant ID <strong className="mpmb-mono">{state.code}</strong>.</p>} errors={errors} onContinue={() => void next()} continueLabel="Confirm and sign" continueLoading={busy} width="wide">
       {submission.consentStage === 'failed' && submission.consentError && (
         <Callout tone="important" role="alert">
           <p>{submission.consentError}</p>

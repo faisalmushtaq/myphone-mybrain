@@ -56,12 +56,16 @@ test('a complete lab consent is accepted; missing statements, old versions, bad 
   const declined = consent();
   declined.consent.responses['publication'].response = 'declined';
   assert.ok(validateLabConsentPayload(declined).some((p) => p.includes('"publication" was not agreed')));
-  const noLinking = consent();
-  noLinking.consent.responses['link-records'].response = 'declined';
-  assert.deepEqual(validateLabConsentPayload(noLinking), [], 'saying no to record linking is fine');
+  // 2.3 (26 November 2026): linkage is not asked for now; the choice is whether we may contact them about it in future.
+  const noContact = consent();
+  noContact.consent.responses['recontact-linkage'].response = 'declined';
+  assert.deepEqual(validateLabConsentPayload(noContact), [], 'saying no to being contacted about linking is fine');
   const unanswered = consent();
-  delete unanswered.consent.responses['link-records'];
-  assert.ok(validateLabConsentPayload(unanswered).some((p) => p.includes('"link-records" was not answered')));
+  delete unanswered.consent.responses['recontact-linkage'];
+  assert.ok(validateLabConsentPayload(unanswered).some((p) => p.includes('"recontact-linkage" was not answered')));
+  const notRead = consent();
+  delete notRead.consent.responses['no-linking-now'];
+  assert.ok(validateLabConsentPayload(notRead).some((p) => p.includes('"no-linking-now" was not agreed')), 'the statement that linkage is not asked for now must be ticked');
   const old = consent();
   old.consent.formVersion = '0.1';
   assert.ok(validateLabConsentPayload(old).some((p) => p.includes('consent form must be')));
@@ -262,15 +266,20 @@ test('the control group (21 October 2026): its own consent form and information 
   assert.ok(labCheckInFormControl.questions.every((q) => !/break|Brick/.test(`${q.text} ${q.label}`)));
 });
 
-test('consent 2.2 and 1.2 (27 October 2026): the AI statement is required; the earlier forms are still accepted', () => {
-  assert.equal(labConsentForm.version, '2.2');
-  assert.equal(labConsentFormControl.version, '1.2');
+test('consent 2.3 and 1.3 (26 November 2026, after 2.2 and 1.2): the AI statement is required; the earlier forms are still accepted', () => {
+  assert.equal(labConsentForm.version, '2.3');
+  assert.equal(labConsentFormControl.version, '1.3');
   for (const form of [labConsentForm, labConsentFormControl]) {
     assert.ok(form.statements.some((s) => s.id === 'mystory-ai' && s.kind === 'required'), `${form.id} has the AI statement`);
   }
   assert.match(statementWording[labConsentForm.id]['mystory-ai'].text, /OpenAI.*European Economic Area/);
   // A page loaded before the change: the break group's 2.1-draft with information 2.2.
-  const old = labEarlierConsentForms.break[0];
+  const old = labEarlierConsentForms.break.find((f) => f.version === '2.1-draft')!;
+  // 2.2, with the optional linkage question answered, from a page loaded before 26 November 2026.
+  const v22 = labEarlierConsentForms.break.find((f) => f.version === '2.2')!;
+  assert.ok(v22.statements.some((s) => s.id === 'link-records') && !labConsentForm.statements.some((s) => s.id === 'link-records'), 'linkage is not asked for on the current form');
+  const v22Agreed = Object.fromEntries(v22.statements.map((s) => [s.id, { statementId: s.id, version: s.version, response: 'agreed', respondedAt: now, via: 'individual' }]));
+  assert.deepEqual(validateLabConsentPayload({ ...consent(), consent: { ...consent().consent, formVersion: '2.2', informationVersion: '2.4', responses: v22Agreed } }), []);
   const oldAgreed = Object.fromEntries(old.statements.map((s) => [s.id, { statementId: s.id, version: s.version, response: 'agreed', respondedAt: now, via: 'individual' }]));
   const before = { ...consent(), consent: { ...consent().consent, formVersion: old.version, informationVersion: '2.2', responses: oldAgreed } };
   assert.deepEqual(validateLabConsentPayload(before), []);
